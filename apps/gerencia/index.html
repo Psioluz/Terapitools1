@@ -259,7 +259,8 @@ select.fsel{
 </style>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png" type="image/png">
-
+<script src="js/neutralino.js"></script>
+<script>try{Neutralino.init();Neutralino.events.on("windowClose",function(){Neutralino.app.exit();});}catch(e){console.log("no neutralino")}</script>
 </head>
 <body>
 <script>
@@ -2360,47 +2361,9 @@ function goTab(id,btn){
 }
 
 // ── PWA ───────────────────────────────────────────────────────────────────────
+// (El manifest.json y sw.js reales, con el ícono "G" de Psicoluz, se
+// registran más abajo — ver bloque "PWA: instalar aplicación".)
 (function(){
-  // Manifest
-  var logoSrc = document.getElementById('loginLogo')?.src || '';
-  var manifest = {
-    name: 'Psicoluz Gerencia',
-    short_name: 'Gerencia',
-    description: 'Panel de Indicadores — Psicoluz',
-    start_url: './',
-    display: 'standalone',
-    orientation: 'portrait-primary',
-    background_color: '#001919',
-    theme_color: '#001919',
-    icons: [
-      {src: logoSrc, sizes: '192x192', type: 'image/png', purpose: 'any maskable'},
-      {src: logoSrc, sizes: '512x512', type: 'image/png', purpose: 'any maskable'}
-    ]
-  };
-  try{
-    var json=JSON.stringify(manifest);
-    var b64=btoa(unescape(encodeURIComponent(json)));
-    let link=document.getElementById('pwaManifest');
-    if(!link){link=document.createElement('link');link.rel='manifest';link.id='pwaManifest';document.head.appendChild(link);}
-    link.href='data:application/manifest+json;base64,'+b64;
-  }catch(e){}
-
-  // Service Worker
-  if('serviceWorker' in navigator){
-    var sw = `
-var CACHE='psicoluz-v4-ger';
-self.addEventListener('install',e=>{self.skipWaiting();});
-self.addEventListener('activate',e=>{self.clients.claim();});
-self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET')return;
-  e.respondWith(fetch(e.request,{cache:'no-store'}).catch(()=>caches.match(e.request)));
-});`;
-    try{
-      var u=URL.createObjectURL(new Blob([sw],{type:'text/javascript'}));
-      navigator.serviceWorker.register(u,{scope:'./'}).catch(()=>{});
-    }catch(e){}
-  }
-
 
   // ── Botón instalar (compatible con Android, iOS, Samsung) ──
   let _deferredPrompt = null;
