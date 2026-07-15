@@ -696,7 +696,7 @@ function _diasTrabajoANum(txt){
                 fin:_fH(p.hora_fin)||'19:15',
                 diasSemana:_diasTrabajoANum(p.dias_trabajo),
                 fechaNac:p.fecha_nac||'',tel:p.telefono||'',
-                cuenta:p.cuenta_bancaria||'',cci:p.cuenta_interbancaria||'',
+                cuenta:p.numero_cuenta||'',cci:p.cci||'',
                 sueldo:p.sueldo||0,fotoUrl:p.foto_url||'',foto:p.foto_url||'',
               fechaIngreso:p.fecha_ingreso||'',diaEspecial:p.dia_completo||'Lunes'};
             }),
@@ -724,7 +724,7 @@ function _diasTrabajoANum(txt){
               fin:_fH(p.hora_fin)||'19:15',
               diasSemana:_diasTrabajoANum(p.dias_trabajo),
               fechaNac:p.fecha_nac||'',tel:p.telefono||'',
-              cuenta:p.cuenta_bancaria||'',cci:p.cuenta_interbancaria||'',
+              cuenta:p.numero_cuenta||'',cci:p.cci||'',
               sueldo:p.sueldo||0,fotoUrl:p.foto_url||''};
             return _jr({status:'ok',psicologa:ps,usuario:ps});
           }
@@ -3588,7 +3588,7 @@ async function renderMetas(){
       else elBM.innerHTML=bm.map(function(b){
         return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#fdf2f8;border-radius:10px;margin-bottom:6px">'
           +'<div><div style="font-size:12px;font-weight:700">'+(b.motivo||'Bono')+'</div><div style="font-size:10px;color:var(--muted)">Estado: '+(b.estado||'pendiente')+'</div></div>'
-          +'<div style="font-size:14px;font-weight:900;color:var(--acc)">S/'+(b.monto_bono||0)+'</div></div>';
+          +'<div style="font-size:14px;font-weight:900;color:var(--acc)">S/'+(b.monto||b.monto_bono||0)+'</div></div>';
       }).join('');
     }
   }catch(e){console.error('[metas bm]',e);}

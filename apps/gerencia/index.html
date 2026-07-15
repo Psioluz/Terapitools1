@@ -980,7 +980,7 @@ function _diasTrabajoANum(txt){
                 fin:_fH(p.hora_fin)||'19:15',
                 diasSemana:_diasTrabajoANum(p.dias_trabajo),
                 fechaNac:p.fecha_nac||'',tel:p.telefono||'',diaEspecial:p.dia_completo||'',
-                cuenta:p.cuenta_bancaria||'',cci:p.cuenta_interbancaria||'',
+                cuenta:p.numero_cuenta||'',cci:p.cci||'',
                 sueldo:p.sueldo||0,fotoUrl:p.foto_url||'',rol:'psicologa'};
             }),
             recepcionistas:recs.map(function(p){
@@ -1016,7 +1016,7 @@ function _diasTrabajoANum(txt){
               fin:_fH(p.hora_fin)||'19:15',
               diasSemana:_diasTrabajoANum(p.dias_trabajo),
               fechaNac:p.fecha_nac||'',tel:p.telefono||'',diaEspecial:p.dia_completo||'',
-              cuenta:p.cuenta_bancaria||'',cci:p.cuenta_interbancaria||'',
+              cuenta:p.numero_cuenta||'',cci:p.cci||'',
               sueldo:p.sueldo||0,fotoUrl:p.foto_url||''};
             return _jr({status:'ok',psicologa:ps,usuario:ps});
           }
