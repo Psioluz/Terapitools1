@@ -506,8 +506,7 @@ select.fsel{
 <!-- ════════ PERSONAL ════════ -->
 <div class="page" id="tPersonal">
   <div class="card" style="margin-bottom:14px">
-    <div class="ch"><div class="ct">🎯 Metas del Mes por Psicóloga</div>
-      <button class="btn btn-sm" style="background:#eef2ff;color:#4338ca" onclick="renderMetasPsicologas()">🔄</button></div>
+    <div class="ch"><div class="ct">🎯 Metas del Mes por Psicóloga</div></div>
     <div class="cb" id="metasPsiContent"></div>
   </div>
 
@@ -962,7 +961,7 @@ function sbar(on){
               return {id:s.id,fecha:s.fecha,hora:_fH(s.hora),sede:s.sede||'',
                 pacNombre:s.paciente_nombre||'—',pacTel:s.paciente_tel||'',
                 psNombre:s.psicologa||'—',terNombre:s.terapia||'—',
-                estado:s.estado||'programado',tipo:'sesion',
+                estado:s.estado||'programado',tipo:s.tipo||'sesion',
                 nroEnPaq:s.nro_en_paquete||0,totalPaq:s.total_paquete||1,
                 costoTotal:s.costo_total||0,saldo:s.saldo||0,
                 emailRegistro:s.email_registro||''};
@@ -1504,8 +1503,8 @@ function renderCrecimiento(){
   var sesPrev = G.sesiones.filter(s=>s.fecha&&s.fecha.startsWith(mesPrev)&&(!filtSede||(s.sede||s._sede||'')===filtSede));
   var pagMes  = filtPagos(G.pagosLocal).filter(p=>p.fecha&&p.fecha.startsWith(mes));
   var pagPrev = G.pagosLocal.filter(p=>p.fecha&&p.fecha.startsWith(mesPrev)&&(!filtSede||(p._sede||'')===filtSede));
-  var ingMes  = Math.max(sesMes.filter(s=>s.estado==='asistio').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0),pagMes.reduce((a,p)=>a+(p.monto||0),0));
-  var ingPrev = Math.max(sesPrev.filter(s=>s.estado==='asistio').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0),pagPrev.reduce((a,p)=>a+(p.monto||0),0));
+  var ingMes  = Math.max(sesMes.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0),pagMes.reduce((a,p)=>a+(p.monto||0),0));
+  var ingPrev = Math.max(sesPrev.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0),pagPrev.reduce((a,p)=>a+(p.monto||0),0));
   var gasMes  = filtGas(G.gastos).filter(g=>g.fecha&&g.fecha.startsWith(mes)&&g.tipo!=='ingreso').reduce((a,g)=>a+(g.monto||0),0);
   var gasPrev = G.gastos.filter(g=>g.fecha&&g.fecha.startsWith(mesPrev)&&g.tipo!=='ingreso'&&(!filtSede||(g.sede||'')===filtSede)).reduce((a,g)=>a+(g.monto||0),0);
 
@@ -1517,7 +1516,7 @@ function renderCrecimiento(){
   var forecast=pctMesPasado>0?Math.round(ingMes/pctMesPasado):ingMes;
   var confianza=pctMesPasado>=0.8?'Alta 🟢':pctMesPasado>=0.5?'Media 🟡':'Baja 🔴';
   var sesAgend=sesMes.length;
-  var sesComp=sesMes.filter(s=>s.estado==='asistio').length;
+  var sesComp=sesMes.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   var ticket=sesComp>0?Math.round(ingMes/sesComp):0;
   setText('fcForecast','S/ '+forecast.toLocaleString());
   setText('fcForecastSub',fmtM(mes)+' · '+Math.round(pctMesPasado*100)+'% del mes transcurrido');
@@ -1549,7 +1548,7 @@ function renderCrecimiento(){
     semaforo(ingMes,ingPrev,true,'💰 Ingresos',fS)+
     semaforo(sesMes.length,sesPrev.length,true,'📅 Sesiones',fN)+
     semaforo(sesMes.length>0?pct(sesComp,sesMes.length):0,
-      sesPrev.length>0?pct(sesPrev.filter(s=>s.estado==='asistio').length,sesPrev.length):0,true,'✅ Asistencia',fP)+
+      sesPrev.length>0?pct(sesPrev.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length,sesPrev.length):0,true,'✅ Asistencia',fP)+
     semaforo(gasMes,gasPrev,false,'📤 Gastos',fS)+
     semaforo(ingMes-gasMes,ingPrev-gasPrev,true,'💵 Margen Neto',fS);
   setText('semaforoKPIs','');
@@ -1575,7 +1574,7 @@ function renderCrecimiento(){
   // ── LTV ──────────────────────────────────────────────────────
   var ltv=pacs.reduce((a,p)=>{
     var sesPac=G.sesiones.filter(s=>s.pacNombre===p.nombre||s.pacId===p.id);
-    var totalGen=sesPac.filter(s=>s.estado==='asistio').reduce((x,s)=>x+(s.costoTotal||0)-(s.saldo||0),0);
+    var totalGen=sesPac.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((x,s)=>x+(s.costoTotal||0)-(s.saldo||0),0);
     return a+totalGen;
   },0);
   setText('crLTV','S/'+(pacs.length>0?Math.round(ltv/pacs.length):0).toLocaleString());
@@ -1739,7 +1738,7 @@ function renderFinanzas(){
   var pacs   = filtPac(G.pacientes);
 
   // Ingresos de sesiones asistidas (costo - saldo = pagado)
-  var ingSes = ses.filter(s=>s.estado==='asistio').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0);
+  var ingSes = ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0);
   var ingPagos = pagos.reduce((a,p)=>a+(p.monto||0),0);
   var ingresos = Math.max(ingSes, ingPagos); // usar el mayor
 
@@ -1762,11 +1761,11 @@ function renderFinanzas(){
   setText('fPeriodoLbl', periodStr);
 
   // KPIs
-  var asistPct = ses.length?pct(ses.filter(s=>s.estado==='asistio').length,ses.length):0;
+  var asistPct = ses.length?pct(ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length,ses.length):0;
   var conPaq   = pacs.filter(p=>p.mod==='paquete'&&p.paq>0).length;
   var saldoTot = pacs.reduce((a,p)=>a+(p.saldo||0),0);
-  var tickProm = ses.filter(s=>s.estado==='asistio').length>0
-    ? Math.round(ingresos/ses.filter(s=>s.estado==='asistio').length) : 0;
+  var tickProm = ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length>0
+    ? Math.round(ingresos/ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length) : 0;
 
   setText('kSesTotal', ses.length);
   setText('kSesAsist', '✅ '+asistPct+'% asistencia');
@@ -1780,7 +1779,7 @@ function renderFinanzas(){
   var sedes = getSedes();
   var sedesData = sedes.map(sd=>{
     var sesSd=ses.filter(s=>(s.sede||s._sede||'')===sd);
-    var ing=sesSd.filter(s=>s.estado==='asistio').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0);
+    var ing=sesSd.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0);
     var pagSd=pagos.filter(p=>p._sede===sd).reduce((a,p)=>a+(p.monto||0),0);
     return{label:sd, val:Math.max(ing,pagSd)};
   }).filter(x=>x.val>0).sort((a,b)=>b.val-a.val);
@@ -1794,7 +1793,7 @@ function renderFinanzas(){
     var d=new Date(now.getFullYear(),now.getMonth()-i,1);
     var ym=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
     var sesMes=G.sesiones.filter(s=>s.fecha&&s.fecha.startsWith(ym)&&(!getFiltSede()||(s.sede||s._sede||'')===getFiltSede()));
-    var ingMes=sesMes.filter(s=>s.estado==='asistio').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0);
+    var ingMes=sesMes.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0);
     var pagMes=G.pagosLocal.filter(p=>p.fecha&&p.fecha.startsWith(ym)&&(!getFiltSede()||(p._sede||'')===getFiltSede())).reduce((a,p)=>a+(p.monto||0),0);
     meses6.push({label:MESES[d.getMonth()], val:Math.max(ingMes,pagMes)});
   }
@@ -1910,9 +1909,9 @@ function renderPersonal(){
 
   // Productividad (sesiones por psicóloga en el período)
   var prodData=G.psicologas.map(ps=>{
-    var sesPsic=ses.filter(s=>(s.psNombre||'')===ps.nombre);
+    var sesPsic=ses.filter(s=>(s.psNombre||'')===ps.nombre&&s.tipo!=='consulta');
     return{label:(ps.nombre||'—').replace('Lic.','').trim(), val:sesPsic.length,
-      asist:sesPsic.filter(s=>s.estado==='asistio').length};
+      asist:sesPsic.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length};
   }).filter(x=>x.val>0).sort((a,b)=>b.val-a.val);
   renderBarChart('chartProductividad', prodData, '', '#7c3aed', true);
 
@@ -1923,14 +1922,14 @@ function renderPersonal(){
   var psActivas=(psList.length?psList:G.psicologas).filter(p=>p.estado!=='cesada');
   var psCesadas=(psList.length?psList:G.psicologas).filter(p=>p.estado==='cesada');
   el.innerHTML=psActivas.map((ps,idx)=>{
-    var sesPsic=ses.filter(s=>(s.psNombre||'')===ps.nombre);
-    var asist=sesPsic.filter(s=>s.estado==='asistio').length;
+    var sesPsic=ses.filter(s=>(s.psNombre||'')===ps.nombre&&s.tipo!=='consulta');
+    var asist=sesPsic.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
     var noPac=sesPsic.filter(s=>s.estado==='noasistio').length;
     var numPacs=new Set(sesPsic.map(s=>s.pacNombre)).size;
     var honPs=G.honorarios.filter(h=>h.nombre===ps.nombre&&h.mes===mesActual());
     var sueldoPs=honPs.reduce((a,h)=>a+(h.neto||h.montoBase||0),0);
     var asistHoyPs=asistHoy.find(a=>a.nombre===ps.nombre);
-    var ing=sesPsic.filter(s=>s.estado==='asistio').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0);
+    var ing=sesPsic.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0);
     var ingresoSesiones=G.pagosLocal.filter(p=>(p.psId||0)===ps.id).reduce((a,p)=>a+(p.monto||0),0);
     var ingFinal=Math.max(ing,ingresoSesiones);
 
@@ -2031,8 +2030,8 @@ function abrirDetallePersonal(nombre,tipo){
   var body=document.getElementById('detallePersonalBody');
   if(tipo==='psicologa'){
     var ps=G.psicologas.find(function(p){return p.nombre===nombre;})||{};
-    var ses=G.sesiones.filter(function(s){return (s.psNombre||'')===nombre;});
-    var asist=ses.filter(function(s){return s.estado==='asistio';}).length;
+    var ses=G.sesiones.filter(function(s){return (s.psNombre||'')===nombre&&s.tipo!=='consulta';});
+    var asist=ses.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
     var noAs=ses.filter(function(s){return s.estado==='noasistio';}).length;
     var pacs=new Set(ses.map(function(s){return s.pacNombre;})).size;
     var hon=G.honorarios.filter(function(h){return h.nombre===nombre&&h.mes===mesActual();});
@@ -2081,7 +2080,7 @@ function renderSedes(){
       var pacSd=pacs.filter(p=>(p.sede||p._sede||'')===sd);
       var psSd =G.psicologas.filter(p=>(p.sede||p._sede||'')===sd);
       var ing  =Math.max(
-        sesSd.filter(s=>s.estado==='asistio').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0),
+        sesSd.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0),
         G.pagosLocal.filter(p=>p._sede===sd).reduce((a,p)=>a+(p.monto||0),0));
       var gas  =G.gastos.filter(g=>(g.sede||'')===sd).reduce((a,g)=>a+(g.monto||0),0);
       var neto =ing-gas;
@@ -2112,9 +2111,9 @@ function renderSedes(){
       var sesSd=ses.filter(s=>(s.sede||s._sede||'')===sd);
       var pacSd=pacs.filter(p=>(p.sede||p._sede||'')===sd);
       var psSd =G.psicologas.filter(p=>(p.sede||p._sede||'')===sd);
-      var asistPctSd=sesSd.length?pct(sesSd.filter(s=>s.estado==='asistio').length,sesSd.length):0;
+      var asistPctSd=sesSd.length?pct(sesSd.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length,sesSd.length):0;
       var ing=Math.max(
-        sesSd.filter(s=>s.estado==='asistio').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0),
+        sesSd.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0),
         G.pagosLocal.filter(p=>p._sede===sd).reduce((a,p)=>a+(p.monto||0),0));
       var sedeInfo=G.sedes.find(s=>s.nombre===sd)||{};
       return`<div class="card" style="border-top:4px solid ${COLORES[idx%COLORES.length]}">
@@ -3223,7 +3222,7 @@ async function verDetalleEvento(dia,idx){
     var mes=new Date();
     var desde=mes.getFullYear()+'-'+String(mes.getMonth()+1).padStart(2,'0')+'-01';
     var ses=await accGet('sesiones',{select:'estado,paciente_nombre',psicologa:'eq.'+e.ref,fecha:'gte.'+desde,limit:'2000'});
-    var total=ses.length, asistidas=ses.filter(function(s){return s.estado==='asistio';}).length;
+    var total=ses.length, asistidas=ses.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
     var pct=total?Math.round(asistidas*100/total):0;
     var metaEl=document.getElementById('detalleEvMeta');
     if(metaEl)metaEl.innerHTML=total

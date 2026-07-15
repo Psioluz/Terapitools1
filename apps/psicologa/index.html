@@ -677,7 +677,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
               return {id:s.id,fecha:s.fecha,hora:_fH(s.hora),
                 pacNombre:s.paciente_nombre||'—',pacTel:s.paciente_tel||'',
                 psNombre:s.psicologa||'—',terNombre:s.terapia||'—',
-                estado:s.estado||'programado',tipo:'sesion',
+                estado:s.estado||'programado',tipo:s.tipo||'sesion',
                 nroEnPaq:s.nro_en_paquete||0,totalPaq:s.total_paquete||1,
                 costoTotal:s.costo_total||0,saldo:s.saldo||0,
                 emailRegistro:s.email_registro||''};
@@ -1921,7 +1921,7 @@ function cargarDeLocalStorage(){
   // Pacientes
   PS.pacientes=(db.pacientes||[]).filter(p=>p.psId===psObj.id).map(p=>{
     const ter=(db.terapias||[]).find(t=>t.id===p.terId)||{nombre:''};
-    const sesUsadas=(db.sesiones||[]).filter(s=>s.pacId===p.id&&(s.estado==='asistio'||s.estado==='noasistio')).length;
+    const sesUsadas=(db.sesiones||[]).filter(s=>s.pacId===p.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
     return{id:p.id,nombre:p.nombre||'—',tel:p.tel||'',
       terNombre:ter.nombre||'',mod:p.mod||'sesion',paq:p.paq||0,sesUsadas};
   });
@@ -1980,7 +1980,7 @@ async function sync(mostrar){
           fecha:normF(s.fecha),hora:normHora(s.hora),
           pacNombre:s.pacNombre||'\u2014',pacTel:s.pacTel||'',
           psNombre:s.psNombre||PS.nombre,terNombre:s.terNombre||'\u2014',
-          estado:s.estado||'programado',tipo:'sesion',
+          estado:s.estado||'programado',tipo:s.tipo||'sesion',
           nroEnPaq:0,totalPaq:1,costoTotal:0,saldo:0,
           emailRegistro:s.emailRegistro||''
         };
@@ -2155,7 +2155,7 @@ function renderSemana(){
   var sesSem=PS.sesiones.filter(function(s){return dias.some(function(d){return d.f===s.fecha;});});
   var kpiEl=document.getElementById('semKpi');
   if(kpiEl){
-    var asist=sesSem.filter(function(s){return s.estado==='asistio';}).length;
+    var asist=sesSem.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
     var pend=sesSem.filter(function(s){return s.estado==='programado';}).length;
     kpiEl.innerHTML='<div style="display:flex;gap:8px;padding:8px 0">'
       +'<div style="flex:1;background:#f0fdf4;border-radius:10px;padding:8px;text-align:center">'
@@ -2223,7 +2223,7 @@ function renderClinico(){
   const pac=PS.pacientes.find(p=>p.nombre===pacNom)||{nombre:pacNom};
   const sesiones=PS.sesiones.filter(s=>s.pacNombre===pacNom||s.pacId===pac.id)
     .sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora));
-  const asistCnt=sesiones.filter(s=>s.estado==='asistio').length;
+  const asistCnt=sesiones.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   const pct=pac.paq>0?Math.min(100,Math.round((asistCnt/pac.paq)*100)):0;
 
   // Cargar fichas de seguimiento del Sheet (via caché local actualizable)
@@ -2620,7 +2620,7 @@ function renderHoy(){
   window._fd=[];
   const hoy=today();
   const ses=PS.sesiones.filter(s=>s.fecha===hoy).sort((a,b)=>a.hora.localeCompare(b.hora));
-  const asist=ses.filter(s=>s.estado==='asistio').length;
+  const asist=ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   const noAs=ses.filter(s=>s.estado==='noasistio').length;
   const pend=ses.filter(s=>s.estado==='programado').length;
   [['stTotal',ses.length],['stAsist',asist],['stNoAs',noAs],['stPend',pend]].forEach(([id,v])=>{
@@ -2696,7 +2696,7 @@ function renderPacsPs(){
   }
   el.innerHTML=pacs.map(function(p){
     var sesPac=PS.sesiones.filter(function(s){return s.pacNombre===p.nombre;});
-    var asist=sesPac.filter(function(s){return s.estado==='asistio';}).length;
+    var asist=sesPac.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
     var pct=p.mod==='paquete'&&p.paq>0?Math.min(100,Math.round((asist/p.paq)*100)):0;
     return '<div class="card" style="margin-bottom:8px"><div class="cb">'
       +'<div style="font-size:14px;font-weight:800;margin-bottom:6px">'+p.nombre+'</div>'
@@ -2746,7 +2746,7 @@ function renderListaDocs(todos,el){
 
 function renderPerfil(){
   var tot=PS.sesiones.length;
-  var asist=PS.sesiones.filter(function(s){return s.estado==='asistio';}).length;
+  var asist=PS.sesiones.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
   var pacs=new Set([...PS.pacientes.map(function(p){return p.nombre;}),...PS.sesiones.map(function(s){return s.pacNombre;}).filter(Boolean)]).size;
   [['prTotal',tot],['prAsist',asist],['prPacs',pacs]].forEach(function(pair){
     var el=document.getElementById(pair[0]);if(el)el.textContent=pair[1];
@@ -3025,6 +3025,21 @@ function configurarAlarmasSesiones(){
     var parts=s.hora.split(':');
     var sesionMs=new Date(hoy+'T'+String(parseInt(parts[0])).padStart(2,'0')+':'+String(parseInt(parts[1])).padStart(2,'0')+':00').getTime();
     var alarmaKey=s.fecha+'_'+s.hora+'_'+(s.pacNombre||'');
+
+    // 58 minutos antes
+    var diff58=sesionMs-(58*60*1000)-Date.now();
+    var key58=alarmaKey+'_58';
+    if(diff58>0&&!_alarmasRegistradas.has(key58)){
+      _alarmasRegistradas.add(key58);
+      _alarmaTimers.push(setTimeout(function(){
+        crearToneAlarma('sesion');
+        mostrarNotifToast('⏰','Sesión en 58 min',(s.pacNombre||'')+' · '+s.hora,15000);
+        dispararNotificacionNativa('⏰ Sesión en 58 min — Psicoluz',(s.pacNombre||'')+' a las '+s.hora);
+        if(navigator.vibrate)navigator.vibrate([300,100,300]);
+      },diff58));
+    }
+
+    // 5 minutos antes
     var diff5=sesionMs-(5*60*1000)-Date.now();
     if(diff5>0&&!_alarmasRegistradas.has(alarmaKey)){
       _alarmasRegistradas.add(alarmaKey);
@@ -3034,6 +3049,23 @@ function configurarAlarmasSesiones(){
         dispararNotificacionNativa('⏰ Sesión en 5 min — Psicoluz',(s.pacNombre||'')+' a las '+s.hora);
         if(navigator.vibrate)navigator.vibrate([300,100,300]);
       },diff5));
+    }
+
+    // Aviso si, pasados 15 min de la hora de inicio, la sesión sigue "programado"
+    // (nadie marcó si el paciente asistió)
+    var diffSinMarcar=sesionMs+(15*60*1000)-Date.now();
+    var keySinMarcar=alarmaKey+'_sinmarcar';
+    if(diffSinMarcar>0&&!_alarmasRegistradas.has(keySinMarcar)){
+      _alarmasRegistradas.add(keySinMarcar);
+      _alarmaTimers.push(setTimeout(function(){
+        var actual=(PS.sesiones||[]).find(function(x){return x.fecha===s.fecha&&x.hora===s.hora&&x.pacNombre===s.pacNombre;});
+        if(actual&&actual.estado==='programado'){
+          crearToneAlarma('sesion');
+          mostrarNotifToast('⚠️','Asistencia sin marcar',(s.pacNombre||'')+' · '+s.hora+' — avisa a recepción',20000);
+          dispararNotificacionNativa('⚠️ Asistencia sin marcar — Psicoluz',(s.pacNombre||'')+' ('+s.hora+') sigue como programado');
+          if(navigator.vibrate)navigator.vibrate([200,80,200,80,200]);
+        }
+      },diffSinMarcar));
     }
   });
 }
@@ -3503,8 +3535,9 @@ window.cambiarFoto=function(input){
 async function renderMetas(){
   var mesStr=today().substring(0,7);
   var el=document.getElementById('mtMes');if(el)el.textContent=mesStr;
-  var sesMes=(PS.sesiones||[]).filter(function(x){return (x.fecha||'').substring(0,7)===mesStr;});
-  var asis=sesMes.filter(function(x){return x.estado==='asistio';}).length;
+  // Las consultas sueltas (sin programa asignado por recepción) no cuentan para la meta
+  var sesMes=(PS.sesiones||[]).filter(function(x){return (x.fecha||'').substring(0,7)===mesStr&&x.tipo!=='consulta';});
+  var asis=sesMes.filter(function(x){return x.estado==='asistio'||x.estado==='tardanza';}).length;
   var pct=sesMes.length?Math.round(asis*100/sesMes.length):0;
   var e1=document.getElementById('mtSesiones');if(e1)e1.textContent=sesMes.length;
   var e2=document.getElementById('mtAsistidas');if(e2)e2.textContent=asis;

@@ -301,6 +301,11 @@ tbody td{padding:8px 10px;border-bottom:1px solid var(--border)}
       <div style="padding:12px" id="alertasDash"></div>
     </div>
   </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-header"><div class="card-title">📆 Próximos días</div></div>
+    <div style="padding:12px" id="proximosDiasList"></div>
+  </div>
 </div>
 
 <!-- ═══ AGENDA ═══ -->
@@ -1241,7 +1246,7 @@ function showPage(name,el){
 function renderDashboard(){
   const hoy=today();
   const sesH=DB.sesiones.filter(s=>s.fecha===hoy);
-  const asistH=sesH.filter(s=>s.estado==='asistio').length;
+  const asistH=sesH.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   const cajaH=DB.pagos.filter(p=>p.fecha===hoy).reduce((a,p)=>a+p.monto,0);
   const nAl=contarAlertas();
   [['dashTotal',sesH.length],['dashAsist',asistH],['dashCaja','S/'+cajaH.toLocaleString()],['dashAlertas',nAl]].forEach(([id,v])=>{
@@ -1279,12 +1284,12 @@ function renderDashboard(){
   // Asistencia personal rápida en inicio
   renderAsistPersonalDash();
   renderAlertas();
+  renderProximosDias();
 }
 
 function renderAsistPersonalDash(){
   const hoy=today();
-  const key='psicoluz_asist_'+DB.sede;
-  const lista=JSON.parse(localStorage.getItem(key)||'[]').filter(r=>r.fecha===hoy&&r.sede===DB.sede);
+  const lista=_asistFromSB().filter(r=>r.fecha===hoy);
   const el=document.getElementById('dashAsistPersonal');
   if(!el)return;
   if(!DB.psicologas.length){el.innerHTML='<div style="color:var(--muted);font-size:12px">No hay psicólogas registradas.</div>';return;}
@@ -1386,7 +1391,7 @@ function renderAgenda(){
         sesList.forEach(s=>{
           const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
           const bc=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':'#7c3aed';
-          const sesUsadas=DB.sesiones.filter(x=>x.pacId===s.pacId&&(x.estado==='asistio'||x.estado==='noasistio')).length;
+          const sesUsadas=DB.sesiones.filter(x=>x.pacId===s.pacId&&(x.estado==='asistio'||x.estado==='tardanza'||x.estado==='noasistio')).length;
           const progTxt=pac.mod==='paquete'&&pac.paq>0?(' '+sesUsadas+'/'+pac.paq):'';
           const titulo=pac.nombre+' · '+ter.nombre+(progTxt?' · Paq'+progTxt:'')+' · '+ps.nombre;
           h+='<div class="ag-chip" style="background:'+bc+'" title="'+titulo+'">'+
@@ -1515,7 +1520,7 @@ function renderDiaSel(){
 }
 
 function progresoPac(pac){
-  const sesHechas=DB.sesiones.filter(s=>s.pacId===pac.id&&(s.estado==='asistio'||s.estado==='noasistio')).length;
+  const sesHechas=DB.sesiones.filter(s=>s.pacId===pac.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
   const pct=pac.paq>0?Math.round((sesHechas/pac.paq)*100):0;
   const cls=pct>=90?'danger':pct>=70?'warn':'';
   return '<div style="margin-top:8px">'+
@@ -1747,7 +1752,7 @@ function renderPacientes(){
   el.innerHTML=pacs.map(p=>{
     const ps=getPs(p.psId);const ter=getTer(p.terId);
     const sesP=DB.sesiones.filter(s=>s.pacId===p.id);
-    const asist=sesP.filter(s=>s.estado==='asistio').length;
+    const asist=sesP.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
     const noAs=sesP.filter(s=>s.estado==='noasistio').length;
     const terapiasUnicas=[...new Set(sesP.map(s=>s.terId).filter(Boolean))].map(id=>getTer(id));
     const prox=sesP.filter(s=>s.estado==='programado'&&s.fecha>=today()).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora))[0];
@@ -2156,7 +2161,7 @@ function renderPaquetes(filtro){
       // Pacientes que tienen sesiones con este paquete
       return DB.sesiones.some(s=>s.pacId===pac.id&&s.paqId===p.id);
     }).length;
-    const sesUsadas=DB.sesiones.filter(s=>s.paqId===p.id&&(s.estado==='asistio'||s.estado==='noasistio')).length;
+    const sesUsadas=DB.sesiones.filter(s=>s.paqId===p.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
     return '<div class="paq-card" style="border-top:4px solid var(--accent)">'+
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'+
     '<div style="flex:1">'+
@@ -2264,7 +2269,7 @@ function contarAlertas(){
   let c=0;const hoy=today();
   DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{if(p.saldo>0)c++;});
   DB.pacientes.filter(p=>p.activo!==false&&p.mod==='paquete'&&p.paq>0).forEach(p=>{
-    const a=DB.sesiones.filter(s=>s.pacId===p.id&&(s.estado==='asistio'||s.estado==='noasistio')).length;
+    const a=DB.sesiones.filter(s=>s.pacId===p.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
     if(p.paq-a<=1)c++;
   });
   DB.sesiones.filter(s=>s.saldo>0&&s.estado==='programado'&&s.fecha>=hoy).forEach(()=>c++);
@@ -2277,7 +2282,7 @@ function renderAlertas(){
     h+='<div class="alert al-warn">⚠️ <strong>'+p.nombre+'</strong> — Saldo: S/'+p.saldo+'</div>';
   });
   DB.pacientes.filter(p=>p.activo!==false&&p.mod==='paquete'&&p.paq>0).forEach(p=>{
-    const a=DB.sesiones.filter(s=>s.pacId===p.id&&(s.estado==='asistio'||s.estado==='noasistio')).length;
+    const a=DB.sesiones.filter(s=>s.pacId===p.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
     const rest=p.paq-a;
     if(rest<=1&&rest>=0)h+='<div class="alert al-info">🔄 <strong>'+p.nombre+'</strong> — '+(rest===0?'Paquete TERMINADO':'Última sesión')+'  ('+a+'/'+p.paq+') — Ofrecer renovación</div>';
   });
@@ -2298,7 +2303,7 @@ function generarReporte(){
   const fecha=document.getElementById('rptFecha')?.value||today();
   const ses=DB.sesiones.filter(s=>s.fecha===fecha);
   const pags=DB.pagos.filter(p=>p.fecha===fecha);
-  const asist=ses.filter(s=>s.estado==='asistio').length;
+  const asist=ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   const noAs=ses.filter(s=>s.estado==='noasistio').length;
   const tot=pags.reduce((a,p)=>a+p.monto,0);
   [['rptTotal',ses.length],['rptAsist',asist],['rptNoAsist',noAs],['rptTot','S/'+tot.toLocaleString()]].forEach(([id,v])=>{
@@ -2312,7 +2317,7 @@ function generarReporte(){
   psicoIds.forEach(function(psId){
     const ps=getPs(psId);
     const sesPsic=ses.filter(function(s){return s.psId===psId;}).sort(function(a,b){return a.hora.localeCompare(b.hora);});
-    const asistPs=sesPsic.filter(function(s){return s.estado==='asistio';}).length;
+    const asistPs=sesPsic.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
     const cajaPs=pags.filter(function(p){return p.psId===psId;}).reduce(function(a,p){return a+p.monto;},0);
     rptHTML+='<div style="margin-bottom:16px;border:1px solid var(--border);border-radius:12px;overflow:hidden">'+
       '<div style="background:linear-gradient(135deg,var(--sidebar),var(--accent));color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'+
@@ -2367,7 +2372,7 @@ function exportarPDF(){
   const fecha=document.getElementById('rptFecha')?.value||today();
   const ses=DB.sesiones.filter(s=>s.fecha===fecha);
   const pags=DB.pagos.filter(p=>p.fecha===fecha);
-  const asist=ses.filter(s=>s.estado==='asistio').length;
+  const asist=ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   const noAs=ses.filter(s=>s.estado==='noasistio').length;
   const pend=ses.filter(s=>s.estado==='programado').length;
   const ef=pags.filter(p=>p.metodo==='Efectivo').reduce((a,p)=>a+p.monto,0);
@@ -2533,7 +2538,7 @@ function renderAgendaViaDia(fecha){
   psicologas.forEach(function(ps){
     var sesPsic=DB.sesiones.filter(function(s){return s.fecha===fecha&&s.psId===ps.id;});
     sesPsic.sort(function(a,b){return a.hora.localeCompare(b.hora);});
-    var asistPsic=sesPsic.filter(function(s){return s.estado==='asistio';}).length;
+    var asistPsic=sesPsic.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
     h+='<div style="border-bottom:2px solid var(--accent)">'+
       '<div style="background:linear-gradient(135deg,var(--sidebar),var(--accent));color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between">'+
       '<div><span style="font-size:13px;font-weight:800">'+ps.nombre+'</span>'+
@@ -2592,7 +2597,7 @@ async function renderHistorial(){
   if(cardArch)cardArch.style.display='block';
   const pac2=getPac(pacId);const ps2=getPs(pac2.psId);const ter2=getTer(pac2.terId);
   const sesPac=DB.sesiones.filter(s=>s.pacId===pacId).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
-  const asist=sesPac.filter(s=>s.estado==='asistio').length;
+  const asist=sesPac.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   const noAs=sesPac.filter(s=>s.estado==='noasistio').length;
   const prog=pac2.mod==='paquete'&&pac2.paq>0?progresoPac(pac2):'';
   if(!el)return;
@@ -2780,7 +2785,7 @@ function compartirReporteWA(){
     const fecha=document.getElementById('rptFecha')?.value||today();
     const ses=DB.sesiones.filter(s=>s.fecha===fecha);
     const pags=DB.pagos.filter(p=>p.fecha===fecha);
-    const asist=ses.filter(s=>s.estado==='asistio').length;
+    const asist=ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
     const noAs=ses.filter(s=>s.estado==='noasistio').length;
     const tot=pags.reduce((a,p)=>a+p.monto,0);
     // Mensaje de texto con instrucción para adjuntar el PDF
@@ -2805,12 +2810,45 @@ function compartirReporteWA(){
 
 
 function progresoPacInline(pac){
-  const sesHechas=DB.sesiones.filter(s=>s.pacId===pac.id&&(s.estado==='asistio'||s.estado==='noasistio')).length;
+  const sesHechas=DB.sesiones.filter(s=>s.pacId===pac.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
   const pct=pac.paq>0?Math.round((sesHechas/pac.paq)*100):0;
   const cls=pct>=90?'danger':pct>=70?'warn':'';
   return '<div style="margin-top:4px">'+
     '<div style="font-size:10px;color:var(--muted);margin-bottom:2px">Paquete '+sesHechas+'/'+pac.paq+' ('+pct+'%)</div>'+
     '<div class="prog-bar" style="height:5px"><div class="prog-fill '+cls+'" style="width:'+Math.min(100,pct)+'%"></div></div></div>';
+}
+
+function renderProximosDias(){
+  const el=document.getElementById('proximosDiasList');if(!el)return;
+  const hoy=today();
+  const dias=[];
+  for(let i=1;i<=4;i++){
+    const d=new Date();d.setDate(d.getDate()+i);
+    dias.push(d.toISOString().split('T')[0]);
+  }
+  const ses=DB.sesiones.filter(s=>dias.includes(s.fecha)&&s.estado==='programado').sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+  if(!ses.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px;text-align:center">Sin sesiones programadas en los próximos días.</div>';return;}
+  let h='';
+  let fechaAnt='';
+  ses.forEach(function(s){
+    const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
+    if(s.fecha!==fechaAnt){
+      fechaAnt=s.fecha;
+      const d=new Date(s.fecha+'T12:00:00');
+      h+='<div style="font-size:11px;font-weight:800;color:var(--accent);margin:10px 0 4px;text-transform:uppercase">'+diaES[d.getDay()]+' '+d.getDate()+' '+mesES[d.getMonth()]+'</div>';
+    }
+    const debeSaldo=s.saldo>0;
+    h+='<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-left:3px solid '+(debeSaldo?'var(--orange)':'var(--border)')+';margin-bottom:4px;background:var(--bg);border-radius:0 8px 8px 0">'+
+      '<div style="min-width:42px;font-size:13px;font-weight:900;color:var(--accent)">'+s.hora+'</div>'+
+      '<div style="flex:1;min-width:120px">'+
+      '<div style="font-weight:700;font-size:12px">'+pac.nombre+'</div>'+
+      '<div style="font-size:10px;color:var(--muted)">'+ps.nombre.replace('Lic.','').trim()+' · '+ter.nombre+'</div>'+
+      (pac.mod==='paquete'&&pac.paq>0?progresoPacInline(pac):'')+
+      '</div>'+
+      (debeSaldo?'<span class="badge bo" style="font-size:9px;white-space:nowrap">💰 Saldo S/'+s.saldo+'</span>':'')+
+      '</div>';
+  });
+  el.innerHTML=h;
 }
 
 // Abrir historial de paciente desde lista de pacientes
@@ -2888,10 +2926,16 @@ async function marcarAs(sesRef,nuevoEst){
   // acepta id (UUID) o índice
   var s=DB.sesiones.find(function(x){return x.id===sesRef;})||DB.sesiones[sesRef];
   if(!s){showToast('Sesión no encontrada','error');return;}
+  // Si se marca "asistió", decidir automáticamente asistio vs tardanza
+  // comparando la hora real contra la hora de inicio programada.
+  if(nuevoEst==='asistio'&&s.fecha&&s.hora){
+    var progMs=new Date(s.fecha+'T'+normHoraRec(s.hora)+':00').getTime();
+    if(!isNaN(progMs)&&Date.now()>progMs)nuevoEst='tardanza';
+  }
   s.estado=nuevoEst;
   if(s.tipo==='paquete'){
     var pac=DB.pacientes.find(function(p){return p.id===s.pacId||p.nombre===s.pacId;});
-    if(pac)pac.sesUsadas=DB.sesiones.filter(function(x){return x.pacId===s.pacId&&(x.estado==='asistio'||x.estado==='noasistio');}).length;
+    if(pac)pac.sesUsadas=DB.sesiones.filter(function(x){return x.pacId===s.pacId&&(x.estado==='asistio'||x.estado==='tardanza'||x.estado==='noasistio');}).length;
   }
   saveDB();
   showToast('⏳ Guardando en Supabase...');
@@ -2899,12 +2943,17 @@ async function marcarAs(sesRef,nuevoEst){
   if(sbId){
     try{
       await sbPatch('sesiones',{estado:nuevoEst},{id:'eq.'+sbId});
-      showToast(nuevoEst==='asistio'?'✅ '+(s.pacNom||'Paciente')+' asistió':'⚠️ No asistió — sesión contabilizada');
+      showToast(nuevoEst==='asistio'?'✅ '+(s.pacNom||'Paciente')+' asistió':nuevoEst==='tardanza'?'🕐 '+(s.pacNom||'Paciente')+' — llegó tarde (tardanza)':'⚠️ No asistió — sesión contabilizada');
     }catch(e){showToast('Error al guardar: '+e.message,'error');console.error('[marcarAs]',e);}
   }else{
     showToast('⚠️ Sesión sin ID de Supabase — recarga los datos','error');
   }
   var a=document.querySelector('.page.active');if(a&&typeof showPage==='function')showPage(a.id.replace('page-',''));
+}
+function normHoraRec(h){
+  h=String(h||'').trim();
+  var m=h.match(/^(\d{1,2}):(\d{2})/);
+  return m?m[1].padStart(2,'0')+':'+m[2]:'00:00';
 }
 function renderCumpleanos(){
   var hoy=new Date(Date.now()-5*3600000);
