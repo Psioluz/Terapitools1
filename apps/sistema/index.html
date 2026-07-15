@@ -276,6 +276,7 @@ tr.dirty td{background:#fff7e6}
   <div class="modal">
     <div style="font-weight:900;font-size:15px;margin-bottom:4px" id="modalFilaTitulo">Editar fila</div>
     <div class="hint" style="margin-bottom:10px">Edita el JSON y guarda. Los campos deben coincidir con las columnas reales de la tabla.</div>
+    <div id="modalFilaAyuda" style="display:none;background:#eef4ff;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:11px;color:var(--text);max-height:140px;overflow:auto"></div>
     <textarea class="jsonEdit" id="modalFilaJSON"></textarea>
     <div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn btn-outline" style="flex:1" onclick="cerrarModalFila()">Cancelar</button>
@@ -332,11 +333,12 @@ function cerrarSesion(){
   document.getElementById('lPass').value='';
 }
 
-const TABLAS=['pacientes','programas_paciente','programa_terapias','sesiones','pagos',
+const TABLAS=['pacientes','programas_paciente','programa_terapias','pacientes_terapias','sesiones','pagos',
   'psicologas','recepcionistas','usuarios_gerencia','terapias','fichas_seguimiento',
-  'documentos','documentos_personal','bonos_diarios','honorarios','contratos',
-  'pagos_recurrentes','gastos','chat_sede','asistencia_personal','reprogramaciones',
-  'tarifas_sede','notas_clinicas','objetivos_terapeuticos','registro_animo',
+  'documentos','documentos_personal','bonos_diarios','bonos','honorarios','contratos',
+  'pagos_recurrentes','gastos','insumos','chat_sede','asistencia_personal','reprogramaciones',
+  'tarifas_sede','paquetes','precio_paciente','notas_clinicas','objetivos_terapeuticos','registro_animo',
+  'feriados','rendimiento_recepcion','alertas_log','fichas_recepcion_log',
   'sedes','log_accesos','log_errores'];
 
 function showPage(id,btn){
@@ -407,6 +409,186 @@ const TABLE_ENUMS={
   sedes:{activa:['true','false']}
 };
 const COLOR_COLS={terapias:['color']};
+
+// Ejemplos/formato esperado por columna, para mostrar como ayuda (tooltip al
+// pasar el mouse por el encabezado) y así saber cómo llenar cada campo sin
+// adivinar. col='*' = aplica a esa columna en cualquier tabla que la tenga.
+const COLUMN_HINTS={
+  '*':{
+    id:'Se genera solo — no editar.',
+    sede:'Uno de: Comas, Ovalo Zapallal, Flecha, Pachacutec',
+    fecha:'Formato AAAA-MM-DD, ej. 2026-07-15',
+    fecha_nac:'Formato AAAA-MM-DD, ej. 1995-03-20',
+    fecha_ingreso:'Formato AAAA-MM-DD, ej. 2024-01-10',
+    fecha_inicio:'Formato AAAA-MM-DD, ej. 2026-07-15',
+    hora:'Formato HH:MM en 24h, ej. 14:30',
+    hora_inicio:'Formato HH:MM en 24h, ej. 13:15',
+    hora_fin:'Formato HH:MM en 24h, ej. 20:00',
+    email:'Correo completo, ej. nombre@gmail.com — se usa para iniciar sesión',
+    password:'Texto libre — el personal la cambia luego desde su app',
+    telefono:'Solo números, ej. 987654321 (sin +51, la app lo agrega al armar el link de WhatsApp)',
+    dni:'8 dígitos, ej. 12345678',
+    monto:'Número sin S/, ej. 150 o 150.50',
+    saldo:'Número sin S/ — lo que el paciente todavía debe, ej. 0 si ya pagó todo',
+    costo_total:'Número sin S/, costo total del paquete o servicio',
+    adelanto:'Número sin S/, lo que ya pagó por adelantado',
+    registrado_por:'Nombre de quien registra (recepcionista o gerente)',
+    created_at:'Se genera solo — no editar.'
+  },
+  pacientes:{
+    nombre:'Nombres y apellidos completos, ej. María López Torres',
+    genero:'M, F u O',
+    estado:'activo o inactivo',
+    modalidad:'Presencial o Virtual',
+    paquete:'Número de sesiones del paquete actual, ej. 12 (solo texto/número, no la relación completa)',
+    psicologa:'Nombre completo tal cual aparece en la tabla psicologas, ej. Lic. María García',
+    terapia:'Nombre tal cual aparece en la tabla terapias, ej. Psicología Clínica',
+    diagnostico:'Texto libre, breve',
+    apoderado:'Solo si el paciente es menor de edad — nombre del apoderado',
+    colegio:'Solo si aplica, nombre del colegio',
+    grado:'Ej. 3ro de primaria (si aplica)'
+  },
+  psicologas:{
+    cpsp:'Número de colegiatura, ej. COP 12345',
+    especialidad:'Ej. Psicología Clínica, Terapia Familiar',
+    sueldo:'Sueldo base mensual, número sin S/',
+    banco:'Nombre del banco, ej. BCP',
+    numero_cuenta:'Número de cuenta bancaria (solo números)',
+    cci:'Código de cuenta interbancario, 20 dígitos',
+    dias_trabajo:'Ej. "Lunes-Sabado" o "Lunes, Miercoles, Viernes" — mejor usar el botón 🕐 Horario en vez de escribir esto a mano',
+    horario_completo:'true o false — mejor usar el botón 🕐 Horario',
+    dia_completo:'Nombre del día en que entra más temprano (08:00), o vacío si no aplica — mejor usar el botón 🕐 Horario',
+    frecuencia_pago:'mensual, quincenal o semanal',
+    dia_pago:'Día del mes en que se le paga, número del 1 al 31',
+    grado_academico:'Ej. Licenciada, Magíster'
+  },
+  recepcionistas:{
+    sueldo:'Sueldo base mensual, número sin S/',
+    dia_pago:'Día del mes en que se le paga, número del 1 al 31'
+  },
+  usuarios_gerencia:{
+    rol:'gerencia o superadmin',
+    sede:'Todas (ve las 4 sedes) o el nombre de una sede específica'
+  },
+  sesiones:{
+    paciente_nombre:'Nombre completo tal cual está en pacientes.nombre',
+    psicologa:'Nombre completo tal cual está en psicologas.nombre',
+    terapia:'Nombre tal cual está en terapias.nombre',
+    estado:'programado, asistio, tardanza, noasistio o cancelado — normalmente lo cambia Recepción con los botones, no aquí',
+    tipo:'sesion, consulta, paquete, informe, constancia o neuropsico — "consulta" NO cuenta para metas/bonos',
+    nro_en_paquete:'Número de esta sesión dentro del paquete, ej. 3',
+    total_paquete:'Total de sesiones del paquete, ej. 12',
+    programa_id:'Se llena solo al usar Recepción — no editar a mano salvo que sepas el id exacto',
+    programa_terapia_id:'Se llena solo al usar Recepción — no editar a mano salvo que sepas el id exacto'
+  },
+  pagos:{
+    metodo:'Efectivo, Yape, Plin, Transferencia o Tarjeta',
+    concepto:'Ej. "Adelanto paquete 12 sesiones" o "Pago sesión suelta"',
+    psicologa_nombre:'Nombre completo tal cual está en psicologas.nombre',
+    terapia_nombre:'Nombre tal cual está en terapias.nombre'
+  },
+  terapias:{
+    nombre:'Nombre de la terapia, ej. Psicología Clínica',
+    color:'Usa el selector de color — no escribir el código a mano',
+    activa:'true o false'
+  },
+  gastos:{
+    concepto:'Descripción breve del gasto, ej. "Compra de útiles de oficina"',
+    categoria:'insumos, papeleria, servicios, movilidad, alquiler u otro'
+  },
+  sedes:{
+    nombre:'Nombre exacto de la sede, ej. Comas, Ovalo Zapallal, Flecha o Pachacutec',
+    direccion:'Dirección completa de la sede',
+    activa:'true o false'
+  },
+  pagos_recurrentes:{
+    concepto:'Ej. "Alquiler local Comas"',
+    monto:'Número sin S/, monto fijo mensual',
+    dia_pago:'Día del mes en que se paga, número del 1 al 31',
+    activo:'true o false'
+  },
+  tarifas_sede:{
+    terapia:'Nombre tal cual está en terapias.nombre',
+    precio_sesion:'Precio de una sesión suelta, número sin S/',
+    precio_paquete:'Precio del paquete completo, número sin S/',
+    nro_sesiones:'Cantidad de sesiones que trae el paquete, ej. 12'
+  },
+  honorarios:{
+    nombre:'Nombre completo de la psicóloga',
+    mes:'Formato AAAA-MM, ej. 2026-07',
+    monto:'Monto pagado, número sin S/',
+    estado:'pendiente o pagado'
+  },
+  contratos:{
+    trabajadora:'Nombre completo tal cual está en psicologas.nombre',
+    estado:'pendiente o firmado',
+    url_documento:'Se llena solo al subir el archivo desde Sistema/Gerencia'
+  },
+  documentos:{
+    paciente_nombre:'Nombre completo tal cual está en pacientes.nombre',
+    tipo:'Informe, Evaluación, Constancia, Contrato u Otro',
+    nombre:'Nombre del archivo tal cual se subió',
+    url:'Se llena solo al subir el archivo — no editar a mano'
+  },
+  programas_paciente:{
+    paciente_nombre:'Nombre completo tal cual está en pacientes.nombre',
+    paquete_nombre:'Ej. "Paquete 12 sesiones"',
+    tipo:'Normalmente "paquete"',
+    nro_sesiones_total:'Cantidad total de sesiones del programa, ej. 12',
+    costo_total:'Costo total del programa, número sin S/',
+    adelanto_acumulado:'Suma de todos los adelantos/pagos hechos hasta ahora',
+    estado:'activo o completado — se marca "completado" solo al usar Recepción, normalmente no se edita a mano'
+  },
+  programa_terapias:{
+    programa_id:'id de la fila correspondiente en programas_paciente — no inventar, copiar el id real',
+    terapia:'Nombre tal cual está en terapias.nombre',
+    psicologa:'Nombre completo tal cual está en psicologas.nombre',
+    sesiones_asignadas:'Cuántas sesiones de esta terapia trae el programa',
+    sesiones_realizadas:'Cuántas ya se hicieron — normalmente lo actualiza Recepción solo'
+  },
+  notas_clinicas:{
+    paciente_nombre:'Nombre completo tal cual está en pacientes.nombre',
+    psicologa_nombre:'Nombre completo tal cual está en psicologas.nombre',
+    contenido:'Texto libre de la nota clínica'
+  },
+  objetivos_terapeuticos:{
+    paciente_nombre:'Nombre completo tal cual está en pacientes.nombre',
+    descripcion:'Texto libre del objetivo',
+    estado:'Ej. en_progreso, cumplido, pendiente'
+  },
+  registro_animo:{
+    paciente_nombre:'Nombre completo tal cual está en pacientes.nombre',
+    animo:'Escala numérica, ej. 1 a 5 (1=muy mal, 5=muy bien)'
+  },
+  fichas_seguimiento:{
+    paciente_nombre:'Nombre completo tal cual está en pacientes.nombre',
+    psicologa_nombre:'Nombre completo tal cual está en psicologas.nombre',
+    terapia:'Nombre tal cual está en terapias.nombre',
+    objetivo:'Texto libre',
+    actividad:'Texto libre — qué se trabajó en la sesión',
+    resultados:'Texto libre — cómo respondió el paciente',
+    proxima_sesion:'Formato AAAA-MM-DD, próxima cita sugerida'
+  },
+  bonos_diarios:{
+    nombre:'Nombre completo de la psicóloga o recepcionista',
+    monto:'Monto del bono, número sin S/',
+    motivo:'Texto breve, ej. "Meta de asistencia cumplida"'
+  },
+  asistencia_personal:{
+    nombre:'Nombre completo del trabajador',
+    estado:'presente, tarde o falta'
+  },
+  reprogramaciones:{
+    paciente_nombre:'Nombre completo tal cual está en pacientes.nombre',
+    psicologa_nombre:'Nombre completo tal cual está en psicologas.nombre',
+    fecha_original:'Formato AAAA-MM-DD — fecha que se canceló',
+    fecha_nueva:'Formato AAAA-MM-DD — fecha nueva',
+    url_evidencia:'Se llena solo al subir el archivo — no editar a mano'
+  }
+};
+function hintFor(tabla,col){
+  return (COLUMN_HINTS[tabla]&&COLUMN_HINTS[tabla][col])||COLUMN_HINTS['*'][col]||'';
+}
 function celdaInput(tabla,col,v){
   const enums=(TABLE_ENUMS[tabla]||{})[col];
   const isColor=(COLOR_COLS[tabla]||[]).includes(col);
@@ -436,7 +618,11 @@ function renderEditableGrid(containerId,rows,tabla){
   if(!rows||!rows.length){el.innerHTML='<div class="hint" style="padding:14px;text-align:center">Sin filas. Usa "+ Nueva fila" para crear la primera.</div>';return;}
   const cols=Array.from(rows.reduce((s,r)=>{Object.keys(r||{}).forEach(k=>s.add(k));return s;},new Set()));
   let h='<div style="overflow:auto;max-height:560px"><table><thead><tr>'+
-    cols.map(c=>'<th>'+c+(READONLY_COLS.includes(c)?' 🔒':'')+'</th>').join('')+'<th>Acciones</th></tr></thead><tbody>';
+    cols.map(c=>{
+      var hint=hintFor(tabla,c);
+      return '<th'+(hint?' title="'+hint.replace(/"/g,'&quot;')+'" style="cursor:help"':'')+'>'+c+
+        (READONLY_COLS.includes(c)?' 🔒':'')+(hint?' <span style="opacity:.55">ⓘ</span>':'')+'</th>';
+    }).join('')+'<th>Acciones</th></tr></thead><tbody>';
   rows.forEach((r,i)=>{
     h+='<tr data-row="'+i+'" data-tabla="'+tabla+'">'+cols.map(function(c){
       let v=r[c];
@@ -551,6 +737,10 @@ function tblNuevaFila(tabla){
     });
   }
   document.getElementById('modalFilaJSON').value=Object.keys(plantilla).length?JSON.stringify(plantilla,null,2):'{\n  \n}';
+  var ayudaEl=document.getElementById('modalFilaAyuda');
+  var lineas=Object.keys(plantilla).map(function(k){var h=hintFor(tabla,k);return h?('<div><b>'+k+'</b>: '+h+'</div>'):'';}).filter(Boolean);
+  if(lineas.length){ayudaEl.innerHTML='📋 <b>Cómo llenar '+tabla+':</b><br>'+lineas.join('');ayudaEl.style.display='block';}
+  else ayudaEl.style.display='none';
   document.getElementById('modalFila').classList.add('open');
 }
 function cerrarModalFila(){document.getElementById('modalFila').classList.remove('open');_modalCtx=null;}
