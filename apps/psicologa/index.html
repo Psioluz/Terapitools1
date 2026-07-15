@@ -500,16 +500,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--muted);text-align:center" id="perUltimaSes">Última sesión: —</div>
       </div>
     </div>
-    <!-- Conexión y acciones -->
+    <!-- Instalar app (solo visible si no está instalada) -->
     <div class="card" style="margin-bottom:10px">
-      <div class="ch">🔗 Conexión y Sincronización</div>
       <div class="cb">
-    <div id="conexStatus" style="font-size:12px;color:var(--muted);margin-bottom:10px">—</div>
-        
-        <button class="pwa-install-btn" onclick="window._instalarApp()" style="display:none;width:100%;padding:11px;background:#001919;color:#00c5c5;border:2px solid #00c5c5;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px">📲 Instalar como App en este dispositivo</button>
-        <div id="ultimaSync" style="text-align:center;font-size:11px;color:var(--muted)">—</div>
+        <div id="conexStatus" style="display:none"></div>
+        <button class="pwa-install-btn" onclick="window._instalarPWA&&_instalarPWA()" style="display:none;width:100%;padding:11px;background:#001919;color:#00c5c5;border:2px solid #00c5c5;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">📲 Instalar como App en este dispositivo</button>
+        <div id="ultimaSync" style="display:none"></div>
       </div>
-    
+
 <!-- ══ MODAL FIRMA CONTRATO ══ -->
 <div class="ficha-modal" id="modalFirmaContrato">
   <div class="ficha-box">
@@ -1081,6 +1079,12 @@ window.onunhandledrejection = function(e){
         b.style.display='none';
       });
       localStorage.setItem('psicoluz_pwa_instalada','1');
+    } else {
+      // Mostrar el botón siempre (no solo cuando el navegador dispara
+      // beforeinstallprompt — iOS Safari nunca lo dispara, por eso el botón
+      // nunca aparecía ahí. _instalarPWA() ya tiene instrucciones manuales
+      // para cuando no hay prompt nativo disponible.
+      mostrarBtnInstalar();
     }
   }
   if (document.readyState === 'loading') {
@@ -1280,6 +1284,10 @@ function normF(v){
   // Fecha ISO con T
   if(v.includes('T'))return v.split('T')[0];
   return v;
+}
+function horaAMin(v){
+  var h=normHora(v);var p=h?h.split(':'):null;
+  return p?parseInt(p[0],10)*60+parseInt(p[1],10):null;
 }
 // Extraer HH:MM de cualquier formato de hora (incluyendo "Sat Dec 30 1899 13:15:00 GMT-0508")
 function normHora(v){
@@ -2162,20 +2170,22 @@ function renderSemana(){
       +'</div>';
   }
   var el=document.getElementById('gridSemana');if(!el)return;
-  if(!sesSem.length){
-    el.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:#94a3b8">'
-      +'<div style="font-size:32px;margin-bottom:10px">📅</div>'
-      +'<div style="font-weight:700">Sin sesiones esta semana</div>'
-      +'<button onclick="sync(true)" style="margin-top:12px;padding:8px 16px;background:linear-gradient(135deg,#4a0e2e,#c2185b);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">🔄 Recargar</button>'
-      +'</div>';
-    return;
-  }
+  // Días que trabaja: si PS.diasSemana no está definido, mostrar los 6 días
+  var diasTrabajo=(PS.diasSemana&&PS.diasSemana.length)?dias.filter(function(d){return PS.diasSemana.indexOf(d.d.getDay())>-1;}):dias;
+  if(!diasTrabajo.length)diasTrabajo=dias;
+  // Slots según su horario real de trabajo (PS.inicio–PS.fin, cada 45min),
+  // más cualquier hora de sesión real fuera de ese rango
   var slots=new Set();
+  var iniM=horaAMin(PS.inicio)||(13*60+15), finM=horaAMin(PS.fin)||(20*60);
+  if(finM<iniM){var tmp=iniM;iniM=finM;finM=tmp;}
+  for(var mnt=iniM;mnt<=finM;mnt+=45){
+    slots.add(String(Math.floor(mnt/60)).padStart(2,'0')+':'+String(mnt%60).padStart(2,'0'));
+  }
   sesSem.forEach(function(s){if(s.hora)slots.add(normHora(s.hora));});
   slots=Array.from(slots).sort();
-  el.style.gridTemplateColumns='46px repeat(6,1fr)';
+  el.style.gridTemplateColumns='46px repeat('+diasTrabajo.length+',1fr)';
   var h='<div class="sem-head" style="font-size:8px">HORA</div>';
-  dias.forEach(function(dia){
+  diasTrabajo.forEach(function(dia){
     var esH=dia.f===hoy;
     h+='<div class="sem-head'+(esH?' hoy':'')+'">'
       +'<div style="font-size:8px;opacity:.8">'+DIAS[dia.d.getDay()]+'</div>'
@@ -2184,7 +2194,7 @@ function renderSemana(){
   });
   slots.forEach(function(slot){
     h+='<div class="sem-hora">'+slot+'</div>';
-    dias.forEach(function(dia){
+    diasTrabajo.forEach(function(dia){
       var sesList=PS.sesiones.filter(function(s){return s.fecha===dia.f&&normHora(s.hora)===slot;});
       var esH=dia.f===hoy;
       h+='<div class="sem-celda" style="background:'+(esH?'#e6fafa':'#fff')+'">';
@@ -2626,21 +2636,11 @@ function renderHoy(){
         '<div style="font-size:11px;margin-top:4px">Conectando con el servidor</div></div>';
       return;
     }
-    const hasLocal = !!(['Comas','Ovalo Zapallal','Flecha','Pachacutec'].find(s=>{
-      return localStorage.getItem('psicoluz_v3_'+s)||localStorage.getItem('psicoluz_v2_'+s);
-    }));
     el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">'+
       '<div style="font-size:32px;margin-bottom:10px">📅</div>'+
       '<div style="font-weight:700;margin-bottom:6px">Sin sesiones para hoy ('+fmtF(hoy)+')</div>'+
-      '<div style="font-size:11px;margin-bottom:12px">Puede que las sesiones estén en el Sheet con otra fecha, o que no se hayan cargado aún</div>'+
-      '<button onclick="sync(true)" style="margin-top:4px;margin-bottom:8px;padding:10px 20px;background:linear-gradient(135deg,#4a0e2e,#c2185b);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation">🔄 Actualizar del servidor</button><br>'+
+      '<div style="font-size:11px;margin-bottom:12px">Los datos se actualizan solos cada 30s. Si crees que falta algo, revisa otro día:</div>'+
       '<button onclick="mostrarTodasSesiones()" style="padding:8px 16px;background:rgba(74,14,46,.1);color:#4a0e2e;border:1px solid #c2185b;border-radius:8px;font-size:12px;cursor:pointer;touch-action:manipulation">📋 Ver todas las sesiones</button>'+
-      '<br>'+
-      (hasLocal?
-        '<div style="font-size:11px">Toca 🔄 para actualizar datos del servidor</div>' :
-        '<div style="background:#f0fdf4;border:1px solid #10b981;border-radius:8px;padding:10px;margin-top:10px;font-size:12px;color:#065f46;text-align:center">'+
-        'Actualizando... 🔄'+
-        '</div>')+
       '</div>';
     return;
   }
@@ -2758,10 +2758,12 @@ function renderPerfil(){
   var elHor=document.getElementById('perHorario');
   if(elHor)elHor.textContent=normHora(PS.inicio||'13:15')+' — '+normHora(PS.fin||'20:00');
   var elSN=document.getElementById('ps-sidebar-nombre');if(elSN&&PS.nombre)elSN.textContent=PS.nombre;
-  var elHdrN=document.getElementById('headerAvatarPs');
-  var ini=(PS.nombre||'P')[0].toUpperCase();
-  if(elHdrN)elHdrN.textContent=ini;
-  var elSideAv=document.getElementById('psAvatarSide');if(elSideAv)elSideAv.textContent=ini;
+  // No pisar la foto si ya existe (evita el parpadeo foto→inicial→foto)
+  if(!PS.foto){
+    var ini=(PS.nombre||'P')[0].toUpperCase();
+    var elHdrN=document.getElementById('headerAvatarPs');if(elHdrN)elHdrN.textContent=ini;
+    var elSideAv=document.getElementById('psAvatarSide');if(elSideAv)elSideAv.textContent=ini;
+  }
   // Estado notificaciones
   var notifSt=document.getElementById('notifStatus');
   var btnNotif=document.getElementById('btnActivarNotif');

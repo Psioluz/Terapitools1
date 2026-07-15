@@ -248,6 +248,14 @@ select.fsel{
   .ger-wrap{display:block}
   .ger-main{width:100%;min-height:100vh}
 }
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:20px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
+.hint{font-size:11px;color:var(--muted)}
+.grid.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat{background:var(--bg);border-radius:10px;padding:10px;text-align:center}
+.stat-v{font-size:18px;font-weight:900;color:var(--acc)}
+.stat-l{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:2px}
 </style>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png" type="image/png">
@@ -518,6 +526,8 @@ select.fsel{
 
   <!-- Cards de psicólogas -->
   <div id="listPsicologas"></div>
+  <!-- Recepción y Gerencia -->
+  <div id="listOtroPersonal"></div>
 
 </div><!-- /tPersonal -->
 
@@ -840,6 +850,7 @@ let G = {
   sesiones   : [],
   pacientes  : [],
   psicologas : [],
+  recepcionistas : [],
   terapias   : [],
   sedes      : [],
   asistencia : [],
@@ -895,7 +906,12 @@ function sbar(on){
   }
   function _jr(d){return new Response(JSON.stringify(d),{headers:{'Content-Type':'application/json'}});}
   function _fH(h){return h?h.substring(0,5):'';}
-  function _sede(){try{return PS.sede||'Comas';}catch(e){return 'Comas';}}
+  // Gerencia no tiene una "sede actual" (administra las 4) — a diferencia de
+  // psicologa.html/recepcion.html, aquí NO existe un objeto PS. Antes esto
+  // lanzaba un ReferenceError silenciosamente atrapado que hacía caer todo a
+  // 'Comas', así que getData nunca traía datos de las otras 3 sedes.
+  function _sede(){return '';}
+  function sedeFiltro(sede){return sede?{'sede':'eq.'+sede}:{};}
 
   var _oF=window.fetch;
   window.fetch=function(url,opts){
@@ -915,33 +931,35 @@ function sbar(on){
 
       if(action==='getData'){
         return Promise.all([
-          _sb('sesiones',{'sede':'eq.'+sede,'select':'*','order':'fecha.asc,hora.asc','limit':'500'}),
-          _sb('psicologas',{'sede':'eq.'+sede,'select':'*'}),
-          _sb('pacientes',{'sede':'eq.'+sede,'estado':'eq.activo','select':'*'}),
+          _sb('sesiones',Object.assign({'select':'*','order':'fecha.asc,hora.asc','limit':'2000'},sedeFiltro(sede))),
+          _sb('psicologas',Object.assign({'select':'*'},sedeFiltro(sede))),
+          _sb('recepcionistas',Object.assign({'select':'*'},sedeFiltro(sede))),
+          _sb('pacientes',Object.assign({'estado':'eq.activo','select':'*'},sedeFiltro(sede))),
           _sb('terapias',{'select':'*'}),
-          _sb('fichas_seguimiento',{'sede':'eq.'+sede,'select':'*','order':'fecha.desc','limit':'300'}),
-          _sb('bonos_diarios',{'sede':'eq.'+sede,'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'}),
-          _sb('honorarios',{'sede':'eq.'+sede,'mes':'eq.'+mes,'select':'*'}),
-          _sb('contratos',{'sede':'eq.'+sede,'select':'*'}),
-          _sb('pagos',{'sede':'eq.'+sede,'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'}),
-          _sb('gastos',{'sede':'eq.'+sede,'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'})
+          _sb('fichas_seguimiento',Object.assign({'select':'*','order':'fecha.desc','limit':'500'},sedeFiltro(sede))),
+          _sb('bonos_diarios',Object.assign({'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'},sedeFiltro(sede))),
+          _sb('honorarios',Object.assign({'mes':'eq.'+mes,'select':'*'},sedeFiltro(sede))),
+          _sb('contratos',Object.assign({'select':'*'},sedeFiltro(sede))),
+          _sb('pagos',Object.assign({'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'},sedeFiltro(sede))),
+          _sb('gastos',Object.assign({'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'},sedeFiltro(sede))),
+          _sb('asistencia_personal',Object.assign({'select':'*','order':'fecha.desc','limit':'500'},sedeFiltro(sede)))
         ]).then(function(r){
-          var ses=r[0]||[],psis=r[1]||[],pacs=r[2]||[],ters=r[3]||[];
-          var fichas=r[4]||[],bonos=r[5]||[],hon=r[6]||[],conts=r[7]||[];
-          var pagos=r[8]||[],gastos=r[9]||[];
+          var ses=r[0]||[],psis=r[1]||[],recs=r[2]||[],pacs=r[3]||[],ters=r[4]||[];
+          var fichas=r[5]||[],bonos=r[6]||[],hon=r[7]||[],conts=r[8]||[];
+          var pagos=r[9]||[],gastos=r[10]||[],asistPers=r[11]||[];
           // Guardar en localStorage para acceso offline
           try{
-            var cacheKey='psicoluz_v3_'+sede;
+            var cacheKey='psicoluz_v3_'+(sede||'todas');
             localStorage.setItem(cacheKey,JSON.stringify({
-              psicologas:psis,sesiones:ses,pacientes:pacs,terapias:ters,
+              psicologas:psis,recepcionistas:recs,sesiones:ses,pacientes:pacs,terapias:ters,
               fichas:fichas,bonos:bonos,honorarios:hon,contratos:conts,
-              pagos:pagos,gastos:gastos,_ts:Date.now()
+              pagos:pagos,gastos:gastos,asistencia:asistPers,_ts:Date.now()
             }));
           }catch(e){}
           return _jr({
             status:'ok',
             sesiones:ses.map(function(s){
-              return {id:s.id,fecha:s.fecha,hora:_fH(s.hora),
+              return {id:s.id,fecha:s.fecha,hora:_fH(s.hora),sede:s.sede||'',
                 pacNombre:s.paciente_nombre||'—',pacTel:s.paciente_tel||'',
                 psNombre:s.psicologa||'—',terNombre:s.terapia||'—',
                 estado:s.estado||'programado',tipo:'sesion',
@@ -957,18 +975,27 @@ function sbar(on){
                 diasSemana:p.dias_semana?p.dias_semana.split(',').map(Number):[1,2,3,4,5,6],
                 fechaNac:p.fecha_nac||'',tel:p.telefono||'',
                 cuenta:p.cuenta_bancaria||'',cci:p.cuenta_interbancaria||'',
-                sueldo:p.sueldo||0,fotoUrl:p.foto_url||''};
+                sueldo:p.sueldo||0,fotoUrl:p.foto_url||'',rol:'psicologa'};
+            }),
+            recepcionistas:recs.map(function(p){
+              return {id:p.id,nombre:p.nombre,sede:p.sede,email:p.email,
+                password:p.password,estado:p.estado,fechaNac:p.fecha_nac||'',tel:p.telefono||'',
+                sueldo:p.sueldo||0,fotoUrl:'',rol:'recepcion'};
             }),
             pacientes:pacs.map(function(p){
               return {id:p.id,nombre:p.nombre,tel:p.telefono||'',
-                terNombre:p.diagnostico||'',mod:'paquete',
+                sede:p.sede||'',psNombre:p.psicologa||'',terNombre:p.terapia||'',mod:'paquete',
                 paq:p.paquete?parseInt(p.paquete)||12:12,
                 dx:p.diagnostico||'',dir:p.direccion||'',
                 nac:p.fecha_nac||'',apoderado:p.apoderado||'',
-                estado:p.estado};
+                estado:p.estado,saldo:p.saldo||0};
             }),
             terapias:ters,fichas:fichas,bonos:bonos,honorarios:hon,
-            contratos:conts,pagos:pagos,gastos:gastos
+            contratos:conts,pagos:pagos,gastos:gastos,
+            asistencia:asistPers.map(function(a){
+              return {id:a.id,fecha:a.fecha,nombre:a.psicologa||'',sede:a.sede||'',
+                estado:a.estado||'',entrada:a.entrada||'',registradoPor:a.registrado_por||''};
+            })
           });
         });
       }
@@ -1002,7 +1029,7 @@ function sbar(on){
       }
 
       if(action==='getChat'||action==='cargarChat'){
-        return _sb('chat_sede',{'sede':'eq.'+sede,'order':'created_at.asc','limit':'80','select':'*'}).then(function(r){
+        return _sb('chat_sede',Object.assign({'order':'created_at.asc','limit':'150','select':'*'},sedeFiltro(sede))).then(function(r){
           return _jr({status:'ok',ok:true,mensajes:(r||[]).map(function(m){
             return {nombre:m.nombre,tipo:m.tipo,msg:m.mensaje,texto:m.mensaje,hora:m.hora||'',
               ts:new Date(m.created_at).getTime(),sede:m.sede};
@@ -1358,6 +1385,7 @@ async function sincronizar(mostrar){
     if(data.sesiones?.length)  G.sesiones  =data.sesiones;
     if(data.pacientes?.length) G.pacientes =data.pacientes;
     if(data.psicologas?.length)G.psicologas=data.psicologas;
+    if(data.recepcionistas?.length)G.recepcionistas=data.recepcionistas;
     if(data.terapias?.length)  G.terapias  =data.terapias;
     if(data.sedes?.length){
       G.sedes=data.sedes;
@@ -1913,7 +1941,7 @@ function renderPersonal(){
       tiempoStr=meses>=12?(Math.floor(meses/12)+'a '+meses%12+'m'):(meses+'m');
     }
 
-    return`<div class="ps-card">
+    return`<div class="ps-card" style="cursor:pointer" onclick="abrirDetallePersonal('${(ps.nombre||'').replace(/'/g,"\\'")}','psicologa')">
       <div class="ps-avatar" style="background:${COLORES[idx%COLORES.length]}">${(ps.nombre||'?').replace('Lic.','').trim().charAt(0)}</div>
       <div class="ps-info">
         <div class="ps-name">${ps.nombre||'—'}</div>
@@ -1954,6 +1982,88 @@ function renderPersonal(){
     </div>`).join('')+
     '</div>'
   :'')||'<div style="color:var(--muted);text-align:center;padding:20px">Sin datos de personal. Actualiza desde el Sheet.</div>';
+
+  // Recepcionistas y gerencia (mismo tab, para verlas todas en un solo lugar)
+  var elOtros=document.getElementById('listOtroPersonal');
+  if(elOtros){
+    var recs=filtPac(G.recepcionistas||[]).filter(r=>r.estado!=='cesada');
+    var h='';
+    if(recs.length){
+      h+='<div style="font-size:12px;font-weight:800;color:var(--dark);margin:12px 0 8px">🖥️ Recepción ('+recs.length+')</div>';
+      h+=recs.map(function(r,idx){
+        return '<div class="ps-card" style="cursor:pointer" onclick="abrirDetallePersonal(\''+(r.nombre||'').replace(/'/g,"\\'")+'\',\'recepcion\')">'+
+          '<div class="ps-avatar" style="background:'+COLORES[idx%COLORES.length]+'">'+(r.nombre||'?').charAt(0)+'</div>'+
+          '<div class="ps-info"><div class="ps-name">'+(r.nombre||'—')+'</div>'+
+          '<div class="ps-meta"><span class="badge bk">'+(r.sede||r._sede||'—')+'</span></div></div></div>';
+      }).join('');
+    }
+    var admins=(G.usuariosGerencia||[]);
+    if(admins.length){
+      h+='<div style="font-size:12px;font-weight:800;color:var(--dark);margin:12px 0 8px">👑 Gerencia ('+admins.length+')</div>';
+      h+=admins.map(function(a,idx){
+        return '<div class="ps-card">'+
+          '<div class="ps-avatar" style="background:'+COLORES[idx%COLORES.length]+'">'+(a.nombre||'?').charAt(0)+'</div>'+
+          '<div class="ps-info"><div class="ps-name">'+(a.nombre||a.email||'—')+'</div>'+
+          '<div class="ps-meta"><span class="badge bt">'+(a.rol||'gerencia')+'</span></div></div></div>';
+      }).join('');
+    }
+    elOtros.innerHTML=h;
+  }
+  // Cargar cuentas de gerencia una vez y re-renderizar esta sección
+  if(!G.usuariosGerencia||!G.usuariosGerencia.length){
+    accGet('usuarios_gerencia',{select:'*'}).then(function(rows){
+      G.usuariosGerencia=(rows||[]).map(function(u){return{nombre:u.nombre,email:u.email,rol:u.rol||'gerencia'};});
+      if(G.usuariosGerencia.length&&document.getElementById('tPersonal')&&document.getElementById('tPersonal').classList.contains('active'))renderPersonal();
+    }).catch(function(){});
+  }
+}
+
+function abrirDetallePersonal(nombre,tipo){
+  var modal=document.getElementById('modalDetallePersonal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='modalDetallePersonal';
+    modal.className='modal-overlay';
+    modal.innerHTML='<div class="modal" style="max-width:520px"><div id="detallePersonalBody"></div>'+
+      '<button class="btn btn-outline" style="width:100%;margin-top:14px" onclick="document.getElementById(\'modalDetallePersonal\').classList.remove(\'open\')">Cerrar</button></div>';
+    document.body.appendChild(modal);
+  }
+  var body=document.getElementById('detallePersonalBody');
+  if(tipo==='psicologa'){
+    var ps=G.psicologas.find(function(p){return p.nombre===nombre;})||{};
+    var ses=G.sesiones.filter(function(s){return (s.psNombre||'')===nombre;});
+    var asist=ses.filter(function(s){return s.estado==='asistio';}).length;
+    var noAs=ses.filter(function(s){return s.estado==='noasistio';}).length;
+    var pacs=new Set(ses.map(function(s){return s.pacNombre;})).size;
+    var hon=G.honorarios.filter(function(h){return h.nombre===nombre&&h.mes===mesActual();});
+    var sueldo=hon.reduce(function(a,h){return a+(h.neto||h.montoBase||0);},0);
+    var asistHist=(G.asistencia||[]).filter(function(a){return a.nombre===nombre;}).sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');}).slice(0,10);
+    body.innerHTML='<div style="font-weight:900;font-size:16px;margin-bottom:4px">'+nombre+'</div>'+
+      '<div class="hint" style="margin-bottom:12px">'+(ps.sede||'—')+' · '+(ps.especialidad||ps.esp||'Sin especialidad')+' · '+(ps.cop?'COP '+ps.cop:'')+'</div>'+
+      '<div class="grid g4" style="margin-bottom:12px">'+
+        '<div class="stat"><div class="stat-v">'+ses.length+'</div><div class="stat-l">Sesiones</div></div>'+
+        '<div class="stat"><div class="stat-v" style="color:var(--green)">'+asist+'</div><div class="stat-l">Asistidas</div></div>'+
+        '<div class="stat"><div class="stat-v" style="color:var(--orange)">'+pacs+'</div><div class="stat-l">Pacientes</div></div>'+
+        '<div class="stat"><div class="stat-v" style="color:var(--blue)">S/'+sueldo.toLocaleString()+'</div><div class="stat-l">Honorarios mes</div></div>'+
+      '</div>'+
+      '<div style="font-weight:800;font-size:12px;margin-bottom:6px" id="detBonosMeta">🎯 Bonos de meta este mes: ⏳</div>'+
+      '<div style="font-weight:800;font-size:12px;margin:10px 0 6px">🕐 Últimos registros de asistencia</div>'+
+      (asistHist.length?'<table><thead><tr><th>Fecha</th><th>Estado</th><th>Hora</th></tr></thead><tbody>'+
+        asistHist.map(function(a){return '<tr><td>'+(a.fecha||'')+'</td><td>'+(a.estado||'')+'</td><td>'+(a.entrada||'')+'</td></tr>';}).join('')+
+        '</tbody></table>':'<div class="hint">Sin registros.</div>')+
+      '<div style="font-weight:800;font-size:12px;margin:10px 0 6px">📞 Datos</div>'+
+      '<div class="hint">Tel: '+(ps.tel||'—')+' · Email: '+(ps.email||'—')+' · Ingreso: '+(ps.fechaIngreso?fmtF(ps.fechaIngreso):'—')+'</div>';
+    accGet('bonos_diarios',{'psicologa_nombre':'eq.'+nombre,'fecha':'gte.'+mesActual()+'-01','select':'*'}).then(function(rows){
+      var el=document.getElementById('detBonosMeta');
+      if(el)el.textContent='🎯 Bonos de meta este mes: '+(rows||[]).length;
+    }).catch(function(){});
+  } else {
+    var rec=(G.recepcionistas||[]).find(function(p){return p.nombre===nombre;})||{};
+    body.innerHTML='<div style="font-weight:900;font-size:16px;margin-bottom:4px">'+nombre+'</div>'+
+      '<div class="hint" style="margin-bottom:12px">Recepción · '+(rec.sede||'—')+'</div>'+
+      '<div class="hint">Tel: '+(rec.tel||'—')+' · Email: '+(rec.email||'—')+' · Ingreso: '+(rec.fechaIngreso?fmtF(rec.fechaIngreso):'—')+'</div>';
+  }
+  modal.classList.add('open');
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -2534,8 +2644,9 @@ async function cargarMensajesChatGer(){
   var _API_GER=typeof _API!=='undefined'?_API:(typeof API!=='undefined'?API:'');
   if(!_API_GER)return;
   try{
-    var sedeChatG=document.getElementById('fSede')?.value||'Comas';
-    var url=_API_GER+'?action=getChat&sede='+encodeURIComponent(sedeChatG)+'&desde='+_chatLastTsGer+'&_='+Date.now();
+    // La vista de gerencia siempre trae mensajes de TODAS las sedes (ver header "Todas las sedes");
+    // el selector de sede en el chat es solo para elegir a dónde enviar un mensaje nuevo.
+    var url=_API_GER+'?action=getChat&sede=&desde='+_chatLastTsGer+'&_='+Date.now();
     var res=await fetch(url,{cache:'no-store'});
     var txt=await res.text();
     if(!txt||txt[0]!=='{')return;
