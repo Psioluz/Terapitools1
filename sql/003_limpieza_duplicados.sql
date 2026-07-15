@@ -15,10 +15,13 @@
 -- se hizo esta auditoría, avísame antes de borrar.
 
 -- ═══════════════════════════════════════════════════════════
--- 1) TABLAS COMPLETAS SIN USO (0 filas, ningún código las referencia)
+-- 1) [ACTUALIZACIÓN] programas_paciente / programa_terapias
+--    NO SE BORRAN. Cuando escribí este script tenían 0 filas y ningún
+--    código las usaba — pero resultó que SÍ las usa
+--    registrosesiones_4.html (el 6to app, temporal, de carga de datos
+--    con el modelo de "varios programas/terapias por paciente"). Están
+--    vivas y en uso — ver sql/004_rls_programas_paciente.sql.
 -- ═══════════════════════════════════════════════════════════
-drop table if exists programa_terapias;
-drop table if exists programas_paciente;
 
 -- ═══════════════════════════════════════════════════════════
 -- 2) psicologas — columnas duplicadas/legacy
