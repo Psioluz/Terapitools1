@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Psicoluz — Sistema</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --dark:#0c1e3d;--acc:#2563eb;--acc2:#0ea5e9;--bg:#eef4ff;
+  --green:#10b981;--red:#ef4444;--orange:#f59e0b;--card:#fff;--border:#dbe4f3;--text:#1e293b;--muted:#64748b;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+#loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:linear-gradient(145deg,#050a17 0%,#0b3d91 35%,#2563eb 50%,var(--dark) 100%)}
+.login-box{background:#fff;border-radius:22px;padding:36px 28px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.login-title{text-align:center;font-size:20px;font-weight:900;color:var(--dark);margin-bottom:4px}
+.login-sub{text-align:center;font-size:12px;color:var(--muted);margin-bottom:22px}
+.fc{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;margin-bottom:10px;outline:none}
+.fc:focus{border-color:var(--acc)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:9px;
+  font-size:13px;font-weight:800;cursor:pointer;border:none;transition:.15s}
+.btn-primary{background:linear-gradient(135deg,var(--dark),var(--acc));color:#fff;width:100%;padding:13px;font-size:14px}
+.btn-sm{padding:6px 12px;font-size:11px}
+.btn-outline{background:#fff;border:1.5px solid var(--acc);color:var(--acc)}
+.btn-danger{background:#fee2e2;color:#991b1b}
+.err-msg{display:none;background:#fee2e2;color:#991b1b;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;margin-bottom:10px}
+
+#app{display:none;height:100vh;overflow:hidden}
+.sidebar{width:220px;background:var(--dark);color:#fff;flex-shrink:0;display:flex;flex-direction:column;height:100vh}
+.sidebar-logo{padding:16px;font-size:15px;font-weight:900;border-bottom:1px solid rgba(255,255,255,.12)}
+.sidebar-logo small{display:block;font-size:10px;font-weight:400;opacity:.6;margin-top:2px}
+.nav-item{padding:11px 16px;cursor:pointer;font-size:13px;font-weight:700;color:rgba(255,255,255,.75);border-left:3px solid transparent}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:rgba(37,99,235,.35);color:#fff;border-left-color:var(--acc2)}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;gap:12px}
+.topbar-title{font-size:16px;font-weight:900;flex:1}
+.content{flex:1;overflow-y:auto;padding:20px}
+.page{display:none}.page.active{display:block}
+.card{background:var(--card);border-radius:14px;border:1px solid var(--border);margin-bottom:16px;overflow:hidden}
+.ch{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.ct{font-size:14px;font-weight:800}
+.cb{padding:14px 16px}
+.grid{display:grid;gap:12px}.g2{grid-template-columns:1fr 1fr}.g4{grid-template-columns:repeat(4,1fr)}
+.stat{background:#fff;border-radius:12px;border:1px solid var(--border);padding:14px;text-align:center}
+.stat-v{font-size:22px;font-weight:900;color:var(--acc)}
+.stat-l{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:2px}
+table{border-collapse:collapse;width:100%;font-size:12px}
+th,td{border:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:#eef4ff;color:var(--dark);position:sticky;top:0}
+tr:nth-child(even){background:#f8fafd}
+select,input.fsel{padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px}
+.chip{padding:3px 9px;border-radius:999px;font-size:10px;font-weight:800}
+.chip.ok{background:#d1fae5;color:#065f46}.chip.err{background:#fee2e2;color:#991b1b}.chip.warn{background:#fef3c7;color:#92400e}
+pre{background:#0c1e3d;color:#e6f0ff;padding:12px;border-radius:10px;overflow:auto;max-height:420px;font-size:12px;white-space:pre-wrap;word-break:break-word}
+textarea.jsonEdit{width:100%;min-height:220px;font-family:monospace;font-size:12px;padding:10px;border:1px solid var(--border);border-radius:8px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--dark);color:#fff;
+  padding:11px 20px;border-radius:12px;font-size:13px;font-weight:700;opacity:0;pointer-events:none;transition:.3s;z-index:9999}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:20px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto}
+.hint{font-size:11px;color:var(--muted)}
+@media(max-width:768px){.sidebar{position:fixed;transform:translateX(-100%);z-index:100;transition:.3s}.sidebar.open{transform:translateX(0)}}
+</style>
+</head>
+<body>
+<div id="toast" class="toast"></div>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-title">🛠️ Psicoluz — Sistema</div>
+    <div class="login-sub">Panel de super-administración</div>
+    <div id="loginErr" class="err-msg"></div>
+    <input class="fc" id="lEmail" type="email" placeholder="Correo" autocomplete="username">
+    <input class="fc" id="lPass" type="password" placeholder="Contraseña" autocomplete="current-password">
+    <button class="btn btn-primary" onclick="doLogin()">Ingresar →</button>
+  </div>
+</div>
+
+<div id="app" style="display:none;flex-direction:row">
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-logo">🛠️ Sistema Psicoluz<small>Super-administración</small></div>
+    <div style="overflow-y:auto;flex:1">
+      <div class="nav-item active" onclick="showPage('inicio',this)">📊 Inicio</div>
+      <div class="nav-item" onclick="showPage('tablas',this)">🗄️ Tablas de Supabase</div>
+      <div class="nav-item" onclick="showPage('cuentas',this)">👤 Cuentas y Accesos</div>
+      <div class="nav-item" onclick="showPage('sedes',this)">🏥 Sedes</div>
+      <div class="nav-item" onclick="showPage('storage',this)">📦 Storage</div>
+      <div class="nav-item" onclick="showPage('backups',this)">💾 Backups</div>
+      <div class="nav-item" onclick="showPage('accesos',this)">🔑 Log de Accesos</div>
+      <div class="nav-item" onclick="showPage('errores',this)">🐞 Log de Errores</div>
+    </div>
+    <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,.12)">
+      <div style="font-size:11px;color:rgba(255,255,255,.6)" id="userLabel"></div>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;background:transparent;color:#fff;border-color:rgba(255,255,255,.3)" onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <button onclick="document.getElementById('sidebar').classList.toggle('open')" style="display:none" id="hamburger">☰</button>
+      <div class="topbar-title" id="pageTitle">Inicio</div>
+    </div>
+    <div class="content">
+
+      <!-- INICIO -->
+      <div class="page active" id="pg-inicio">
+        <div class="grid g4" style="margin-bottom:16px" id="statsGrid"></div>
+        <div class="card">
+          <div class="ch"><div class="ct">⚠️ Limitaciones conocidas de este panel</div></div>
+          <div class="cb hint">
+            Este panel usa la misma anon key REST que las demás apps — no tiene acceso a la Management API de Supabase.
+            Eso significa: el uso de almacenamiento mostrado abajo es una <strong>aproximación</strong> (suma de tamaños de archivos listados,
+            no la cuota real del proyecto); "Backups" genera un <strong>export JSON descargable</strong>, no un backup nativo de Postgres;
+            y el log de errores solo recibe lo que cada app reporta activamente (no es una auditoría completa).
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLAS -->
+      <div class="page" id="pg-tablas">
+        <div class="card">
+          <div class="cb">
+            <div class="grid g2" style="margin-bottom:10px">
+              <div>
+                <label class="hint">Tabla</label>
+                <select id="tblSelect" class="fsel" style="width:100%" onchange="tblCargar()"></select>
+              </div>
+              <div>
+                <label class="hint">Límite</label>
+                <input class="fsel" id="tblLimit" type="number" value="50" style="width:100%">
+              </div>
+            </div>
+            <button class="btn btn-primary" style="width:auto" onclick="tblCargar()">Cargar filas</button>
+            <button class="btn btn-outline btn-sm" onclick="tblNuevaFila()">+ Nueva fila</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ch"><div class="ct" id="tblTitulo">—</div><span class="hint" id="tblCount"></span></div>
+          <div class="cb" style="overflow:auto"><div id="tblGrid">Selecciona una tabla.</div></div>
+        </div>
+      </div>
+
+      <!-- CUENTAS -->
+      <div class="page" id="pg-cuentas">
+        <div class="card">
+          <div class="ch"><div class="ct">👤 Cuentas (psicólogas, recepción, gerencia)</div>
+            <select id="cuentasTabla" class="fsel" onchange="cargarCuentas()">
+              <option value="psicologas">Psicólogas</option>
+              <option value="recepcionistas">Recepcionistas</option>
+              <option value="usuarios_gerencia">Gerencia</option>
+            </select>
+          </div>
+          <div class="cb">
+            <button class="btn btn-primary" style="width:auto" onclick="tblNuevaFila(document.getElementById('cuentasTabla').value)">+ Nueva cuenta</button>
+            <div id="cuentasGrid" style="margin-top:12px;overflow:auto"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SEDES -->
+      <div class="page" id="pg-sedes">
+        <div class="card">
+          <div class="ch"><div class="ct">🏥 Sedes</div></div>
+          <div class="cb">
+            <div class="hint" style="margin-bottom:10px">Requiere haber ejecutado sql/002_sistema_admin.sql (tabla <code>sedes</code>).</div>
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+              <input class="fsel" id="sedeNombre" placeholder="Nombre de la sede">
+              <input class="fsel" id="sedeDireccion" placeholder="Dirección (opcional)">
+              <button class="btn btn-primary" style="width:auto" onclick="crearSede()">+ Crear sede</button>
+            </div>
+            <div id="sedesGrid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STORAGE -->
+      <div class="page" id="pg-storage">
+        <div class="card">
+          <div class="ch"><div class="ct">📦 Storage</div></div>
+          <div class="cb">
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+              <input class="fsel" id="bucketName" placeholder="bucket (ej: fotos-perfil)">
+              <input class="fsel" id="bucketPrefix" placeholder="carpeta / prefijo (opcional)">
+              <button class="btn btn-primary" style="width:auto" onclick="listarArchivos()">Listar archivos</button>
+            </div>
+            <div class="hint" style="margin-bottom:8px">Buckets usados por las apps: fotos-perfil, documentos-pacientes, documentos-personal, contratos, fichas, evidencias.</div>
+            <div id="storageGrid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BACKUPS -->
+      <div class="page" id="pg-backups">
+        <div class="card">
+          <div class="ch"><div class="ct">💾 Backups</div></div>
+          <div class="cb">
+            <div class="hint" style="margin-bottom:10px">Descarga un JSON con todas las filas de todas las tablas conocidas. Guárdalo en un lugar seguro — contiene datos de pacientes y contraseñas.</div>
+            <button class="btn btn-primary" style="width:auto" onclick="exportarBackup()">⬇️ Exportar backup completo (JSON)</button>
+            <div id="backupStatus" class="hint" style="margin-top:10px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACCESOS -->
+      <div class="page" id="pg-accesos">
+        <div class="card">
+          <div class="ch"><div class="ct">🔑 Últimos accesos</div>
+            <button class="btn btn-outline btn-sm" onclick="cargarAccesos()">Actualizar</button></div>
+          <div class="cb" id="accesosGrid">Requiere sql/002_sistema_admin.sql (tabla <code>log_accesos</code>).</div>
+        </div>
+      </div>
+
+      <!-- ERRORES -->
+      <div class="page" id="pg-errores">
+        <div class="card">
+          <div class="ch"><div class="ct">🐞 Errores reportados por las apps</div>
+            <button class="btn btn-outline btn-sm" onclick="cargarErrores()">Actualizar</button></div>
+          <div class="cb" id="erroresGrid">Requiere sql/002_sistema_admin.sql (tabla <code>log_errores</code>).</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR FILA (JSON genérico) -->
+<div class="modal-overlay" id="modalFila">
+  <div class="modal">
+    <div style="font-weight:900;font-size:15px;margin-bottom:4px" id="modalFilaTitulo">Editar fila</div>
+    <div class="hint" style="margin-bottom:10px">Edita el JSON y guarda. Los campos deben coincidir con las columnas reales de la tabla.</div>
+    <textarea class="jsonEdit" id="modalFilaJSON"></textarea>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-outline" style="flex:1" onclick="cerrarModalFila()">Cancelar</button>
+      <button class="btn btn-primary" style="flex:1" onclick="guardarModalFila()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SBU='https://uorxwmgaekeeuxeiikkw.supabase.co';
+const SBK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
+const SBH={apikey:SBK,'Authorization':'Bearer '+SBK,'Content-Type':'application/json','Prefer':'return=representation'};
+
+async function sbGet(t,p){p=p||{};let u=SBU+'/rest/v1/'+t;const qs=Object.entries(p).map(e=>e[0]+'='+encodeURIComponent(e[1])).join('&');if(qs)u+='?'+qs;
+  const r=await fetch(u,{headers:SBH});const txt=await r.text();let data=null;try{data=JSON.parse(txt);}catch(e){}
+  if(!r.ok)throw new Error((data&&(data.message||data.hint))||txt.slice(0,200));return {data,count:parseCount(r)};}
+function parseCount(r){const cr=r.headers.get('content-range')||'';const m=cr.match(/\/(\d+|\*)$/);return m&&m[1]!=='*'?parseInt(m[1],10):null;}
+async function sbGetCount(t,p){p=Object.assign({},p);const r=await fetch(SBU+'/rest/v1/'+t+'?'+Object.entries(p).map(e=>e[0]+'='+encodeURIComponent(e[1])).join('&'),
+  {headers:Object.assign({},SBH,{'Prefer':'count=exact'})});return parseCount(r);}
+async function sbPost(t,d){const r=await fetch(SBU+'/rest/v1/'+t,{method:'POST',headers:SBH,body:JSON.stringify(d)});const txt=await r.text();
+  if(!r.ok)throw new Error(txt);return txt?JSON.parse(txt):null;}
+async function sbPatch(t,d,f){const qs=Object.entries(f).map(e=>e[0]+'='+encodeURIComponent(e[1])).join('&');
+  const r=await fetch(SBU+'/rest/v1/'+t+'?'+qs,{method:'PATCH',headers:SBH,body:JSON.stringify(d)});const txt=await r.text();
+  if(!r.ok)throw new Error(txt);return txt?JSON.parse(txt):null;}
+async function sbDelete(t,f){const qs=Object.entries(f).map(e=>e[0]+'='+encodeURIComponent(e[1])).join('&');
+  const r=await fetch(SBU+'/rest/v1/'+t+'?'+qs,{method:'DELETE',headers:SBH});if(!r.ok)throw new Error(await r.text());return true;}
+
+function toast(msg,tipo){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show'+(tipo?' '+tipo:'');
+  clearTimeout(window._tt);window._tt=setTimeout(()=>el.classList.remove('show'),3200);}
+
+const ADMIN_EMAIL='lcatalino@psicoluz.pe';
+const ADMIN_PASS='psicoluz04051996';
+let SESSION={email:''};
+
+function doLogin(){
+  const email=(document.getElementById('lEmail').value||'').trim().toLowerCase();
+  const pass=document.getElementById('lPass').value||'';
+  const err=document.getElementById('loginErr');
+  err.style.display='none';
+  if(email!==ADMIN_EMAIL.toLowerCase()||pass!==ADMIN_PASS){
+    err.textContent='Credenciales incorrectas';err.style.display='block';return;
+  }
+  SESSION.email=email;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('userLabel').textContent=email;
+  sbPost('log_accesos',{app:'sistema',usuario:email,sede:'Todas'}).catch(function(){});
+  initApp();
+}
+function cerrarSesion(){
+  if(!confirm('¿Cerrar sesión?'))return;
+  document.getElementById('app').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('lPass').value='';
+}
+
+const TABLAS=['pacientes','programas_paciente','programa_terapias','sesiones','pagos',
+  'psicologas','recepcionistas','usuarios_gerencia','terapias','fichas_seguimiento',
+  'documentos','documentos_personal','bonos_diarios','honorarios','contratos',
+  'pagos_recurrentes','gastos','chat_sede','asistencia_personal','reprogramaciones',
+  'tarifas_sede','notas_clinicas','objetivos_terapeuticos','registro_animo',
+  'sedes','log_accesos','log_errores'];
+
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('pg-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.getElementById('pageTitle').textContent=btn?btn.textContent.trim():id;
+  if(id==='cuentas')cargarCuentas();
+  if(id==='sedes')cargarSedes();
+  if(id==='accesos')cargarAccesos();
+  if(id==='errores')cargarErrores();
+}
+
+function initApp(){
+  const sel=document.getElementById('tblSelect');
+  sel.innerHTML=TABLAS.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
+  cargarStats();
+}
+
+async function cargarStats(){
+  const el=document.getElementById('statsGrid');
+  el.innerHTML='<div class="stat"><div class="stat-v">⏳</div><div class="stat-l">Cargando…</div></div>';
+  const claves=['pacientes','sesiones','psicologas','pagos'];
+  const counts=await Promise.all(claves.map(t=>sbGetCount(t,{select:'id'}).catch(()=>null)));
+  el.innerHTML=claves.map((t,i)=>'<div class="stat"><div class="stat-v">'+(counts[i]===null?'—':counts[i])+'</div><div class="stat-l">'+t+'</div></div>').join('');
+}
+
+// ── TABLAS ──
+function renderGrid(containerId,rows,tabla){
+  const el=document.getElementById(containerId);
+  if(!rows||!rows.length){el.innerHTML='<div class="hint" style="padding:14px;text-align:center">Sin filas.</div>';return;}
+  const cols=Array.from(rows.reduce((s,r)=>{Object.keys(r||{}).forEach(k=>s.add(k));return s;},new Set()));
+  let h='<div style="overflow:auto;max-height:520px"><table><thead><tr>'+cols.map(c=>'<th>'+c+'</th>').join('')+'<th>Acciones</th></tr></thead><tbody>';
+  rows.forEach((r,i)=>{
+    h+='<tr>'+cols.map(c=>{let v=r[c];if(v===null||v===undefined)v='';else if(typeof v==='object')v=JSON.stringify(v);
+      v=String(v);if(v.length>120)v=v.slice(0,120)+'…';return '<td>'+v.replace(/</g,'&lt;')+'</td>';}).join('')+
+      '<td style="white-space:nowrap"><button class="btn btn-outline btn-sm" onclick="tblEditarFila(\''+tabla+'\','+i+')">✏️</button> '+
+      '<button class="btn btn-danger btn-sm" onclick="tblEliminarFila(\''+tabla+'\','+i+')">🗑️</button></td></tr>';
+  });
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
+}
+let _tblRows={};
+async function tblCargar(){
+  const t=document.getElementById('tblSelect').value;
+  const lim=document.getElementById('tblLimit').value||'50';
+  document.getElementById('tblTitulo').textContent=t;
+  document.getElementById('tblCount').textContent='⏳ cargando…';
+  try{
+    const {data,count}=await sbGet(t,{select:'*',limit:lim});
+    _tblRows[t]=data||[];
+    document.getElementById('tblCount').textContent=(count!==null?count+' filas totales · ':'')+(data?data.length:0)+' mostradas';
+    renderGrid('tblGrid',data,t);
+  }catch(e){
+    document.getElementById('tblCount').textContent='❌ '+e.message;
+    document.getElementById('tblGrid').innerHTML='';
+  }
+}
+let _modalCtx=null;
+function tblNuevaFila(tabla){
+  tabla=tabla||document.getElementById('tblSelect').value;
+  _modalCtx={tabla:tabla,idx:-1,row:null};
+  document.getElementById('modalFilaTitulo').textContent='Nueva fila — '+tabla;
+  document.getElementById('modalFilaJSON').value='{\n  \n}';
+  document.getElementById('modalFila').classList.add('open');
+}
+function tblEditarFila(tabla,idx){
+  const row=(_tblRows[tabla]||[])[idx];if(!row)return;
+  _modalCtx={tabla:tabla,idx:idx,row:row};
+  document.getElementById('modalFilaTitulo').textContent='Editar fila — '+tabla;
+  document.getElementById('modalFilaJSON').value=JSON.stringify(row,null,2);
+  document.getElementById('modalFila').classList.add('open');
+}
+function cerrarModalFila(){document.getElementById('modalFila').classList.remove('open');_modalCtx=null;}
+async function guardarModalFila(){
+  if(!_modalCtx)return;
+  let data;
+  try{data=JSON.parse(document.getElementById('modalFilaJSON').value);}catch(e){toast('JSON inválido: '+e.message,'error');return;}
+  try{
+    if(_modalCtx.idx===-1){
+      await sbPost(_modalCtx.tabla,data);
+      toast('✅ Fila creada');
+    }else{
+      const id=_modalCtx.row.id;
+      if(id===undefined){toast('Esta fila no tiene columna id — no se puede editar así','error');return;}
+      delete data.id;
+      await sbPatch(_modalCtx.tabla,data,{id:'eq.'+id});
+      toast('✅ Fila actualizada');
+    }
+    cerrarModalFila();
+    if(document.getElementById('tblSelect').value===_modalCtx.tabla)tblCargar();
+    if(['psicologas','recepcionistas','usuarios_gerencia'].includes(_modalCtx.tabla))cargarCuentas();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+async function tblEliminarFila(tabla,idx){
+  const row=(_tblRows[tabla]||[])[idx];if(!row)return;
+  if(row.id===undefined){toast('Esta fila no tiene columna id — no se puede eliminar así','error');return;}
+  if(!confirm('¿Eliminar esta fila de "'+tabla+'"? No se puede deshacer.'))return;
+  try{
+    await sbDelete(tabla,{id:'eq.'+row.id});
+    toast('✅ Fila eliminada');
+    tblCargar();
+    if(['psicologas','recepcionistas','usuarios_gerencia'].includes(tabla))cargarCuentas();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+// ── CUENTAS ──
+async function cargarCuentas(){
+  const t=document.getElementById('cuentasTabla').value;
+  const el=document.getElementById('cuentasGrid');
+  el.innerHTML='⏳ cargando…';
+  try{
+    const {data}=await sbGet(t,{select:'*',order:'nombre.asc'});
+    _tblRows[t]=data||[];
+    renderGrid('cuentasGrid',data,t);
+  }catch(e){el.innerHTML='❌ '+e.message;}
+}
+
+// ── SEDES ──
+async function cargarSedes(){
+  const el=document.getElementById('sedesGrid');
+  el.innerHTML='⏳ cargando…';
+  try{
+    const {data}=await sbGet('sedes',{select:'*',order:'nombre.asc'});
+    _tblRows['sedes']=data||[];
+    renderGrid('sedesGrid',data,'sedes');
+  }catch(e){el.innerHTML='❌ '+e.message+' <div class="hint">¿Ejecutaste sql/002_sistema_admin.sql?</div>';}
+}
+async function crearSede(){
+  const nombre=document.getElementById('sedeNombre').value.trim();
+  if(!nombre){toast('Escribe un nombre de sede','error');return;}
+  const direccion=document.getElementById('sedeDireccion').value.trim();
+  try{
+    await sbPost('sedes',{nombre:nombre,direccion:direccion||null});
+    document.getElementById('sedeNombre').value='';document.getElementById('sedeDireccion').value='';
+    toast('✅ Sede creada: '+nombre);
+    cargarSedes();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+// ── STORAGE ──
+async function listarArchivos(){
+  const bucket=document.getElementById('bucketName').value.trim();
+  if(!bucket){toast('Escribe un bucket','error');return;}
+  const prefix=document.getElementById('bucketPrefix').value.trim();
+  const el=document.getElementById('storageGrid');
+  el.innerHTML='⏳ cargando…';
+  try{
+    const r=await fetch(SBU+'/storage/v1/object/list/'+encodeURIComponent(bucket),{
+      method:'POST',headers:SBH,body:JSON.stringify({prefix:prefix||'',limit:500,sortBy:{column:'name',order:'asc'}})});
+    const data=await r.json();
+    if(!r.ok)throw new Error((data&&data.message)||'HTTP '+r.status);
+    const totalBytes=(data||[]).reduce((a,f)=>a+((f.metadata&&f.metadata.size)||0),0);
+    let h='<div class="hint" style="margin-bottom:8px">'+(data||[]).length+' archivo(s) · ~'+(totalBytes/1024/1024).toFixed(2)+' MB (aproximado)</div>';
+    h+='<div style="overflow:auto;max-height:480px"><table><thead><tr><th>Nombre</th><th>Tamaño</th><th>Actualizado</th><th>Acciones</th></tr></thead><tbody>';
+    (data||[]).forEach(function(f){
+      const size=f.metadata&&f.metadata.size?(f.metadata.size/1024).toFixed(1)+' KB':'—';
+      const path=(prefix?prefix+'/':'')+f.name;
+      h+='<tr><td>'+f.name+'</td><td>'+size+'</td><td>'+(f.updated_at||'')+'</td>'+
+        '<td><a class="btn btn-outline btn-sm" href="'+SBU+'/storage/v1/object/public/'+bucket+'/'+encodeURIComponent(path)+'" target="_blank">👁 Ver</a> '+
+        '<button class="btn btn-danger btn-sm" onclick="borrarArchivo(\''+bucket+'\',\''+path.replace(/'/g,"\\'")+'\')">🗑️</button></td></tr>';
+    });
+    h+='</tbody></table></div>';
+    el.innerHTML=h;
+  }catch(e){el.innerHTML='❌ '+e.message;}
+}
+async function borrarArchivo(bucket,path){
+  if(!confirm('¿Eliminar "'+path+'" del bucket "'+bucket+'"? No se puede deshacer.'))return;
+  try{
+    const r=await fetch(SBU+'/storage/v1/object/'+bucket+'/'+encodeURIComponent(path),{method:'DELETE',headers:SBH});
+    if(!r.ok)throw new Error(await r.text());
+    toast('✅ Archivo eliminado');
+    listarArchivos();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+// ── BACKUPS ──
+async function exportarBackup(){
+  const status=document.getElementById('backupStatus');
+  const out={exportado:new Date().toISOString(),tablas:{}};
+  for(let i=0;i<TABLAS.length;i++){
+    const t=TABLAS[i];
+    status.textContent='⏳ Exportando '+(i+1)+'/'+TABLAS.length+': '+t+'…';
+    try{const {data}=await sbGet(t,{select:'*',limit:'10000'});out.tablas[t]=data||[];}
+    catch(e){out.tablas[t]={error:e.message};}
+  }
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='psicoluz-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();a.remove();
+  URL.revokeObjectURL(url);
+  status.textContent='✅ Backup descargado ('+new Date().toLocaleTimeString('es-PE')+')';
+}
+
+// ── ACCESOS / ERRORES ──
+async function cargarAccesos(){
+  const el=document.getElementById('accesosGrid');
+  el.innerHTML='⏳ cargando…';
+  try{
+    const {data}=await sbGet('log_accesos',{select:'*',order:'created_at.desc',limit:'200'});
+    renderGrid('accesosGrid',data,'log_accesos');
+  }catch(e){el.innerHTML='❌ '+e.message+' <div class="hint">¿Ejecutaste sql/002_sistema_admin.sql?</div>';}
+}
+async function cargarErrores(){
+  const el=document.getElementById('erroresGrid');
+  el.innerHTML='⏳ cargando…';
+  try{
+    const {data}=await sbGet('log_errores',{select:'*',order:'created_at.desc',limit:'200'});
+    renderGrid('erroresGrid',data,'log_errores');
+  }catch(e){el.innerHTML='❌ '+e.message+' <div class="hint">¿Ejecutaste sql/002_sistema_admin.sql?</div>';}
+}
+</script>
+</body>
+</html>
