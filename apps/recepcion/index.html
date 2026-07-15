@@ -1585,6 +1585,17 @@ function abrirModalAgendar(fecha,hora,sesOrig){
   openModal('modalAgendar');
 }
 
+function renovarPaquete(pacId){
+  const pac=getPac(pacId);
+  if(!pac||pac.nombre==='—'){showToast('Paciente no encontrado','error');return;}
+  abrirModalAgendar(today(),null,null);
+  const elP=document.getElementById('ag-pac');if(elP)elP.value=pacId;
+  agOnPac();
+  document.getElementById('ag-tipo').value='paquete';
+  agOnTipo();
+  showToast('Elige el nuevo paquete y confirma la fecha/hora');
+}
+
 function agOnPac(){
   const pac=getPac(parseInt(document.getElementById('ag-pac').value));
   if(pac.psId){const el=document.getElementById('ag-ps');if(el){el.value=pac.psId;agOnPs();}}
@@ -1755,9 +1766,11 @@ async function guardarSesion(){
         adelanto:adelantoAcum,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',
         programa_id:prog.id,programa_terapia_id:pt.id};
       await sbPost('sesiones',filaSesion);
+      const progTerminado=nroEnPaq>=totalPaq;
       await Promise.all([
         sbPatch('programa_terapias',{sesiones_realizadas:nroEnPaq},{id:'eq.'+pt.id}),
-        sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldo},{id:'eq.'+prog.id})
+        sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldo,
+          estado:progTerminado?'completado':'activo'},{id:'eq.'+prog.id})
       ]);
     } else {
       const costoTotal=tipo==='paquete'&&paq?paq.costoTotal:costoRaw;
@@ -2370,7 +2383,9 @@ function renderAlertas(){
   DB.pacientes.filter(p=>p.activo!==false&&p.mod==='paquete'&&p.paq>0).forEach(p=>{
     const a=DB.sesiones.filter(s=>s.pacId===p.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
     const rest=p.paq-a;
-    if(rest<=1&&rest>=0)h+='<div class="alert al-info">🔄 <strong>'+p.nombre+'</strong> — '+(rest===0?'Paquete TERMINADO':'Última sesión')+'  ('+a+'/'+p.paq+') — Ofrecer renovación</div>';
+    if(rest<=1&&rest>=0)h+='<div class="alert al-info" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
+      '<span>🔄 <strong>'+p.nombre+'</strong> — '+(rest===0?'Paquete TERMINADO':'Última sesión')+'  ('+a+'/'+p.paq+')</span>'+
+      '<button class="btn btn-primary btn-sm" onclick="renovarPaquete(\''+p.id+'\')">Renovar paquete</button></div>';
   });
   DB.sesiones.filter(s=>s.saldo>0&&s.estado==='programado'&&s.fecha>=today()).forEach(s=>{
     const pac=getPac(s.pacId);
