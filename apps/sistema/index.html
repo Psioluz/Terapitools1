@@ -62,7 +62,18 @@ textarea.jsonEdit{width:100%;min-height:220px;font-family:monospace;font-size:12
 .modal-overlay.open{display:flex}
 .modal{background:#fff;border-radius:16px;padding:20px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto}
 .hint{font-size:11px;color:var(--muted)}
-@media(max-width:768px){.sidebar{position:fixed;transform:translateX(-100%);z-index:100;transition:.3s}.sidebar.open{transform:translateX(0)}}
+.hamburger{display:none;background:none;border:none;cursor:pointer;font-size:20px;color:var(--dark)}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
+.sidebar-overlay.open{display:block}
+@media(max-width:768px){
+  .hamburger{display:block}
+  .sidebar{position:fixed;top:0;left:0;transform:translateX(-100%);z-index:100;transition:.3s}
+  .sidebar.open{transform:translateX(0)}
+}
+select.cellsel,input.cellinp{width:100%;min-width:90px;border:1px solid transparent;padding:3px 5px;font-size:12px;font-family:inherit;background:transparent}
+select.cellsel:focus,input.cellinp:focus{border-color:var(--acc)}
+input[type="color"].cellcolor{width:44px;height:26px;padding:2px;border:1px solid var(--border);border-radius:6px;cursor:pointer}
+tr.dirty td{background:#fff7e6}
 </style>
 </head>
 <body>
@@ -81,6 +92,7 @@ textarea.jsonEdit{width:100%;min-height:220px;font-family:monospace;font-size:12
 </div>
 
 <div id="app" style="display:none;flex-direction:row">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="document.getElementById('sidebar').classList.remove('open');this.classList.remove('open')"></div>
   <div class="sidebar" id="sidebar">
     <div class="sidebar-logo">🛠️ Sistema Psicoluz<small>Super-administración</small></div>
     <div style="overflow-y:auto;flex:1">
@@ -90,6 +102,8 @@ textarea.jsonEdit{width:100%;min-height:220px;font-family:monospace;font-size:12
       <div class="nav-item" onclick="showPage('sedes',this)">🏥 Sedes</div>
       <div class="nav-item" onclick="showPage('storage',this)">📦 Storage</div>
       <div class="nav-item" onclick="showPage('backups',this)">💾 Backups</div>
+      <div class="nav-item" onclick="showPage('docs',this)">📘 Documentación</div>
+      <div class="nav-item" onclick="showPage('duplicados',this)">🧹 Duplicados</div>
       <div class="nav-item" onclick="showPage('accesos',this)">🔑 Log de Accesos</div>
       <div class="nav-item" onclick="showPage('errores',this)">🐞 Log de Errores</div>
     </div>
@@ -101,7 +115,7 @@ textarea.jsonEdit{width:100%;min-height:220px;font-family:monospace;font-size:12
 
   <div class="main">
     <div class="topbar">
-      <button onclick="document.getElementById('sidebar').classList.toggle('open')" style="display:none" id="hamburger">☰</button>
+      <button class="hamburger" id="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('open')">☰</button>
       <div class="topbar-title" id="pageTitle">Inicio</div>
     </div>
     <div class="content">
@@ -136,6 +150,8 @@ textarea.jsonEdit{width:100%;min-height:220px;font-family:monospace;font-size:12
             </div>
             <button class="btn btn-primary" style="width:auto" onclick="tblCargar()">Cargar filas</button>
             <button class="btn btn-outline btn-sm" onclick="tblNuevaFila()">+ Nueva fila</button>
+            <button class="btn btn-outline btn-sm" onclick="tblActualizarTodo(document.getElementById('tblSelect').value,'tblGrid')">💾 Actualizar todo</button>
+            <div class="hint" style="margin-top:6px">Las filas con cambios sin guardar se resaltan en amarillo. Los campos con 🔒 (id, fechas de creación) no se pueden editar.</div>
           </div>
         </div>
         <div class="card">
@@ -156,6 +172,7 @@ textarea.jsonEdit{width:100%;min-height:220px;font-family:monospace;font-size:12
           </div>
           <div class="cb">
             <button class="btn btn-primary" style="width:auto" onclick="tblNuevaFila(document.getElementById('cuentasTabla').value)">+ Nueva cuenta</button>
+            <button class="btn btn-outline btn-sm" onclick="tblActualizarTodo(document.getElementById('cuentasTabla').value,'cuentasGrid')">💾 Actualizar todo</button>
             <div id="cuentasGrid" style="margin-top:12px;overflow:auto"></div>
           </div>
         </div>
@@ -171,6 +188,7 @@ textarea.jsonEdit{width:100%;min-height:220px;font-family:monospace;font-size:12
               <input class="fsel" id="sedeNombre" placeholder="Nombre de la sede">
               <input class="fsel" id="sedeDireccion" placeholder="Dirección (opcional)">
               <button class="btn btn-primary" style="width:auto" onclick="crearSede()">+ Crear sede</button>
+              <button class="btn btn-outline btn-sm" onclick="tblActualizarTodo('sedes','sedesGrid')">💾 Actualizar todo</button>
             </div>
             <div id="sedesGrid"></div>
           </div>
@@ -205,6 +223,26 @@ textarea.jsonEdit{width:100%;min-height:220px;font-family:monospace;font-size:12
             <div id="backupStatus" class="hint" style="margin-top:10px"></div>
           </div>
         </div>
+      </div>
+
+      <!-- DOCUMENTACIÓN -->
+      <div class="page" id="pg-docs">
+        <div class="card">
+          <div class="ch"><div class="ct">📘 Documentación de tablas</div>
+            <button class="btn btn-outline btn-sm" onclick="renderDocs()">Actualizar</button></div>
+          <div class="cb hint" style="margin-bottom:0">Para cada tabla: qué app la llena, sus columnas reales y un ejemplo tomado de Supabase (si hay filas).</div>
+        </div>
+        <div id="docsContent"></div>
+      </div>
+
+      <!-- DUPLICADOS -->
+      <div class="page" id="pg-duplicados">
+        <div class="card">
+          <div class="ch"><div class="ct">🧹 Posibles duplicados</div>
+            <button class="btn btn-outline btn-sm" onclick="renderDuplicados()">Buscar de nuevo</button></div>
+          <div class="cb hint" style="margin-bottom:0">Busca pacientes, psicólogas y recepcionistas con el mismo nombre + sede. Revisa antes de borrar — puede ser un nombre repetido legítimo.</div>
+        </div>
+        <div id="duplicadosContent"></div>
       </div>
 
       <!-- ACCESOS -->
@@ -303,11 +341,15 @@ function showPage(id,btn){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   if(btn)btn.classList.add('active');
   document.getElementById('pageTitle').textContent=btn?btn.textContent.trim():id;
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
   if(id==='cuentas')cargarCuentas();
   if(id==='sedes')cargarSedes();
   if(id==='accesos')cargarAccesos();
   if(id==='errores')cargarErrores();
   if(id==='storage'&&!document.getElementById('bucketChips').children.length)listarBuckets();
+  if(id==='docs')renderDocs();
+  if(id==='duplicados')renderDuplicados();
 }
 
 function initApp(){
@@ -338,8 +380,53 @@ function renderGrid(containerId,rows,tabla){
   el.innerHTML=h;
 }
 
-// Grid tipo Excel: celdas editables directamente, con guardar/eliminar por fila.
+// Grid tipo Excel: celdas editables directamente, con guardar/eliminar por fila,
+// listas desplegables para columnas con valores fijos, selector de color para
+// terapias.color, y "Actualizar todo" para guardar todas las filas modificadas.
 const READONLY_COLS=['id','created_at','updated_at'];
+const ARRAY_COLS=['dias_semana']; // columnas que Supabase devuelve como array — se editan separadas por coma
+const TABLE_ENUMS={
+  pacientes:{estado:['activo','inactivo'],genero:['M','F','O'],modalidad:['Presencial','Virtual']},
+  psicologas:{estado:['activa','inactiva','cesada'],frecuencia_pago:['mensual','quincenal','semanal'],
+    dia_completo:['','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'],
+    horario_completo:['true','false']},
+  recepcionistas:{estado:['activa','inactiva','cesada'],frecuencia_pago:['mensual','quincenal','semanal']},
+  usuarios_gerencia:{estado:['activo','inactivo'],rol:['gerencia','superadmin']},
+  sesiones:{estado:['programado','asistio','tardanza','noasistio','cancelado'],
+    tipo:['sesion','consulta','paquete','informe','constancia','neuropsico']},
+  pagos:{metodo:['Efectivo','Yape','Plin','Transferencia','Tarjeta']},
+  documentos:{tipo:['Informe','Evaluación','Constancia','Contrato','Otro']},
+  contratos:{estado:['pendiente','firmado']},
+  honorarios:{estado:['pendiente','pagado']},
+  gastos:{categoria:['insumos','papeleria','servicios','movilidad','alquiler','otro']},
+  terapias:{activa:['true','false']},
+  sedes:{activa:['true','false']}
+};
+const COLOR_COLS={terapias:['color']};
+function celdaInput(tabla,col,v){
+  const enums=(TABLE_ENUMS[tabla]||{})[col];
+  const isColor=(COLOR_COLS[tabla]||[]).includes(col);
+  if(isColor){
+    const hex=(v&&/^#[0-9a-fA-F]{3,8}$/.test(v))?v:'#e91e8c';
+    return '<div style="display:flex;align-items:center;gap:6px">'+
+      '<input type="color" class="cellcolor" data-col="'+col+'" data-kind="color" value="'+hex+'" '+
+      'oninput="this.nextElementSibling.value=this.value">'+
+      '<input class="cellinp" data-col="'+col+'" data-kind="colortext" value="'+(v||'').replace(/"/g,'&quot;')+'" '+
+      'style="width:80px" oninput="this.previousElementSibling.value=/^#[0-9a-fA-F]{3,8}$/.test(this.value)?this.value:this.previousElementSibling.value"></div>';
+  }
+  if(enums){
+    return '<select class="cellsel" data-col="'+col+'" data-kind="text">'+
+      enums.map(function(o){return '<option value="'+o+'"'+(String(v)===o?' selected':'')+'>'+(o===''?'—':o)+'</option>';}).join('')+
+      '</select>';
+  }
+  if(ARRAY_COLS.includes(col)){
+    const iv=Array.isArray(v)?v.join(','):(v||'');
+    return '<input class="cellinp" data-col="'+col+'" data-kind="array" value="'+String(iv).replace(/"/g,'&quot;')+'" placeholder="1,2,3">';
+  }
+  let iv=(v===null||v===undefined)?'':(typeof v==='object'?JSON.stringify(v):String(v));
+  let kind=(v===null||v===undefined)?'text':(typeof v==='number'?'number':typeof v==='boolean'?'bool':typeof v==='object'?'json':'text');
+  return '<input class="cellinp" data-col="'+col+'" data-kind="'+kind+'" value="'+iv.replace(/"/g,'&quot;')+'">';
+}
 function renderEditableGrid(containerId,rows,tabla){
   const el=document.getElementById(containerId);
   if(!rows||!rows.length){el.innerHTML='<div class="hint" style="padding:14px;text-align:center">Sin filas. Usa "+ Nueva fila" para crear la primera.</div>';return;}
@@ -347,14 +434,13 @@ function renderEditableGrid(containerId,rows,tabla){
   let h='<div style="overflow:auto;max-height:560px"><table><thead><tr>'+
     cols.map(c=>'<th>'+c+(READONLY_COLS.includes(c)?' 🔒':'')+'</th>').join('')+'<th>Acciones</th></tr></thead><tbody>';
   rows.forEach((r,i)=>{
-    h+='<tr data-row="'+i+'">'+cols.map(function(c){
+    h+='<tr data-row="'+i+'" data-tabla="'+tabla+'">'+cols.map(function(c){
       let v=r[c];
       if(READONLY_COLS.includes(c)){
         let sv=(v===null||v===undefined)?'':String(v);if(sv.length>40)sv=sv.slice(0,40)+'…';
         return '<td style="color:var(--muted)">'+sv.replace(/</g,'&lt;')+'</td>';
       }
-      let iv=(v===null||v===undefined)?'':(typeof v==='object'?JSON.stringify(v):String(v));
-      return '<td><input data-col="'+c+'" value="'+iv.replace(/"/g,'&quot;')+'" style="width:100%;min-width:90px;border:1px solid transparent;padding:3px 5px;font-size:12px;font-family:inherit;background:transparent" onfocus="this.style.borderColor=\'var(--acc)\'" onblur="this.style.borderColor=\'transparent\'"></td>';
+      return '<td onchange="this.closest(\'tr\').classList.add(\'dirty\')">'+celdaInput(tabla,c,v)+'</td>';
     }).join('')+
     '<td style="white-space:nowrap">'+
     '<button class="btn btn-primary btn-sm" onclick="tblGuardarFilaInline(\''+tabla+'\','+i+')">💾</button> '+
@@ -363,20 +449,32 @@ function renderEditableGrid(containerId,rows,tabla){
   h+='</tbody></table></div>';
   el.innerHTML=h;
 }
+function leerFilaForm(tr,row){
+  const data={};
+  tr.querySelectorAll('[data-col]').forEach(function(inp){
+    if(inp.dataset.kind==='colortext')return; // solo el color picker manda el valor real
+    var col=inp.dataset.col,kind=inp.dataset.kind,raw=inp.value;
+    if(kind==='number'){var n=parseFloat(raw);data[col]=raw===''?null:(isNaN(n)?null:n);}
+    else if(kind==='bool'){data[col]=(raw==='true');}
+    else if(kind==='json'){try{data[col]=raw===''?null:JSON.parse(raw);}catch(e){throw new Error('Columna "'+col+'": JSON inválido');}}
+    else if(kind==='array'){data[col]=raw===''?[]:raw.split(',').map(function(s){return s.trim();}).filter(Boolean);}
+    else{data[col]=raw===''?null:raw;}
+  });
+  // los <select> de enums (dia_completo/horario_completo/etc.) también vienen como bool cuando aplica
+  Object.keys(TABLE_ENUMS[tr.dataset.tabla]||{}).forEach(function(col){
+    if((TABLE_ENUMS[tr.dataset.tabla][col]||[]).every(function(o){return o==='true'||o==='false';})){
+      if(data[col]!==undefined)data[col]=(data[col]==='true'||data[col]===true);
+    }
+  });
+  return data;
+}
 async function tblGuardarFilaInline(tabla,idx){
   const row=(_tblRows[tabla]||[])[idx];if(!row)return;
   if(row.id===undefined){toast('Esta fila no tiene columna id — no se puede editar así','error');return;}
-  const tr=document.querySelector('#tblGrid tr[data-row="'+idx+'"],#cuentasGrid tr[data-row="'+idx+'"],#sedesGrid tr[data-row="'+idx+'"]');
+  const tr=document.querySelector('tr[data-row="'+idx+'"][data-tabla="'+tabla+'"]');
   if(!tr){toast('No se encontró la fila en pantalla','error');return;}
-  const data={};
-  tr.querySelectorAll('input[data-col]').forEach(function(inp){
-    var col=inp.dataset.col;var raw=inp.value;var original=row[col];
-    if(original===null||original===undefined){data[col]=raw===''?null:raw;}
-    else if(typeof original==='number'){var n=parseFloat(raw);data[col]=isNaN(n)?null:n;}
-    else if(typeof original==='boolean'){data[col]=(raw==='true'||raw==='1');}
-    else if(typeof original==='object'){try{data[col]=JSON.parse(raw);}catch(e){toast('Columna "'+col+'": JSON inválido','error');throw e;}}
-    else{data[col]=raw;}
-  });
+  let data;
+  try{data=leerFilaForm(tr,row);}catch(e){toast(e.message,'error');return;}
   try{
     await sbPatch(tabla,data,{id:'eq.'+row.id});
     toast('✅ Fila actualizada');
@@ -384,6 +482,26 @@ async function tblGuardarFilaInline(tabla,idx){
     if(document.getElementById('cuentasTabla')&&document.getElementById('cuentasTabla').value===tabla)cargarCuentas();
     if(tabla==='sedes')cargarSedes();
   }catch(e){toast('Error: '+e.message,'error');}
+}
+async function tblActualizarTodo(tabla,contenedorId){
+  const filas=document.querySelectorAll('#'+contenedorId+' tr.dirty');
+  if(!filas.length){toast('No hay cambios pendientes');return;}
+  toast('⏳ Guardando '+filas.length+' fila(s)...');
+  let ok=0,err=0;
+  for(const tr of filas){
+    const idx=parseInt(tr.dataset.row,10);
+    const row=(_tblRows[tabla]||[])[idx];
+    if(!row||row.id===undefined){err++;continue;}
+    try{
+      const data=leerFilaForm(tr,row);
+      await sbPatch(tabla,data,{id:'eq.'+row.id});
+      ok++;
+    }catch(e){err++;}
+  }
+  toast((err?'⚠️ ':'✅ ')+ok+' guardada(s)'+(err?', '+err+' con error':''));
+  if(document.getElementById('tblSelect')&&document.getElementById('tblSelect').value===tabla)tblCargar();
+  if(document.getElementById('cuentasTabla')&&document.getElementById('cuentasTabla').value===tabla)cargarCuentas();
+  if(tabla==='sedes')cargarSedes();
 }
 let _tblRows={};
 async function tblCargar(){
@@ -402,11 +520,33 @@ async function tblCargar(){
   }
 }
 let _modalCtx=null;
+// Plantilla de columnas conocidas para tablas que todavía no se han cargado
+// (para que "+ Nueva fila" siempre muestre los nombres reales, no un {} vacío)
+const TABLE_TEMPLATES={
+  pacientes:{nombre:'',telefono:'',fecha_nac:null,dni:'',diagnostico:'',paquete:'',estado:'activo',sede:'',psicologa:'',terapia:'',saldo:0,genero:'',motivo:'',apoderado:'',direccion:'',colegio:'',grado:'',modalidad:'Presencial'},
+  psicologas:{nombre:'',cpsp:'',especialidad:'',sede:'',estado:'activa',email:'',password:'',telefono:'',fecha_nac:null,sueldo:0,hora_inicio:'13:15',hora_fin:'20:00',fecha_ingreso:null,banco:'',numero_cuenta:'',cci:'',dias_trabajo:'Lunes-Sabado',horario_completo:false,frecuencia_pago:'mensual',dia_pago:1,dia_completo:'',grado_academico:'',dni:''},
+  recepcionistas:{nombre:'',sede:'',estado:'activa',email:'',password:'',telefono:'',fecha_nac:null,fecha_ingreso:null,sueldo:0,dni:''},
+  usuarios_gerencia:{email:'',nombre:'',password:'',rol:'gerencia',sede:'Todas',estado:'activo'},
+  terapias:{nombre:'',color:'#e91e8c',activa:true},
+  sesiones:{fecha:'',hora:'',paciente_nombre:'',psicologa:'',terapia:'',estado:'programado',tipo:'sesion',sede:''},
+  pagos:{fecha:'',hora:'',monto:0,metodo:'Efectivo',concepto:'',paciente_nombre:'',psicologa_nombre:'',sede:''},
+  gastos:{fecha:'',concepto:'',monto:0,sede:'',categoria:'otro',registrado_por:''},
+  sedes:{nombre:'',direccion:'',activa:true},
+  pagos_recurrentes:{concepto:'',monto:0,dia_pago:1,sede:'',activo:true}
+};
 function tblNuevaFila(tabla){
   tabla=tabla||document.getElementById('tblSelect').value;
   _modalCtx={tabla:tabla,idx:-1,row:null};
   document.getElementById('modalFilaTitulo').textContent='Nueva fila — '+tabla;
-  document.getElementById('modalFilaJSON').value='{\n  \n}';
+  var muestra=(_tblRows[tabla]&&_tblRows[tabla][0])||TABLE_TEMPLATES[tabla];
+  var plantilla={};
+  if(muestra){
+    Object.keys(muestra).forEach(function(k){
+      if(READONLY_COLS.includes(k))return;
+      plantilla[k]=typeof muestra[k]==='object'?muestra[k]:(typeof muestra[k]==='number'?0:typeof muestra[k]==='boolean'?false:'');
+    });
+  }
+  document.getElementById('modalFilaJSON').value=Object.keys(plantilla).length?JSON.stringify(plantilla,null,2):'{\n  \n}';
   document.getElementById('modalFila').classList.add('open');
 }
 function cerrarModalFila(){document.getElementById('modalFila').classList.remove('open');_modalCtx=null;}
@@ -451,7 +591,83 @@ async function cargarCuentas(){
     const {data}=await sbGet(t,{select:'*',order:'nombre.asc'});
     _tblRows[t]=data||[];
     renderEditableGrid('cuentasGrid',data,t);
+    if(t==='psicologas')agregarBotonesHorario(data);
   }catch(e){el.innerHTML='❌ '+e.message;}
+}
+
+// ── HORARIO Y DÍAS DE TRABAJO (psicólogas) ──
+const DIAS_SEMANA=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+function agregarBotonesHorario(rows){
+  document.querySelectorAll('#cuentasGrid tr[data-row]').forEach(function(tr){
+    var idx=parseInt(tr.dataset.row,10);
+    var row=rows[idx];if(!row)return;
+    var tdAcc=tr.querySelector('td:last-child');if(!tdAcc)return;
+    var btn=document.createElement('button');
+    btn.className='btn btn-outline btn-sm';
+    btn.textContent='🕐 Horario';
+    btn.onclick=function(){abrirHorarioPs(idx);};
+    tdAcc.appendChild(document.createTextNode(' '));
+    tdAcc.appendChild(btn);
+  });
+}
+function abrirHorarioPs(idx){
+  var row=(_tblRows['psicologas']||[])[idx];if(!row)return;
+  var modal=document.getElementById('modalHorario');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='modalHorario';modal.className='modal-overlay';
+    modal.innerHTML='<div class="modal" style="max-width:460px"><div id="horarioBody"></div>'+
+      '<div style="display:flex;gap:8px;margin-top:14px">'+
+      '<button class="btn btn-outline" style="flex:1" onclick="document.getElementById(\'modalHorario\').classList.remove(\'open\')">Cancelar</button>'+
+      '<button class="btn btn-primary" style="flex:1" onclick="guardarHorarioPs()">Guardar</button></div></div>';
+    document.body.appendChild(modal);
+  }
+  var diasActuales=(row.dias_trabajo||'').split(/[,\-]|\s+a\s+/i).map(function(s){return s.trim();}).filter(Boolean);
+  // "Lunes-Sabado" es un rango: expandirlo para marcar los checkboxes correctos
+  if(/^lunes\s*-\s*sabado$/i.test(row.dias_trabajo||''))diasActuales=DIAS_SEMANA.slice(0,6);
+  document.getElementById('horarioBody').innerHTML=
+    '<div style="font-weight:900;font-size:15px;margin-bottom:10px">🕐 Horario — '+row.nombre+'</div>'+
+    '<div class="hint" style="margin-bottom:6px">Días que trabaja</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">'+
+    DIAS_SEMANA.map(function(d){
+      var checked=diasActuales.indexOf(d)>-1;
+      return '<label style="display:flex;align-items:center;gap:4px;font-size:12px;background:var(--bg);padding:5px 9px;border-radius:8px;cursor:pointer">'+
+        '<input type="checkbox" value="'+d+'" class="diaTrabajoChk" '+(checked?'checked':'')+'> '+d.slice(0,3)+'</label>';
+    }).join('')+
+    '</div>'+
+    '<div class="hint" style="margin-bottom:6px">Día completo (entra más temprano, ej. 08:00) — opcional</div>'+
+    '<select class="fsel" id="hDiaCompleto" style="width:100%;margin-bottom:14px">'+
+      '<option value="">— Ninguno —</option>'+
+      DIAS_SEMANA.map(function(d){return '<option value="'+d+'"'+(row.dia_completo===d?' selected':'')+'>'+d+'</option>';}).join('')+
+    '</select>'+
+    '<div class="grid g2">'+
+      '<div><div class="hint" style="margin-bottom:4px">Hora inicio (días normales)</div><input type="time" class="fsel" id="hInicio" style="width:100%" value="'+(row.hora_inicio||'13:15').substring(0,5)+'"></div>'+
+      '<div><div class="hint" style="margin-bottom:4px">Hora fin</div><input type="time" class="fsel" id="hFin" style="width:100%" value="'+(row.hora_fin||'20:00').substring(0,5)+'"></div>'+
+    '</div>'+
+    '<div class="hint" style="margin-top:10px">El día marcado como "completo" siempre empieza a las 08:00 en las apps, sin importar la hora de inicio de arriba.</div>';
+  modal._idx=idx;
+  modal.classList.add('open');
+}
+async function guardarHorarioPs(){
+  var modal=document.getElementById('modalHorario');
+  var row=(_tblRows['psicologas']||[])[modal._idx];if(!row)return;
+  var dias=Array.from(document.querySelectorAll('.diaTrabajoChk:checked')).map(function(c){return c.value;});
+  var diasTexto=dias.length===6&&DIAS_SEMANA.slice(0,6).every(function(d){return dias.indexOf(d)>-1;})
+    ?'Lunes-Sabado':dias.join(', ');
+  var diaCompleto=document.getElementById('hDiaCompleto').value;
+  var data={
+    dias_trabajo:diasTexto,
+    dia_completo:diaCompleto||null,
+    horario_completo:!!diaCompleto,
+    hora_inicio:document.getElementById('hInicio').value||'13:15',
+    hora_fin:document.getElementById('hFin').value||'20:00'
+  };
+  try{
+    await sbPatch('psicologas',data,{id:'eq.'+row.id});
+    toast('✅ Horario actualizado: '+row.nombre);
+    modal.classList.remove('open');
+    cargarCuentas();
+  }catch(e){toast('Error: '+e.message,'error');}
 }
 
 // ── SEDES ──
@@ -577,6 +793,107 @@ async function cargarErrores(){
     const {data}=await sbGet('log_errores',{select:'*',order:'created_at.desc',limit:'200'});
     renderGrid('erroresGrid',data,'log_errores');
   }catch(e){el.innerHTML='❌ '+e.message+' <div class="hint">¿Ejecutaste sql/002_sistema_admin.sql?</div>';}
+}
+
+// ── DOCUMENTACIÓN ──
+const TABLE_DOCS={
+  pacientes:'Recepción (crear/editar), Sistema (todo). Gerencia y Psicóloga solo leen.',
+  psicologas:'Sistema (cuentas y horario). Recepción y Gerencia solo leen. Contraseña en texto plano.',
+  recepcionistas:'Sistema (cuentas). Gerencia solo lee.',
+  usuarios_gerencia:'Sistema (cuentas). Login de Gerencia lee de aquí.',
+  terapias:'Catálogo fijo — normalmente no cambia. Editable desde Sistema.',
+  sesiones:'Recepción crea/edita al agendar y marcar asistencia. Psicóloga y Gerencia solo leen.',
+  pagos:'Recepción registra cada cobro. Gerencia lee para Finanzas.',
+  fichas_seguimiento:'Psicóloga crea una por sesión (Llenar Ficha). Recepción/Gerencia solo leen.',
+  notas_clinicas:'Psicóloga (notas rápidas por paciente). Requiere sql/001.',
+  objetivos_terapeuticos:'Psicóloga (objetivos + progreso %). Requiere sql/001.',
+  registro_animo:'Psicóloga (ánimo diario del paciente). Requiere sql/001.',
+  documentos:'Recepción sube documentos de pacientes (Storage + esta tabla).',
+  documentos_personal:'Gerencia sube documentos del personal (contratos, etc.).',
+  bonos_diarios:'Nadie la escribe todavía — ningún app calcula bonos automáticamente hoy.',
+  honorarios:'Gerencia (sueldos mensuales por psicóloga).',
+  contratos:'Gerencia crea el contrato; la psicóloga lo firma desde su app.',
+  pagos_recurrentes:'Gerencia (alquiler, internet, servicios — pagos fijos del local).',
+  gastos:'Gerencia registra gastos operativos.',
+  chat_sede:'Las 3 apps (psicóloga, recepción, gerencia) leen y escriben aquí.',
+  asistencia_personal:'Recepción marca presente/ausente del personal cada día.',
+  reprogramaciones:'Recepción, al reprogramar una sesión con evidencia.',
+  sedes:'Sistema (catálogo de sedes). Requiere sql/002.',
+  log_accesos:'Las 4 apps registran cada login aquí. Requiere sql/002.',
+  log_errores:'Las 4 apps registran errores no capturados aquí. Requiere sql/002.',
+  tarifas_sede:'Precios de servicios por sede (si se usa).'
+};
+async function renderDocs(){
+  const el=document.getElementById('docsContent');
+  el.innerHTML='⏳ Cargando ejemplos de cada tabla…';
+  let h='';
+  for(const t of TABLAS){
+    let ejemplo=null,cols=[],error=null;
+    try{
+      const {data}=await sbGet(t,{select:'*',limit:'1'});
+      if(data&&data.length){ejemplo=data[0];cols=Object.keys(ejemplo);}
+    }catch(e){error=e.message;}
+    h+='<details style="border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden">'+
+      '<summary style="padding:10px 14px;font-weight:800;font-size:13px;cursor:pointer;background:#f3f8ff">'+t+'</summary>'+
+      '<div style="padding:12px 14px">'+
+      '<div class="hint" style="margin-bottom:8px">✍️ Quién la llena: '+(TABLE_DOCS[t]||'—')+'</div>'+
+      (error?'<div class="hint" style="color:var(--red)">❌ '+error+'</div>':
+        cols.length?
+          '<div class="hint" style="margin-bottom:6px">Columnas: '+cols.join(', ')+'</div>'+
+          '<pre>'+JSON.stringify(ejemplo,null,2)+'</pre>'
+          :'<div class="hint">Tabla vacía o sin acceso — no se puede mostrar un ejemplo real todavía.</div>')+
+      '</div></details>';
+  }
+  el.innerHTML=h;
+}
+
+// ── DUPLICADOS ──
+async function renderDuplicados(){
+  const el=document.getElementById('duplicadosContent');
+  el.innerHTML='⏳ Buscando duplicados…';
+  let h='';
+  const revisar=[
+    {tabla:'pacientes',campo:'nombre'},
+    {tabla:'psicologas',campo:'nombre'},
+    {tabla:'recepcionistas',campo:'nombre'}
+  ];
+  for(const r of revisar){
+    try{
+      const {data}=await sbGet(r.tabla,{select:'*',order:'nombre.asc'});
+      const grupos={};
+      (data||[]).forEach(function(row){
+        const key=(row[r.campo]||'').trim().toLowerCase()+'|'+(row.sede||'');
+        if(!key.trim())return;
+        if(!grupos[key])grupos[key]=[];
+        grupos[key].push(row);
+      });
+      const dup=Object.values(grupos).filter(function(g){return g.length>1;});
+      h+='<div class="card"><div class="ch"><div class="ct">'+r.tabla+'</div><span class="hint">'+dup.length+' grupo(s) duplicado(s) de '+(data||[]).length+' filas</span></div>';
+      if(!dup.length){h+='<div class="cb hint">Sin duplicados detectados ✅</div>';}
+      else{
+        h+='<div class="cb">'+dup.map(function(g){
+          return '<div style="border:1px solid var(--orange);border-radius:8px;padding:8px;margin-bottom:8px">'+
+            '<div style="font-weight:800;font-size:12px;margin-bottom:6px">'+g[0][r.campo]+' · '+(g[0].sede||'sin sede')+' ('+g.length+' filas)</div>'+
+            g.map(function(row){
+              return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-top:1px dashed var(--border);font-size:11px">'+
+                '<span>id: '+row.id+' · creado: '+(row.created_at||'').slice(0,10)+'</span>'+
+                '<button class="btn btn-danger btn-sm" onclick="borrarDuplicado(\''+r.tabla+'\',\''+row.id+'\',this)">🗑️ Eliminar esta</button></div>';
+            }).join('')+
+            '</div>';
+        }).join('')+'</div>';
+      }
+      h+='</div>';
+    }catch(e){h+='<div class="card cb hint">❌ '+r.tabla+': '+e.message+'</div>';}
+  }
+  el.innerHTML=h;
+}
+async function borrarDuplicado(tabla,id,btn){
+  if(!confirm('¿Eliminar esta fila de "'+tabla+'"? No se puede deshacer.'))return;
+  try{
+    await sbDelete(tabla,{id:'eq.'+id});
+    toast('✅ Eliminado');
+    btn.closest('div[style*="border-top"]').remove();
+  }catch(e){toast('Error: '+e.message,'error');}
 }
 </script>
 </body>

@@ -2901,6 +2901,7 @@ async function cargarDesdeSB() {
     DB.psicologas=(res[3]||[]).map(function(p){return{id:p.id||p.nombre,nombre:p.nombre,
       cpsp:p.cpsp||'',cop:p.cpsp||'',esp:p.especialidad||'',tel:p.telefono||'',nac:p.fecha_nac||'',
       inicio:(p.hora_inicio||'13:15').substring(0,5),fin:(p.hora_fin||'20:00').substring(0,5),
+      diaEspecial:p.dia_completo||'',
       estado:p.estado||'activa',_sb:p};});
     DB.asistPersonal=res[4]||[];
     DB.terapias=(res[5]||[]).map(function(t){return{id:t.id||t.nombre,nombre:t.nombre,color:t.color||''};});

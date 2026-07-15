@@ -912,7 +912,14 @@ function sbar(on){
   function _sede(){return '';}
   function sedeFiltro(sede){return sede?{'sede':'eq.'+sede}:{};}
 
-  var _oF=window.fetch;
+function _diasTrabajoANum(txt){
+    if(!txt)return[1,2,3,4,5,6];
+    if(/lunes\s*-\s*sabado/i.test(txt))return[1,2,3,4,5,6];
+    var map={domingo:0,lunes:1,martes:2,miercoles:3,'miércoles':3,jueves:4,viernes:5,sabado:6,'sábado':6};
+    var nums=txt.split(',').map(function(s){return map[s.trim().toLowerCase()];}).filter(function(n){return n!==undefined;});
+    return nums.length?nums:[1,2,3,4,5,6];
+  }
+    var _oF=window.fetch;
   window.fetch=function(url,opts){
     if(typeof url==='string' && url.indexOf('script.google.com')>-1){
       var qs=url.split('?')[1]||'';
@@ -971,8 +978,8 @@ function sbar(on){
                 password:p.password,estado:p.estado,cop:p.cpsp||'',
                 especialidad:p.especialidad||'',inicio:_fH(p.hora_inicio)||'08:00',
                 fin:_fH(p.hora_fin)||'19:15',
-                diasSemana:p.dias_semana?p.dias_semana.split(',').map(Number):[1,2,3,4,5,6],
-                fechaNac:p.fecha_nac||'',tel:p.telefono||'',
+                diasSemana:_diasTrabajoANum(p.dias_trabajo),
+                fechaNac:p.fecha_nac||'',tel:p.telefono||'',diaEspecial:p.dia_completo||'',
                 cuenta:p.cuenta_bancaria||'',cci:p.cuenta_interbancaria||'',
                 sueldo:p.sueldo||0,fotoUrl:p.foto_url||'',rol:'psicologa'};
             }),
@@ -1007,8 +1014,8 @@ function sbar(on){
               password:p.password,estado:p.estado,cop:p.cpsp||'',
               especialidad:p.especialidad||'',inicio:_fH(p.hora_inicio)||'08:00',
               fin:_fH(p.hora_fin)||'19:15',
-              diasSemana:p.dias_semana?p.dias_semana.split(',').map(Number):[1,2,3,4,5,6],
-              fechaNac:p.fecha_nac||'',tel:p.telefono||'',diaEspecial:'',
+              diasSemana:_diasTrabajoANum(p.dias_trabajo),
+              fechaNac:p.fecha_nac||'',tel:p.telefono||'',diaEspecial:p.dia_completo||'',
               cuenta:p.cuenta_bancaria||'',cci:p.cuenta_interbancaria||'',
               sueldo:p.sueldo||0,fotoUrl:p.foto_url||''};
             return _jr({status:'ok',psicologa:ps,usuario:ps});
@@ -2397,18 +2404,27 @@ self.addEventListener('fetch',e=>{
 
   // ── Botón instalar (compatible con Android, iOS, Samsung) ──
   let _deferredPrompt = null;
-  
-  window.addEventListener('beforeinstallprompt', e => {
-    e.preventDefault();
-    _deferredPrompt = e;
-    // Solo mostrar si NO está ya instalado
+
+  function mostrarBtnInstalarGer(){
     if (window.matchMedia('(display-mode:standalone)').matches) return;
     if (navigator.standalone === true) return;
     if (localStorage.getItem('psicoluz_pwa_instalada') === '1') return;
-    // Mostrar todos los botones con clase pwa-install-btn
     document.querySelectorAll('.pwa-install-btn,[id^="btnInstalar"]').forEach(b => {
       b.style.display = 'flex';
     });
+  }
+  // Mostrar el botón siempre (no solo cuando el navegador dispara
+  // beforeinstallprompt — Safari/iOS nunca lo dispara).
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mostrarBtnInstalarGer);
+  } else {
+    mostrarBtnInstalarGer();
+  }
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    _deferredPrompt = e;
+    mostrarBtnInstalarGer();
   });
   
   window.addEventListener('appinstalled', () => {
