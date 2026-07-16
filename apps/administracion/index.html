@@ -543,11 +543,11 @@ function renderEvolutivo(){
 function renderContratos(){
   var el=document.getElementById('listaContratos');if(!el)return;
   if(!D.contratos.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin contratos</p>';return;}
-  el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Trabajadora</th><th>Tipo</th><th>Inicio</th><th>Vence</th><th>Monto</th><th>Estado</th><th>Firma</th></tr></thead><tbody>'+
-  D.contratos.map(function(c){return'<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+c.trabajadora+'</td><td style="font-size:12px">'+( c.tipo||'—')+'</td><td style="font-size:12px">'+fmtF(c.fecha_inicio)+'</td><td style="font-size:12px">'+fmtF(c.fecha_fin)+'</td><td style="font-weight:700;color:#15803d">S/'+(c.monto||0)+'</td><td>'+badge(c.estado||'pendiente')+'</td><td style="font-size:11px">'+(c.url_documento?'<a href="'+c.url_documento+'" target="_blank" style="color:var(--acc);font-weight:700">📄 Ver PDF</a>':'—')+'</td></tr>';}).join('')+'</tbody></table>';
+  el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Trabajadora</th><th>Tipo</th><th>Inicio</th><th>Vence</th><th>Monto</th><th>Estado</th><th>Firma</th><th></th></tr></thead><tbody>'+
+  D.contratos.map(function(c){return'<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+c.trabajadora+'</td><td style="font-size:12px">'+( c.tipo||'—')+'</td><td style="font-size:12px">'+fmtF(c.fecha_inicio)+'</td><td style="font-size:12px">'+fmtF(c.fecha_fin)+'</td><td style="font-weight:700;color:#15803d">S/'+(c.monto||0)+'</td><td>'+badge(c.estado||'pendiente')+'</td><td style="font-size:11px">'+(c.url_documento?'<a href="'+c.url_documento+'" target="_blank" style="color:var(--acc);font-weight:700">📄 Ver PDF</a>':'—')+'</td><td style="text-align:right"><button onclick="eliminarContrato(\''+c.id+'\')" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer">🗑</button></td></tr>';}).join('')+'</tbody></table>';
 }
 async function guardarContrato(){
-  var d={trabajadora:document.getElementById('ctTrabajadora').value,sede:D.sede,tipo:document.getElementById('ctTipo').value,fecha_inicio:document.getElementById('ctInicio').value,fecha_fin:document.getElementById('ctFin').value,monto:parseFloat(document.getElementById('ctMonto').value)||0,estado:'pendiente',notas:document.getElementById('ctNotas').value};
+  var d={trabajadora:document.getElementById('ctTrabajadora').value,sede:D.sede,tipo:document.getElementById('ctTipo').value,fecha_inicio:document.getElementById('ctInicio').value,fecha_fin:document.getElementById('ctFin').value,monto:parseFloat(document.getElementById('ctMonto').value)||0,estado:'pendiente',firmado_el:null,notas:document.getElementById('ctNotas').value};
   if(!d.trabajadora){toast('Ingresa el nombre de la trabajadora','error');return;}
   try{
     // Subir el PDF al bucket contratos/{Sede}/ si se seleccionó archivo
@@ -560,10 +560,30 @@ async function guardarContrato(){
       var path=sedeCarpeta+'/'+nombreLimpio+'_'+Date.now()+'.pdf';
       d.url_documento=await sbUpload('contratos',path,f,'application/pdf');
     }
-    await sbPost('contratos',d);
+    // Cada trabajadora tiene UN solo contrato vigente — si ya existe una
+    // fila para ella, se actualiza (y se resetea a "pendiente" con el
+    // nuevo PDF) en vez de crear una fila nueva. Antes cada "Crear
+    // Contrato" insertaba una fila más, y como la psicóloga consulta
+    // "el" contrato con un límite de 1 sin orden definido, Supabase podía
+    // devolver cualquiera de las filas viejas — a veces la ya firmada,
+    // a veces una sin firmar — mostrando estados inconsistentes.
+    var existente=await sbGet('contratos',{trabajadora:'eq.'+d.trabajadora,select:'id',limit:'1'}).catch(function(){return[];});
+    if(existente&&existente.length){
+      await sbPatch('contratos',d,{id:'eq.'+existente[0].id});
+    }else{
+      await sbPost('contratos',d);
+    }
     if(inp)inp.value='';
     document.getElementById('modalContrato').classList.remove('open');
-    toast('✅ Contrato creado'+(d.url_documento?' con PDF':''));
+    toast('✅ Contrato guardado'+(d.url_documento?' con PDF':''));
+    await recargar();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+async function eliminarContrato(id){
+  if(!confirm('¿Eliminar este contrato? El estado volverá a "sin documento cargado".'))return;
+  try{
+    await sbDelete('contratos',{id:'eq.'+id});
+    toast('✅ Contrato eliminado');
     await recargar();
   }catch(e){toast('Error: '+e.message,'error');}
 }

@@ -355,10 +355,8 @@ select.fsel{
     <div class="ger-nav-item" id="gnav-tChat" onclick="goTab('tChat',this);abrirChatGer()">💬 Chat <span id="chatBadgeGer" style="display:none;background:#e91e8c;color:#fff;border-radius:10px;font-size:9px;padding:1px 5px;font-weight:800;margin-left:4px"></span></div>
   </div>
   <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,.1)">
-    <div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:8px;text-align:center">Foto de perfil</div>
     <label for="inputFotoGer" style="display:block;cursor:pointer;text-align:center;margin-bottom:8px">
-      <img id="gerFotoPerfil" src="" style="display:none;width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid rgba(240,98,146,.5)">
-      <div id="gerFotoPlaceholder" style="width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto;border:2px dashed rgba(240,98,146,.4)">📷</div>
+      <span style="display:inline-block;width:100%;padding:9px;background:rgba(255,255,255,.1);border:1px dashed rgba(240,98,146,.5);border-radius:8px;color:#fff;font-size:12px;font-weight:700;box-sizing:border-box">📷 Cambiar foto</span>
     </label>
     <input type="file" id="inputFotoGer" accept="image/*" style="display:none" onchange="cambiarFotoGer(this)">
     <button onclick="doLogout()" style="width:100%;padding:9px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer">🚪 Cerrar Sesión</button>
@@ -1226,6 +1224,12 @@ function doLogin(){
         _gerEmail=email; _gerNombre=nombreReal;
         localStorage.setItem('psicoluz_ger_session',JSON.stringify({email:email,nombre:nombreReal,ts:Date.now()}));
         try{_logAccesoGer(nombreReal);}catch(e){}
+        // Mostrar la foto en cache local de inmediato (sin esperar a Supabase)
+        try{
+          var fotoCache=localStorage.getItem('psicoluz_ger_foto_'+nombreReal);
+          var avSideIni=document.getElementById('gerAvatarSide');
+          if(fotoCache&&avSideIni)avSideIni.src=fotoCache;
+        }catch(e){}
         setTimeout(function(){try{cargarFotoGerSB();}catch(e){}},900);
         if(err)err.style.display='none';
         document.getElementById('loginScreen').style.display='none';
@@ -2494,14 +2498,11 @@ function cambiarFotoGer(input){
           }
         }catch(eUp){console.warn('[foto] solo local:',eUp.message);}
       })();
-      // Actualizar UI — solo el círculo de "Foto de perfil" (junto al botón
-      // de subir). El logo de arriba del sidebar es el logo de Psicoluz,
-      // no la foto del usuario — antes se pisaba con la misma foto y
-      // salían dos fotos iguales, una arriba y otra abajo.
-      var fpEl=document.getElementById('gerFotoPerfil');
-      var fpPl=document.getElementById('gerFotoPlaceholder');
-      if(fpEl){fpEl.src=src;fpEl.style.display='block';}
-      if(fpPl)fpPl.style.display='none';
+      // La foto del usuario se muestra arriba, en el círculo del sidebar
+      // (reemplaza el logo de Psicoluz mientras haya foto). Abajo solo
+      // queda el botón "Cambiar foto", sin una segunda foto duplicada.
+      var avSide=document.getElementById('gerAvatarSide');
+      if(avSide)avSide.src=src;
       toast('✅ Foto actualizada','ok');
     };
     img.src=e.target.result;
@@ -3372,10 +3373,8 @@ async function cargarFotoGerSB(){
     var rows=await accGet('usuarios_gerencia',{email:'eq.'+_gerEmail,select:'foto_url'});
     var url=rows&&rows.length&&rows[0].foto_url;
     if(!url)return;
-    var fpEl=document.getElementById('gerFotoPerfil');
-    var fpPl=document.getElementById('gerFotoPlaceholder');
-    if(fpEl){fpEl.src=url;fpEl.style.display='block';}
-    if(fpPl)fpPl.style.display='none';
+    var avSide=document.getElementById('gerAvatarSide');
+    if(avSide)avSide.src=url;
   }catch(e){console.warn('[fotoSB]',e.message);}
 }
 

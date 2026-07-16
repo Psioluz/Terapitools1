@@ -770,7 +770,7 @@ function _diasTrabajoANum(txt){
       }
 
       if(action==='getContratoPs'){
-        return _sb('contratos',{'trabajadora':'eq.'+(qp.nombre||''),'select':'*','limit':'1'}).then(function(r){
+        return _sb('contratos',{'trabajadora':'eq.'+(qp.nombre||''),'select':'*','order':'created_at.desc','limit':'1'}).then(function(r){
           if(r&&r.length){
             var c=r[0];
             return _jr({status:'ok',url:c.url_documento||'',estado:c.estado||'pendiente',
