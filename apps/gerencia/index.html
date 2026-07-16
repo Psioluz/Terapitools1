@@ -766,7 +766,8 @@ async function eliminarPagoRecurrente(id){
       <div style="font-weight:800;font-size:14px">💬 Chat — <span id="chatSedeTituloGer">Todas las sedes</span></div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
         <label style="font-size:10px;opacity:.8">Enviar a sede:</label>
-        <select id="chatSedeSelGer" style="font-size:11px;padding:3px 8px;border-radius:6px;border:none;background:rgba(255,255,255,.2);color:#fff">
+        <select id="chatSedeSelGer" onchange="window._chatSedeSelGerVal=this.value" style="font-size:11px;padding:3px 8px;border-radius:6px;border:none;background:rgba(255,255,255,.2);color:#fff">
+          <option value="">— Elige la sede —</option>
           <option value="Comas">Comas</option>
           <option value="Ovalo Zapallal">Óvalo Zapallal</option>
           <option value="Flecha">Flecha</option>
@@ -2610,6 +2611,12 @@ function abrirChatGer(){
   _chatVisibleGer=true;
   var tit=document.getElementById('chatSedeTituloGer');
   if(tit)tit.textContent='Todas las sedes';
+  // Restaurar la última sede elegida para "Enviar a" — antes el <select>
+  // se repintaba en blanco (mostraba "Comas" por ser la 1ra opción) cada
+  // vez que se reabría el chat, y era fácil mandar a la sede equivocada
+  // sin darse cuenta.
+  var selSede=document.getElementById('chatSedeSelGer');
+  if(selSede&&window._chatSedeSelGerVal)selSede.value=window._chatSedeSelGerVal;
   renderChatGer();
   if(_chatPollGer)clearInterval(_chatPollGer);
   cargarMensajesChatGer();
@@ -2659,12 +2666,19 @@ async function enviarMsgGer(){
   var input=document.getElementById('chatInputGer');
   if(!input)return;
   var msg=(input.value||'').trim();if(!msg)return;
+  var selEl=document.getElementById('chatSedeSelGer');
+  var sedeSel=selEl?selEl.value:'';
+  if(!sedeSel){
+    if(typeof showToast==='function')showToast('Elige a qué sede enviar el mensaje','error');
+    else alert('Elige a qué sede enviar el mensaje');
+    return;
+  }
+  window._chatSedeSelGerVal=sedeSel;
   input.value='';
   var _API_GER=typeof _API!=='undefined'?_API:(typeof API!=='undefined'?API:'');
   var ts=Date.now();
   var hora=new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
   var nombre=_gerNombre||'Gerente';
-  var sedeSel=document.getElementById('chatSedeSelGer')?.value||'Comas';
   fetch(_API_GER+'?action=enviarChat',{method:'POST',mode:'no-cors',
     body:JSON.stringify({action:'enviarChat',sede:sedeSel,nombre,tipo:'gerencia',msg,ts,hora})
   }).catch(()=>{});

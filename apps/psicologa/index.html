@@ -324,16 +324,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
             <div style="font-size:22px;font-weight:900;color:var(--acc)" id="mtSesiones">0</div>
             <div style="font-size:10px;font-weight:700;color:var(--muted)">SESIONES</div>
           </div>
-          <div style="text-align:center;background:#e8f8f0;border-radius:12px;padding:12px">
-            <div style="font-size:22px;font-weight:900;color:#059669" id="mtAsistidas">0</div>
-            <div style="font-size:10px;font-weight:700;color:var(--muted)">ASISTIDAS</div>
-          </div>
           <div style="text-align:center;background:#fef3c7;border-radius:12px;padding:12px">
-            <div style="font-size:22px;font-weight:900;color:#d97706" id="mtPct">0%</div>
-            <div style="font-size:10px;font-weight:700;color:var(--muted)">ASISTENCIA</div>
+            <div style="font-size:22px;font-weight:900;color:#d97706" id="mtAsistidas">0</div>
+            <div style="font-size:10px;font-weight:700;color:var(--muted)">TARDANZAS</div>
+          </div>
+          <div style="text-align:center;background:#e8f8f0;border-radius:12px;padding:12px">
+            <div style="font-size:22px;font-weight:900;color:#059669" id="mtPct">0%</div>
+            <div style="font-size:10px;font-weight:700;color:var(--muted)">PUNTUALIDAD</div>
           </div>
         </div>
-        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">Meta de asistencia mensual: 85%</div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">Meta de puntualidad mensual: 85%</div>
         <div style="background:#f1f5f9;border-radius:10px;height:14px;overflow:hidden">
           <div id="mtBarra" style="height:100%;width:0%;background:linear-gradient(90deg,#4a0e2e,#e91e8c);border-radius:10px;transition:width .5s"></div>
         </div>
@@ -1610,22 +1610,25 @@ function finalizarLogin(){
   var short=nombre.replace(/lic\.?/gi,'').trim().split(' ')[0];
   var elHdrName=document.getElementById('hdrName');if(elHdrName)elHdrName.textContent=nombre;
   var elSideNom=document.getElementById('ps-sidebar-nombre');if(elSideNom)elSideNom.textContent=nombre||'Psicóloga';
-  // Actualizar inicial del header avatar
-  var elHdrAv2=document.getElementById('headerAvatarPs');
-  var elSideAv=document.getElementById('psAvatarSide');
-  var ini2=(nombre||'P')[0].toUpperCase();
-  if(elHdrAv2)elHdrAv2.textContent=ini2;
-  if(elSideAv)elSideAv.textContent=ini2;
-  var elHdrSede=document.getElementById('hdrSede');if(elHdrSede)elHdrSede.textContent='Sede '+sede;
-  var elPerNom=document.getElementById('perNom');if(elPerNom)elPerNom.textContent=nombre;
-  var elPerSede=document.getElementById('perSede');if(elPerSede)elPerSede.textContent='Sede '+sede;
-  // Recuperar foto guardada
+  // Recuperar foto guardada ANTES de decidir si mostrar inicial o foto
+  // (si no, se pinta la inicial primero y la foto la reemplaza después,
+  // causando el parpadeo inicial→foto en cada login/refresh).
   if(!PS.foto){
     try{
       PS.foto=(PS.email?localStorage.getItem('psicoluz_foto_'+PS.email):null)||
                localStorage.getItem('psicoluz_foto_'+PS.sede+'_'+PS.nombre)||'';
     }catch(e){}
   }
+  var elHdrAv2=document.getElementById('headerAvatarPs');
+  var elSideAv=document.getElementById('psAvatarSide');
+  var ini2=(nombre||'P')[0].toUpperCase();
+  if(!PS.foto){
+    if(elHdrAv2)elHdrAv2.textContent=ini2;
+    if(elSideAv)elSideAv.textContent=ini2;
+  }
+  var elHdrSede=document.getElementById('hdrSede');if(elHdrSede)elHdrSede.textContent='Sede '+sede;
+  var elPerNom=document.getElementById('perNom');if(elPerNom)elPerNom.textContent=nombre;
+  var elPerSede=document.getElementById('perSede');if(elPerSede)elPerSede.textContent='Sede '+sede;
   // Actualizar avatares
   var av=document.getElementById('perAvatar');
   if(av){
@@ -1682,7 +1685,7 @@ function finalizarLogin(){
   sync(false);
   if(window._psAutoSync)clearInterval(window._psAutoSync);
   window._psAutoSync=setInterval(function(){
-    sync(false).then(function(){renderHoy();renderSemana();}).catch(function(){});
+    sync(false).then(function(){renderHoy();renderSemana();renderPacsPs();}).catch(function(){});
   },30000);
   // Iniciar chat en background para recibir notificaciones
   if(typeof iniciarChatBg==='function') setTimeout(iniciarChatBg, 2000);
@@ -2249,10 +2252,12 @@ function renderClinico(){
         var fichasPac=d.fichas.filter(function(f){
           return (f.pac||f.pacNombre||f.paciente||'').toLowerCase()===pacNom.toLowerCase();
         });
-        if(fichasPac.length>0){
+        // Solo re-renderizar si realmente cambió algo — si no, el usuario
+        // pierde el tab/click que acaba de hacer porque el DOM se reconstruye
+        // de nuevo por debajo (esto causaba el "parpadeo" del apartado clínico).
+        if(fichasPac.length>0&&JSON.stringify(fichasPac)!==JSON.stringify(fichas)){
           fichas=fichasPac;
           try{localStorage.setItem(listKey,JSON.stringify(fichas));}catch(e){}
-          // Re-renderizar si el mismo paciente sigue seleccionado
           var selActual=document.getElementById('clPacSel');
           if(selActual&&selActual.value===pacNom) renderClinico();
         }
@@ -2271,13 +2276,19 @@ function renderClinico(){
     sbGet('objetivos_terapeuticos',{sede:'eq.'+PS.sede,paciente_nombre:'eq.'+pacNom,select:'*',order:'fecha.asc'}).catch(function(){return null;}),
     sbGet('registro_animo',{sede:'eq.'+PS.sede,paciente_nombre:'eq.'+pacNom,select:'*',order:'fecha.asc'}).catch(function(){return null;})
   ]).then(function(r){
+    var cambio=false;
     if(r[0]){
-      datos.objetivos=r[0].map(function(o){return{id:o.id,texto:o.texto,progreso:o.progreso||0,fecha:o.fecha};});
+      var nuevosObj=r[0].map(function(o){return{id:o.id,texto:o.texto,progreso:o.progreso||0,fecha:o.fecha};});
+      if(JSON.stringify(nuevosObj)!==JSON.stringify(datos.objetivos||[])){datos.objetivos=nuevosObj;cambio=true;}
     }
     if(r[1]){
-      datos.animos=r[1].map(function(a){return{fecha:a.fecha,val:a.valor};});
+      var nuevosAnimos=r[1].map(function(a){return{fecha:a.fecha,val:a.valor};});
+      if(JSON.stringify(nuevosAnimos)!==JSON.stringify(datos.animos||[])){datos.animos=nuevosAnimos;cambio=true;}
     }
-    if(r[0]||r[1]){
+    // Solo re-renderizar si los datos realmente cambiaron — evita que el
+    // clínico se reconstruya solo por refrescar, tapando el tab que el
+    // usuario acababa de abrir (era la causa del "parpadeo").
+    if(cambio){
       try{localStorage.setItem(key,JSON.stringify(datos));}catch(e){}
       var pacActual=document.getElementById('clPacSel');
       if(pacActual&&pacActual.value===pacNom) renderClinico();
@@ -2759,7 +2770,7 @@ function renderPerfil(){
     var el=document.getElementById(pair[0]);if(el)el.textContent=pair[1];
   });
   var elNom=document.getElementById('perNom');if(elNom)elNom.textContent=PS.nombre||'—';
-  var elCop=document.getElementById('perCop');if(elCop)elCop.textContent=PS.cop?'COP: '+PS.cop:'Sin COP';
+  var elCop=document.getElementById('perCop');if(elCop)elCop.textContent=PS.cop?'CPSP: '+PS.cop:'Sin CPSP';
   var elEsp=document.getElementById('perEsp');if(elEsp)elEsp.textContent=PS.esp||'—';
   var elEmail=document.getElementById('perEmailLabel');if(elEmail)elEmail.textContent=PS.email||'—';
   var elHor=document.getElementById('perHorario');
@@ -3277,13 +3288,9 @@ async function guardarFirmaContrato(){
 }
 
 // ══ AUTO-REFRESH ════════════════════════════════════════════
-
-(function(){
-  if(window._arTimer)clearInterval(window._arTimer);
-  window._arTimer=setInterval(function(){
-    sync(false).then(function(){renderHoy();renderSemana();renderPacsPs();}).catch(function(){});
-  },30000);
-})();
+// (el intervalo de 30s ya se arma en finalizarLogin() vía _psAutoSync —
+// había un segundo setInterval duplicado aquí, corriendo sync() dos veces
+// cada 30s en paralelo. Se quitó para no duplicar carga ni carreras.)
 
 // Iniciar chat en background
 window.addEventListener('DOMContentLoaded',function(){setTimeout(iniciarChatBg,3000);});
@@ -3544,24 +3551,31 @@ async function renderMetas(){
   var el=document.getElementById('mtMes');if(el)el.textContent=mesStr;
   // Las consultas sueltas (sin programa asignado por recepción) no cuentan para la meta
   var sesMes=(PS.sesiones||[]).filter(function(x){return (x.fecha||'').substring(0,7)===mesStr&&x.tipo!=='consulta';});
-  var asis=sesMes.filter(function(x){return x.estado==='asistio'||x.estado==='tardanza';}).length;
-  var pct=sesMes.length?Math.round(asis*100/sesMes.length):0;
+  // Puntualidad: de las sesiones donde SÍ asistió (a tiempo o tarde),
+  // qué porcentaje fue a tiempo. No asistió/permiso no cuentan para
+  // puntualidad (son ausencias, no llegadas tarde).
+  var aTiempo=sesMes.filter(function(x){return x.estado==='asistio';}).length;
+  var tarde=sesMes.filter(function(x){return x.estado==='tardanza';}).length;
+  var noAsis=sesMes.filter(function(x){return x.estado==='noasistio';}).length;
+  var permiso=sesMes.filter(function(x){return x.estado==='permiso';}).length;
+  var totalAsistidas=aTiempo+tarde;
+  var pct=totalAsistidas?Math.round(aTiempo*100/totalAsistidas):0;
   var e1=document.getElementById('mtSesiones');if(e1)e1.textContent=sesMes.length;
-  var e2=document.getElementById('mtAsistidas');if(e2)e2.textContent=asis;
+  var e2=document.getElementById('mtAsistidas');if(e2)e2.textContent=tarde;
   var e3=document.getElementById('mtPct');if(e3)e3.textContent=pct+'%';
   var barra=document.getElementById('mtBarra');if(barra)barra.style.width=Math.min(100,Math.round(pct/85*100))+'%';
   // Pacientes únicos atendidos en el mes (criterio de bonos)
-  var pacsMes={};sesMes.forEach(function(x){if(x.estado==='asistio'&&(x.pacNombre||x.pacId))pacsMes[x.pacNombre||x.pacId]=1;});
+  var pacsMes={};sesMes.forEach(function(x){if((x.estado==='asistio'||x.estado==='tardanza')&&(x.pacNombre||x.pacId))pacsMes[x.pacNombre||x.pacId]=1;});
   var nPacs=Object.keys(pacsMes).length;
   var msg=document.getElementById('mtMensaje');
   if(msg){
     var nombreCorto=(PS.nombre||'').replace(/^(Ps\.?|Lic\.?)\s*/i,'').split(' ')[0]||'';
     var frase;
-    if(pct>=85)frase='🎉 ¡Excelente, '+nombreCorto+'! Meta de asistencia cumplida. Tus pacientes lo notan.';
+    if(!totalAsistidas)frase='🌱 Nuevo mes, nuevas oportunidades. ¡Tú puedes, '+nombreCorto+'!';
+    else if(pct>=85)frase='🎉 ¡Excelente, '+nombreCorto+'! Meta de puntualidad cumplida.';
     else if(pct>=60)frase='💪 ¡Vas muy bien, '+nombreCorto+'! Estás a '+(85-pct)+'% de la meta. ¡Un empujón más!';
-    else if(sesMes.length===0)frase='🌱 Nuevo mes, nuevas oportunidades. ¡Tú puedes, '+nombreCorto+'!';
-    else frase='🚀 ¡Ánimo, '+nombreCorto+'! Cada sesión cuenta. Vas '+pct+'% — sigue construyendo constancia.';
-    msg.innerHTML=frase+'<div style="margin-top:6px;font-size:11px;color:var(--muted);font-weight:600">👥 Pacientes atendidos este mes: <b style="color:var(--acc)">'+nPacs+'</b> · 🎁 Los bonos se otorgan por cantidad de pacientes atendidos</div>';
+    else frase='🚀 ¡Ánimo, '+nombreCorto+'! Vas '+pct+'% de puntualidad — sigue construyendo constancia.';
+    msg.innerHTML=frase+'<div style="margin-top:6px;font-size:11px;color:var(--muted);font-weight:600">👥 Pacientes atendidos: <b style="color:var(--acc)">'+nPacs+'</b> · 🕐 Tardanzas: <b>'+tarde+'</b> · ❌ No asistió: <b>'+noAsis+'</b> · 🟡 Permiso: <b>'+permiso+'</b></div>';
   }
   // Bonos diarios (Supabase)
   try{

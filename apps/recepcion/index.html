@@ -687,10 +687,6 @@ tbody td{padding:8px 10px;border-bottom:1px solid var(--border)}
         <input class="form-control" id="p-tel" placeholder="+51 9XX XXX XXX">
       </div>
       <div class="form-group">
-        <label class="form-label">Email</label>
-        <input class="form-control" id="p-email" type="email" placeholder="correo@ejemplo.com">
-      </div>
-      <div class="form-group">
         <label class="form-label">Género</label>
         <select class="form-control" id="p-genero">
           <option value="">— Seleccionar —</option>
@@ -1270,12 +1266,10 @@ function renderDashboard(){
           '<span class="badge '+ter.color+'" style="font-size:10px">'+ter.nombre+'</span>'+
           (pac.mod==='paquete'&&pac.paq>0?progresoPacInline(pac):'')+'</div>'+
           '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">'+
-          (s.estado==='programado'?
-            '<button class="btn btn-success btn-sm" data-sid="'+s.id+'" data-est="asistio" onclick="btnMarcarAs(this)">✅ Asistió</button>'+
-            ' <button class="btn btn-danger btn-sm" data-sid="'+s.id+'" data-est="noasistio" onclick="btnMarcarAs(this)">❌ No Asistió</button>':'') +
-          (s.estado==='asistio'&&!pago?
+          botonesAsistenciaHTML(s)+
+          ((s.estado==='asistio'||s.estado==='tardanza')&&!pago?
             '<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="btnAbrirPago(this)">💰 Cobrar</button>':'') +
-          (s.estado!=='programado'?'<span class="badge '+(s.estado==='asistio'?'bg':'br')+'" style="font-size:10px">'+s.estado+'</span>':'')+
+          (s.estado!=='programado'?badgeEstadoAsistencia(s.estado):'')+
           '</div></div>';
       }).join('');
     }
@@ -1457,12 +1451,10 @@ function mostrarResumenCelda(sesList,fecha,hora){
         (pac.mod==='paquete'&&pac.paq>0?progresoPac(pac):'')+
         '</div>'+
         '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">'+
-        (s.estado==='programado'?
-          '<button class="btn btn-success btn-sm" data-sid="'+s.id+'" data-est="asistio" onclick="btnMarcarAs(this)">✅ Asistió</button>'+
-          '<button class="btn btn-danger btn-sm" data-sid="'+s.id+'" data-est="noasistio" onclick="btnMarcarAs(this)">❌ No Asistió</button>':'') +
-        (s.estado==='asistio'&&!pago?
+        botonesAsistenciaHTML(s)+
+        ((s.estado==='asistio'||s.estado==='tardanza')&&!pago?
           '<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="btnAbrirPago(this)">💰 Cobrar</button>':'')+
-        (s.estado==='noasistio'?
+        (s.estado==='noasistio'||s.estado==='permiso'?
           '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':'')+
         '</div></div></div>';
     }).join('')+
@@ -1508,12 +1500,10 @@ function renderDiaSel(){
         progHTML+
         '</div>'+
         '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">'+
-        (s.estado==='programado'?
-          '<button class="btn btn-success btn-sm" onclick="marcarAs(\''+s.id+'\',\'asistio\')">✅ Asistió</button>'+
-          '<button class="btn btn-danger btn-sm" onclick="marcarAs(\''+s.id+'\',\'noasistio\')">❌ No Asistió</button>':'') +
-        (s.estado==='noasistio'||s.estado==='reprogramado'?
+        botonesAsistenciaHTML(s)+
+        (s.estado==='noasistio'||s.estado==='reprogramado'||s.estado==='permiso'?
           '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':'') +
-        (s.estado==='asistio'&&!pago?
+        ((s.estado==='asistio'||s.estado==='tardanza')&&!pago?
           '<button class="btn btn-primary btn-sm" onclick="abrirPago(\''+s.id+'\')">💰 Pago</button>':'') +
         '</div></div></div>';
     }).join('');
@@ -1894,7 +1884,7 @@ function renderPacientes(){
 let _pacEditId=null;
 function abrirNuevoPaciente(){
   _pacEditId=null;
-  ['p-nombre','p-nac','p-dni','p-tel','p-email','p-apoderado','p-motivo','p-terapias'].forEach(function(id){
+  ['p-nombre','p-nac','p-dni','p-tel','p-apoderado','p-motivo','p-terapias'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.value='';
   });
   document.getElementById('p-genero').value='';
@@ -1910,7 +1900,6 @@ function abrirEditarPaciente(pacId){
   document.getElementById('p-nac').value=pac.nac||'';
   document.getElementById('p-dni').value=pac.dni||'';
   document.getElementById('p-tel').value=pac.tel||'';
-  document.getElementById('p-email').value='';
   document.getElementById('p-genero').value=pac.genero||'';
   document.getElementById('p-apoderado').value=pac.apoderado||'';
   document.getElementById('p-motivo').value=pac.motivo||'';
@@ -1926,7 +1915,6 @@ function guardarPaciente(){
     nac:document.getElementById('p-nac').value,
     dni:document.getElementById('p-dni').value.trim(),
     tel:document.getElementById('p-tel').value.trim(),
-    email:document.getElementById('p-email').value.trim(),
     genero:document.getElementById('p-genero').value,
     apoderado:document.getElementById('p-apoderado').value.trim(),
     motivo:document.getElementById('p-motivo').value.trim(),
@@ -1942,7 +1930,7 @@ function guardarPaciente(){
     ? sbPatch('pacientes',datosSB,{id:'eq.'+((pacExistente&&pacExistente._sb&&pacExistente._sb.id)||_pacEditId)})
     : sbPost('pacientes',Object.assign({diagnostico:'',estado:'activo',sede:DB.sede,registrado_por:DB.usuario||''},datosSB));
   promesa.then(function(){
-    ['p-nombre','p-nac','p-dni','p-tel','p-email','p-apoderado','p-motivo','p-terapias'].forEach(id=>{
+    ['p-nombre','p-nac','p-dni','p-tel','p-apoderado','p-motivo','p-terapias'].forEach(id=>{
       const el=document.getElementById(id);if(el)el.value='';
     });
     document.getElementById('p-genero').value='';
@@ -2658,7 +2646,7 @@ function renderAgendaViaDia(fecha){
           '<div style="font-size:14px;font-weight:800;margin-bottom:4px">'+pac.nombre+'</div>'+
           '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">'+
           '<span class="badge '+ter.color+'" style="font-size:10px">'+ter.nombre+'</span>'+
-          '<span class="badge '+(s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bb')+'" style="font-size:10px">'+s.estado+'</span>'+
+          badgeEstadoAsistencia(s.estado)+
           (s.tipo==='paquete'?'<span class="badge bb" style="font-size:10px">Paq '+s.nroEnPaq+'/'+s.totalPaq+'</span>':'')+
           '</div>'+
           (s.costoTotal?'<div style="font-size:12px;color:var(--green)">'+(s.tipo==='paquete'?'Paq S/'+s.costoTotal:'S/'+s.costoTotal)+(s.saldo>0?' | Saldo S/'+s.saldo:'')+'</div>':'')+
@@ -2666,10 +2654,8 @@ function renderAgendaViaDia(fecha){
           (pago?'<div style="font-size:11px;color:var(--green);margin-top:2px">✅ S/'+pago.monto+' '+pago.metodo+'</div>':'')+
           '</div>'+
           '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'+
-          (s.estado==='programado'?
-            '<button class="btn btn-success btn-sm" data-sid="'+s.id+'" data-est="asistio" onclick="btnMarcarAs(this)">✅ Asistió</button>'+
-            '<button class="btn btn-danger btn-sm" data-sid="'+s.id+'" data-est="noasistio" onclick="btnMarcarAs(this)">❌ No Asistió</button>':'') +
-          (s.estado==='asistio'&&!pago?'<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="btnAbrirPago(this)">💰 Cobrar</button>':'')+
+          botonesAsistenciaHTML(s)+
+          ((s.estado==='asistio'||s.estado==='tardanza')&&!pago?'<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="btnAbrirPago(this)">💰 Cobrar</button>':'')+
           '</div></div>';
       });
     }
@@ -3026,6 +3012,20 @@ async function cargarDesdeSB() {
 }
 function syncAgenda(){cargarDesdeSB();}
 function syncPacientes(){cargarDesdeSB();}
+// Botones de asistencia — un solo lugar para las 4 vistas que los usan
+// (Dashboard, Agenda, Próximos días, Historial), para que no queden
+// desactualizadas por separado como pasaba antes.
+function botonesAsistenciaHTML(s){
+  if(s.estado!=='programado')return '';
+  return '<button class="btn btn-success btn-sm" data-sid="'+s.id+'" data-est="asistio" onclick="btnMarcarAs(this)">✅ Asistió</button>'+
+    ' <button class="btn btn-danger btn-sm" data-sid="'+s.id+'" data-est="noasistio" onclick="btnMarcarAs(this)">❌ No Asistió</button>'+
+    ' <button class="btn btn-sm" style="background:#fef3c7;color:#92400e;font-weight:800" data-sid="'+s.id+'" data-est="permiso" onclick="btnMarcarAs(this)">🟡 Permiso</button>';
+}
+function badgeEstadoAsistencia(estado){
+  var map={asistio:['bg','✅ Asistió'],tardanza:['bo','🕐 Tardanza'],noasistio:['br','❌ No asistió'],permiso:['bb','🟡 Permiso']};
+  var m=map[estado];
+  return m?'<span class="badge '+m[0]+'" style="font-size:10px">'+m[1]+'</span>':'';
+}
 async function marcarAs(sesRef,nuevoEst){
   // acepta id (UUID) o índice
   var s=DB.sesiones.find(function(x){return x.id===sesRef;})||DB.sesiones[sesRef];
@@ -3033,13 +3033,26 @@ async function marcarAs(sesRef,nuevoEst){
   // Si se marca "asistió", decidir automáticamente asistio vs tardanza
   // comparando la hora real contra la hora de inicio programada.
   if(nuevoEst==='asistio'&&s.fecha&&s.hora){
-    var progMs=new Date(s.fecha+'T'+normHoraRec(s.hora)+':00').getTime();
-    if(!isNaN(progMs)&&Date.now()>progMs)nuevoEst='tardanza';
+    var hNorm=normHoraRec(s.hora);
+    var progMs=new Date(s.fecha+'T'+hNorm+':00').getTime();
+    // Respaldo por si el navegador no puede parsear fecha+hora como Date
+    // (formato inesperado) — comparar hora contra hora en vez de descartar
+    // silenciosamente el chequeo de tardanza.
+    if(isNaN(progMs)){
+      var hoyStr=today();
+      if(s.fecha===hoyStr){
+        var ahora=new Date();
+        var ahoraHM=String(ahora.getHours()).padStart(2,'0')+':'+String(ahora.getMinutes()).padStart(2,'0');
+        if(ahoraHM>hNorm)nuevoEst='tardanza';
+      }
+    }else if(Date.now()>progMs){
+      nuevoEst='tardanza';
+    }
   }
   s.estado=nuevoEst;
   if(s.tipo==='paquete'){
     var pac=DB.pacientes.find(function(p){return p.id===s.pacId||p.nombre===s.pacId;});
-    if(pac)pac.sesUsadas=DB.sesiones.filter(function(x){return x.pacId===s.pacId&&(x.estado==='asistio'||x.estado==='tardanza'||x.estado==='noasistio');}).length;
+    if(pac)pac.sesUsadas=DB.sesiones.filter(function(x){return x.pacId===s.pacId&&(x.estado==='asistio'||x.estado==='tardanza'||x.estado==='noasistio'||x.estado==='permiso');}).length;
   }
   saveDB();
   showToast('⏳ Guardando en Supabase...');
@@ -3047,7 +3060,9 @@ async function marcarAs(sesRef,nuevoEst){
   if(sbId){
     try{
       await sbPatch('sesiones',{estado:nuevoEst},{id:'eq.'+sbId});
-      showToast(nuevoEst==='asistio'?'✅ '+(s.pacNom||'Paciente')+' asistió':nuevoEst==='tardanza'?'🕐 '+(s.pacNom||'Paciente')+' — llegó tarde (tardanza)':'⚠️ No asistió — sesión contabilizada');
+      var msgs={asistio:'✅ '+(s.pacNom||'Paciente')+' asistió',tardanza:'🕐 '+(s.pacNom||'Paciente')+' — llegó tarde (tardanza)',
+        noasistio:'⚠️ No asistió — sesión contabilizada',permiso:'🟡 '+(s.pacNom||'Paciente')+' — con permiso'};
+      showToast(msgs[nuevoEst]||'✅ Actualizado');
     }catch(e){showToast('Error al guardar: '+e.message,'error');console.error('[marcarAs]',e);}
   }else{
     showToast('⚠️ Sesión sin ID de Supabase — recarga los datos','error');
