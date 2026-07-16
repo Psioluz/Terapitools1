@@ -2278,7 +2278,7 @@ function renderClinico(){
   ]).then(function(r){
     var cambio=false;
     if(r[0]){
-      var nuevosObj=r[0].map(function(o){return{id:o.id,texto:o.texto,progreso:o.progreso||0,fecha:o.fecha};});
+      var nuevosObj=r[0].map(function(o){return{id:o.id,texto:o.texto,categoria:o.categoria||'Otro',progreso:o.progreso||0,fecha:o.fecha};});
       if(JSON.stringify(nuevosObj)!==JSON.stringify(datos.objetivos||[])){datos.objetivos=nuevosObj;cambio=true;}
     }
     if(r[1]){
@@ -2332,6 +2332,29 @@ function renderClinico(){
         </div>`).join('')}
       </div>
     </div>`:''}
+    <!-- Hitos de desarrollo (objetivos agrupados por área) -->
+    ${objetivos.length?(function(){
+      var porCat={};
+      objetivos.forEach(function(o){
+        var c=o.categoria||'Otro';
+        if(!porCat[c])porCat[c]={suma:0,n:0};
+        porCat[c].suma+=(o.progreso||0);porCat[c].n++;
+      });
+      var iconos={'Comunicación verbal':'🗣️','Comunicación no verbal':'🤟','Motricidad fina':'✋','Motricidad gruesa':'🏃','Interacción social':'🤝','Autorregulación/Conducta':'🧘','Autonomía':'🎒','Cognición/Aprendizaje':'🧩','Otro':'📌'};
+      var cats=Object.keys(porCat);
+      return '<div class="card" style="margin-bottom:10px">'+
+        '<div class="ch">📈 Hitos de Desarrollo</div>'+
+        '<div style="padding:12px">'+
+        cats.map(function(c){
+          var pct=Math.round(porCat[c].suma/porCat[c].n);
+          var color=pct>=80?'var(--green)':pct>=40?'var(--orange)':'var(--acc)';
+          return '<div style="margin-bottom:10px">'+
+            '<div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-bottom:3px">'+
+            '<span>'+(iconos[c]||'📌')+' '+c+'</span><span style="color:'+color+'">'+pct+'%</span></div>'+
+            '<div class="prog"><div class="prog-fill" style="width:'+pct+'%;background:'+color+'"></div></div></div>';
+        }).join('')+
+        '</div></div>';
+    })():''}
     <!-- Objetivos -->
     <div class="card" style="margin-bottom:10px">
       <div class="ch" style="justify-content:space-between">
@@ -2341,7 +2364,7 @@ function renderClinico(){
       <div style="padding:12px">
         ${objetivos.length?objetivos.map((o,i)=>`<div style="background:var(--bg);border-radius:10px;padding:10px;margin-bottom:8px;border-left:3px solid ${o.progreso>=100?'var(--green)':o.progreso>=50?'var(--orange)':'var(--acc)'}">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-            <span style="font-size:12px;font-weight:700">${o.texto}</span>
+            <span style="font-size:12px;font-weight:700">${o.categoria?`<span class="badge bk" style="font-size:9px;margin-right:5px">${o.categoria}</span>`:''}${o.texto}</span>
             <span style="font-size:12px;font-weight:800;color:var(--acc)">${o.progreso||0}%</span>
           </div>
           <input type="range" min="0" max="100" value="${o.progreso||0}" style="width:100%" oninput="actualizarProgreso('${pacNom}',${i},this.value)">
@@ -2550,6 +2573,19 @@ function abrirObjetivo(pacNom){
     modal.innerHTML = [
       '<div style="background:#fff;border-radius:16px;padding:24px;width:100%;max-width:380px">',
       '<div style="font-size:15px;font-weight:900;color:#4a0e2e;margin-bottom:14px">🎯 Objetivo Terapéutico</div>',
+      '<label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Área de desarrollo</label>',
+      '<select id="modalObjetivoCategoria" style="width:100%;padding:10px;border:2px solid #e91e63;border-radius:10px;',
+      'font-size:13px;margin-bottom:12px;box-sizing:border-box;font-family:inherit">',
+      '<option value="Comunicación verbal">🗣️ Comunicación verbal</option>',
+      '<option value="Comunicación no verbal">🤟 Comunicación no verbal</option>',
+      '<option value="Motricidad fina">✋ Motricidad fina</option>',
+      '<option value="Motricidad gruesa">🏃 Motricidad gruesa</option>',
+      '<option value="Interacción social">🤝 Interacción social</option>',
+      '<option value="Autorregulación/Conducta">🧘 Autorregulación / Conducta</option>',
+      '<option value="Autonomía">🎒 Autonomía (actividades diarias)</option>',
+      '<option value="Cognición/Aprendizaje">🧩 Cognición / Aprendizaje</option>',
+      '<option value="Otro">📌 Otro</option>',
+      '</select>',
       '<textarea id="modalObjetivoInput" rows="4" placeholder="Describe el objetivo para este paciente..."',
       ' style="width:100%;min-height:100px;border:2px solid #e91e63;border-radius:10px;padding:12px;',
       'font-size:14px;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>',
@@ -2576,6 +2612,7 @@ var _objetivoPac = '';
 function guardarObjetivoModal(){
   var inp=document.getElementById('modalObjetivoInput');
   var texto=inp?inp.value.trim():'';
+  var categoria=(document.getElementById('modalObjetivoCategoria')||{}).value||'Otro';
   if(!texto){showToast('Escribe el objetivo primero','err');return;}
   var modal=document.getElementById('modalObjetivo');
   if(modal)modal.style.display='none';
@@ -2585,13 +2622,13 @@ function guardarObjetivoModal(){
   var datos={};
   try{datos=JSON.parse(localStorage.getItem(key)||'{}');}catch(e){}
   if(!datos.objetivos)datos.objetivos=[];
-  var obj={texto:texto,progreso:0,fecha:today()};
+  var obj={texto:texto,categoria:categoria,progreso:0,fecha:today()};
   datos.objetivos.push(obj);
   localStorage.setItem(key,JSON.stringify(datos));
   // Guardar en Supabase (tabla objetivos_terapeuticos)
   sbPost('objetivos_terapeuticos',{
     sede:PS.sede||'',psicologa_nombre:PS.nombre||'',paciente_nombre:_objetivoPac,
-    texto:texto,progreso:0,fecha:today()
+    texto:texto,categoria:categoria,progreso:0,fecha:today()
   }).then(function(rows){
     var id=rows&&rows[0]&&rows[0].id;
     if(id){obj.id=id;localStorage.setItem(key,JSON.stringify(datos));}

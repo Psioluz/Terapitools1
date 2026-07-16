@@ -1159,7 +1159,7 @@ function initApp(){
   window._recAutoSync=setInterval(function(){
     var app=document.getElementById('app');
     if(!app||app.style.display==='none')return;
-    cargarDesdeSB();
+    cargarDesdeSB(true);
   },30000);
 }
 
@@ -1821,6 +1821,15 @@ async function guardarSesion(){
     closeModal('modalAgendar');
     showToast('✅ Sesión agendada: '+pac.nombre+' — '+hora);
     await cargarDesdeSB();
+    // Un paciente puede llevar varias terapias con distintas psicólogas al
+    // mismo tiempo (igual que en el app temporal) — en vez de un formulario
+    // con varias filas a la vez, se ofrece agregar la siguiente terapia/
+    // psicóloga al toque, ya con el mismo paciente seleccionado.
+    if(tipo==='paquete'&&confirm('✅ Guardado.\n\n¿Deseas agregar OTRA terapia o psicóloga para '+pac.nombre+' (paquete distinto, en simultáneo)?')){
+      abrirModalAgendar(fecha,null,null);
+      var elPac2=document.getElementById('ag-pac');if(elPac2)elPac2.value=pacId;
+      agOnPac();
+    }
   }catch(e){
     showToast('Error al agendar: '+e.message,'error');console.error('[sesion SB]',e);
   }
@@ -2962,7 +2971,7 @@ function abrirArchivosPac(pacId){
 
 
 // ══ OVERRIDES SUPABASE ══
-async function cargarDesdeSB() {
+async function cargarDesdeSB(silencioso) {
   if (!DB.sede) return;
   try {
     var hoy = today();
@@ -3005,7 +3014,7 @@ async function cargarDesdeSB() {
     if(typeof fillSelects==='function')fillSelects();
     var ap=document.querySelector('.page.active');
     if(ap&&typeof showPage==='function')showPage(ap.id.replace('page-',''));
-    if(typeof showToast==='function')showToast('✅ Datos actualizados');
+    if(!silencioso&&typeof showToast==='function')showToast('✅ Datos actualizados');
     if(typeof renderAlertas==='function')renderAlertas();
     if(typeof renderCumpleanos==='function')renderCumpleanos();
     console.log('[SB] sesiones:',DB.sesiones.length,'pacientes:',DB.pacientes.length);

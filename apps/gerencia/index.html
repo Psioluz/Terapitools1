@@ -2494,13 +2494,14 @@ function cambiarFotoGer(input){
           }
         }catch(eUp){console.warn('[foto] solo local:',eUp.message);}
       })();
-      // Actualizar UI
+      // Actualizar UI — solo el círculo de "Foto de perfil" (junto al botón
+      // de subir). El logo de arriba del sidebar es el logo de Psicoluz,
+      // no la foto del usuario — antes se pisaba con la misma foto y
+      // salían dos fotos iguales, una arriba y otra abajo.
       var fpEl=document.getElementById('gerFotoPerfil');
       var fpPl=document.getElementById('gerFotoPlaceholder');
-      var avSide=document.getElementById('gerAvatarSide');
       if(fpEl){fpEl.src=src;fpEl.style.display='block';}
       if(fpPl)fpPl.style.display='none';
-      if(avSide)avSide.src=src;
       toast('✅ Foto actualizada','ok');
     };
     img.src=e.target.result;
@@ -3373,10 +3374,8 @@ async function cargarFotoGerSB(){
     if(!url)return;
     var fpEl=document.getElementById('gerFotoPerfil');
     var fpPl=document.getElementById('gerFotoPlaceholder');
-    var avSide=document.getElementById('gerAvatarSide');
     if(fpEl){fpEl.src=url;fpEl.style.display='block';}
     if(fpPl)fpPl.style.display='none';
-    if(avSide)avSide.src=url;
   }catch(e){console.warn('[fotoSB]',e.message);}
 }
 
