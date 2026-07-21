@@ -272,13 +272,13 @@ tr.dirty td{background:#fff7e6}
   </div>
 </div>
 
-<!-- MODAL EDITAR FILA (JSON genérico) -->
+<!-- MODAL NUEVA FILA (formulario por columna, igual que la tabla) -->
 <div class="modal-overlay" id="modalFila">
   <div class="modal">
     <div style="font-weight:900;font-size:15px;margin-bottom:4px" id="modalFilaTitulo">Editar fila</div>
-    <div class="hint" style="margin-bottom:10px">Edita el JSON y guarda. Los campos deben coincidir con las columnas reales de la tabla.</div>
+    <div class="hint" style="margin-bottom:10px">Completa cada campo — los desplegables y el selector de color son los mismos que en la tabla.</div>
     <div id="modalFilaAyuda" style="display:none;background:#eef4ff;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:11px;color:var(--text);max-height:140px;overflow:auto"></div>
-    <textarea class="jsonEdit" id="modalFilaJSON"></textarea>
+    <div id="modalFilaForm" style="display:flex;flex-direction:column;gap:10px;max-height:55vh;overflow-y:auto;padding-right:4px"></div>
     <div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn btn-outline" style="flex:1" onclick="cerrarModalFila()">Cancelar</button>
       <button class="btn btn-primary" style="flex:1" onclick="guardarModalFila()">Guardar</button>
@@ -312,19 +312,35 @@ const ADMIN_EMAIL='lcatalino@psicoluz.pe';
 const ADMIN_PASS='psicoluz04051996';
 let SESSION={email:''};
 
-function doLogin(){
+async function doLogin(){
   const email=(document.getElementById('lEmail').value||'').trim().toLowerCase();
   const pass=document.getElementById('lPass').value||'';
   const err=document.getElementById('loginErr');
   err.style.display='none';
-  if(email!==ADMIN_EMAIL.toLowerCase()||pass!==ADMIN_PASS){
+  const btn=document.querySelector('#loginScreen .btn-primary');
+  // 1) Cuenta maestra fija (respaldo, siempre funciona).
+  let nombreSesion=email;
+  let ok=(email===ADMIN_EMAIL.toLowerCase()&&pass===ADMIN_PASS);
+  // 2) Cuentas creadas en Cuentas → Gerencia con rol "superadmin" — así
+  //    se le puede dar acceso a Sistema a otras personas sin compartir
+  //    la contraseña maestra. Se gestionan igual que cualquier otra
+  //    cuenta, desde la pestaña Cuentas.
+  if(!ok){
+    try{
+      if(btn){btn.disabled=true;btn.textContent='Verificando...';}
+      var rows=await sbGet('usuarios_gerencia',{email:'eq.'+email,password:'eq.'+pass,rol:'eq.superadmin',estado:'eq.activo'});
+      if(rows&&rows.length){ok=true;nombreSesion=rows[0].nombre||email;}
+    }catch(e){}
+    if(btn){btn.disabled=false;btn.textContent='Ingresar →';}
+  }
+  if(!ok){
     err.textContent='Credenciales incorrectas';err.style.display='block';return;
   }
   SESSION.email=email;
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('app').style.display='flex';
-  document.getElementById('userLabel').textContent=email;
-  sbPost('log_accesos',{app:'sistema',usuario:email,sede:'Todas'}).catch(function(){});
+  document.getElementById('userLabel').textContent=nombreSesion;
+  sbPost('log_accesos',{app:'sistema',usuario:nombreSesion,sede:'Todas'}).catch(function(){});
   initApp();
 }
 function cerrarSesion(){
@@ -468,7 +484,7 @@ const COLUMN_HINTS={
     dia_pago:'Día del mes en que se le paga, número del 1 al 31'
   },
   usuarios_gerencia:{
-    rol:'gerencia o superadmin',
+    rol:'"gerencia" = solo entra a la app Gerencia · "superadmin" = además puede entrar a Sistema con su propio correo/contraseña',
     sede:'Todas (ve las 4 sedes) o el nombre de una sede específica'
   },
   sesiones:{
@@ -737,9 +753,17 @@ function tblNuevaFila(tabla){
       plantilla[k]=typeof muestra[k]==='object'?muestra[k]:(typeof muestra[k]==='number'?0:typeof muestra[k]==='boolean'?false:'');
     });
   }
-  document.getElementById('modalFilaJSON').value=Object.keys(plantilla).length?JSON.stringify(plantilla,null,2):'{\n  \n}';
+  // Formulario por columna — mismos inputs/desplegables/selector de color
+  // que la tabla editable, en vez de pedir JSON con comillas a mano.
+  var formEl=document.getElementById('modalFilaForm');
+  formEl.dataset.tabla=tabla;
+  var cols=Object.keys(plantilla);
+  formEl.innerHTML=cols.length?cols.map(function(c){
+    return '<div><label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">'+c+'</label>'+
+      celdaInput(tabla,c,plantilla[c])+'</div>';
+  }).join(''):'<div class="hint">Esta tabla no tiene columnas conocidas todavía — guarda una fila desde otra vista primero, o pide que se agregue la plantilla.</div>';
   var ayudaEl=document.getElementById('modalFilaAyuda');
-  var lineas=Object.keys(plantilla).map(function(k){var h=hintFor(tabla,k);return h?('<div><b>'+k+'</b>: '+h+'</div>'):'';}).filter(Boolean);
+  var lineas=cols.map(function(k){var h=hintFor(tabla,k);return h?('<div><b>'+k+'</b>: '+h+'</div>'):'';}).filter(Boolean);
   if(lineas.length){ayudaEl.innerHTML='📋 <b>Cómo llenar '+tabla+':</b><br>'+lineas.join('');ayudaEl.style.display='block';}
   else ayudaEl.style.display='none';
   document.getElementById('modalFila').classList.add('open');
@@ -748,18 +772,10 @@ function cerrarModalFila(){document.getElementById('modalFila').classList.remove
 async function guardarModalFila(){
   if(!_modalCtx)return;
   let data;
-  try{data=JSON.parse(document.getElementById('modalFilaJSON').value);}catch(e){toast('JSON inválido: '+e.message,'error');return;}
+  try{data=leerFilaForm(document.getElementById('modalFilaForm'),null);}catch(e){toast(e.message,'error');return;}
   try{
-    if(_modalCtx.idx===-1){
-      await sbPost(_modalCtx.tabla,data);
-      toast('✅ Fila creada');
-    }else{
-      const id=_modalCtx.row.id;
-      if(id===undefined){toast('Esta fila no tiene columna id — no se puede editar así','error');return;}
-      delete data.id;
-      await sbPatch(_modalCtx.tabla,data,{id:'eq.'+id});
-      toast('✅ Fila actualizada');
-    }
+    await sbPost(_modalCtx.tabla,data);
+    toast('✅ Fila creada');
     cerrarModalFila();
     if(document.getElementById('tblSelect').value===_modalCtx.tabla)tblCargar();
     if(['psicologas','recepcionistas','usuarios_gerencia'].includes(_modalCtx.tabla))cargarCuentas();

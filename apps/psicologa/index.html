@@ -227,6 +227,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="ps-nav-item" id="nav-tabPacs" onclick="goTab('tabPacs',this)">👥 Mis Pacientes</div>
       <div class="ps-nav-item" id="nav-tabClinico" onclick="goTab('tabClinico',this)">🧠 Clínico</div>
       <div class="ps-nav-item" id="nav-tabMetas" onclick="goTab('tabMetas',this)">🎯 Metas</div>
+      <div class="ps-nav-section">Herramientas para Terapias</div>
+      <div class="ps-nav-item" id="nav-tabHerramientas" onclick="goTab('tabHerramientas',this)">🧰 Herramientas</div>
       <div class="ps-nav-section">Comunicación</div>
       <div class="ps-nav-item" id="nav-tabChat" onclick="goTab('tabChat',this);abrirChat()">
         💬 Chat Sede
@@ -347,6 +349,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="card">
       <div class="ch">💰 Bonos Mensuales Asignados</div>
       <div class="cb" id="mtBonosMes"><div style="color:var(--muted);font-size:12px;text-align:center;padding:10px">⏳ Cargando...</div></div>
+    </div>
+  </div>
+  <!-- HERRAMIENTAS PARA TERAPIAS -->
+  <div class="pg" id="tabHerramientas">
+    <div class="card" style="margin-bottom:10px">
+      <div class="ch">🧰 Herramientas para Terapias</div>
+      <div class="cb" style="font-size:12px;color:var(--muted)">Juegos y actividades interactivas para usar durante la sesión. Se abren en una pestaña nueva.</div>
+    </div>
+    <div class="card" style="cursor:pointer" onclick="window.open('herramientas/terapia-lenguaje-fonema-m.html','_blank')">
+      <div class="cb" style="display:flex;align-items:center;gap:14px">
+        <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#4a0e2e,#e91e8c);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">🗣️</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:800">Terapia de Lenguaje</div>
+          <div style="font-size:11px;color:var(--muted)">Juego de fonemas — practica sonidos y palabras con el paciente</div>
+        </div>
+        <div style="font-size:20px;color:var(--muted)">→</div>
+      </div>
     </div>
   </div>
   <div class="pg" id="tabChat">
@@ -1852,6 +1871,7 @@ function goTab(tabId, el){
   const titles={
     tabHoy:'Mi Agenda — Hoy', tabSemana:'Agenda Semanal',
     tabPacs:'Mis Pacientes',  tabClinico:'Registro Clínico',
+    tabMetas:'Metas', tabHerramientas:'Herramientas para Terapias',
     tabChat:'Chat de Sede',   tabPerfil:'Mi Perfil'
   };
   const titleEl=document.getElementById('pageTitlePs');

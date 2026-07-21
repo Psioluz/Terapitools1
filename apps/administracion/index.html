@@ -487,7 +487,10 @@ function showPage(name,el){
   document.getElementById('pageTitle').textContent=PAGE_TITLES[name]||name;
   var renders={dashboard:renderDashboard,contratos:renderContratos,sueldos:renderSueldos,asistencia:renderAsistencia,inventario:renderInventario,personal:renderPersonal,sedes:renderSedes,gastos:renderGastos,alquiler:renderAlquiler,auditoria:renderAuditoria,chat:renderChat,cumpleanos:renderCumpleanos,calendario:function(){renderCalendarioPagos('calendarioPagosContainer');},metas:renderMetasPsicologas};
   if(renders[name])renders[name]();
-  if(window.innerWidth<768)document.getElementById('sidebar').classList.remove('open');
+  // Cerrar el menú lateral al elegir una sección (igual que las demás
+  // apps) — en escritorio no afecta nada (el sidebar ya es fijo ahí),
+  // en móvil se oculta y deja más espacio hasta que se presiona ☰ de nuevo.
+  document.getElementById('sidebar').classList.remove('open');
 }
 function renderActiva(){var a=document.querySelector('.page.active');if(a){var n=a.id.replace('page-','');showPage(n,document.querySelector('.nav-item.active'));}else showPage('dashboard');}
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');}
