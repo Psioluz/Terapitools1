@@ -78,6 +78,27 @@ tr.dirty td{background:#fff7e6}
 </style>
 <script src="js/neutralino.js"></script>
 <script>try{Neutralino.init();Neutralino.events.on("windowClose",function(){Neutralino.app.exit();});}catch(e){console.log("no neutralino")}</script>
+<script>
+// Controles de ventana (minimizar/cerrar) — de respaldo, por si la barra
+// de título nativa de Windows no se ve bien en alguna PC. Solo aparece
+// dentro del ejecutable de escritorio (no en el navegador/PWA).
+try{
+  if(window.Neutralino){
+    var _wc=document.createElement('div');
+    _wc.style.cssText='position:fixed;top:0;right:0;z-index:99999;display:flex;gap:0;background:rgba(0,0,0,.15);border-radius:0 0 0 10px;overflow:hidden';
+    _wc.innerHTML=
+      '<button title="Minimizar" style="width:40px;height:32px;border:none;background:transparent;color:#fff;font-size:16px;cursor:pointer" '+
+      'onmouseover="this.style.background=\'rgba(255,255,255,.2)\'" onmouseout="this.style.background=\'transparent\'" '+
+      'onclick="try{Neutralino.window.minimize();}catch(e){}">&#8211;</button>'+
+      '<button title="Cerrar" style="width:40px;height:32px;border:none;background:transparent;color:#fff;font-size:15px;cursor:pointer" '+
+      'onmouseover="this.style.background=\'#e81123\'" onmouseout="this.style.background=\'transparent\'" '+
+      'onclick="try{Neutralino.app.exit();}catch(e){}">&#10005;</button>';
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){document.body.appendChild(_wc);});
+    else document.body.appendChild(_wc);
+  }
+}catch(e){}
+</script>
+
 </head>
 <body>
 <div id="toast" class="toast"></div>
@@ -657,6 +678,14 @@ function celdaInput(tabla,col,v){
 }
 function renderEditableGrid(containerId,rows,tabla){
   const el=document.getElementById(containerId);
+  // Guardar el scroll actual (de la tabla y de la página) para
+  // restaurarlo después de redibujar — si no, cada actualización
+  // automática regresaba la vista arriba de todo, perdiendo dónde
+  // estaba mirando el usuario.
+  const scrollBox=el.querySelector('div[style*="overflow:auto"]');
+  const prevScrollTop=scrollBox?scrollBox.scrollTop:0;
+  const prevScrollLeft=scrollBox?scrollBox.scrollLeft:0;
+  const prevPageScroll=(document.querySelector('.content')||{}).scrollTop;
   if(!rows||!rows.length){el.innerHTML='<div class="hint" style="padding:14px;text-align:center">Sin filas. Usa "+ Nueva fila" para crear la primera.</div>';return;}
   const cols=Array.from(rows.reduce((s,r)=>{Object.keys(r||{}).forEach(k=>s.add(k));return s;},new Set()));
   let h='<div style="overflow:auto;max-height:560px"><table><thead><tr>'+
@@ -680,6 +709,11 @@ function renderEditableGrid(containerId,rows,tabla){
   });
   h+='</tbody></table></div>';
   el.innerHTML=h;
+  // Restaurar el scroll donde estaba (tabla y página) en vez de saltar arriba.
+  var newScrollBox=el.querySelector('div[style*="overflow:auto"]');
+  if(newScrollBox){newScrollBox.scrollTop=prevScrollTop;newScrollBox.scrollLeft=prevScrollLeft;}
+  var pageEl=document.querySelector('.content');
+  if(pageEl&&prevPageScroll!==undefined)pageEl.scrollTop=prevPageScroll;
 }
 function leerFilaForm(tr,row){
   const data={};

@@ -184,6 +184,27 @@ tbody td{padding:8px 10px;border-bottom:1px solid var(--border)}
 <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" type="image/png">
 <script src="js/neutralino.js"></script>
 <script>try{Neutralino.init();Neutralino.events.on("windowClose",function(){Neutralino.app.exit();});}catch(e){console.log("no neutralino")}</script>
+<script>
+// Controles de ventana (minimizar/cerrar) — de respaldo, por si la barra
+// de título nativa de Windows no se ve bien en alguna PC. Solo aparece
+// dentro del ejecutable de escritorio (no en el navegador/PWA).
+try{
+  if(window.Neutralino){
+    var _wc=document.createElement('div');
+    _wc.style.cssText='position:fixed;top:0;right:0;z-index:99999;display:flex;gap:0;background:rgba(0,0,0,.15);border-radius:0 0 0 10px;overflow:hidden';
+    _wc.innerHTML=
+      '<button title="Minimizar" style="width:40px;height:32px;border:none;background:transparent;color:#fff;font-size:16px;cursor:pointer" '+
+      'onmouseover="this.style.background=\'rgba(255,255,255,.2)\'" onmouseout="this.style.background=\'transparent\'" '+
+      'onclick="try{Neutralino.window.minimize();}catch(e){}">&#8211;</button>'+
+      '<button title="Cerrar" style="width:40px;height:32px;border:none;background:transparent;color:#fff;font-size:15px;cursor:pointer" '+
+      'onmouseover="this.style.background=\'#e81123\'" onmouseout="this.style.background=\'transparent\'" '+
+      'onclick="try{Neutralino.app.exit();}catch(e){}">&#10005;</button>';
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){document.body.appendChild(_wc);});
+    else document.body.appendChild(_wc);
+  }
+}catch(e){}
+</script>
+
 </head>
 <body>
 <script>
