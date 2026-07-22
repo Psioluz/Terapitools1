@@ -717,7 +717,7 @@ function _diasTrabajoANum(txt){
                 fechaNac:p.fecha_nac||'',tel:p.telefono||'',
                 cuenta:p.numero_cuenta||'',cci:p.cci||'',
                 sueldo:p.sueldo||0,fotoUrl:p.foto_url||'',foto:p.foto_url||'',
-              fechaIngreso:p.fecha_ingreso||'',diaEspecial:p.dia_completo||'Lunes'};
+              fechaIngreso:p.fecha_ingreso||'',diaEspecial:p.dia_completo||''};
             }),
             pacientes:pacs.map(function(p){
               return {id:p.id,nombre:p.nombre,tel:p.telefono||'',
@@ -2207,6 +2207,10 @@ function renderSemana(){
   // más cualquier hora de sesión real fuera de ese rango
   var slots=new Set();
   var iniM=horaAMin(PS.inicio)||(13*60+15), finM=horaAMin(PS.fin)||(20*60);
+  // Si tiene uno o más "días completos", ese día empieza a las 08:00 —
+  // se amplía el rango de horas de la cuadrícula para que esas filas
+  // tempranas se vean (los demás días simplemente quedan vacíos ahí).
+  if(PS.diaEspecial)iniM=Math.min(iniM,horaAMin('08:00'));
   if(finM<iniM){var tmp=iniM;iniM=finM;finM=tmp;}
   for(var mnt=iniM;mnt<=finM;mnt+=45){
     slots.add(String(Math.floor(mnt/60)).padStart(2,'0')+':'+String(mnt%60).padStart(2,'0'));
@@ -3690,7 +3694,7 @@ async function cargarPerfilExtra(){
   var eh=document.getElementById('perHorario');
   if(eh&&PS.inicio&&PS.fin)eh.textContent=PS.inicio+' — '+PS.fin;
   var ed=document.getElementById('perDiaEspLabel');
-  if(ed)ed.textContent=PS.diaEspecial||'Lunes';
+  if(ed)ed.textContent=PS.diaEspecial?PS.diaEspecial.split(',').map(function(s){return s.trim();}).join(' y '):'Ninguno';
   refrescarAvatares();
   // Fecha de ingreso y tiempo en la empresa (consulta directa si el login no la trajo)
   var fi=PS.fechaIngreso||'';
