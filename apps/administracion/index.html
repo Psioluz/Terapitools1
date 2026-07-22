@@ -1034,11 +1034,13 @@ async function verDetalleEvento(dia,idx){
     var mes=new Date();
     var desde=mes.getFullYear()+'-'+String(mes.getMonth()+1).padStart(2,'0')+'-01';
     var ses=await sbGet('sesiones',{select:'estado,paciente_nombre',psicologa:'eq.'+e.ref,fecha:'gte.'+desde,limit:'2000'});
-    var total=ses.length, asistidas=ses.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
-    var pct=total?Math.round(asistidas*100/total):0;
+    var aTiempo=ses.filter(function(s){return s.estado==='asistio';}).length;
+    var tarde=ses.filter(function(s){return s.estado==='tardanza';}).length;
+    var totalAsistidas=aTiempo+tarde;
+    var pct=totalAsistidas?Math.round(aTiempo*100/totalAsistidas):0;
     var metaEl=document.getElementById('detalleEvMeta');
-    if(metaEl)metaEl.innerHTML=total
-      ? (pct>=85?'🏆 <b style="color:#059669">Meta cumplida ('+pct+'% asistencia) — corresponde bono</b>':'⏳ En curso ('+pct+'% asistencia, meta 85%)')
+    if(metaEl)metaEl.innerHTML=ses.length
+      ? (pct>=85?'🏆 <b style="color:#059669">Meta cumplida ('+pct+'% puntualidad) — corresponde bono</b>':'⏳ En curso ('+pct+'% puntualidad, meta 85%)')
       : 'Sin sesiones registradas este mes.';
   }catch(err){
     var metaEl2=document.getElementById('detalleEvMeta');
@@ -1056,16 +1058,18 @@ async function renderMetasPsicologas(){
     var ses=await sbGet('sesiones',Object.assign({select:'psicologa,estado,paciente_nombre,fecha',fecha:'gte.'+desde,limit:'2000'},sedeFiltro(D.sede||'')));
     var por={};
     (ses||[]).forEach(function(x){
-      var p=por[x.psicologa]=por[x.psicologa]||{t:0,a:0,pacs:{}};
-      p.t++;if(x.estado==='asistio'){p.a++;p.pacs[x.paciente_nombre]=1;}
+      var p=por[x.psicologa]=por[x.psicologa]||{t:0,aTiempo:0,tarde:0,pacs:{}};
+      p.t++;
+      if(x.estado==='asistio'){p.aTiempo++;p.pacs[x.paciente_nombre]=1;}
+      else if(x.estado==='tardanza'){p.tarde++;p.pacs[x.paciente_nombre]=1;}
     });
     var noms=Object.keys(por);
     if(!noms.length){el.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted)">Sin sesiones este mes</div>';return;}
-    el.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#fdf2f8;color:#9d174d;font-size:10px"><th style="padding:8px;text-align:left">PSICÓLOGA</th><th>SESIONES</th><th>ASISTIDAS</th><th>%</th><th>👥 PACIENTES</th><th>META 85%</th></tr></thead><tbody>'
+    el.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#fdf2f8;color:#9d174d;font-size:10px"><th style="padding:8px;text-align:left">PSICÓLOGA</th><th>SESIONES</th><th>A TIEMPO</th><th>PUNTUALIDAD %</th><th>👥 PACIENTES</th><th>META 85%</th></tr></thead><tbody>'
       +noms.map(function(n){
-        var p=por[n];var pct=p.t?Math.round(p.a*100/p.t):0;var nP=Object.keys(p.pacs).length;
+        var p=por[n];var totalAsistidas=p.aTiempo+p.tarde;var pct=totalAsistidas?Math.round(p.aTiempo*100/totalAsistidas):0;var nP=Object.keys(p.pacs).length;
         return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:8px;font-weight:700">'+n+'</td>'
-          +'<td style="text-align:center;font-weight:800">'+p.t+'</td><td style="text-align:center;font-weight:800;color:#059669">'+p.a+'</td>'
+          +'<td style="text-align:center;font-weight:800">'+p.t+'</td><td style="text-align:center;font-weight:800;color:#059669">'+p.aTiempo+'</td>'
           +'<td style="text-align:center;font-weight:900;color:'+(pct>=85?'#059669':pct>=60?'#d97706':'#dc2626')+'">'+pct+'%</td>'
           +'<td style="text-align:center;font-weight:800;color:var(--acc)">'+nP+'</td>'
           +'<td style="text-align:center">'+(pct>=85?'🏆 Cumplida':'⏳ En curso')+'</td></tr>';
