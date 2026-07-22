@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Psicoluz — Centro Terapéutico Integral</title>
+<title>Psicoluz · Centro Terapéutico Integral</title>
 <meta name="description" content="Psicoluz, Centro Terapéutico Integral. Terapia psicológica y de lenguaje para niños y adultos en Comas, Óvalo Zapallal, Flecha y Pachacutec.">
 <link rel="icon" href="assets/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --navy:#4a0e2e; --gold:#e91e8c; --pink-soft:#fff0f6; --cream:#fff8f3;
-    --text:#3a2233; --muted:#8a7182; --line:#f1dbe8; --green:#22a06b;
+    --navy:#3d2233; --gold:#e91e8c; --pink-soft:#f4f0f2; --cream:#fbfaf9;
+    --text:#2c2430; --muted:#7c7580; --line:#ece8ea; --green:#22a06b;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
@@ -32,7 +32,7 @@
   header{position:sticky;top:0;z-index:500;background:rgba(255,248,243,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
   .nav{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;max-width:1180px;margin:0 auto}
   .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;color:var(--navy)}
-  .brand img{height:42px;width:auto}
+  .brand img{height:58px;width:auto}
   .navlinks{display:flex;gap:28px;align-items:center;font-weight:600;font-size:14px}
   .navlinks a{color:var(--navy);opacity:.8}
   .navlinks a:hover{opacity:1;color:var(--gold)}
@@ -54,8 +54,8 @@
   .hero h1 span{color:var(--gold)}
   .hero p{color:var(--muted);font-size:16px;margin-bottom:26px;max-width:480px}
   .hero-actions{display:flex;gap:14px;flex-wrap:wrap}
-  .hero-art{position:relative;background:linear-gradient(160deg,#ffe1ee,#ffd0e6);border-radius:36px;padding:34px;display:flex;align-items:center;justify-content:center;min-height:340px}
-  .hero-art img{width:70%;filter:drop-shadow(0 20px 30px rgba(74,14,46,.25))}
+  .hero-art{position:relative;background:linear-gradient(160deg,#f7f5f6,#eee7ec);border-radius:36px;padding:30px;display:flex;align-items:center;justify-content:center;min-height:380px}
+  .hero-art img{width:88%;filter:drop-shadow(0 20px 30px rgba(61,34,51,.18))}
   .hero-stats{display:flex;gap:14px;margin-top:34px;flex-wrap:wrap}
   .hero-stat{background:#fff;border-radius:16px;padding:14px 20px;box-shadow:0 6px 18px rgba(74,14,46,.08);text-align:center;min-width:110px}
   .hero-stat b{display:block;font-size:22px;color:var(--gold)}
@@ -79,13 +79,13 @@
   .serv-card .ic{font-size:30px;margin-bottom:14px}
   .serv-card h3{font-size:17px;margin-bottom:8px}
   .serv-card p{font-size:13.5px;color:var(--muted)}
-  .bg-soft{background:linear-gradient(180deg,#fff0f6 0%,var(--cream) 100%)}
+  .bg-soft{background:linear-gradient(180deg,#f6f4f5 0%,var(--cream) 100%)}
 
   /* ===== PROMOS / TALLERES ===== */
   .promo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:34px}
   @media(max-width:860px){.promo-grid{grid-template-columns:1fr}}
   .promo-card{border-radius:20px;overflow:hidden;background:#fff;border:1px solid var(--line)}
-  .promo-img{height:150px;background:linear-gradient(135deg,var(--navy),var(--gold));display:flex;align-items:center;justify-content:center;font-size:38px;color:#fff}
+  .promo-img{height:150px;background:linear-gradient(135deg,var(--navy),#5c3350);display:flex;align-items:center;justify-content:center;font-size:38px;color:#fff}
   .promo-body{padding:18px}
   .promo-tag{font-size:10.5px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.05em}
   .promo-body h3{font-size:15.5px;margin:6px 0 6px}
@@ -118,7 +118,7 @@
   .foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:30px}
   @media(max-width:760px){.foot-grid{grid-template-columns:1fr 1fr}}
   .foot-brand{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-  .foot-brand img{height:36px}
+  .foot-brand img{height:46px}
   .foot-brand b{color:#fff;font-size:16px}
   footer h4{color:#fff;font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em}
   footer a,footer p{font-size:13px;color:#e2b8cd;display:block;margin-bottom:8px}
@@ -151,7 +151,7 @@ Edita estas 5 líneas con tus datos reales; el resto de la página se arma solo.
 
 <header>
   <div class="nav">
-    <a class="brand" href="#top"><img src="assets/logo.png" alt="Psicoluz"> Psicoluz</a>
+    <a class="brand" href="#top"><img src="assets/logo.png" alt="Psicoluz"></a>
     <nav class="navlinks" id="navlinks">
       <a href="#servicios" onclick="closeNav()">Servicios</a>
       <a href="#talleres" onclick="closeNav()">Talleres y Promos</a>
@@ -276,7 +276,7 @@ Edita estas 5 líneas con tus datos reales; el resto de la página se arma solo.
   <div class="wrap">
     <div class="foot-grid">
       <div>
-        <div class="foot-brand"><img src="assets/logo.png" alt="Psicoluz"><b>Psicoluz</b></div>
+        <div class="foot-brand"><img src="assets/logo.png" alt="Psicoluz"></div>
         <p>Centro Terapéutico Integral. Terapia psicológica y de lenguaje para niños, adolescentes y familias en Lima Norte.</p>
         <div class="social-icons">
           <a href="#" id="fbIconLink" target="_blank">📘</a>
