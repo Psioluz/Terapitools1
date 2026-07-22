@@ -567,9 +567,12 @@ const COLUMN_HINTS={
     nro_sesiones:'Cantidad de sesiones que trae el paquete, ej. 12'
   },
   honorarios:{
-    nombre:'Nombre completo de la psicóloga',
+    psicologa_nombre:'Nombre completo tal cual está en psicologas.nombre',
     mes:'Formato AAAA-MM, ej. 2026-07',
-    monto:'Monto pagado, número sin S/',
+    monto_base:'Sueldo base del mes, número sin S/',
+    descuento_tardanza:'S/ que se descuenta por CADA tardanza registrada ese mes (0 = sin descuento)',
+    descuento_inasistencia:'S/ que se descuenta por CADA inasistencia registrada ese mes (0 = sin descuento)',
+    total:'Monto final a pagar (base + bonos - descuentos), lo calcula Administración',
     estado:'pendiente o pagado'
   },
   contratos:{

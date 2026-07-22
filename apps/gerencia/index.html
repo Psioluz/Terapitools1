@@ -3224,7 +3224,7 @@ async function verDetalleEvento(dia,idx){
     var pct=totalAsistidas?Math.round(aTiempo*100/totalAsistidas):0;
     var metaEl=document.getElementById('detalleEvMeta');
     if(metaEl)metaEl.innerHTML=ses.length
-      ? (pct>=85?'🏆 <b style="color:#059669">Meta cumplida ('+pct+'% puntualidad) — corresponde bono</b>':'⏳ En curso ('+pct+'% puntualidad, meta 85%)')
+      ? (pct>=85?'🏆 <b style="color:#059669">Meta de puntualidad cumplida ('+pct+'%)</b>':'⏳ En curso ('+pct+'% puntualidad, meta 85%)')+'<div style="font-size:10px;color:var(--muted);margin-top:4px">El bono se otorga por cantidad de pacientes atendidos, no por puntualidad. La puntualidad puede generar descuentos por tardanza/inasistencia (ver Sueldos y Bonos en Administración).</div>'
       : 'Sin sesiones registradas este mes.';
   }catch(err){
     var metaEl2=document.getElementById('detalleEvMeta');

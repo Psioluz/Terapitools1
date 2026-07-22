@@ -164,7 +164,7 @@ try{
     <!-- SUELDOS -->
     <div class='page' id='page-sueldos'>
       <div class='card'>
-        <div class='card-header'><div class='card-title'>💵 Sueldos y Bonos</div><button class='btn btn-primary btn-sm' onclick='abrirModalBono()'>🏅 Asignar Bono</button></div>
+        <div class='card-header'><div class='card-title'>💵 Sueldos y Bonos</div><div style="display:flex;gap:8px"><button class='btn btn-sm' style="background:#fee2e2;color:#dc2626" onclick='abrirModalDescuento()'>➖ Descuentos</button><button class='btn btn-primary btn-sm' onclick='abrirModalBono()'>🏅 Asignar Bono</button></div></div>
         <div style='overflow-x:auto;padding:12px' id='listaSueldos'></div>
       </div>
     </div>
@@ -306,8 +306,18 @@ try{
   <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px'>🏅 Asignar Bono</span><button onclick="document.getElementById('modalBono').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
   <label class='flabel'>Trabajadora</label><select class='finput' id='bnNombre'></select>
   <label class='flabel'>Monto del bono (S/)</label><input type='number' class='finput' id='bnMonto'>
-  <label class='flabel'>Motivo</label><input class='finput' id='bnMotivo' placeholder='Ej: meta de asistencia, puntualidad'>
+  <label class='flabel'>Motivo</label><input class='finput' id='bnMotivo' placeholder='Ej: meta de pacientes atendidos'>
   <button class='btn btn-primary' style='width:100%;margin-top:12px' onclick='guardarBono()'>Asignar Bono</button>
+ </div>
+</div>
+<div class='modal-overlay' id='modalDescuento'>
+ <div class='modal-box'>
+  <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px'>➖ Configurar Descuentos</span><button onclick="document.getElementById('modalDescuento').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
+  <label class='flabel'>Trabajadora</label><select class='finput' id='dsNombre'></select>
+  <div style="font-size:11px;color:var(--muted);margin:6px 0 10px">Monto en soles que se descuenta por CADA tardanza o inasistencia registrada este mes. Deja en 0 para no aplicar descuento.</div>
+  <label class='flabel'>S/ por tardanza</label><input type='number' step='0.01' class='finput' id='dsTardanza' placeholder='0.00'>
+  <label class='flabel'>S/ por inasistencia</label><input type='number' step='0.01' class='finput' id='dsInasistencia' placeholder='0.00'>
+  <button class='btn btn-primary' style='width:100%;margin-top:12px' onclick='guardarDescuento()'>Guardar Descuentos</button>
  </div>
 </div>
 <div id="modalAcceso" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;padding:16px">
@@ -616,14 +626,25 @@ async function eliminarContrato(id){
 function renderSueldos(){
   var el=document.getElementById('listaSueldos');if(!el)return;
   if(!D.psicologas.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin psicólogas activas</p>';return;}
-  el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Psicóloga</th><th>Sueldo base</th><th>Pacientes mes</th><th>Bonos</th><th>Total</th><th>Estado</th></tr></thead><tbody>'+
+  var mesStr=mesY();
+  el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Psicóloga</th><th>Sueldo base</th><th>Pacientes mes</th><th>🕐 Tardanzas</th><th>❌ Inasistencias</th><th>Descuento</th><th>Bonos</th><th>Total a pagar</th><th>Estado</th></tr></thead><tbody>'+
   D.psicologas.map(function(p){
     var hon=D.honorarios.find(function(h){return h.psicologa_nombre===p.nombre;});
-    var pacMes=D.sesiones.filter(function(s){return s.psicologa===p.nombre&&s.estado==='asistio';}).length;
+    var sesMes=D.sesiones.filter(function(s){return s.psicologa===p.nombre&&(s.fecha||'').substring(0,7)===mesStr;});
+    var pacMes=sesMes.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
+    var nTard=sesMes.filter(function(s){return s.estado==='tardanza';}).length;
+    var nInas=sesMes.filter(function(s){return s.estado==='noasistio';}).length;
+    var rTard=hon?(hon.descuento_tardanza||0):0, rInas=hon?(hon.descuento_inasistencia||0):0;
+    var descuento=nTard*rTard+nInas*rInas;
     var bonos=(D.bonos||[]).filter(function(b){return (b.nombre||b.psicologa_nombre)===p.nombre;}).reduce(function(a,b){return a+(b.monto_bono||0);},0);
-    var base=hon?hon.monto_base:(p.sueldo||0);var total=base+bonos;
-    return'<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+p.nombre+'</td><td>S/'+base+'</td><td style="font-weight:700;color:var(--acc)">'+pacMes+'</td><td style="color:#15803d">S/'+bonos.toFixed(2)+'</td><td style="font-weight:900;color:var(--dark)">S/'+total.toFixed(2)+'</td><td>'+badge((hon&&hon.estado)||'pendiente')+'</td></tr>';
-  }).join('')+'</tbody></table>';
+    var base=hon?hon.monto_base:(p.sueldo||0);var total=base+bonos-descuento;
+    return'<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+p.nombre+'</td><td>S/'+base+'</td><td style="font-weight:700;color:var(--acc)">'+pacMes+'</td>'
+      +'<td style="text-align:center">'+nTard+(rTard?' <span style="font-size:10px;color:var(--muted)">(S/'+rTard.toFixed(2)+' c/u)</span>':'')+'</td>'
+      +'<td style="text-align:center">'+nInas+(rInas?' <span style="font-size:10px;color:var(--muted)">(S/'+rInas.toFixed(2)+' c/u)</span>':'')+'</td>'
+      +'<td style="font-weight:700;color:'+(descuento>0?'#dc2626':'var(--muted)')+'">'+(descuento>0?'-S/'+descuento.toFixed(2):'—')+'</td>'
+      +'<td style="color:#15803d">S/'+bonos.toFixed(2)+'</td><td style="font-weight:900;color:var(--dark)">S/'+total.toFixed(2)+'</td><td>'+badge((hon&&hon.estado)||'pendiente')+'</td></tr>';
+  }).join('')+'</tbody></table>'
+  +'<div style="font-size:10px;color:var(--muted);margin-top:8px">➖ Los descuentos se aplican según la tasa en S/ configurada por trabajadora (botón "Descuentos"). El bono se asigna manualmente según metas de pacientes atendidos, no por asistencia.</div>';
 }
 
 // ASISTENCIA
@@ -835,6 +856,37 @@ async function guardarBono(){
     toast('✅ Bono asignado a '+nom);await recargar();
   }catch(e){toast('Error: '+e.message,'error');}
 }
+// ══ DESCUENTOS (tardanza/inasistencia) ══
+function abrirModalDescuento(){
+  var sel=document.getElementById('dsNombre');
+  sel.innerHTML=(D.psicologas||[]).map(function(p){return '<option value="'+p.nombre+'">'+p.nombre+'</option>';}).join('');
+  var hon=D.honorarios.find(function(h){return h.psicologa_nombre===sel.value;});
+  document.getElementById('dsTardanza').value=hon?(hon.descuento_tardanza||0):0;
+  document.getElementById('dsInasistencia').value=hon?(hon.descuento_inasistencia||0):0;
+  sel.onchange=function(){
+    var h=D.honorarios.find(function(x){return x.psicologa_nombre===sel.value;});
+    document.getElementById('dsTardanza').value=h?(h.descuento_tardanza||0):0;
+    document.getElementById('dsInasistencia').value=h?(h.descuento_inasistencia||0):0;
+  };
+  document.getElementById('modalDescuento').classList.add('open');
+}
+async function guardarDescuento(){
+  var nom=document.getElementById('dsNombre').value;
+  var dTard=parseFloat(document.getElementById('dsTardanza').value)||0;
+  var dInas=parseFloat(document.getElementById('dsInasistencia').value)||0;
+  if(!nom){toast('Selecciona una trabajadora','error');return;}
+  try{
+    var hon=D.honorarios.find(function(h){return h.psicologa_nombre===nom;});
+    if(hon){
+      await sbPatch('honorarios',{descuento_tardanza:dTard,descuento_inasistencia:dInas},{id:'eq.'+hon.id});
+    }else{
+      var p=(D.psicologas||[]).find(function(x){return x.nombre===nom;});
+      await sbPost('honorarios',{mes:mesY(),psicologa_nombre:nom,sede:(p&&p.sede)||D.sede,monto_base:(p&&p.sueldo)||0,descuento_tardanza:dTard,descuento_inasistencia:dInas,estado:'pendiente'});
+    }
+    document.getElementById('modalDescuento').classList.remove('open');
+    toast('✅ Descuentos configurados para '+nom);await recargar();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
 // ══ EXPORTAR SUNAT (CSV de ingresos y gastos del mes) ══
 function exportarSUNAT(){
   var mes=mesY();
@@ -1040,7 +1092,7 @@ async function verDetalleEvento(dia,idx){
     var pct=totalAsistidas?Math.round(aTiempo*100/totalAsistidas):0;
     var metaEl=document.getElementById('detalleEvMeta');
     if(metaEl)metaEl.innerHTML=ses.length
-      ? (pct>=85?'🏆 <b style="color:#059669">Meta cumplida ('+pct+'% puntualidad) — corresponde bono</b>':'⏳ En curso ('+pct+'% puntualidad, meta 85%)')
+      ? (pct>=85?'🏆 <b style="color:#059669">Meta de puntualidad cumplida ('+pct+'%)</b>':'⏳ En curso ('+pct+'% puntualidad, meta 85%)')+'<div style="font-size:10px;color:var(--muted);margin-top:4px">El bono se otorga por cantidad de pacientes atendidos, no por puntualidad. Los descuentos por tardanza/inasistencia se configuran en Sueldos y Bonos.</div>'
       : 'Sin sesiones registradas este mes.';
   }catch(err){
     var metaEl2=document.getElementById('detalleEvMeta');
