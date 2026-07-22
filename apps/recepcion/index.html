@@ -1185,7 +1185,7 @@ function horasPs(psId,fecha){
   if(!ps)return[];
   const d=new Date(fecha+'T12:00:00');
   const diaNom=diaFull[d.getDay()];
-  const esEsp=ps.diaEspecial&&diaNom===ps.diaEspecial;
+  const esEsp=ps.diaEspecial&&String(ps.diaEspecial).split(",").map(function(s){return s.trim();}).indexOf(diaNom)>-1;
   const ini=esEsp?'08:00':(ps.inicio||'13:15');
   const fin=ps.fin||'20:00';
   const slots=[];
@@ -1341,7 +1341,7 @@ function renderAgenda(){
   dias.forEach(dia=>{
     const diaNom=diaFull[dia.d.getDay()];
     DB.psicologas.forEach(ps=>{
-      const esEsp=ps.diaEspecial&&diaNom===ps.diaEspecial;
+      const esEsp=ps.diaEspecial&&String(ps.diaEspecial).split(",").map(function(s){return s.trim();}).indexOf(diaNom)>-1;
       const slots=horasPs(ps.id,dia.f);
       slots.forEach(s=>allSlots.add(s));
     });

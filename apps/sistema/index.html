@@ -379,6 +379,21 @@ function initApp(){
   const sel=document.getElementById('tblSelect');
   sel.innerHTML=TABLAS.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
   cargarStats();
+  // Auto-actualización silenciosa cada 40s — antes si otra persona
+  // cargaba datos desde Sistema al mismo tiempo, no se veía hasta
+  // recargar la página a mano. Se salta la actualización si hay
+  // cambios sin guardar en pantalla (filas marcadas "dirty"), para no
+  // taparle a alguien una edición que todavía no ha guardado.
+  if(window._sisAutoRefresh)clearInterval(window._sisAutoRefresh);
+  window._sisAutoRefresh=setInterval(function(){
+    var app=document.getElementById('app');
+    if(!app||app.style.display==='none')return;
+    if(document.querySelector('tr.dirty'))return;
+    var pgTablas=document.getElementById('pg-tablas');
+    if(pgTablas&&pgTablas.classList.contains('active'))tblCargar();
+    var pgCuentas=document.getElementById('pg-cuentas');
+    if(pgCuentas&&pgCuentas.classList.contains('active'))cargarCuentas();
+  },40000);
 }
 
 async function cargarStats(){
@@ -414,7 +429,7 @@ const TABLE_ENUMS={
     dia_completo:['','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'],
     horario_completo:['true','false']},
   recepcionistas:{estado:['activa','inactiva','cesada'],frecuencia_pago:['mensual','quincenal','semanal']},
-  usuarios_gerencia:{estado:['activo','inactivo'],rol:['gerencia','superadmin']},
+  usuarios_gerencia:{estado:['activo','inactivo'],rol:['gerencia','administracion','superadmin']},
   sesiones:{estado:['programado','asistio','tardanza','noasistio','permiso','cancelado'],
     tipo:['sesion','consulta','paquete','informe','constancia','neuropsico']},
   pagos:{metodo:['Efectivo','Yape','Plin','Transferencia','Tarjeta']},
@@ -484,7 +499,7 @@ const COLUMN_HINTS={
     dia_pago:'Día del mes en que se le paga, número del 1 al 31'
   },
   usuarios_gerencia:{
-    rol:'"gerencia" = solo entra a la app Gerencia · "superadmin" = además puede entrar a Sistema con su propio correo/contraseña',
+    rol:'"gerencia" = app Gerencia · "administracion" = app Administración · "superadmin" = además puede entrar a Sistema con su propio correo/contraseña. Por ahora Gerencia y Administración aceptan cualquier cuenta de esta tabla (no filtran por rol todavía) — el rol es para organizarlas.',
     sede:'Todas (ve las 4 sedes) o el nombre de una sede específica'
   },
   sesiones:{
@@ -626,8 +641,18 @@ function celdaInput(tabla,col,v){
     const iv=Array.isArray(v)?v.join(','):(v||'');
     return '<input class="cellinp" data-col="'+col+'" data-kind="array" value="'+String(iv).replace(/"/g,'&quot;')+'" placeholder="1,2,3">';
   }
+  if(typeof v==='boolean'){
+    // Antes esto era un <input> de texto libre con "true"/"false" escrito
+    // como texto — si alguien lo retipeaba distinto (mayúscula, espacio,
+    // "sí"...), se guardaba como false sin avisar. Ahora es un desplegable,
+    // como cualquier otro campo de sí/no.
+    return '<select class="cellsel" data-col="'+col+'" data-kind="bool">'+
+      '<option value="true"'+(v===true?' selected':'')+'>true</option>'+
+      '<option value="false"'+(v===false?' selected':'')+'>false</option>'+
+      '</select>';
+  }
   let iv=(v===null||v===undefined)?'':(typeof v==='object'?JSON.stringify(v):String(v));
-  let kind=(v===null||v===undefined)?'text':(typeof v==='number'?'number':typeof v==='boolean'?'bool':typeof v==='object'?'json':'text');
+  let kind=(v===null||v===undefined)?'text':(typeof v==='number'?'number':typeof v==='object'?'json':'text');
   return '<input class="cellinp" data-col="'+col+'" data-kind="'+kind+'" value="'+iv.replace(/"/g,'&quot;')+'">';
 }
 function renderEditableGrid(containerId,rows,tabla){
@@ -717,7 +742,11 @@ async function tblCargar(){
   document.getElementById('tblTitulo').textContent=t;
   document.getElementById('tblCount').textContent='⏳ cargando…';
   try{
-    const {data,count}=await sbGet(t,{select:'*',limit:lim});
+    // order:'id.asc' evita que las filas "salten" de posición cada vez que
+    // se recarga la tabla — sin un orden explícito, Postgres no garantiza
+    // el mismo orden entre consultas, y después de editar una fila podía
+    // aparecer en otro lugar de la lista.
+    const {data,count}=await sbGet(t,{select:'*',limit:lim,order:'id.asc'});
     _tblRows[t]=data||[];
     document.getElementById('tblCount').textContent=(count!==null?count+' filas totales · ':'')+(data?data.length:0)+' mostradas';
     renderEditableGrid('tblGrid',data,t);
@@ -836,6 +865,7 @@ function abrirHorarioPs(idx){
   var diasActuales=(row.dias_trabajo||'').split(/[,\-]|\s+a\s+/i).map(function(s){return s.trim();}).filter(Boolean);
   // "Lunes-Sabado" es un rango: expandirlo para marcar los checkboxes correctos
   if(/^lunes\s*-\s*sabado$/i.test(row.dias_trabajo||''))diasActuales=DIAS_SEMANA.slice(0,6);
+  var diasCompletosActuales=(row.dia_completo||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
   document.getElementById('horarioBody').innerHTML=
     '<div style="font-weight:900;font-size:15px;margin-bottom:10px">🕐 Horario — '+row.nombre+'</div>'+
     '<div class="hint" style="margin-bottom:6px">Días que trabaja</div>'+
@@ -846,16 +876,19 @@ function abrirHorarioPs(idx){
         '<input type="checkbox" value="'+d+'" class="diaTrabajoChk" '+(checked?'checked':'')+'> '+d.slice(0,3)+'</label>';
     }).join('')+
     '</div>'+
-    '<div class="hint" style="margin-bottom:6px">Día completo (entra más temprano, ej. 08:00) — opcional</div>'+
-    '<select class="fsel" id="hDiaCompleto" style="width:100%;margin-bottom:14px">'+
-      '<option value="">— Ninguno —</option>'+
-      DIAS_SEMANA.map(function(d){return '<option value="'+d+'"'+(row.dia_completo===d?' selected':'')+'>'+d+'</option>';}).join('')+
-    '</select>'+
+    '<div class="hint" style="margin-bottom:6px">Día(s) completo(s) — entra más temprano (08:00). Puede marcar más de uno.</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">'+
+    DIAS_SEMANA.map(function(d){
+      var checked=diasCompletosActuales.indexOf(d)>-1;
+      return '<label style="display:flex;align-items:center;gap:4px;font-size:12px;background:#fdf2f8;padding:5px 9px;border-radius:8px;cursor:pointer">'+
+        '<input type="checkbox" value="'+d+'" class="diaCompletoChk" '+(checked?'checked':'')+'> '+d.slice(0,3)+'</label>';
+    }).join('')+
+    '</div>'+
     '<div class="grid g2">'+
       '<div><div class="hint" style="margin-bottom:4px">Hora inicio (días normales)</div><input type="time" class="fsel" id="hInicio" style="width:100%" value="'+(row.hora_inicio||'13:15').substring(0,5)+'"></div>'+
       '<div><div class="hint" style="margin-bottom:4px">Hora fin</div><input type="time" class="fsel" id="hFin" style="width:100%" value="'+(row.hora_fin||'20:00').substring(0,5)+'"></div>'+
     '</div>'+
-    '<div class="hint" style="margin-top:10px">El día marcado como "completo" siempre empieza a las 08:00 en las apps, sin importar la hora de inicio de arriba.</div>';
+    '<div class="hint" style="margin-top:10px">Los días marcados como "completo" siempre empiezan a las 08:00 en las apps, sin importar la hora de inicio de arriba.</div>';
   modal._idx=idx;
   modal.classList.add('open');
 }
@@ -865,11 +898,12 @@ async function guardarHorarioPs(){
   var dias=Array.from(document.querySelectorAll('.diaTrabajoChk:checked')).map(function(c){return c.value;});
   var diasTexto=dias.length===6&&DIAS_SEMANA.slice(0,6).every(function(d){return dias.indexOf(d)>-1;})
     ?'Lunes-Sabado':dias.join(', ');
-  var diaCompleto=document.getElementById('hDiaCompleto').value;
+  var diasCompletos=Array.from(document.querySelectorAll('.diaCompletoChk:checked')).map(function(c){return c.value;});
+  var diaCompletoTexto=diasCompletos.join(',');
   var data={
     dias_trabajo:diasTexto,
-    dia_completo:diaCompleto||null,
-    horario_completo:!!diaCompleto,
+    dia_completo:diaCompletoTexto||null,
+    horario_completo:diasCompletos.length>0,
     hora_inicio:document.getElementById('hInicio').value||'13:15',
     hora_fin:document.getElementById('hFin').value||'20:00'
   };
