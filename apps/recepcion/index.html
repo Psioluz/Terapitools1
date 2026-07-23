@@ -450,7 +450,9 @@ try{
   <div class="card">
     <div class="card-header">
       <div class="card-title">👩‍⚕️ Psicólogas de la Sede</div>
-      <button class="btn btn-primary" onclick="abrirModalPs()">+ Nueva Psicóloga</button>
+    </div>
+    <div style="background:#eff6ff;margin:12px;border-radius:10px;padding:10px;font-size:12px;color:#1e40af">
+      ℹ️ Solo lectura. Para agregar, editar o eliminar psicólogas, contacta a <strong>Administración</strong>.
     </div>
     <div style="padding:12px" id="gridPs"></div>
   </div>
@@ -475,7 +477,9 @@ try{
   <div class="card">
     <div class="card-header">
       <div class="card-title">💼 Servicios y Tarifas</div>
-      <button class="btn btn-primary" onclick="abrirModalPaq()">+ Nuevo Servicio</button>
+    </div>
+    <div style="background:#eff6ff;margin:12px;border-radius:10px;padding:10px;font-size:12px;color:#1e40af">
+      ℹ️ Solo lectura. Para agregar, editar o eliminar servicios y precios, contacta a <strong>Administración</strong>.
     </div>
     <div class="tab-bar" id="tabsPaq">
       <button class="tab-btn active" data-tipo="" onclick="filtrarPaq('',this)">📋 Todo</button>
@@ -807,96 +811,6 @@ try{
     <button class="btn btn-primary" onclick="guardarTerapia()">Guardar</button>
   </div>
 </div>
-</div>
-
-<!-- MODAL PAQUETE -->
-<div class="modal-overlay" id="modalPaquete">
-<div class="modal modal-lg">
-  <div class="modal-header">
-    <div class="modal-title" id="modalPaqTit">💼 Nuevo Servicio</div>
-    <button class="modal-close" onclick="closeModal('modalPaquete')">✕</button>
-  </div>
-  <div class="modal-body">
-    <div class="form-group"><label class="form-label">Tipo de Servicio</label>
-      <select class="form-control" id="pq-tipo" onchange="pqOnTipo()">
-        <option value="paquete">📦 Paquete de Sesiones</option>
-        <option value="consulta">🩺 Consulta</option>
-        <option value="informe">📋 Informe Evolutivo</option>
-        <option value="constancia">📄 Constancia de Atención</option>
-        <option value="neuropsico">🧠 Evaluación Neuropsicológica</option>
-        <option value="otro">➕ Otro</option>
-      </select>
-    </div>
-    <div class="grid g2">
-      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Nombre / Descripción *</label><input class="form-control" id="pq-nombre" placeholder="Ej: Paquete 8 sesiones Psicología Clínica"></div>
-      <div class="form-group" id="pq-grp-nro"><label class="form-label">N° de Sesiones</label>
-        <select class="form-control" id="pq-nroSes" onchange="pqCalc()">
-          <option value="4">4 sesiones</option><option value="6">6 sesiones</option>
-          <option value="8" selected>8 sesiones</option><option value="10">10 sesiones</option>
-          <option value="12">12 sesiones</option><option value="16">16 sesiones</option>
-          <option value="20">20 sesiones</option><option value="24">24 sesiones</option>
-        </select>
-      </div>
-      <div class="form-group" id="pq-grp-cps"><label class="form-label">Costo por Sesión (S/)</label>
-        <input type="number" class="form-control" id="pq-cps" placeholder="65" min="0" oninput="pqCalc()">
-      </div>
-      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Costo Total (S/) *</label>
-        <input type="number" class="form-control" id="pq-total" placeholder="520" min="0" style="font-size:20px;font-weight:900;color:var(--green)">
-        <div id="pq-preview" style="font-size:12px;color:var(--muted);margin-top:4px"></div>
-      </div>
-      <div class="form-group"><label class="form-label">Color</label>
-        <select class="form-control" id="pq-color">
-          <option value="bp">🟣 Morado</option><option value="bc">🔵 Celeste</option>
-          <option value="bg">🟢 Verde</option><option value="bo">🟠 Naranja</option>
-          <option value="bpk">🩷 Rosa</option><option value="bb">💙 Azul</option>
-        </select>
-      </div>
-    </div>
-    <input type="hidden" id="pq-editId">
-  </div>
-  <div class="modal-footer">
-    <button class="btn btn-outline" onclick="closeModal('modalPaquete')">Cancelar</button>
-    <button class="btn btn-primary" onclick="guardarPaquete()">Guardar Servicio</button>
-  </div>
-</div>
-</div>
-
-<!-- MODAL PSICÓLOGA -->
-<div class="modal-overlay" id="modalPsicologa">
-<div class="modal">
-  <div class="modal-header">
-    <div class="modal-title" id="modalPsTit">👩‍⚕️ Nueva Psicóloga</div>
-    <button class="modal-close" onclick="closeModal('modalPsicologa')">✕</button>
-  </div>
-  <div class="modal-body">
-    <div class="grid g2">
-      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Nombre Completo *</label><input class="form-control" id="ps-nombre" placeholder="Lic. Nombre Apellido"></div>
-      <div class="form-group"><label class="form-label">COP</label><input class="form-control" id="ps-cop" placeholder="COP 12345"></div>
-      <div class="form-group"><label class="form-label">Especialidad</label><input class="form-control" id="ps-esp" placeholder="Psicología Clínica"></div>
-      <div class="form-group"><label class="form-label">Hora Inicio (días normales)</label><input class="form-control" id="ps-inicio" value="13:15" placeholder="13:15"></div>
-      <div class="form-group"><label class="form-label">Hora Fin</label><input class="form-control" id="ps-fin" value="20:00" placeholder="20:00"></div>
-      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Día especial (desde 08:00 — todo el día)</label>
-        <select class="form-control" id="ps-dia">
-          <option value="">— Ninguno —</option>
-          <option value="Lunes">Lunes</option><option value="Martes">Martes</option>
-          <option value="Miércoles">Miércoles</option><option value="Jueves">Jueves</option>
-          <option value="Viernes">Viernes</option><option value="Sábado">Sábado</option>
-        </select>
-      </div>
-      <div class="form-group"><label class="form-label">Color</label>
-        <select class="form-control" id="ps-color">
-          <option value="bp">🟣 Morado</option><option value="bc">🔵 Celeste</option>
-          <option value="bg">🟢 Verde</option><option value="bo">🟠 Naranja</option>
-          <option value="bpk">🩷 Rosa</option><option value="bb">💙 Azul</option>
-        </select>
-      </div>
-    </div>
-    <input type="hidden" id="ps-editId">
-  </div>
-  <div class="modal-footer">
-    <button class="btn btn-outline" onclick="closeModal('modalPsicologa')">Cancelar</button>
-    <button class="btn btn-primary" onclick="guardarPs()">Guardar</button>
-  </div>
 </div>
 
 
@@ -1231,8 +1145,6 @@ function fillHoras(){
 function openModal(id){
   const el=document.getElementById(id);if(!el)return;
   el.classList.add('open');
-  if(id==='modalPaquete'){document.getElementById('pq-editId').value='';document.getElementById('modalPaqTit').textContent='💼 Nuevo Servicio';pqOnTipo();}
-  if(id==='modalPsicologa'){document.getElementById('ps-editId').value='';document.getElementById('modalPsTit').textContent='👩‍⚕️ Nueva Psicóloga';}
 }
 function closeModal(id){const el=document.getElementById(id);if(el)el.classList.remove('open');}
 
@@ -2162,7 +2074,7 @@ async function desmarcarP(btn){
 function renderPsicologas(){
   const el=document.getElementById('gridPs');if(!el)return;
   if(!DB.psicologas.length){
-    el.innerHTML='<div class="alert al-info" style="margin:12px">No hay psicólogas. Agrega la primera con el botón +</div>';return;
+    el.innerHTML='<div class="alert al-info" style="margin:12px">No hay psicólogas registradas para esta sede. Pide a Administración que agregue una.</div>';return;
   }
   el.innerHTML=DB.psicologas.map(ps=>{
     const sesHoy=DB.sesiones.filter(s=>s.psId===ps.id&&s.fecha===today()).length;
@@ -2173,64 +2085,8 @@ function renderPsicologas(){
       '<div style="font-size:11px;color:var(--muted)">'+ps.esp+' · '+ps.cop+'</div>'+
       '<div style="font-size:11px;color:var(--muted)">⏰ '+(ps.inicio||'13:15')+' - '+(ps.fin||'20:00')+(ps.diaEspecial?' · '+ps.diaEspecial+' desde 08:00':'')+'</div>'+
       '<div style="font-size:11px;margin-top:3px">Sesiones hoy: <strong>'+sesHoy+'</strong></div></div>'+
-      '<div style="display:flex;flex-direction:column;gap:4px">'+
-      '<button class="btn btn-outline btn-sm" onclick="editarPs(\''+ps.id+'\')">✏️ Editar</button>'+
-      '<button class="btn btn-danger btn-sm" onclick="eliminarPs(\''+ps.id+'\')">🗑 Eliminar</button>'+
-      '</div></div></div>';
+      '</div></div>';
   }).join('');
-}
-
-function abrirModalPs(){
-  ['ps-nombre','ps-cop','ps-esp','ps-dia'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('ps-inicio').value='13:15';
-  document.getElementById('ps-fin').value='20:00';
-  document.getElementById('ps-color').value='bp';
-  document.getElementById('ps-editId').value='';
-  document.getElementById('modalPsTit').textContent='👩‍⚕️ Nueva Psicóloga';
-  openModal('modalPsicologa');
-}
-
-function editarPs(id){
-  const ps=DB.psicologas.find(p=>p.id===id);if(!ps)return;
-  document.getElementById('ps-nombre').value=ps.nombre;
-  document.getElementById('ps-cop').value=ps.cop||'';
-  document.getElementById('ps-esp').value=ps.esp||'';
-  document.getElementById('ps-inicio').value=ps.inicio||'13:15';
-  document.getElementById('ps-fin').value=ps.fin||'20:00';
-  document.getElementById('ps-dia').value=ps.diaEspecial||'';
-  document.getElementById('ps-color').value=ps.color||'bp';
-  document.getElementById('ps-editId').value=id;
-  document.getElementById('modalPsTit').textContent='✏️ Editar: '+ps.nombre;
-  openModal('modalPsicologa');
-}
-
-function guardarPs(){
-  const nombre=document.getElementById('ps-nombre').value.trim();
-  if(!nombre){showToast('Nombre obligatorio','error');return;}
-  const editId=document.getElementById('ps-editId').value||'';
-  const fila={nombre:nombre,cpsp:document.getElementById('ps-cop').value||'',
-    especialidad:document.getElementById('ps-esp').value||'',
-    hora_inicio:document.getElementById('ps-inicio').value||'13:15',
-    hora_fin:document.getElementById('ps-fin').value||'20:00',
-    sede:DB.sede,estado:'activa'};
-  showToast('⏳ Guardando...');
-  const op=(editId&&String(editId).length>10)?sbPatch('psicologas',fila,{id:'eq.'+editId}):sbPost('psicologas',fila);
-  op.then(function(){closeModal('modalPsicologa');showToast('✅ Psicóloga guardada: '+nombre);return cargarDesdeSB();})
-    .catch(function(e){showToast('Error: '+e.message,'error');console.error('[ps SB]',e);});
-}
-
-function eliminarPs(id){
-  if(!confirm('¿Eliminar esta psicóloga? Ya no podrá ingresar a su app.'))return;
-  const ps=DB.psicologas.find(p=>p.id===id||p.nombre===id);
-  const filtro=(ps&&ps.id&&String(ps.id).length>10)?{id:'eq.'+ps.id}:{nombre:'eq.'+(ps?ps.nombre:id),sede:'eq.'+DB.sede};
-  sbDelete('psicologas',filtro)
-  .then(function(){showToast('✅ Psicóloga eliminada');return cargarDesdeSB();})
-  .catch(function(){
-    // Con datos vinculados: desactivar en vez de borrar
-    sbPatch('psicologas',{estado:'inactiva'},filtro)
-      .then(function(){showToast('Psicóloga desactivada (tenía datos vinculados)');return cargarDesdeSB();})
-      .catch(function(e2){showToast('Error: '+e2.message,'error');});
-  });
 }
 
 // ══════════════════════════════════════════════════
@@ -2294,10 +2150,7 @@ function renderPaquetes(filtro){
     '<div class="paq-precio">S/ '+p.costoTotal.toLocaleString()+'</div>'+
     '</div></div>'+
     (sesUsadas>0?'<div style="font-size:11px;color:var(--muted);margin-bottom:6px">Sesiones usadas: '+sesUsadas+'</div>':'')+
-    '<div style="display:flex;gap:6px;margin-top:4px">'+
-    '<button class="btn btn-outline btn-sm" onclick="editarPaq(\''+p.id+'\')">✏️ Editar</button>'+
-    '<button class="btn btn-danger btn-sm" onclick="eliminarPaq(\''+p.id+'\')">🗑</button>'+
-    '</div></div>';
+    '</div>';
   }).join('') ||
     '<div style="color:var(--muted);padding:14px">Sin servicios en esta categoría.</div>';
 }
@@ -2306,78 +2159,6 @@ function filtrarPaq(tipo,btn){
   document.querySelectorAll('#tabsPaq .tab-btn').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   renderPaquetes(tipo);
-}
-
-function abrirModalPaq(){
-  ['pq-nombre','pq-cps','pq-total'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('pq-tipo').value='paquete';
-  document.getElementById('pq-nroSes').value='8';
-  document.getElementById('pq-color').value='bp';
-  document.getElementById('pq-editId').value='';
-  document.getElementById('pq-preview').textContent='';
-  document.getElementById('modalPaqTit').textContent='💼 Nuevo Servicio';
-  pqOnTipo();
-  openModal('modalPaquete');
-}
-
-function pqOnTipo(){
-  const tipo=document.getElementById('pq-tipo').value;
-  const grp=document.getElementById('pq-grp-nro');
-  const grpC=document.getElementById('pq-grp-cps');
-  if(grp)grp.style.display=tipo==='paquete'?'block':'none';
-  if(grpC)grpC.style.display=tipo==='paquete'?'block':'none';
-}
-
-function pqCalc(){
-  const nro=parseInt(document.getElementById('pq-nroSes')?.value)||1;
-  const cps=parseFloat(document.getElementById('pq-cps')?.value)||0;
-  const total=nro*cps;
-  const elT=document.getElementById('pq-total');if(elT&&total>0)elT.value=total;
-  const prev=document.getElementById('pq-preview');
-  if(prev&&total>0)prev.textContent=nro+' sesiones × S/'+cps+' = S/'+total;
-}
-
-function editarPaq(id){
-  const p=DB.paquetes.find(x=>x.id===id);if(!p)return;
-  document.getElementById('pq-tipo').value=p.tipo;
-  document.getElementById('pq-nombre').value=p.nombre;
-  document.getElementById('pq-nroSes').value=p.nroSes;
-  document.getElementById('pq-cps').value=p.costoPorSes||0;
-  document.getElementById('pq-total').value=p.costoTotal;
-  document.getElementById('pq-color').value=p.color||'bp';
-  document.getElementById('pq-editId').value=id;
-  document.getElementById('modalPaqTit').textContent='✏️ Editar: '+p.nombre;
-  pqOnTipo();
-  openModal('modalPaquete');
-}
-
-function guardarPaquete(){
-  const tipo=document.getElementById('pq-tipo').value;
-  const nombre=document.getElementById('pq-nombre').value.trim();
-  const nroSes=parseInt(document.getElementById('pq-nroSes')?.value)||1;
-  const costoPorSes=parseFloat(document.getElementById('pq-cps')?.value)||0;
-  const costoTotal=parseFloat(document.getElementById('pq-total').value)||0;
-  const color=document.getElementById('pq-color').value;
-  if(!nombre){showToast('Nombre obligatorio','error');return;}
-  if(!costoTotal){showToast('Ingresa el costo total','error');return;}
-  const editId=document.getElementById('pq-editId').value||'';
-  const fila={nombre_servicio:nombre,tipo:tipo,sede:DB.sede,costo_total:costoTotal,
-    costo_por_sesion:costoPorSes,nro_sesiones:nroSes,activo:true,actualizado_por:DB.usuario||''};
-  showToast('⏳ Guardando...');
-  const op=(editId&&String(editId).length>10)
-    ?sbPatch('tarifas_sede',fila,{id:'eq.'+editId})
-    :sbPost('tarifas_sede',fila);
-  op.then(function(){closeModal('modalPaquete');showToast('✅ Servicio: '+nombre);return cargarDesdeSB();})
-    .catch(function(e){showToast('Error: '+e.message,'error');console.error('[tarifa SB]',e);});
-}
-
-function eliminarPaq(id){
-  if(!confirm('¿Eliminar este servicio?'))return;
-  const p=DB.paquetes.find(x=>x.id===id);
-  const filtro=(p&&p.id&&String(p.id).length>10)?{id:'eq.'+p.id}:{nombre_servicio:'eq.'+(p?(p.nombre||p.terNom):id),sede:'eq.'+DB.sede};
-  sbDelete('tarifas_sede',filtro)
-  .then(function(){showToast('✅ Servicio eliminado');return cargarDesdeSB();})
-  .catch(function(e){showToast('Error: '+e.message,'error');});
 }
 
 // ══════════════════════════════════════════════════
