@@ -31,8 +31,9 @@ Flutter recién creado, así:
 flutter create --platforms=windows psicoluz_sistema
 cd psicoluz_sistema
 
-:: 2) Agrega la dependencia del WebView
+:: 2) Agrega las dependencias que usa la app
 flutter pub add webview_windows
+flutter pub add path
 
 :: 3) Copia ENCIMA los archivos que te entregué en la carpeta
 ::    flutter-desktop\sistema\ (pisa lo que ya existe):
