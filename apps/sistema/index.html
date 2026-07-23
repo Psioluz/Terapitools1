@@ -447,7 +447,6 @@ const ARRAY_COLS=['dias_semana']; // columnas que Supabase devuelve como array �
 const TABLE_ENUMS={
   pacientes:{estado:['activo','inactivo'],genero:['M','F','O'],modalidad:['Presencial','Virtual']},
   psicologas:{estado:['activa','inactiva','cesada'],frecuencia_pago:['mensual','quincenal','semanal'],
-    dia_completo:['','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'],
     horario_completo:['true','false']},
   recepcionistas:{estado:['activa','inactiva','cesada'],frecuencia_pago:['mensual','quincenal','semanal']},
   usuarios_gerencia:{estado:['activo','inactivo'],rol:['gerencia','administracion','superadmin']},
@@ -510,7 +509,7 @@ const COLUMN_HINTS={
     cci:'Código de cuenta interbancario, 20 dígitos',
     dias_trabajo:'Ej. "Lunes-Sabado" o "Lunes, Miercoles, Viernes" — mejor usar el botón 🕐 Horario en vez de escribir esto a mano',
     horario_completo:'true o false — mejor usar el botón 🕐 Horario',
-    dia_completo:'Nombre del día en que entra más temprano (08:00), o vacío si no aplica — mejor usar el botón 🕐 Horario',
+    dia_completo:'Día(s) en que entra más temprano (08:00). Si son varios, sepáralos con coma sin espacio, ej. "Martes,Jueves" — mejor usar el botón 🕐 Horario, que ya permite marcar varios',
     frecuencia_pago:'mensual, quincenal o semanal',
     dia_pago:'Día del mes en que se le paga, número del 1 al 31',
     grado_academico:'Ej. Licenciada, Magíster'
