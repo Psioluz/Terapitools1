@@ -463,10 +463,9 @@ try{
   <div class="card">
     <div class="card-header">
       <div class="card-title">🧠 Tipos de Terapia</div>
-      <button class="btn btn-primary" onclick="abrirModalTerapia()">+ Nueva Terapia</button>
     </div>
-    <div style="background:#ede9fe;margin:12px;border-radius:10px;padding:10px;font-size:12px;color:#5b21b6">
-      ℹ️ Aquí defines los <strong>tipos de terapia</strong>. Los costos se configuran en <strong>Servicios y Tarifas</strong>. Una terapia sin sede asignada está disponible en todas las sedes.
+    <div style="background:#eff6ff;margin:12px;border-radius:10px;padding:10px;font-size:12px;color:#1e40af">
+      ℹ️ Solo lectura — muestra las terapias disponibles en tu sede. Para agregar, editar o eliminar, contacta a <strong>Administración</strong>.
     </div>
     <div class="grid g3" style="padding:0 12px 12px" id="gridTer"></div>
   </div>
@@ -784,35 +783,6 @@ try{
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modalPago')">Cancelar</button>
     <button class="btn btn-success" onclick="guardarPago()">💰 Guardar Pago</button>
-  </div>
-</div>
-</div>
-
-<!-- MODAL TERAPIA -->
-<div class="modal-overlay" id="modalTerapia">
-<div class="modal">
-  <div class="modal-header">
-    <div class="modal-title">🧠 Tipo de Terapia</div>
-    <button class="modal-close" onclick="closeModal('modalTerapia')">✕</button>
-  </div>
-  <div class="modal-body">
-    <div class="form-group"><label class="form-label">Nombre *</label><input class="form-control" id="t-nombre" placeholder="Ej: Psicología Clínica"></div>
-    <div class="form-group"><label class="form-label">Descripción</label><textarea class="form-control" id="t-desc" rows="2" placeholder="Breve descripción..."></textarea></div>
-    <div class="form-group" style="display:flex;align-items:center;gap:8px">
-      <input type="checkbox" id="t-solosede" style="width:16px;height:16px">
-      <label for="t-solosede" style="font-size:12.5px;margin:0">Disponible solo en esta sede (<span id="t-solosede-nombre"></span>) — si no la marcas, aparece en todas las sedes</label>
-    </div>
-    <div class="form-group"><label class="form-label">Color</label>
-      <select class="form-control" id="t-color">
-        <option value="bp">🟣 Morado</option><option value="bc">🔵 Celeste</option>
-        <option value="bg">🟢 Verde</option><option value="bo">🟠 Naranja</option>
-        <option value="bpk">🩷 Rosa</option><option value="bb">💙 Azul</option>
-      </select>
-    </div>
-  </div>
-  <div class="modal-footer">
-    <button class="btn btn-outline" onclick="closeModal('modalTerapia')">Cancelar</button>
-    <button class="btn btn-primary" onclick="guardarTerapia()">Guardar</button>
   </div>
 </div>
 </div>
@@ -2100,40 +2070,11 @@ function renderTerapias(){
   const el=document.getElementById('gridTer');if(!el)return;
   el.innerHTML=DB.terapias.map(t=>'<div class="card" style="padding:14px">'+
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">'+
-    '<span class="badge '+t.color+'">'+t.nombre+'</span>'+
-    '<button class="btn btn-danger btn-sm" onclick="eliminarTer(\''+t.id+'\')">🗑</button></div>'+
+    '<span class="badge '+t.color+'">'+t.nombre+'</span></div>'+
     (t.sede?'<div style="font-size:10px;margin-top:2px"><span class="badge bo">📍 Solo '+t.sede+'</span></div>':'')+
     '<div style="font-size:11px;color:var(--muted);margin-top:4px">'+(t.desc||'')+'</div>'+
     '</div>').join('') ||
     '<div style="color:var(--muted);padding:14px">Sin terapias.</div>';
-}
-
-function abrirModalTerapia(){
-  const nom=document.getElementById('t-nombre');if(nom)nom.value='';
-  const desc=document.getElementById('t-desc');if(desc)desc.value='';
-  const chk=document.getElementById('t-solosede');if(chk)chk.checked=false;
-  const lbl=document.getElementById('t-solosede-nombre');if(lbl)lbl.textContent=DB.sede||'';
-  openModal('modalTerapia');
-}
-
-function guardarTerapia(){
-  const nombre=document.getElementById('t-nombre').value.trim();
-  if(!nombre){showToast('Nombre obligatorio','error');return;}
-  const soloEstaSede=document.getElementById('t-solosede').checked;
-  showToast('⏳ Guardando...');
-  sbPost('terapias',{nombre:nombre,color:document.getElementById('t-color').value||'#e91e8c',
-    sede:soloEstaSede?DB.sede:null})
-  .then(function(){closeModal('modalTerapia');showToast('✅ Terapia: '+nombre);return cargarDesdeSB();})
-  .catch(function(e){showToast('Error: '+e.message,'error');});
-}
-
-function eliminarTer(id){
-  if(!confirm('¿Eliminar esta terapia?'))return;
-  const t=DB.terapias.find(x=>x.id===id||x.nombre===id);
-  const filtro=(t&&t.id&&String(t.id).length>10)?{id:'eq.'+t.id}:{nombre:'eq.'+(t?t.nombre:id)};
-  sbDelete('terapias',filtro)
-  .then(function(){showToast('✅ Terapia eliminada');return cargarDesdeSB();})
-  .catch(function(e){showToast('Error: '+e.message,'error');});
 }
 
 // ══════════════════════════════════════════════════
