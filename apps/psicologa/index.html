@@ -90,9 +90,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .ps-wrap{display:flex;height:100vh;height:100dvh;overflow:hidden;position:relative}
   .ps-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 }
+/* En pantallas anchas (escritorio) el sidebar va siempre visible en flujo
+   normal — el botón hamburguesa lo colapsa/expande con un ancho animado
+   en vez del overlay que se usa en móvil. */
+@media(min-width:769px){
+  .ps-sidebar{transition:width .22s ease,opacity .18s ease;overflow:hidden}
+  .ps-wrap.sb-collapsed .ps-sidebar{width:0;min-width:0;opacity:0;pointer-events:none}
+  /* El avatar chico junto al botón hamburguesa solo tiene sentido cuando
+     el sidebar (que ya trae su propio avatar) está oculto. */
+  #headerAvatarPs{display:none}
+  .ps-wrap.sb-collapsed #headerAvatarPs{display:flex}
+}
 /* Páginas */
 .pg{display:none;padding:14px}
 .pg.active{display:block}
+/* El chat necesita layout de columna (encabezado + mensajes que se
+   estiran + caja de texto abajo) en vez del bloque normal — si no, la
+   caja de escribir queda flotando encima de mensajes en vez de debajo.
+   goTab() fija display:block por JS al cambiar de pestaña, por eso el
+   !important: si no, esa línea de JS gana siempre. */
+#tabChat.pg.active{display:flex!important;flex-direction:column;height:100%;padding:0}
 
 /* ── FICHA DE SEGUIMIENTO ── */
 .ficha-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:flex-end;justify-content:center}
@@ -376,8 +393,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
 
     <!-- Mensajes -->
-    <div id="chatMensajes" style="flex:1;overflow-y:auto;padding:14px 16px;background:#f8f0f5;
-         min-height:calc(100vh - 280px);max-height:calc(100vh - 220px);-webkit-overflow-scrolling:touch">
+    <div id="chatMensajes" style="flex:1;min-height:0;overflow-y:auto;padding:14px 16px;background:#f8f0f5;-webkit-overflow-scrolling:touch">
       <div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">
         <div style="font-size:32px;margin-bottom:8px">💬</div>
         <div>Cargando mensajes...</div>
@@ -385,7 +401,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
 
     <!-- Input mensaje -->
-    <div style="position:sticky;bottom:0;padding:10px 12px;border-top:1px solid var(--border);background:#fff;display:flex;gap:8px;align-items:flex-end;z-index:10">
+    <div style="flex-shrink:0;padding:10px 12px;border-top:1px solid var(--border);background:#fff;display:flex;gap:8px;align-items:flex-end">
       <textarea id="chatInput" placeholder="Escribe un mensaje..." onkeydown="chatKeyDown(event)"
         style="flex:1;padding:10px 14px;border:1.5px solid #f48fb1;border-radius:20px;font-size:13px;
                outline:none;resize:none;max-height:80px;min-height:40px;font-family:inherit;
@@ -1573,6 +1589,13 @@ function completarLoginConPs(psObj){
       // Guardar la URL en localStorage por email para acceso rápido
       localStorage.setItem('psicoluz_foto_'+PS.email, PS.foto);
     }catch(e){}
+  }else if(!PS.foto){
+    // Supabase ya respondió y esta psicóloga no tiene foto — borrar el
+    // cache viejo para que no siga "resucitando" una foto eliminada.
+    try{
+      localStorage.removeItem('psicoluz_foto_'+PS.email);
+      localStorage.removeItem('psicoluz_foto_'+PS.sede+'_'+PS.nombre);
+    }catch(e){}
   }
   PS.cop          = psObj.cop    || '';
   PS.esp          = psObj.especialidad || psObj.esp || '';
@@ -1776,44 +1799,6 @@ function doLogin(){
   finalizarLogin();
 }
 
-// ── FINALIZAR LOGIN VÍA EMAIL ────────────────────────────────────────────
-function completarLoginConPs(psObj){
-  PS.nombre=psObj.nombre||psObj.name||'';
-  PS.sede=psObj.sede||psObj._sede||'';
-  PS.email=psObj.email||'';
-  PS.foto=psObj.foto||psObj.fotoUrl||'';
-  PS.cop=psObj.cop||'';
-  PS.esp=psObj.especialidad||psObj.esp||'';
-  PS.diaEspecial=psObj.diaEspecial||'';
-  PS.inicio=psObj.inicio||'13:15';
-  PS.fin=psObj.fin||'20:00';
-  PS.fechaIngreso=psObj.fechaIngreso||'';
-  if(!PS.sede||!PS.nombre){
-    const err=document.getElementById('lErrEmail');
-    if(err){err.textContent='Perfil incompleto. Contacta a la administradora.';err.style.display='block';}
-    return;
-  }
-  // Guardar cache del email
-  try{localStorage.setItem('psicoluz_last_email',PS.email);}catch(e){}
-  try{localStorage.setItem('psicoluz_ps_cred_'+PS.email,JSON.stringify({...psObj,pass:(document.getElementById('lPassEmail')?.value||PASS)}));}catch(e){}
-  loadPS();
-  // Transición
-  document.getElementById('loginScreen').style.display='none';
-  const app=document.getElementById('app');app.style.display='flex';app.style.flexDirection='column';
-  const short=PS.nombre.replace(/lic[.]?/gi,'').trim().split(' ')[0];
-  const elN=document.getElementById('hdrName');if(elN)elN.textContent=PS.nombre;
-  const elS=document.getElementById('hdrSede');if(elS)elS.textContent='Sede '+PS.sede;
-  const av=document.getElementById('perAvatar');
-  if(av){
-    if(PS.foto){av.innerHTML='<img src="'+PS.foto+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover">';}
-    else{av.textContent=short.charAt(0).toUpperCase();}
-  }
-  _tick=setInterval(tickPs,1000);tickPs();
-  cargarDeLocalStorage();
-  renderHoy();renderSemana();renderPacsPs();renderDocs();renderPerfil();
-  sync(false);
-}
-
 function logout(){
   var div=document.createElement('div');
   div.id='logoutConfirm';
@@ -1910,8 +1895,12 @@ function goTab(tabId, el){
 function toggleSidebar(){
   const sb=document.getElementById('psSidebar');
   const ov=document.getElementById('psSidebarOverlay');
+  const wrap=document.querySelector('.ps-wrap');
   if(sb)sb.classList.toggle('open');
   if(ov)ov.classList.toggle('on');
+  // En escritorio (pantallas anchas) el sidebar no es un overlay — se
+  // colapsa/expande con esta clase en vez de con "open".
+  if(wrap)wrap.classList.toggle('sb-collapsed');
 }
 
 // ── CARGA DESDE LOCALSTORAGE (SIEMPRE DISPONIBLE) ──
@@ -2047,7 +2036,11 @@ async function sync(mostrar){
       return pn.includes(nomB)||nomB.includes(pn.split(' ')[0]);
     });
     if(psData){
-      if(psData.diaEspecial) PS.diaEspecial=psData.diaEspecial;
+      // diaEspecial y diasSemana SÍ se sobrescriben aunque vengan vacíos —
+      // si la administradora quita un día especial o reduce los días de
+      // trabajo, este refresco periódico debe reflejarlo, no solo "sumar".
+      PS.diaEspecial=psData.diaEspecial||'';
+      PS.diasSemana=(psData.diasSemana&&psData.diasSemana.length)?psData.diasSemana:PS.diasSemana;
       if(psData.inicio)      PS.inicio=normHora(psData.inicio)||PS.inicio;
       if(psData.fin)         PS.fin=normHora(psData.fin)||PS.fin;
       if(psData.cop)         PS.cop=psData.cop;
@@ -2055,7 +2048,6 @@ async function sync(mostrar){
       if(psData.fechaIngreso) PS.fechaIngreso=psData.fechaIngreso;
       if(psData.fechaNac)    PS.fechaNac=psData.fechaNac;
       if(psData.tel)         PS.tel=psData.tel;
-      if(psData.diasSemana)  PS.diasSemana=psData.diasSemana;
     }
 
     ok=true;
@@ -3676,7 +3668,22 @@ window.refrescarAvatares=async function(){
   if(PS.email){
     try{
       var r=await sbGet('psicologas',{email:'eq.'+PS.email,select:'foto_url'});
-      if(r&&r.length&&r[0].foto_url){foto=r[0].foto_url;PS.foto=foto;savePS();}
+      if(r&&r.length){
+        // Supabase es la fuente real: si foto_url viene vacío (se borró la
+        // foto), hay que limpiarla también aquí y en el caché local — antes
+        // solo se actualizaba cuando venía un valor, así que una foto
+        // borrada en Supabase "revivía" sola desde el caché viejo.
+        foto=r[0].foto_url||'';
+        PS.foto=foto;
+        savePS();
+        try{
+          if(foto){localStorage.setItem('psicoluz_foto_'+PS.email,foto);}
+          else{
+            localStorage.removeItem('psicoluz_foto_'+PS.email);
+            localStorage.removeItem('psicoluz_foto_'+PS.sede+'_'+PS.nombre);
+          }
+        }catch(e){}
+      }
     }catch(e){}
   }
   var inicial=(PS.nombre||'P').replace(/^(ps\.?|lic\.?)\s*/i,'').trim().charAt(0).toUpperCase()||'P';
