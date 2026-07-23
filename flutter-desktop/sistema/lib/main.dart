@@ -1,12 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:webview_windows/webview_windows.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_win_floating/webview_win_floating.dart';
 import 'package:path/path.dart' as p;
 
 // Título de la ventana / barra de tareas.
-const String kAppTitle = 'Centro de Gestión Psicoluz · Sistema';
+const String kAppTitle = 'Psicoluz Sistema';
 
 void main() {
+  if (Platform.isWindows) {
+    WebViewPlatform.instance = WinWebViewPlatform();
+  }
   runApp(const PsicoluzApp());
 }
 
@@ -30,7 +34,7 @@ class WebviewHost extends StatefulWidget {
 }
 
 class _WebviewHostState extends State<WebviewHost> {
-  final _controller = WebviewController();
+  WebViewController? _controller;
   String? _error;
 
   @override
@@ -41,7 +45,6 @@ class _WebviewHostState extends State<WebviewHost> {
 
   Future<void> _init() async {
     try {
-      await _controller.initialize();
       // `flutter build windows` copia los assets declarados en pubspec.yaml a:
       //   <exe>\data\flutter_assets\assets\app\index.html
       final exeDir = File(Platform.resolvedExecutable).parent.path;
@@ -52,8 +55,10 @@ class _WebviewHostState extends State<WebviewHost> {
         setState(() => _error = 'No se encontró:\n$indexPath');
         return;
       }
-      await _controller.loadUrl(Uri.file(indexPath).toString());
-      setState(() {});
+      final controller = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..loadRequest(Uri.file(indexPath));
+      setState(() => _controller = controller);
     } catch (e) {
       setState(() => _error = 'Error iniciando el WebView: $e');
     }
@@ -71,15 +76,9 @@ class _WebviewHostState extends State<WebviewHost> {
         ),
       );
     }
-    if (_controller.value.isInitialized) {
-      return Scaffold(body: Webview(_controller));
+    if (_controller != null) {
+      return Scaffold(body: WebViewWidget(controller: _controller!));
     }
     return const Scaffold(body: Center(child: CircularProgressIndicator()));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 }

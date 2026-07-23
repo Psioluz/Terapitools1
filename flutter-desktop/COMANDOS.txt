@@ -2,17 +2,30 @@
  PSICOLUZ — Empaquetado con Flutter (Windows)
 ═══════════════════════════════════════════════════════════
 
+⚠️ ACTUALIZACIÓN IMPORTANTE (si ya compilaste Sistema con la
+versión anterior de este paquete): el paquete "webview_windows"
+que usaba la primera versión tiene un bug conocido y sin arreglo
+(reportado por muchos desarrolladores, no es tu PC) que hace que
+los <select> (menús desplegables) no abran y el scroll con la
+rueda del mouse no funcione. Lo reemplacé por "webview_win_floating",
+que sí soporta esto bien. Si ya tienes el proyecto psicoluz_sistema
+creado, solo necesitas repetir los pasos 2 a 5 de abajo con los
+archivos nuevos (no hace falta borrar el proyecto ni empezar de cero).
+
 Esto reemplaza el empaquetado anterior (Neutralino). Con Flutter
-obtienes una ventana nativa de Windows de verdad (marco delgado
-estándar, no el de Neutralino) que carga tu app (index.html) en
-un WebView embebido — el código HTML queda empacado dentro del
-.exe compilado, no queda una carpeta con el HTML suelto al lado.
+obtienes una ventana nativa de Windows de verdad que carga tu app
+(index.html) en un WebView embebido — el código HTML queda
+empacado dentro del .exe compilado, no queda una carpeta con el
+HTML suelto al lado.
 
 REQUISITOS (una sola vez en tu PC Windows):
   1. Instala Flutter SDK: https://docs.flutter.dev/get-started/install/windows
-  2. Instala Visual Studio 2022 con el workload "Desktop development with C++"
+  2. Instala Visual Studio con el workload "Desktop development with C++"
      (Flutter lo necesita para compilar apps de Windows).
-  3. Verifica que todo esté bien con:
+  3. Activa el Modo de Programador de Windows (una sola vez):
+       start ms-settings:developers
+     y activa el interruptor "Modo de programador" / "Developer Mode".
+  4. Verifica que todo esté bien con:
        flutter doctor
 
 REPITE ESTOS PASOS PARA CADA UNA DE LAS 3 APPS
@@ -32,7 +45,8 @@ flutter create --platforms=windows psicoluz_sistema
 cd psicoluz_sistema
 
 :: 2) Agrega las dependencias que usa la app
-flutter pub add webview_windows
+flutter pub add webview_flutter
+flutter pub add webview_win_floating
 flutter pub add path
 
 :: 3) Copia ENCIMA los archivos que te entregué en la carpeta
@@ -43,16 +57,20 @@ flutter pub add path
 ::      - app_icon.ico          -> psicoluz_sistema\windows\runner\resources\app_icon.ico
 ::      (ese último SÍ reemplaza el ícono genérico de Flutter por el de Psicoluz)
 
-:: 4) Cambia el título de la ventana nativa (barra de tareas):
-::    Abre  windows\runner\Runner.rc  con el Bloc de notas y busca la línea:
-::        VALUE "FileDescription", "psicoluz_sistema"
-::    y también:
-::        VALUE "ProductName", "psicoluz_sistema"
-::    Cámbialas por:
-::        VALUE "FileDescription", "Centro de Gestión Psicoluz - Sistema"
-::        VALUE "ProductName", "Centro de Gestión Psicoluz - Sistema"
-::    (el título de la VENTANA en sí ya queda bien solo, porque
-::    lib\main.dart que te entregué ya trae el texto correcto)
+:: 4) Cambia el título de la ventana nativa (el que se ve en la
+::    barra de tareas y en la esquina de la ventana). Este texto
+::    NO se lee de ningún archivo de configuración: está escrito
+::    directo en el código C++ de arranque. Abre con el Bloc de
+::    notas:
+::        windows\runner\main.cpp
+::    Busca la línea que dice algo como:
+::        if (!window.CreateAndShow(L"psicoluz_sistema", origin, size))
+::    y cambia el texto entre L"..." por el nombre correcto, por
+::    ejemplo:
+::        if (!window.CreateAndShow(L"Psicoluz Sistema", origin, size))
+::    (para Recepción sería L"Psicoluz Recepción", para
+::    Administración L"Psicoluz Administración" — SIN guiones,
+::    tal como lo pediste)
 
 :: 5) Trae de vuelta las dependencias y compila
 flutter pub get
@@ -104,6 +122,7 @@ grande, aparte, si lo quieres evaluar más adelante.
 NOTA SOBRE PRUEBAS: no tengo una PC con Windows en este entorno
 para compilar y probar esto de punta a punta, así que estos
 pasos están armados con la documentación oficial de Flutter y
-Neutralino/Inno Setup, pero no verificados en vivo. Si algo no
-compila tal cual, mándame el mensaje de error exacto y lo
-ajustamos.
+del paquete webview_win_floating, pero no verificados en vivo.
+Si algo no compila tal cual, mándame el mensaje de error exacto
+y lo ajustamos — como hicimos con el paso de "path" y el de
+"Modo de programador".
