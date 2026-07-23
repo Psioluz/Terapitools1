@@ -2104,6 +2104,7 @@ function renderPaquetes(filtro){
     '</div>'+
     '<div style="text-align:right;flex-shrink:0">'+
     '<div class="paq-precio">S/ '+p.costoTotal.toLocaleString()+'</div>'+
+    (p.cuotas>1?'<div style="font-size:10px;color:var(--muted)">'+p.cuotas+' cuotas de S/'+p.montoCuota.toFixed(2)+'</div>':'')+
     '</div></div>'+
     (sesUsadas>0?'<div style="font-size:11px;color:var(--muted);margin-bottom:6px">Sesiones usadas: '+sesUsadas+'</div>':'')+
     '</div>';
@@ -2766,7 +2767,8 @@ async function cargarDesdeSB(silencioso) {
       terId:t.terapia||t.nombre_servicio,terNom:t.terapia||t.nombre_servicio,
       nroSes:t.nro_sesiones||12,sesiones:t.nro_sesiones||12,
       costoTotal:t.costo_total||t.precio_paquete||0,precio:t.costo_total||t.precio_paquete||0,
-      costoPorSes:t.costo_por_sesion||t.precio_sesion||0,precioSesion:t.costo_por_sesion||t.precio_sesion||0,_sb:t};});
+      costoPorSes:t.costo_por_sesion||t.precio_sesion||0,precioSesion:t.costo_por_sesion||t.precio_sesion||0,
+      cuotas:t.cantidad_cuotas||1,montoCuota:t.monto_cuota||((t.costo_total||0)/(t.cantidad_cuotas||1)),_sb:t};});
     DB.programas=res[7]||[];
     saveDB();
     if(typeof fillSelects==='function')fillSelects();
