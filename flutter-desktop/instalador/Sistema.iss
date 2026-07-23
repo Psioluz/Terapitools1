@@ -1,9 +1,10 @@
-; Instalador de "Centro de Gestión Psicoluz · Sistema"
+; Instalador de "Psicoluz Sistema"
 ; Ábrelo con Inno Setup (https://jrsoftware.org/isdl.php) y presiona Compile (Ctrl+F9).
-; Antes de compilar, revisa que la línea "Source" en [Files] apunte a la carpeta
-; build\windows\x64\runner\Release\ del proyecto Flutter psicoluz_sistema.
+; La ruta de "Source" en [Files] ya está ajustada a:
+;   C:\Psicoluz Administrador de sistema\psicoluz_sistema\build\windows\x64\runner\Release\
+; Si vuelves a compilar el proyecto Flutter en otra ruta, ajústala aquí de nuevo.
 
-#define MyAppName "Centro de Gestión Psicoluz - Sistema"
+#define MyAppName "Psicoluz Sistema"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "Psicoluz"
 #define MyAppExeName "psicoluz_sistema.exe"
@@ -30,8 +31,8 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "desktopicon"; Description: "Crear acceso directo en el Escritorio"; GroupDescription: "Accesos directos:"
 
 [Files]
-; Ajusta esta ruta a donde compilaste el proyecto Flutter
-Source: "..\sistema\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Ruta ajustada a tu proyecto compilado
+Source: "C:\Psicoluz Administrador de sistema\psicoluz_sistema\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

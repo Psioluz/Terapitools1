@@ -1,9 +1,9 @@
-; Instalador de "Centro de Gestión Psicoluz · Administración"
+; Instalador de "Psicoluz Administración"
 ; Ábrelo con Inno Setup (https://jrsoftware.org/isdl.php) y presiona Compile (Ctrl+F9).
 ; Antes de compilar, revisa que la línea "Source" en [Files] apunte a la carpeta
 ; build\windows\x64\runner\Release\ del proyecto Flutter psicoluz_administracion.
 
-#define MyAppName "Centro de Gestión Psicoluz - Administración"
+#define MyAppName "Psicoluz Administración"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "Psicoluz"
 #define MyAppExeName "psicoluz_administracion.exe"
