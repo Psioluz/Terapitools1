@@ -193,6 +193,12 @@ try{
     <!-- SEDES -->
     <div id='page-tarifas' class='page'>
   <div class='card'>
+    <div class='card-header'><div class='card-title'>🧠 Tipos de Terapia</div>
+      <button class='btn btn-primary btn-sm' onclick="abrirModalTerapiaAdm()">+ Nueva Terapia</button></div>
+    <div style='font-size:11px;color:#5b21b6;background:#ede9fe;border-radius:10px;padding:10px 12px;margin:0 14px 12px'>Una terapia sin sede asignada está disponible en todas las sedes. Recepción solo puede verlas, no editarlas.</div>
+    <div id='listaTerapiasAdm' style='padding:0 14px 14px'></div>
+  </div>
+  <div class='card'>
     <div class='card-header'><div class='card-title'>💲 Tarifas por Sede — <span id='tarSedeLbl'></span></div>
       <button class='btn btn-primary btn-sm' onclick="abrirModalTarifa()">+ Nueva Tarifa</button></div>
     <div id='listaTarifas' style='padding:14px'></div>
@@ -277,6 +283,24 @@ try{
     </div>
 
   </div></div></div>
+
+<!-- MODAL TERAPIA -->
+<div class='modal-overlay' id='modalTerapiaAdm'>
+ <div class='modal-box'>
+  <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px' id='terAdmTit'>🧠 Nueva Terapia</span><button onclick="document.getElementById('modalTerapiaAdm').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
+  <input type='hidden' id='terAdmId'>
+  <label class='flabel'>Nombre *</label><input class='finput' id='terAdmNombre' placeholder='Ej: Psicología Clínica'>
+  <label class='flabel'>Descripción</label><input class='finput' id='terAdmDesc' placeholder='Breve descripción (opcional)'>
+  <label class='flabel'>Sede</label><select class='finput' id='terAdmSede'><option value=''>Todas las sedes</option><option value='Comas'>Solo Comas</option><option value='Ovalo Zapallal'>Solo Óvalo Zapallal</option><option value='Flecha'>Solo Flecha</option><option value='Pachacutec'>Solo Pachacutec</option></select>
+  <label class='flabel'>Color</label>
+  <select class='finput' id='terAdmColor'>
+    <option value='bp'>🟣 Morado</option><option value='bc'>🔵 Celeste</option>
+    <option value='bg'>🟢 Verde</option><option value='bo'>🟠 Naranja</option>
+    <option value='bpk'>🩷 Rosa</option><option value='bb'>💙 Azul</option>
+  </select>
+  <button class='btn btn-primary' style='width:100%;margin-top:12px' onclick='guardarTerapiaAdm()'>Guardar</button>
+ </div>
+</div>
 
 <!-- MODAL CONTRATO -->
 <div class='modal-overlay' id='modalTarifa'>
@@ -433,7 +457,7 @@ function toast(msg,type){var el=document.getElementById('toast');if(!el)return;e
 function badge(e){var m={activo:'bg',activa:'bg',activo:'bg',firmado:'bg',presente:'bg',programado:'bb',pendiente:'bo',noasistio:'br',vencido:'br',cesada:'bgr'};return'<span class="badge '+(m[String(e||'').toLowerCase()]||'bgr')+'">'+e+'</span>';}
 
 var ADM={nombre:'',email:'',id:null};
-var D={sesiones:[],pacientes:[],pagos:[],psicologas:[],contratos:[],gastos:[],honorarios:[],asistencia:[],insumos:[],sede:''};
+var D={sesiones:[],pacientes:[],pagos:[],psicologas:[],contratos:[],gastos:[],honorarios:[],asistencia:[],insumos:[],terapias:[],sede:''};
 
 // LOGIN
 async function doLogin(){
@@ -477,11 +501,13 @@ async function recargar(){
       sbGet('tarifas_sede',Object.assign({select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
       sbGet('precio_paciente',Object.assign({select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
       sbGet('bonos',{mes:'eq.'+mes,select:'*'}).catch(function(){return[];}),
-      sbGet('pagos_recurrentes',Object.assign({select:'*'},sedeFiltro(sed))).catch(function(){return[];})
+      sbGet('pagos_recurrentes',Object.assign({select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
+      sbGet('terapias',sed?{select:'*',or:'(sede.is.null,sede.eq.'+sed+')'}:{select:'*'}).catch(function(){return[];})
     ]);
     D.sesiones=res[0]||[];D.pacientes=res[1]||[];D.pagos=res[2]||[];D.psicologas=res[3]||[];
     D.contratos=res[4]||[];D.gastos=res[5]||[];D.honorarios=res[6]||[];D.asistencia=res[7]||[];D.insumos=res[8]||[];
     D.tarifas=res[9]||[];D.precios=res[10]||[];D.bonos=res[11]||[];D.pagosRecurrentes=res[12]||[];
+    D.terapias=res[13]||[];
     D.sede=sed;D.mes=mes;
     renderActiva();
     toast('✅ Datos actualizados','success');
@@ -806,6 +832,58 @@ function renderCumpleanos(){
 })();
 
 
+// ══ TIPOS DE TERAPIA ══
+function renderTerapiasAdm(){
+  var el=document.getElementById('listaTerapiasAdm');if(!el)return;
+  if(!(D.terapias||[]).length){el.innerHTML='<p style="color:var(--muted);text-align:center;padding:16px">Sin terapias registradas</p>';return;}
+  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">'+D.terapias.map(function(t){
+    return '<div style="background:#f8faff;border-radius:10px;padding:12px;border:1px solid var(--border)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">'
+      +'<b style="font-size:13px">'+t.nombre+'</b>'
+      +'<div style="display:flex;gap:4px;flex-shrink:0"><button class="btn btn-sm" style="background:#eef2ff;color:#4338ca" onclick="editarTerapiaAdm(\''+t.id+'\')">✏️</button>'
+      +'<button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarTerapiaAdm(\''+t.id+'\')">🗑</button></div></div>'
+      +(t.desc?'<div style="font-size:11px;color:var(--muted);margin-top:4px">'+t.desc+'</div>':'')
+      +'<div style="font-size:10px;color:var(--acc);margin-top:6px">📍 '+(t.sede?'Solo '+t.sede:'Todas las sedes')+'</div>'
+      +'</div>';
+  }).join('')+'</div>';
+}
+function abrirModalTerapiaAdm(){
+  document.getElementById('terAdmId').value='';
+  document.getElementById('terAdmNombre').value='';
+  document.getElementById('terAdmDesc').value='';
+  document.getElementById('terAdmSede').value=D.sede||'';
+  document.getElementById('terAdmColor').value='bp';
+  document.getElementById('terAdmTit').textContent='🧠 Nueva Terapia';
+  document.getElementById('modalTerapiaAdm').classList.add('open');
+}
+function editarTerapiaAdm(id){
+  var t=(D.terapias||[]).find(function(x){return String(x.id)===String(id);});if(!t)return;
+  document.getElementById('terAdmId').value=t.id;
+  document.getElementById('terAdmNombre').value=t.nombre||'';
+  document.getElementById('terAdmDesc').value=t.desc||'';
+  document.getElementById('terAdmSede').value=t.sede||'';
+  document.getElementById('terAdmColor').value=t.color||'bp';
+  document.getElementById('terAdmTit').textContent='✏️ Editar: '+t.nombre;
+  document.getElementById('modalTerapiaAdm').classList.add('open');
+}
+async function guardarTerapiaAdm(){
+  var nombre=document.getElementById('terAdmNombre').value.trim();
+  if(!nombre){toast('Nombre obligatorio','error');return;}
+  var fila={nombre:nombre,desc:document.getElementById('terAdmDesc').value||'',
+    sede:document.getElementById('terAdmSede').value||null,
+    color:document.getElementById('terAdmColor').value||'bp'};
+  var id=document.getElementById('terAdmId').value;
+  try{
+    if(id)await sbPatch('terapias',fila,{id:'eq.'+id});else await sbPost('terapias',fila);
+    document.getElementById('modalTerapiaAdm').classList.remove('open');
+    toast('✅ Terapia guardada');await recargar();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+async function eliminarTerapiaAdm(id){
+  if(!confirm('¿Eliminar este tipo de terapia?'))return;
+  try{await sbDelete('terapias',{id:'eq.'+id});toast('✅ Terapia eliminada');await recargar();}catch(e){toast('Error: '+e.message,'error');}
+}
+
 // ══ TARIFAS Y PRECIOS ══
 function renderTarifas(){
   var lbl=document.getElementById('tarSedeLbl');if(lbl)lbl.textContent=D.sede||'';
@@ -953,7 +1031,7 @@ function exportarSUNAT(){
 // Render de tarifas al abrir su página
 (function(){
   var _sp=showPage;
-  showPage=function(name,el){_sp(name,el);if(name==='tarifas'){try{renderTarifas();}catch(e){console.error(e);}}};
+  showPage=function(name,el){_sp(name,el);if(name==='tarifas'){try{renderTarifas();}catch(e){console.error(e);}try{renderTerapiasAdm();}catch(e){console.error(e);}}};
 })();
 
 // ══ ALQUILER Y PAGOS FIJOS (tabla pagos_recurrentes) ══
