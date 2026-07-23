@@ -542,7 +542,8 @@ const COLUMN_HINTS={
   terapias:{
     nombre:'Nombre de la terapia, ej. Psicología Clínica',
     color:'Usa el selector de color — no escribir el código a mano',
-    activa:'true o false'
+    activa:'true o false',
+    sede:'Vacío = disponible en todas las sedes. Con un nombre de sede (ej. Comas) = solo aparece ahí'
   },
   gastos:{
     concepto:'Descripción breve del gasto, ej. "Compra de útiles de oficina"',
@@ -560,9 +561,14 @@ const COLUMN_HINTS={
     activo:'true o false'
   },
   tarifas_sede:{
-    terapia:'Nombre tal cual está en terapias.nombre',
-    precio_sesion:'Precio de una sesión suelta, número sin S/',
-    precio_paquete:'Precio del paquete completo, número sin S/',
+    sede:'Sede a la que pertenece este precio — cada sede puede tener paquetes/precios distintos, es obligatorio',
+    nombre_servicio:'Nombre del paquete o servicio, ej. Paquete 12 sesiones',
+    tipo:'paquete, consulta, informe, constancia, neuropsico u otro',
+    terapia:'(alternativo/legacy) Nombre tal cual está en terapias.nombre',
+    costo_por_sesion:'Precio de una sesión suelta, número sin S/',
+    precio_sesion:'(alternativo/legacy) igual que costo_por_sesion',
+    costo_total:'Precio del paquete completo, número sin S/',
+    precio_paquete:'(alternativo/legacy) igual que costo_total',
     nro_sesiones:'Cantidad de sesiones que trae el paquete, ej. 12'
   },
   honorarios:{
