@@ -8,9 +8,6 @@ import 'package:path/path.dart' as p;
 const String kAppTitle = 'Psicoluz Administración';
 
 void main() {
-  if (Platform.isWindows) {
-    WebViewPlatform.instance = WinWebViewPlatform();
-  }
   runApp(const PsicoluzApp());
 }
 
