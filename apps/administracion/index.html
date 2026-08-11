@@ -74,6 +74,7 @@ try{
   }
 }catch(e){}
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 </head>
 <body>
@@ -119,6 +120,7 @@ try{
     <div class='nav-item' onclick="showPage('tarifas',this)">💲 Tarifas y Precios</div>
     <div class='nav-item' onclick="showPage('accesos',this)">🔐 Accesos</div>
     <div class='nav-item' onclick="showPage('auditoria',this)">📊 Auditoría</div>
+    <div class='nav-item' onclick="showPage('fichas',this)">🖨️ Fichas y Reportes</div>
     <div class='nav-section'>Comunicación</div>
     <div class='nav-item' onclick="showPage('chat',this)">💬 Chat</div>
     <div class='nav-item' onclick="showPage('cumpleanos',this)">🎂 Cumpleaños</div>
@@ -207,6 +209,23 @@ try{
     <div class='card-header'><div class='card-title'>⭐ Precios Especiales por Paciente</div>
       <button class='btn btn-primary btn-sm' onclick="abrirModalPrecio()">+ Precio Especial</button></div>
     <div id='listaPrecios' style='padding:14px'></div>
+  </div>
+</div>
+<div id='page-fichas' class='page'>
+  <div class='card'>
+    <div class='card-header'><div class='card-title'>🖨️ Fichas y Reportes por Paciente</div></div>
+    <div style='padding:14px'>
+      <label class='flabel'>Selecciona un paciente</label>
+      <select class='finput' id='fichaPacSel' style='margin-bottom:14px'></select>
+      <div style='display:flex;gap:10px;flex-wrap:wrap'>
+        <button class='btn btn-primary' onclick='imprimirFichaConsolidada()'>📄 Imprimir Ficha Consolidada</button>
+        <button class='btn' style='background:#eef2ff;color:#4338ca' onclick='imprimirHistorialAtencion()'>📋 Imprimir Historial de Atención</button>
+      </div>
+      <div style='font-size:11px;color:var(--muted);margin-top:10px'>
+        <b>Ficha Consolidada:</b> resumen clínico con las observaciones registradas por la psicóloga en cada sesión (de "Registro Clínico").<br>
+        <b>Historial de Atención:</b> tabla con fecha, número de sesión, fecha de pago, tipo de terapia y estado de cada sesión.
+      </div>
+    </div>
   </div>
 </div>
 <div id='page-accesos' class='page'>
@@ -545,7 +564,7 @@ function showPage(name,el){
   var pg=document.getElementById('page-'+name);if(pg)pg.classList.add('active');
   if(el)el.classList.add('active');
   document.getElementById('pageTitle').textContent=PAGE_TITLES[name]||name;
-  var renders={dashboard:renderDashboard,contratos:renderContratos,sueldos:renderSueldos,asistencia:renderAsistencia,inventario:renderInventario,personal:renderPersonal,sedes:renderSedes,gastos:renderGastos,alquiler:renderAlquiler,auditoria:renderAuditoria,chat:renderChat,cumpleanos:renderCumpleanos,calendario:function(){renderCalendarioPagos('calendarioPagosContainer');},metas:renderMetasPsicologas};
+  var renders={dashboard:renderDashboard,contratos:renderContratos,sueldos:renderSueldos,asistencia:renderAsistencia,inventario:renderInventario,personal:renderPersonal,sedes:renderSedes,gastos:renderGastos,alquiler:renderAlquiler,auditoria:renderAuditoria,chat:renderChat,cumpleanos:renderCumpleanos,calendario:function(){renderCalendarioPagos('calendarioPagosContainer');},metas:renderMetasPsicologas,fichas:renderFichaPacSel};
   if(renders[name])renders[name]();
   // Cerrar el menú lateral al elegir una sección (igual que las demás
   // apps) — en escritorio no afecta nada (el sidebar ya es fijo ahí),
@@ -557,7 +576,7 @@ function toggleSidebar(){document.getElementById('sidebar').classList.toggle('op
 function cambiarSede(){
   var sel=document.getElementById('selectorSede');if(sel){D.sede=sel.value;recargar();}
 }
-var PAGE_TITLES={dashboard:'Dashboard',contratos:'Contratos',sueldos:'Sueldos y Bonos',asistencia:'Asistencia',inventario:'Inventario',personal:'Personal',sedes:'Sedes',gastos:'Gastos',alquiler:'Alquiler y Pagos Fijos',tarifas:'Tarifas y Precios',accesos:'Gestión de Accesos',auditoria:'Auditoría',chat:'Chat',cumpleanos:'Cumpleaños',calendario:'Calendario',metas:'Metas'};
+var PAGE_TITLES={dashboard:'Dashboard',contratos:'Contratos',sueldos:'Sueldos y Bonos',asistencia:'Asistencia',inventario:'Inventario',personal:'Personal',sedes:'Sedes',gastos:'Gastos',alquiler:'Alquiler y Pagos Fijos',tarifas:'Tarifas y Precios',accesos:'Gestión de Accesos',auditoria:'Auditoría',chat:'Chat',cumpleanos:'Cumpleaños',calendario:'Calendario',metas:'Metas',fichas:'Fichas y Reportes'};
 
 // DASHBOARD
 function renderDashboard(){
@@ -957,6 +976,120 @@ function abrirModalPrecio(){
   sel.innerHTML=(D.pacientes||[]).map(function(p){return '<option value="'+p.nombre+'">'+p.nombre+'</option>';}).join('');
   ['peServicio','pePrecio','peMotivo'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('modalPrecio').classList.add('open');
+}
+
+// ══ FICHAS Y REPORTES (PDF) ══
+function renderFichaPacSel(){
+  var sel=document.getElementById('fichaPacSel');if(!sel)return;
+  sel.innerHTML=(D.pacientes||[]).map(function(p){return '<option value="'+p.nombre+'">'+p.nombre+'</option>';}).join('')
+    ||'<option value="">Sin pacientes en esta sede</option>';
+}
+function _getJsPDF(cb){
+  if(typeof window.jspdf!=='undefined'){cb(window.jspdf.jsPDF);return;}
+  if(typeof window.jsPDF!=='undefined'){cb(window.jsPDF);return;}
+  if(!document.getElementById('jspdf-script-adm')){
+    var sc=document.createElement('script');sc.id='jspdf-script-adm';
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    sc.onload=function(){setTimeout(function(){_getJsPDF(cb);},300);};
+    document.head.appendChild(sc);
+  }else setTimeout(function(){_getJsPDF(cb);},400);
+}
+function _pdfLogoSrc(){
+  try{var img=document.querySelector('#loginScreen img');return img&&img.src||null;}catch(e){return null;}
+}
+async function _datosPacientePDF(nombre){
+  var pac=(D.pacientes||[]).find(function(p){return p.nombre===nombre;})||{nombre:nombre};
+  var sesiones=[],pagos=[],fichas=[];
+  try{sesiones=await sbGet('sesiones',{paciente_nombre:'eq.'+nombre,select:'*',order:'fecha.asc,hora.asc'});}catch(e){}
+  try{pagos=await sbGet('pagos',{paciente_nombre:'eq.'+nombre,select:'*',order:'fecha.asc'});}catch(e){}
+  try{fichas=await sbGet('fichas_seguimiento',{paciente_nombre:'eq.'+nombre,select:'*',order:'fecha.asc,hora.asc'});}catch(e){}
+  return {pac:pac,sesiones:sesiones||[],pagos:pagos||[],fichas:fichas||[]};
+}
+function _pdfEncabezado(doc,titulo,pac){
+  var W=210,M=14,y=10;
+  var logo=_pdfLogoSrc();
+  try{if(logo)doc.addImage(logo,'PNG',M,y,26,26);}catch(e){}
+  doc.setFillColor(74,14,46);doc.rect(44,y,W-44-M,28,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
+  doc.text('CENTRO TERAPÉUTICO INTEGRAL PSICOLUZ',46,y+8);
+  doc.setFontSize(11);doc.text(titulo,46,y+16);
+  doc.setFontSize(8);doc.setFont('helvetica','normal');
+  doc.text('Generado: '+new Date().toLocaleString('es-PE')+' — Por: '+((typeof ADM!=='undefined'&&ADM&&ADM.nombre)||'Administración'),46,y+23);
+  y+=34;
+  doc.setTextColor(30,30,30);
+  doc.setDrawColor(230,230,230);doc.setFillColor(250,247,248);
+  doc.roundedRect(M,y,W-M*2,26,2,2,'FD');
+  doc.setFontSize(9);doc.setFont('helvetica','bold');
+  doc.text('Paciente: '+(pac.nombre||'—'),M+4,y+7);
+  doc.setFont('helvetica','normal');
+  doc.text('DNI: '+(pac.dni||'—')+'   Sede: '+(pac.sede||'—')+'   Fecha de nacimiento: '+(pac.fecha_nac||'—'),M+4,y+13);
+  doc.text('Diagnóstico: '+(pac.diagnostico||'—'),M+4,y+19);
+  doc.text('Psicóloga: '+(pac.psicologa||'—')+'   Terapia: '+(pac.terapia||'—'),M+4,y+25);
+  return y+32;
+}
+async function imprimirFichaConsolidada(){
+  var nombre=document.getElementById('fichaPacSel').value;
+  if(!nombre){toast('Selecciona un paciente','error');return;}
+  toast('⏳ Generando PDF...');
+  var datos=await _datosPacientePDF(nombre);
+  _getJsPDF(function(jsPDF){
+    var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    var W=210,M=14,H=297;
+    var y=_pdfEncabezado(doc,'FICHA CONSOLIDADA DE ATENCIÓN',datos.pac);
+    if(!datos.fichas.length){
+      doc.setFontSize(10);doc.text('Este paciente aún no tiene fichas de seguimiento registradas por su psicóloga.',M,y+6);
+    }
+    datos.fichas.forEach(function(f,i){
+      if(y>H-40){doc.addPage();y=16;}
+      doc.setFillColor(253,242,246);doc.roundedRect(M,y,W-M*2,6,1,1,'F');
+      doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(136,14,79);
+      doc.text('Sesión del '+(f.fecha||'—')+(f.hora?' — '+f.hora:'')+'   ·   '+(f.terapia||'—')+'   ·   '+(f.psicologa_nombre||'—'),M+2,y+4.3);
+      y+=9;
+      doc.setTextColor(30,30,30);doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+      var campos=[['Objetivo',f.objetivo],['Actividad realizada',f.actividad],['Resultados / observaciones',f.resultados],['Próxima sesión sugerida',f.proxima_sesion]];
+      campos.forEach(function(c){
+        if(!c[1])return;
+        var lineas=doc.splitTextToSize(c[0]+': '+c[1],W-M*2-4);
+        if(y+lineas.length*4>H-14){doc.addPage();y=16;}
+        doc.text(lineas,M+2,y+3.5);
+        y+=lineas.length*4+2;
+      });
+      y+=4;
+    });
+    doc.save('Ficha_Consolidada_'+nombre.replace(/\s+/g,'_')+'.pdf');
+    toast('✅ PDF generado');
+  });
+}
+async function imprimirHistorialAtencion(){
+  var nombre=document.getElementById('fichaPacSel').value;
+  if(!nombre){toast('Selecciona un paciente','error');return;}
+  toast('⏳ Generando PDF...');
+  var datos=await _datosPacientePDF(nombre);
+  _getJsPDF(function(jsPDF){
+    var doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    var W=297,M=12,H=210;
+    var y=_pdfEncabezado(doc,'HISTORIAL DE ATENCIÓN',datos.pac);
+    var cols=[['#',8],['Fecha',22],['Terapia',38],['Psicóloga',38],['Estado',22],['Fecha de pago',26],['Monto pagado',22],['Observaciones',W-M*2-8-22-38-38-22-26-22]];
+    var x=M;doc.setFillColor(74,14,46);doc.rect(M,y,W-M*2,7,'F');doc.setTextColor(255,255,255);doc.setFontSize(8);doc.setFont('helvetica','bold');
+    cols.forEach(function(c){doc.text(c[0],x+2,y+4.8);x+=c[1];});
+    y+=7;doc.setTextColor(30,30,30);doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+    datos.sesiones.forEach(function(s,i){
+      if(y>H-14){doc.addPage('a4','landscape');y=16;
+        x=M;doc.setFillColor(74,14,46);doc.rect(M,y,W-M*2,7,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');
+        cols.forEach(function(c){doc.text(c[0],x+2,y+4.8);x+=c[1];});y+=7;doc.setTextColor(30,30,30);doc.setFont('helvetica','normal');}
+      var pago=datos.pagos.find(function(p){return p.fecha===s.fecha;});
+      var ficha=datos.fichas.find(function(f){return f.fecha===s.fecha;});
+      var obs=ficha?(ficha.resultados||ficha.actividad||''):'';
+      if(i%2===1){doc.setFillColor(250,247,248);doc.rect(M,y,W-M*2,6,'F');}
+      x=M;
+      var vals=[String(i+1),s.fecha||'—',(s.terapia||'—').slice(0,22),(s.psicologa||'—').slice(0,22),s.estado||'—',pago?pago.fecha:'—',pago?('S/'+pago.monto):'—',obs.slice(0,60)];
+      vals.forEach(function(v,ci){doc.text(String(v),x+2,y+4.2);x+=cols[ci][1];});
+      y+=6;
+    });
+    if(!datos.sesiones.length){doc.setFontSize(10);doc.text('Este paciente aún no tiene sesiones registradas.',M,y+6);}
+    doc.save('Historial_Atencion_'+nombre.replace(/\s+/g,'_')+'.pdf');
+    toast('✅ PDF generado');
+  });
 }
 async function guardarPrecioEsp(){
   var pac=document.getElementById('peNombre').value;

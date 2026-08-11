@@ -305,13 +305,12 @@ select.fsel{
                   'Cada decisión tuya construye el futuro de Psicoluz 🌟',
                   'Liderar con el corazón es tu mayor fortaleza 💜',
                   'Hoy es un buen día para hacer historia 🏆'];
-      var frase=frases[new Date().getDate()%frases.length];
+      var frase=frases[Math.floor(Math.random()*frases.length)];
       var el=document.getElementById('saludoLoginGer');
-      if(el)el.innerHTML='<div style="font-size:13px;font-weight:800;color:#880e4f">'+s+' hermosa Gerente! 🌺</div>'+
+      if(el)el.innerHTML='<div style="font-size:13px;font-weight:800;color:#880e4f">'+s+' Gerente! 🌺</div>'+
         '<div style="font-size:11px;color:#ad1457;margin-top:4px;font-style:italic">'+frase+'</div>';
     })();
   </script>
-  <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px">Contraseña de acceso</div>
   <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px">Correo electrónico</div>
   <input class="lfc" type="email" id="lEmailG" placeholder="correo@psicoluz.pe" style="margin-bottom:10px" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('lPass').focus()">
   <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;margin-top:8px">Contraseña</div>
@@ -821,9 +820,17 @@ let _gerNombre='Gerente';
 // ══════════════════════════════════════════════════════════
 function mostrarBienvenida(nombre){
   var h=new Date().getHours();
-  var saludo=h<12?'¡Buenos días':'¡Buenas tardes';
-  var nom=(nombre||_gerNombre||'hermosa Gerente').split(' ')[0];
-  var msg=saludo+', hermosa Gerente '+nom+' 💎 ¡Que tenga un excelente día! Es la mejor 🏆🌟';
+  var saludo=h<12?'¡Buenos días':h<19?'¡Buenas tardes':'¡Buenas noches';
+  var nom=(nombre||_gerNombre||'').replace(/^(lic\.?|sr\.?|sra\.?)\s*/i,'').trim().split(' ')[0]||'Gerente';
+  var frases=[
+    saludo+', '+nom+'! 💎 Que tenga un excelente día — es la mejor 🏆',
+    saludo+', '+nom+'! 🚀 Su visión sigue impulsando a todo el equipo',
+    saludo+', '+nom+'! 🌟 Cada decisión suya construye el futuro de Psicoluz',
+    saludo+', '+nom+'! 💜 Liderar con el corazón es su mayor fortaleza',
+    saludo+', '+nom+'! 🏆 Hoy es un buen día para hacer historia',
+    saludo+', '+nom+'! 🌸 Gracias por todo lo que hace por el equipo'
+  ];
+  var msg=frases[Math.floor(Math.random()*frases.length)];
   let el=document.getElementById('toastBienvenida');
   if(!el){
     el=document.createElement('div');el.id='toastBienvenida';
