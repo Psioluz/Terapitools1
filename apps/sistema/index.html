@@ -711,7 +711,7 @@ function renderEditableGrid(containerId,rows,tabla){
         let sv=(v===null||v===undefined)?'':String(v);if(sv.length>40)sv=sv.slice(0,40)+'…';
         return '<td style="color:var(--muted)">'+sv.replace(/</g,'&lt;')+'</td>';
       }
-      return '<td onchange="this.closest(\'tr\').classList.add(\'dirty\')">'+celdaInput(tabla,c,v)+'</td>';
+      return '<td onfocusin="this.closest(\'tr\').classList.add(\'dirty\')" oninput="this.closest(\'tr\').classList.add(\'dirty\')" onchange="this.closest(\'tr\').classList.add(\'dirty\')">'+celdaInput(tabla,c,v)+'</td>';
     }).join('')+
     '<td style="white-space:nowrap">'+
     '<button class="btn btn-primary btn-sm" onclick="tblGuardarFilaInline(\''+tabla+'\','+i+')">💾</button> '+
