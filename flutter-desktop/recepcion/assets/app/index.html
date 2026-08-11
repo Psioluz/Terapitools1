@@ -951,55 +951,6 @@ function showToast(msg,tipo){
   window._toastTimer=setTimeout(()=>el.classList.remove('show'),3200);
 }
 
-// ── DB ──
-function dbKey(){return 'psicoluz_v3_'+(DB.sede||_sede||'x');}
-function loadDB(){
-  const s=localStorage.getItem(dbKey());
-  if(s){try{DB=JSON.parse(s);return;}catch(e){}}
-  seedDB();
-}
-function saveDB(){localStorage.setItem(dbKey(),JSON.stringify(DB));}
-
-function seedDB(){
-  DB.terapias=[
-    {id:1,nombre:'Psicología Clínica',desc:'Evaluación y tratamiento psicológico',color:'bp'},
-    {id:2,nombre:'Terapia Familiar',desc:'Intervención en dinámicas familiares',color:'bc'},
-    {id:3,nombre:'Terapia de Conducta',desc:'Modificación de conducta y TCC',color:'bg'},
-    {id:4,nombre:'Psicología Infantil',desc:'Atención a niños y adolescentes',color:'bo'},
-    {id:5,nombre:'Terapia de Pareja',desc:'Consejería y terapia de pareja',color:'bpk'},
-    {id:6,nombre:'Terapia Cognitivo-Conductual',desc:'TCC para adultos',color:'bb'},
-    {id:7,nombre:'Evaluación Psicológica',desc:'Evaluación y diagnóstico',color:'bp'},
-  ];
-  DB.paquetes=[
-    {id:1,tipo:'paquete',nombre:'Paquete 4 sesiones',nroSes:4,costoPorSes:70,costoTotal:280,color:'bc'},
-    {id:2,tipo:'paquete',nombre:'Paquete 8 sesiones',nroSes:8,costoPorSes:65,costoTotal:520,color:'bp'},
-    {id:3,tipo:'paquete',nombre:'Paquete 12 sesiones',nroSes:12,costoPorSes:60,costoTotal:720,color:'bg'},
-    {id:4,tipo:'consulta',nombre:'Consulta',nroSes:1,costoPorSes:70,costoTotal:70,color:'bo'},
-    {id:5,tipo:'informe',nombre:'Informe Evolutivo',nroSes:1,costoPorSes:150,costoTotal:150,color:'bpk'},
-    {id:6,tipo:'constancia',nombre:'Constancia de Atención',nroSes:1,costoPorSes:80,costoTotal:80,color:'bb'},
-    {id:7,tipo:'neuropsico',nombre:'Evaluación Neuropsicológica',nroSes:1,costoPorSes:300,costoTotal:300,color:'bpk'},
-  ];
-  DB.psicologas=[
-    {id:1,nombre:'Lic. María García',cop:'COP 12345',esp:'Psicología Clínica',inicio:'13:15',fin:'20:00',diaEspecial:'Martes',color:'bp'},
-    {id:2,nombre:'Lic. Ana López',cop:'COP 23456',esp:'Terapia Familiar',inicio:'13:15',fin:'20:00',diaEspecial:'Jueves',color:'bc'},
-    {id:3,nombre:'Lic. Rosa Pérez',cop:'COP 34567',esp:'Psicología Infantil',inicio:'13:15',fin:'20:00',diaEspecial:'Miércoles',color:'bg'},
-  ];
-  // Pacientes de prueba
-  const hoy=today();
-  DB.pacientes=[
-    {id:1,nombre:'Carlos Mendoza',nac:'1990-03-15',dni:'45678901',tel:'+51912345678',email:'',genero:'M',apoderado:'',motivo:'Ansiedad laboral',activo:true,notas:'',psId:1,terId:1,mod:'paquete',paq:12,sesUsadas:2,saldo:570,adelanto:150,costo:0},
-    {id:2,nombre:'Lucía Ramírez',nac:'1995-07-22',dni:'56789012',tel:'+51923456789',email:'',genero:'F',apoderado:'',motivo:'Relaciones familiares',activo:true,notas:'',psId:2,terId:2,mod:'sesion',paq:0,sesUsadas:0,saldo:0,adelanto:0,costo:0},
-    {id:3,nombre:'Pedro Huanca',nac:'1988-11-05',dni:'67890123',tel:'+51934567890',email:'',genero:'M',apoderado:'',motivo:'Control de conducta',activo:true,notas:'',psId:1,terId:3,mod:'paquete',paq:8,sesUsadas:1,saldo:420,adelanto:100,costo:0},
-    {id:4,nombre:'Ana Torres',nac:'2010-05-30',dni:'78901234',tel:'+51945678901',email:'',genero:'F',apoderado:'María Torres',motivo:'Dificultades de aprendizaje',activo:true,notas:'Menor de edad',psId:3,terId:4,mod:'paquete',paq:16,sesUsadas:0,saldo:760,adelanto:200,costo:0},
-  ];
-  DB.sesiones=[
-    {id:1,pacId:1,psId:1,terId:1,fecha:hoy,hora:'13:15',tipo:'paquete',paqId:3,costoTotal:720,adelanto:150,saldo:570,nroEnPaq:3,totalPaq:12,estado:'programado',notas:'',sede:DB.sede||'Comas'},
-    {id:2,pacId:2,psId:2,terId:2,fecha:hoy,hora:'14:00',tipo:'sesion',paqId:0,costoTotal:70,adelanto:0,saldo:70,nroEnPaq:0,totalPaq:1,estado:'programado',notas:'',sede:DB.sede||'Comas'},
-    {id:3,pacId:4,psId:3,terId:4,fecha:hoy,hora:'14:45',tipo:'paquete',paqId:3,costoTotal:960,adelanto:200,saldo:760,nroEnPaq:1,totalPaq:16,estado:'programado',notas:'',sede:DB.sede||'Comas'},
-    {id:4,pacId:3,psId:1,terId:3,fecha:hoy,hora:'15:30',tipo:'paquete',paqId:2,costoTotal:520,adelanto:100,saldo:420,nroEnPaq:2,totalPaq:8,estado:'programado',notas:'',sede:DB.sede||'Comas'},
-  ];
-  DB.pagos=[];
-}
 
 // ── LOGIN ──
 async function doLogin() {
@@ -1010,7 +961,7 @@ async function doLogin() {
       return;
     }
     _sede=user.sede;
-    DB.sede=user.sede; DB.usuario=user.nombre||user.email; saveDB();
+    DB.sede=user.sede; DB.usuario=user.nombre||user.email;
     try{sbPost('log_accesos',{app:'recepcion',usuario:DB.usuario,sede:DB.sede}).catch(function(){});}catch(e){}
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('app').style.display='flex';
@@ -2771,7 +2722,6 @@ async function cargarDesdeSB(silencioso) {
       costoPorSes:t.costo_por_sesion||t.precio_sesion||0,precioSesion:t.costo_por_sesion||t.precio_sesion||0,
       cuotas:t.cantidad_cuotas||1,montoCuota:t.monto_cuota||((t.costo_total||0)/(t.cantidad_cuotas||1)),_sb:t};});
     DB.programas=res[7]||[];
-    saveDB();
     if(typeof fillSelects==='function')fillSelects();
     var ap=document.querySelector('.page.active');
     if(ap&&typeof showPage==='function')showPage(ap.id.replace('page-',''));
@@ -2825,7 +2775,6 @@ async function marcarAs(sesRef,nuevoEst){
     var pac=DB.pacientes.find(function(p){return p.id===s.pacId||p.nombre===s.pacId;});
     if(pac)pac.sesUsadas=DB.sesiones.filter(function(x){return x.pacId===s.pacId&&(x.estado==='asistio'||x.estado==='tardanza'||x.estado==='noasistio'||x.estado==='permiso');}).length;
   }
-  saveDB();
   showToast('⏳ Guardando en Supabase...');
   var sbId=(s._sb&&s._sb.id)||((typeof s.id==='string'&&s.id.length>20)?s.id:null);
   if(sbId){

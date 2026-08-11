@@ -706,15 +706,6 @@ function _diasTrabajoANum(txt){
           var ses=r[0]||[],psis=r[1]||[],pacs=r[2]||[],ters=r[3]||[];
           var fichas=r[4]||[],bonos=r[5]||[],hon=r[6]||[],conts=r[7]||[];
           var pagos=r[8]||[],gastos=r[9]||[];
-          // Guardar en localStorage para acceso offline
-          try{
-            var cacheKey='psicoluz_v3_'+sede;
-            localStorage.setItem(cacheKey,JSON.stringify({
-              psicologas:psis,sesiones:ses,pacientes:pacs,terapias:ters,
-              fichas:fichas,bonos:bonos,honorarios:hon,contratos:conts,
-              pagos:pagos,gastos:gastos,_ts:Date.now()
-            }));
-          }catch(e){}
           return _jr({
             status:'ok',
             sesiones:ses.map(function(s){
@@ -807,7 +798,7 @@ function _diasTrabajoANum(txt){
       }
 
       if(action==='getContratoPs'){
-        return _sb('contratos',{'trabajadora':'eq.'+(qp.nombre||''),'select':'*','order':'created_at.desc','limit':'1'}).then(function(r){
+        return _sb('contratos',{'trabajadora':'eq.'+(qp.nombre||''),'sede':'eq.'+(qp.sede||sede||''),'select':'*','order':'created_at.desc','limit':'1'}).then(function(r){
           if(r&&r.length){
             var c=r[0];
             return _jr({status:'ok',url:c.url_documento||'',estado:c.estado||'pendiente',
@@ -819,7 +810,7 @@ function _diasTrabajoANum(txt){
 
       if(action==='guardarFirmaContrato'){
         return _sbU('contratos',{estado:'firmado',notas:'Firmado digitalmente el '+new Date().toLocaleDateString('es-PE')},
-          {'trabajadora':'eq.'+(bd.nombre||'')}).then(function(){return _jr({status:'ok'});});
+          {'trabajadora':'eq.'+(bd.nombre||''),'sede':'eq.'+(bd.sede||sede||'')}).then(function(){return _jr({status:'ok'});});
       }
 
       if(action==='updateEstado'){
@@ -1218,6 +1209,10 @@ const MESES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','
 // Estado global
 let PS={sede:'',nombre:'',email:'',foto:'',cop:'',esp:'',diaEspecial:'',inicio:'13:15',fin:'20:00',fechaIngreso:'',
         sesiones:[],pacientes:[],archivos:[]};
+// Caché en memoria (no localStorage) de datos clínicos, solo para evitar el
+// "parpadeo" de re-render mientras se actualiza desde Supabase. Se vacía al
+// recargar la página — nada clínico queda guardado en el dispositivo.
+let _clinicoCache={};
 let _loginAttempts=0;
 let _lastActivity=Date.now();
 let _sessionTimer=null;
@@ -2074,7 +2069,7 @@ async function sync(mostrar){
             });
             Object.keys(byPac).forEach(function(pac){
               var k='fichas_pac_'+PS.sede+'_'+pac.replace(/\s/g,'_');
-              try{localStorage.setItem(k,JSON.stringify(byPac[pac]));}catch(e){}
+              _clinicoCache[k]=byPac[pac];
             });
           }
         }).catch(function(){});
@@ -2254,12 +2249,10 @@ function renderClinico(){
   const asistCnt=sesiones.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   const pct=pac.paq>0?Math.min(100,Math.round((asistCnt/pac.paq)*100)):0;
 
-  // Cargar fichas de seguimiento del Sheet (via caché local actualizable)
+  // Cargar fichas de seguimiento (caché en memoria mientras se actualiza)
   const listKey='fichas_pac_'+PS.sede+'_'+pacNom.replace(/\s/g,'_');
-  let fichas=[];
-  // Cargar primero del caché local
-  try{fichas=JSON.parse(localStorage.getItem(listKey)||'[]');}catch(e){}
-  // Actualizar del Sheet en background
+  let fichas=_clinicoCache[listKey]||[];
+  // Actualizar de Supabase en background
   fetch(API+'?action=getFichasPs&nombre='+encodeURIComponent(PS.nombre||'')+'&sede='+encodeURIComponent(PS.sede||'')+'&pac='+encodeURIComponent(pacNom||'')+'&_='+Date.now(),{cache:'no-store'})
     .then(function(r){return r.text();})
     .then(function(txt){
@@ -2275,17 +2268,16 @@ function renderClinico(){
         // de nuevo por debajo (esto causaba el "parpadeo" del apartado clínico).
         if(fichasPac.length>0&&JSON.stringify(fichasPac)!==JSON.stringify(fichas)){
           fichas=fichasPac;
-          try{localStorage.setItem(listKey,JSON.stringify(fichas));}catch(e){}
+          _clinicoCache[listKey]=fichas;
           var selActual=document.getElementById('clPacSel');
           if(selActual&&selActual.value===pacNom) renderClinico();
         }
       }
     }).catch(function(){});
 
-  // Cargar datos clínicos (objetivos, notas, ánimos) del caché local
+  // Cargar datos clínicos (objetivos, notas, ánimos) — caché en memoria
   const key='psicoluz_cl_'+PS.sede+'_'+PS.nombre+'_'+pacNom.replace(/\s/g,'_');
-  let datos={};
-  try{datos=JSON.parse(localStorage.getItem(key)||'{}');}catch(e){}
+  let datos=_clinicoCache[key]||{};
   const objetivos=datos.objetivos||[];
   const animos=datos.animos||[];
 
@@ -2307,7 +2299,7 @@ function renderClinico(){
     // clínico se reconstruya solo por refrescar, tapando el tab que el
     // usuario acababa de abrir (era la causa del "parpadeo").
     if(cambio){
-      try{localStorage.setItem(key,JSON.stringify(datos));}catch(e){}
+      _clinicoCache[key]=datos;
       var pacActual=document.getElementById('clPacSel');
       if(pacActual&&pacActual.value===pacNom) renderClinico();
     }
@@ -2540,13 +2532,13 @@ function registrarAnimo(pacNom,val,btn){
   document.querySelectorAll('.animo-btn').forEach(b=>b.style.borderColor='var(--border)');
   btn.style.cssText+='border-color:var(--acc);background:var(--bg);';
   const key='psicoluz_cl_'+PS.sede+'_'+PS.nombre+'_'+pacNom.replace(/\s/g,'_');
-  let datos={};try{datos=JSON.parse(localStorage.getItem(key)||'{}');}catch(e){}
+  let datos=_clinicoCache[key]||{};
   if(!datos.animos)datos.animos=[];
   const hoy=today();
   const idx=datos.animos.findIndex(a=>a.fecha===hoy);
   if(idx>=0)datos.animos[idx].val=val;
   else datos.animos.push({fecha:hoy,val});
-  localStorage.setItem(key,JSON.stringify(datos));
+  _clinicoCache[key]=datos;
   sbUpsert('registro_animo',{
     sede:PS.sede||'',psicologa_nombre:PS.nombre||'',paciente_nombre:pacNom,
     fecha:hoy,valor:val
@@ -2559,7 +2551,7 @@ function registrarAnimo(pacNom,val,btn){
 function guardarRegistroClinico(pacNom){
   const nota=document.getElementById('notaHoy')?.value||'';
   const key='psicoluz_cl_'+PS.sede+'_'+PS.nombre+'_'+pacNom.replace(/\s/g,'_');
-  let datos={};try{datos=JSON.parse(localStorage.getItem(key)||'{}');}catch(e){}
+  let datos=_clinicoCache[key]||{};
   if(!datos.notas)datos.notas=[];
   const hoy=today();
   const idx=datos.notas.findIndex(n=>n.fecha===hoy);
@@ -2568,7 +2560,7 @@ function guardarRegistroClinico(pacNom){
     if(idx>=0)datos.notas[idx]=registro;
     else datos.notas.push(registro);
   }
-  localStorage.setItem(key,JSON.stringify(datos));
+  _clinicoCache[key]=datos;
   // Sincronizar nota a Supabase (tabla notas_clinicas)
   if(nota){
     sbPost('notas_clinicas',{
@@ -2635,21 +2627,19 @@ function guardarObjetivoModal(){
   var modal=document.getElementById('modalObjetivo');
   if(modal)modal.style.display='none';
   if(!_objetivoPac){showToast('Error: paciente no identificado','err');return;}
-  // Guardar en localStorage
   var key='psicoluz_cl_'+PS.sede+'_'+PS.nombre+'_'+_objetivoPac.replace(/\s/g,'_');
-  var datos={};
-  try{datos=JSON.parse(localStorage.getItem(key)||'{}');}catch(e){}
+  var datos=_clinicoCache[key]||{};
   if(!datos.objetivos)datos.objetivos=[];
   var obj={texto:texto,categoria:categoria,progreso:0,fecha:today()};
   datos.objetivos.push(obj);
-  localStorage.setItem(key,JSON.stringify(datos));
+  _clinicoCache[key]=datos;
   // Guardar en Supabase (tabla objetivos_terapeuticos)
   sbPost('objetivos_terapeuticos',{
     sede:PS.sede||'',psicologa_nombre:PS.nombre||'',paciente_nombre:_objetivoPac,
     texto:texto,categoria:categoria,progreso:0,fecha:today()
   }).then(function(rows){
     var id=rows&&rows[0]&&rows[0].id;
-    if(id){obj.id=id;localStorage.setItem(key,JSON.stringify(datos));}
+    if(id){obj.id=id;}
   }).catch(function(e){console.warn('[objetivo] error Supabase:',e.message);});
   showToast('✅ Objetivo guardado: '+_objetivoPac,'ok');
   setTimeout(function(){renderClinico();},100);
@@ -2657,10 +2647,10 @@ function guardarObjetivoModal(){
 
 function actualizarProgreso(pacNom,idx,val){
   const key='psicoluz_cl_'+PS.sede+'_'+PS.nombre+'_'+pacNom.replace(/\s/g,'_');
-  let datos={};try{datos=JSON.parse(localStorage.getItem(key)||'{}');}catch(e){}
+  let datos=_clinicoCache[key]||{};
   var progreso=parseInt(val);
   if(datos.objetivos?.[idx])datos.objetivos[idx].progreso=progreso;
-  localStorage.setItem(key,JSON.stringify(datos));
+  _clinicoCache[key]=datos;
   var obj=datos.objetivos&&datos.objetivos[idx];
   if(obj&&obj.id){
     sbPatch('objetivos_terapeuticos',{progreso:progreso,updated_at:new Date().toISOString()},{id:'eq.'+obj.id})
@@ -2998,15 +2988,11 @@ function guardarFichaSeguimiento(){
   var ficha={pac:pac,terapia:terapia,fecha:fecha||today(),psNombre:PS.nombre,sede:PS.sede,
     objetivo:objetivo,actividad:actividad,resultados:resultados,proxSesion:proxSesion,
     ts:Date.now(),hora:_fichaActual.hora};
-  var terSlug=(terapia||'sin').replace(/\s/g,'_').substring(0,20);
-  var horaSlug=(ficha.hora||'').replace(':','');
-  var key='ficha_'+PS.sede+'_'+PS.nombre+'_'+(pac.replace(/\s/g,'_'))+'_'+ficha.fecha+'_'+terSlug+'_'+horaSlug;
-  try{localStorage.setItem(key,JSON.stringify(ficha));}catch(e){}
   var listKey='fichas_pac_'+PS.sede+'_'+pac.replace(/\s/g,'_');
-  var fichas=[];try{fichas=JSON.parse(localStorage.getItem(listKey)||'[]');}catch(e){}
+  var fichas=_clinicoCache[listKey]||[];
   var idx=fichas.findIndex(function(f){return f.fecha===ficha.fecha&&f.terapia===ficha.terapia&&f.hora===ficha.hora;});
   if(idx>=0)fichas[idx]=ficha;else fichas.unshift(ficha);
-  try{localStorage.setItem(listKey,JSON.stringify(fichas));}catch(e){}
+  _clinicoCache[listKey]=fichas;
   // Guardar en Supabase (tabla fichas_seguimiento) — directo, sin pasar por el
   // interceptor de Apps Script (que esperaba campos planos y no un objeto anidado)
   sbPost('fichas_seguimiento',{
@@ -3332,9 +3318,11 @@ async function guardarFirmaContrato(){
     var path=resto.substring(bucket.length+1);
     await sbUpload(bucket,decodeURIComponent(path),new Blob([firmadoBytes],{type:'application/pdf'}),'application/pdf');
     // 5. Marcar como firmado en la tabla contratos
+    // Sin fallback "solo por nombre": con varias sedes, una trabajadora puede
+    // compartir nombre con otra en otra sede — parchear sin filtrar por sede
+    // podría firmar el contrato equivocado.
     await sbPatch('contratos',{estado:'firmado',firmado_el:new Date().toISOString(),
-      notas:'Firmado digitalmente el '+hoyStr},{trabajadora:'eq.'+(PS.nombre||''),sede:'eq.'+(PS.sede||'')})
-      .catch(function(){return sbPatch('contratos',{estado:'firmado'},{trabajadora:'eq.'+(PS.nombre||'')});});
+      notas:'Firmado digitalmente el '+hoyStr},{trabajadora:'eq.'+(PS.nombre||''),sede:'eq.'+(PS.sede||'')});
     toast('✅ Contrato firmado correctamente');
     cerrarFirmaContrato();
     limpiarFirma();

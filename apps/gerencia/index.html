@@ -863,7 +863,7 @@ let G = {
   asistencia : [],
   gastos     : [],
   honorarios : [],
-  pagosLocal : [],   // del localStorage de recepción
+  pagosLocal : [],   // pagos, cargados de Supabase en sincronizar()
   loaded     : false,
   ts         : null
 };
@@ -961,15 +961,6 @@ function _diasTrabajoANum(txt){
           var ses=r[0]||[],psis=r[1]||[],recs=r[2]||[],pacs=r[3]||[],ters=r[4]||[];
           var fichas=r[5]||[],bonos=r[6]||[],hon=r[7]||[],conts=r[8]||[];
           var pagos=r[9]||[],gastos=r[10]||[],asistPers=r[11]||[];
-          // Guardar en localStorage para acceso offline
-          try{
-            var cacheKey='psicoluz_v3_'+(sede||'todas');
-            localStorage.setItem(cacheKey,JSON.stringify({
-              psicologas:psis,recepcionistas:recs,sesiones:ses,pacientes:pacs,terapias:ters,
-              fichas:fichas,bonos:bonos,honorarios:hon,contratos:conts,
-              pagos:pagos,gastos:gastos,asistencia:asistPers,_ts:Date.now()
-            }));
-          }catch(e){}
           return _jr({
             status:'ok',
             sesiones:ses.map(function(s){
@@ -1318,74 +1309,25 @@ function initApp(){
     selM.appendChild(opt);
   }
 
-  // Cargar de localStorage primero (instantáneo)
-  cargarLocal();
-  
+  // Poblar selector de sedes y cargar directo desde Supabase (única fuente de datos).
+  var sedes=['Comas','Ovalo Zapallal','Flecha','Pachacutec'];
+  var selS0=document.getElementById('fSede');
+  sedes.forEach(s=>{
+    if(!selS0.querySelector(`option[value="${s}"]`)){
+      var opt=document.createElement('option');opt.value=s;opt.textContent=s;selS0.appendChild(opt);
+    }
+  });
+
   // Activar la primera tab explícitamente
   var firstTab=document.getElementById('tFinanzas');
   if(firstTab){firstTab.style.display='block';firstTab.classList.add('active');}
   var firstBtn=document.querySelector('.nav-tab');
   if(firstBtn)firstBtn.classList.add('active');
-  
+
   renderFinanzas();
   renderAlertas();
 
-  // Luego del Sheet en background
-  setTimeout(()=>sincronizar(false),500);
-}
-
-// ── CARGAR DE LOCALSTORAGE DE RECEPCIÓN ──────────────────────────────────────
-function cargarLocal(){
-  var sedes=['Comas','Ovalo Zapallal','Flecha','Pachacutec'];
-  // Poblar selector sedes
-  var selS=document.getElementById('fSede');
-  sedes.forEach(s=>{
-    if(!selS.querySelector(`option[value="${s}"]`)){
-      var opt=document.createElement('option');opt.value=s;opt.textContent=s;selS.appendChild(opt);
-    }
-  });
-
-  G.pagosLocal=[];
-  let allSes=[], allPac=[], allPs=[], allAsist=[];
-  sedes.forEach(sede=>{
-    for(var k of['psicoluz_v3_'+sede,'psicoluz_v2_'+sede]){
-      try{
-        var raw=localStorage.getItem(k); if(!raw)continue;
-        var db=JSON.parse(raw);
-        (db.sesiones||[]).forEach(s=>allSes.push({...s,_sede:sede}));
-        (db.pacientes||[]).forEach(p=>allPac.push({...p,_sede:sede}));
-        (db.psicologas||[]).forEach(p=>{ if(!allPs.find(x=>x.nombre===p.nombre))allPs.push({...p,_sede:sede}); });
-        (db.pagos||[]).forEach(p=>G.pagosLocal.push({...p,_sede:sede}));
-        break;
-      }catch(e){}
-    }
-    // Asistencia
-    var kA='psicoluz_asist_'+sede;
-    try{ var raw=localStorage.getItem(kA); if(raw)JSON.parse(raw).forEach(r=>allAsist.push({...r,sede:r.sede||sede})); }catch(e){}
-  });
-  if(allSes.length)G.sesiones=allSes;
-  if(allPac.length)G.pacientes=allPac;
-  if(allPs.length)G.psicologas=allPs;
-  if(allAsist.length)G.asistencia=allAsist;
-
-  // Datos admin local
-  try{
-    var adm=JSON.parse(localStorage.getItem('psicoluz_admin')||'{}');
-    if(adm.gastos?.length)G.gastos=adm.gastos;
-    if(adm.sueldos?.length)G.honorarios=adm.sueldos.filter(s=>s.tipo==='honorario');
-    if(adm.psicologas?.length){
-      adm.psicologas.forEach(p=>{ if(!G.psicologas.find(x=>x.nombre===p.nombre))G.psicologas.push(p); });
-    }
-    if(adm.sedes?.length){
-      var selS=document.getElementById('fSede');
-      adm.sedes.forEach(s=>{
-        if(!G.sedes.find(x=>x.nombre===s.nombre))G.sedes.push(s);
-        if(!selS.querySelector(`option[value="${s.nombre}"]`)){
-          var opt=document.createElement('option');opt.value=s.nombre;opt.textContent=s.nombre;selS.appendChild(opt);
-        }
-      });
-    }
-  }catch(e){}
+  sincronizar(false);
 }
 
 // ── SINCRONIZAR CON SHEET ────────────────────────────────────────────────────
@@ -1418,6 +1360,7 @@ async function sincronizar(mostrar){
     }
     if(data.asistencia?.length)G.asistencia=data.asistencia;
     if(data.gastos?.length)    G.gastos    =data.gastos;
+    if(data.pagos?.length)     G.pagosLocal=data.pagos.map(p=>Object.assign({},p,{_sede:p.sede||p._sede||''}));
 
     // Fusionar honorarios del Sheet con los del admin local
     if(data.honorarios?.length){
@@ -1708,17 +1651,6 @@ function renderCumpleanos(){
     if(mes===mesActualNum)
       cumples.push({nombre:ps.nombre,fecha:fnac,tipo:'trabajadora',dia,tel:ps.tel||ps.telefono});
   });
-  // Admin - psicólogas del localStorage
-  try{
-    var admDB=JSON.parse(localStorage.getItem('psicoluz_admin')||'{}');
-    (admDB.psicologas||[]).forEach(ps=>{
-      if(!ps.fechaNac)return;
-      var mes=parseInt((ps.fechaNac||'').split('-')[1]);
-      var dia=parseInt((ps.fechaNac||'').split('-')[2]);
-      if(mes===mesActualNum&&!cumples.find(c=>c.nombre===ps.nombre))
-        cumples.push({nombre:ps.nombre,fecha:ps.fechaNac,tipo:'trabajadora',dia,tel:ps.tel});
-    });
-  }catch(e){}
 
   cumples.sort((a,b)=>a.dia-b.dia);
   if(elN)elN.textContent=cumples.length+' en '+MESES[mesActualNum-1];
@@ -2523,38 +2455,11 @@ function renderAsistHist(){
   var sede=getFiltSede();
   var mes=getFiltMes();
   
-  // Cargar del localStorage del sistema de recepción
-  var sedes=sede?[sede]:['Comas','Ovalo Zapallal','Flecha','Pachacutec'];
   let registros=[];
-  sedes.forEach(s=>{
-    try{
-      for(let i=0;i<localStorage.length;i++){
-        var k=localStorage.key(i);
-        if(k&&k.startsWith('psicoluz_v3_'+s)){
-          var db=JSON.parse(localStorage.getItem(k)||'{}');
-          var asist=db.asistenciaPersonal||{};
-          Object.entries(asist).forEach(([clave,regDia])=>{
-            // clave: asist_SEDE_FECHA
-            var parts=clave.split('_');
-            if(parts.length<3)return;
-            var fechaReg=parts[parts.length-1];
-            if(mes&&!fechaReg.startsWith(mes))return;
-            Object.entries(regDia||{}).forEach(([psId,reg])=>{
-              registros.push({fecha:fechaReg,sede:s,psId,
-                entrada:reg.entrada||'',salida:reg.salida||'',
-                estado:reg.estado||'—',psicologa:reg.psicologa||psId});
-            });
-          });
-        }
-      }
-    }catch(e){}
-  });
-  
-  // También de G.asistencia si viene del sheet
   if(G.asistencia&&G.asistencia.length){
     G.asistencia.forEach(a=>{
-      if(sede&&!a.sede.includes(sede.substring(0,4)))return;
-      if(mes&&!a.fecha.startsWith(mes))return;
+      if(sede&&(a.sede||'')!==sede)return;
+      if(mes&&!(a.fecha||'').startsWith(mes))return;
       registros.push(a);
     });
   }

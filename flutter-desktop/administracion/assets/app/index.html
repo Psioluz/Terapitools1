@@ -649,7 +649,7 @@ async function guardarContrato(){
     // "el" contrato con un límite de 1 sin orden definido, Supabase podía
     // devolver cualquiera de las filas viejas — a veces la ya firmada,
     // a veces una sin firmar — mostrando estados inconsistentes.
-    var existente=await sbGet('contratos',{trabajadora:'eq.'+d.trabajadora,select:'id',limit:'1'}).catch(function(){return[];});
+    var existente=await sbGet('contratos',{trabajadora:'eq.'+d.trabajadora,sede:'eq.'+d.sede,select:'id',limit:'1'}).catch(function(){return[];});
     if(existente&&existente.length){
       await sbPatch('contratos',d,{id:'eq.'+existente[0].id});
     }else{
