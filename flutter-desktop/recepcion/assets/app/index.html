@@ -497,12 +497,17 @@ try{
   <div class="card">
     <div class="card-header">
       <div class="card-title">📱 WhatsApp — Recordatorios</div>
-      <button class="btn btn-success" onclick="enviarTodos()">📤 Enviar a Todos</button>
     </div>
     <div style="padding:12px">
       <div class="form-group">
         <div class="form-label">Plantilla de mensaje</div>
-        <textarea class="form-control" id="waTemplate" rows="3">Hola {nombre}, te recordamos tu sesión de {terapia} hoy a las {hora} en Psicoluz Sede {sede}. ¡Te esperamos! 💜</textarea>
+        <textarea class="form-control" id="waTemplate" rows="3">¡Hola {nombre}! 💜 Te escribimos de Psicoluz para recordarte tu sesión de {terapia} de hoy a las {hora}, en la sede {sede}. Te esperamos con mucho gusto — si necesitas reprogramar, avísanos por este medio. ¡Que tengas un lindo día! ✨</textarea>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">
+        ℹ️ WhatsApp no permite enviar mensajes automáticamente sin su API de pago:
+        cada recordatorio se abre listo para enviar, pero el clic final de "Enviar"
+        dentro de WhatsApp lo das tú. Cada uno que envíes queda registrado abajo
+        para no perder el rastro.
       </div>
     </div>
     <div style="padding:0 12px 12px" id="waList"></div>
@@ -2283,40 +2288,52 @@ function exportarPDF(){
 // ══════════════════════════════════════════════════
 //  WHATSAPP
 // ══════════════════════════════════════════════════
-function renderWA(){
+var _waEnviados={}; // sesionId -> {enviado_por, enviado_el} — recordatorios ya marcados hoy
+
+async function renderWA(){
   const hoy=today();
   const ses=DB.sesiones.filter(s=>s.fecha===hoy&&s.estado!=='cancelado');
   const el=document.getElementById('waList');if(!el)return;
   if(!ses.length){el.innerHTML='<div style="color:var(--muted);padding:14px">Sin sesiones hoy.</div>';return;}
+  try{
+    const reg=await sbGet('recordatorios_enviados',{sede:'eq.'+DB.sede,fecha:'eq.'+hoy,select:'sesion_id,enviado_por,enviado_el'});
+    _waEnviados={};
+    (reg||[]).forEach(r=>{_waEnviados[r.sesion_id]=r;});
+  }catch(e){console.warn('[recordatorios]',e.message);}
   el.innerHTML=ses.map(s=>{
     const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
     const tel=pac.tel||'';
+    const env=_waEnviados[s.id];
+    let accion;
+    if(!tel){accion='';}
+    else if(env){
+      const hEnv=new Date(env.enviado_el);
+      accion='<div style="text-align:right;font-size:10px;color:var(--green);font-weight:700">✅ Enviado'+
+        (env.enviado_por?' por '+env.enviado_por:'')+'<br>'+
+        '<button class="btn btn-sm" style="margin-top:4px;background:transparent;border:1px solid var(--border);color:var(--muted)" '+
+        'onclick="enviarWA(\''+s.id+'\',\''+tel+'\',\''+pac.nombre.replace(/'/g,"\\'")+'\',\''+ter.nombre.replace(/'/g,"\\'")+'\',\''+s.hora+'\')">🔁 Reenviar</button></div>';
+    }else{
+      accion='<button class="btn btn-success btn-sm" onclick="enviarWA(\''+s.id+'\',\''+tel+'\',\''+pac.nombre.replace(/'/g,"\\'")+'\',\''+ter.nombre.replace(/'/g,"\\'")+'\',\''+s.hora+'\')">📱 Enviar</button>';
+    }
     return '<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg);border-radius:10px;margin-bottom:8px;flex-wrap:wrap">'+
       '<div style="flex:1;min-width:160px">'+
       '<div style="font-weight:700;font-size:13px">'+pac.nombre+'</div>'+
       '<div style="font-size:11px;color:var(--muted)">'+s.hora+' · '+ter.nombre+' · '+ps.nombre.replace('Lic.','').trim()+'</div>'+
       '<div style="font-size:11px;color:'+(tel?'var(--green)':'var(--red)')+'">'+( tel||'Sin teléfono')+'</div></div>'+
-      (tel?'<button class="btn btn-success btn-sm" onclick="enviarWA(\''+tel+'\',\''+pac.nombre.replace(/'/g,'')+'\',\''+ter.nombre+'\',\''+s.hora+'\')">📱 WA</button>':'')+
+      accion+
       '</div>';
   }).join('');
 }
 
-function enviarWA(tel,nombre,terapia,hora){
-  const tpl=document.getElementById('waTemplate')?.value||'Hola {nombre}, te recordamos tu sesión de {terapia} hoy a las {hora}. Psicoluz Sede {sede}.';
+function enviarWA(sesionId,tel,nombre,terapia,hora){
+  const tpl=document.getElementById('waTemplate')?.value||'¡Hola {nombre}! 💜 Te escribimos de Psicoluz para recordarte tu sesión de {terapia} de hoy a las {hora}, en la sede {sede}. Te esperamos con mucho gusto — si necesitas reprogramar, avísanos por este medio. ¡Que tengas un lindo día! ✨';
   const msg=tpl.replace(/{nombre}/g,nombre).replace(/{terapia}/g,terapia).replace(/{hora}/g,hora).replace(/{sede}/g,DB.sede);
   const num=tel.replace(/\D/g,'');
   window.open('https://wa.me/'+(num.startsWith('51')?num:'51'+num)+'?text='+encodeURIComponent(msg),'_blank');
-}
-
-function enviarTodos(){
-  const hoy=today();
-  const conTel=DB.sesiones.filter(s=>s.fecha===hoy&&s.estado!=='cancelado').filter(s=>{const p=getPac(s.pacId);return p&&p.tel;});
-  if(!conTel.length){showToast('Ningún paciente tiene teléfono registrado','error');return;}
-  conTel.forEach((s,i)=>{
-    const pac=getPac(s.pacId);const ter=getTer(s.terId);
-    setTimeout(()=>enviarWA(pac.tel,pac.nombre,ter.nombre,s.hora),i*1200);
-  });
-  showToast('Enviando a '+conTel.length+' paciente'+(conTel.length!==1?'s':''));
+  sbPost('recordatorios_enviados',{sesion_id:sesionId,sede:DB.sede,paciente_nombre:nombre,
+    fecha:today(),hora:hora,terapia:terapia,enviado_por:DB.usuario||''})
+    .then(()=>renderWA())
+    .catch(e=>console.warn('[recordatorio no registrado]',e.message));
 }
 
 // ══════════════════════════════════════════════════
