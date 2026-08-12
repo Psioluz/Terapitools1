@@ -339,9 +339,9 @@ try{
 <div class='modal-overlay' id='modalPrecio'>
  <div class='modal-box'>
   <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px'>⭐ Precio Especial</span><button onclick="document.getElementById('modalPrecio').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
-  <label class='flabel'>Paciente</label><select class='finput' id='peNombre'></select>
+  <label class='flabel'>Paciente *</label><select class='finput' id='peNombre'></select>
   <label class='flabel'>Servicio</label><input class='finput' id='peServicio' placeholder='Ej: Paquete 12 sesiones'>
-  <label class='flabel'>Precio especial (S/)</label><input type='number' class='finput' id='pePrecio'>
+  <label class='flabel'>Precio especial (S/) *</label><input type='number' class='finput' id='pePrecio'>
   <label class='flabel'>Motivo</label><input class='finput' id='peMotivo' placeholder='Ej: caso social, hermanos, beca'>
   <button class='btn btn-primary' style='width:100%;margin-top:12px' onclick='guardarPrecioEsp()'>Guardar</button>
  </div>
@@ -349,8 +349,8 @@ try{
 <div class='modal-overlay' id='modalBono'>
  <div class='modal-box'>
   <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px'>🏅 Asignar Bono</span><button onclick="document.getElementById('modalBono').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
-  <label class='flabel'>Trabajadora</label><select class='finput' id='bnNombre'></select>
-  <label class='flabel'>Monto del bono (S/)</label><input type='number' class='finput' id='bnMonto'>
+  <label class='flabel'>Trabajadora *</label><select class='finput' id='bnNombre'></select>
+  <label class='flabel'>Monto del bono (S/) *</label><input type='number' class='finput' id='bnMonto'>
   <label class='flabel'>Motivo</label><input class='finput' id='bnMotivo' placeholder='Ej: meta de pacientes atendidos'>
   <button class='btn btn-primary' style='width:100%;margin-top:12px' onclick='guardarBono()'>Asignar Bono</button>
  </div>
@@ -374,7 +374,7 @@ try{
   <div style="padding:16px">
     <input type="hidden" id="accId"><input type="hidden" id="accTablaEdit">
     <label style="font-size:11px;font-weight:800;color:#64748b;display:block;margin-bottom:4px">Tipo de acceso</label>
-    <select id="accTabla" style="width:100%;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;margin-bottom:10px;box-sizing:border-box">
+    <select id="accTabla" onchange="_accTablaChange()" style="width:100%;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;margin-bottom:10px;box-sizing:border-box">
       <option value="psicologas">👩‍⚕️ Psicóloga (app Psicóloga)</option>
       <option value="recepcionistas">💻 Recepción (app Recepción)</option>
       <option value="usuarios_gerencia">📊 Gerencia / Administración</option>
@@ -388,7 +388,7 @@ try{
       <input id="accPass" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;box-sizing:border-box" placeholder="Contraseña">
       <button onclick="generarPass()" style="background:#f1f5f9;border:none;border-radius:10px;padding:0 12px;font-size:12px;font-weight:800;cursor:pointer;color:#475569">🎲</button>
     </div>
-    <label style="font-size:11px;font-weight:800;color:#64748b;display:block;margin-bottom:4px">Sede</label>
+    <label id="accSedeLabel" style="font-size:11px;font-weight:800;color:#64748b;display:block;margin-bottom:4px">Sede</label>
     <select id="accSede" style="width:100%;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;margin-bottom:14px;box-sizing:border-box">
       <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option><option>Todas</option>
     </select>
@@ -477,7 +477,7 @@ function toast(msg,type){var el=document.getElementById('toast');if(!el)return;e
 function badge(e){var m={activo:'bg',activa:'bg',activo:'bg',firmado:'bg',presente:'bg',programado:'bb',pendiente:'bo',noasistio:'br',vencido:'br',cesada:'bgr'};return'<span class="badge '+(m[String(e||'').toLowerCase()]||'bgr')+'">'+e+'</span>';}
 
 var ADM={nombre:'',email:'',id:null};
-var D={sesiones:[],pacientes:[],pagos:[],psicologas:[],contratos:[],gastos:[],honorarios:[],asistencia:[],insumos:[],terapias:[],sede:''};
+var D={sesiones:[],pacientes:[],pagos:[],psicologas:[],contratos:[],gastos:[],honorarios:[],asistencia:[],insumos:[],terapias:[],recepcionistas:[],usuariosGerencia:[],sede:''};
 
 // LOGIN
 async function doLogin(){
@@ -522,12 +522,14 @@ async function recargar(){
       sbGet('precio_paciente',Object.assign({select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
       sbGet('bonos',{mes:'eq.'+mes,select:'*'}).catch(function(){return[];}),
       sbGet('pagos_recurrentes',Object.assign({select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
-      sbGet('terapias',sed?{select:'*',or:'(sede.is.null,sede.eq.'+sed+')'}:{select:'*'}).catch(function(){return[];})
+      sbGet('terapias',sed?{select:'*',or:'(sede.is.null,sede.eq.'+sed+')'}:{select:'*'}).catch(function(){return[];}),
+      sbGet('recepcionistas',Object.assign({select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
+      sbGet('usuarios_gerencia',{select:'*'}).catch(function(){return[];})
     ]);
     D.sesiones=res[0]||[];D.pacientes=res[1]||[];D.pagos=res[2]||[];D.psicologas=res[3]||[];
     D.contratos=res[4]||[];D.gastos=res[5]||[];D.honorarios=res[6]||[];D.asistencia=res[7]||[];D.insumos=res[8]||[];
     D.tarifas=res[9]||[];D.precios=res[10]||[];D.bonos=res[11]||[];D.pagosRecurrentes=res[12]||[];
-    D.terapias=res[13]||[];
+    D.terapias=res[13]||[];D.recepcionistas=res[14]||[];D.usuariosGerencia=res[15]||[];
     D.sede=sed;D.mes=mes;
     renderActiva();
     toast('✅ Datos actualizados','success');
@@ -564,7 +566,7 @@ function showPage(name,el){
   var pg=document.getElementById('page-'+name);if(pg)pg.classList.add('active');
   if(el)el.classList.add('active');
   document.getElementById('pageTitle').textContent=PAGE_TITLES[name]||name;
-  var renders={dashboard:renderDashboard,contratos:renderContratos,sueldos:renderSueldos,asistencia:renderAsistencia,inventario:renderInventario,personal:renderPersonal,sedes:renderSedes,gastos:renderGastos,alquiler:renderAlquiler,auditoria:renderAuditoria,chat:renderChat,cumpleanos:renderCumpleanos,calendario:function(){renderCalendarioPagos('calendarioPagosContainer');},metas:renderMetasPsicologas,fichas:renderFichaPacSel};
+  var renders={dashboard:renderDashboard,contratos:renderContratos,sueldos:renderSueldos,asistencia:renderAsistencia,inventario:renderInventario,personal:renderPersonal,sedes:renderSedes,gastos:renderGastos,alquiler:renderAlquiler,auditoria:renderAuditoria,chat:renderChat,cumpleanos:renderCumpleanos,calendario:function(){renderCalendarioPagos('calendarioPagosContainer');},metas:renderMetasPsicologas,fichas:renderFichaPacSel,accesos:renderAccesos};
   if(renders[name])renders[name]();
   // Cerrar el menú lateral al elegir una sección (igual que las demás
   // apps) — en escritorio no afecta nada (el sidebar ya es fijo ahí),
@@ -770,6 +772,100 @@ async function guardarPsicologa(){
     document.getElementById('modalPsicologa').classList.remove('open');
     toast(id?'✅ Psicóloga actualizada':'✅ Psicóloga registrada');await recargar();
   }catch(e){toast('Error: '+e.message,'error');}
+}
+
+// GESTIÓN DE ACCESOS (credenciales de las 4 apps)
+var ACC_LABELS={psicologas:'👩‍⚕️ Psicóloga',recepcionistas:'💻 Recepción',usuarios_gerencia:'📊 Gerencia/Administración'};
+function _accLista(tabla){
+  if(tabla==='psicologas')return D.psicologas||[];
+  if(tabla==='recepcionistas')return D.recepcionistas||[];
+  return D.usuariosGerencia||[];
+}
+function renderAccesos(){
+  var secciones=[['psicologas','accPsicologas','👩‍⚕️ Psicólogas'],['recepcionistas','accRecepcion','💻 Recepción'],['usuarios_gerencia','accGerencia','📊 Gerencia / Administración']];
+  secciones.forEach(function(s){
+    var tabla=s[0],el=document.getElementById(s[1]);if(!el)return;
+    var lista=_accLista(tabla);
+    var titulo='<div style="font-size:12px;font-weight:800;color:var(--muted);margin-bottom:8px">'+s[2]+' ('+lista.length+')</div>';
+    if(!lista.length){el.innerHTML=titulo+'<p style="color:var(--muted);font-size:12px;padding:8px 0">Sin cuentas registradas</p>';return;}
+    el.innerHTML=titulo+'<div style="display:grid;gap:8px">'+lista.map(function(u){
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f8faff;border-radius:10px;flex-wrap:wrap">'+
+        '<div style="flex:1;min-width:160px"><div style="font-weight:700;font-size:13px">'+(u.nombre||'—')+'</div>'+
+        '<div style="font-size:11px;color:var(--muted)">'+(u.email||'—')+(u.sede?' · '+u.sede:'')+(u.rol?' · '+u.rol:'')+'</div></div>'+
+        (u.estado?badge(u.estado):'')+
+        '<button style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="editarAcceso(\''+tabla+'\','+JSON.stringify(u.id)+')">✏️ Editar</button>'+
+        '<button style="padding:5px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="eliminarAcceso(\''+tabla+'\','+JSON.stringify(u.id)+')">🗑️</button>'+
+        '</div>';
+    }).join('')+'</div>';
+  });
+}
+function _accTablaChange(){
+  var tabla=document.getElementById('accTabla').value;
+  var lbl=document.getElementById('accSedeLabel'),sel=document.getElementById('accSede');
+  if(tabla==='usuarios_gerencia'){
+    lbl.textContent='Rol';
+    sel.innerHTML='<option value="Todas">📊 Gerencia (ve todas las sedes)</option><option value="Comas">🗂️ Administración</option>';
+  }else{
+    lbl.textContent='Sede';
+    sel.innerHTML='<option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option><option>Todas</option>';
+  }
+}
+function generarPass(){
+  var chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  var p='';for(var i=0;i<10;i++)p+=chars.charAt(Math.floor(Math.random()*chars.length));
+  var el=document.getElementById('accPass');if(el)el.value=p;
+}
+function abrirModalAcceso(){
+  ['accId','accTablaEdit','accNombre','accEmail','accPass'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('accTabla').disabled=false;
+  document.getElementById('accTabla').value='psicologas';
+  _accTablaChange();
+  document.getElementById('accSede').value=D.sede||'Comas';
+  document.getElementById('accModalTit').textContent='🔐 Nuevo acceso';
+  document.getElementById('accPass').placeholder='Contraseña inicial';
+  document.getElementById('modalAcceso').style.display='flex';
+}
+function cerrarModalAcceso(){document.getElementById('modalAcceso').style.display='none';}
+function editarAcceso(tabla,id){
+  var u=_accLista(tabla).find(function(x){return String(x.id)===String(id);});if(!u)return;
+  document.getElementById('accId').value=u.id;
+  document.getElementById('accTablaEdit').value=tabla;
+  document.getElementById('accTabla').value=tabla;
+  document.getElementById('accTabla').disabled=true;
+  _accTablaChange();
+  document.getElementById('accNombre').value=u.nombre||'';
+  document.getElementById('accEmail').value=u.email||'';
+  document.getElementById('accPass').value='';
+  document.getElementById('accPass').placeholder='Dejar vacío para no cambiarla';
+  document.getElementById('accSede').value=tabla==='usuarios_gerencia'?(u.rol==='gerencia'?'Todas':'Comas'):(u.sede||'Comas');
+  document.getElementById('accModalTit').textContent='✏️ Editar: '+(u.nombre||'');
+  document.getElementById('modalAcceso').style.display='flex';
+}
+async function guardarAcceso(){
+  var id=document.getElementById('accId').value;
+  var tabla=id?document.getElementById('accTablaEdit').value:document.getElementById('accTabla').value;
+  var nombre=document.getElementById('accNombre').value.trim();
+  var email=document.getElementById('accEmail').value.trim().toLowerCase();
+  var pass=document.getElementById('accPass').value;
+  var sede=document.getElementById('accSede').value;
+  if(!nombre||!email){toast('Nombre y email son obligatorios','error');return;}
+  if(!id&&!pass){toast('La contraseña es obligatoria para un acceso nuevo','error');return;}
+  var d={nombre:nombre,email:email};
+  if(pass)d.password=pass;
+  if(tabla!=='usuarios_gerencia')d.sede=(sede==='Todas'?null:sede);
+  if(tabla==='usuarios_gerencia'){d.rol=(sede==='Todas'?'gerencia':'administracion');if(!id)d.estado='activo';}
+  else if(!id)d.estado='activa';
+  try{
+    if(id)await sbPatch(tabla,d,{id:'eq.'+id});
+    else await sbPost(tabla,d);
+    cerrarModalAcceso();
+    toast(id?'✅ Acceso actualizado':'✅ Acceso creado');
+    await recargar();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+async function eliminarAcceso(tabla,id){
+  if(!confirm('¿Eliminar este acceso? La persona ya no podrá iniciar sesión.'))return;
+  try{await sbDelete(tabla,{id:'eq.'+id});toast('✅ Acceso eliminado');await recargar();}catch(e){toast('Error: '+e.message,'error');}
 }
 
 // SEDES

@@ -1826,7 +1826,7 @@ function renderPacientes(){
 
   // Paquetes por terminar (≤2 sesiones restantes)
   var porTerminar=pacs.filter(p=>{
-    if(!p.mod==='paquete'||!p.paq)return false;
+    if(p.mod!=='paquete'||!p.paq)return false;
     var sesPac=ses.filter(s=>s.pacId===p.id||s.pacNombre===p.nombre);
     var asist=sesPac.filter(s=>s.estado==='asistio'||s.estado==='noasistio').length;
     return (p.paq-asist)<=2&&(p.paq-asist)>=0;
