@@ -115,6 +115,8 @@ try{
     <div class='nav-section'>Gestión</div>
     <div class='nav-item' onclick="showPage('personal',this)">👩‍⚕️ Personal</div>
     <div class='nav-item' onclick="showPage('sedes',this)">🏥 Sedes</div>
+    <div class='nav-item' onclick="showPage('feriados',this)">🎉 Feriados</div>
+    <div class='nav-item' onclick="showPage('rendimiento',this)">📈 Rendimiento Recepción</div>
     <div class='nav-item' onclick="showPage('gastos',this)">💸 Gastos</div>
     <div class='nav-item' onclick="showPage('alquiler',this)">🏠 Alquiler y Pagos Fijos</div>
     <div class='nav-item' onclick="showPage('tarifas',this)">💲 Tarifas y Precios</div>
@@ -244,6 +246,35 @@ try{
       <div id='listaSedes'></div>
     </div>
 
+<!-- FERIADOS -->
+<div class='page' id='page-feriados'>
+  <div class='card'>
+    <div class='card-header'><div class='card-title'>🎉 Feriados</div>
+      <button class='btn btn-primary btn-sm' onclick='abrirModalFeriado()'>➕ Nuevo feriado</button></div>
+    <div style='font-size:11px;color:#9d174d;background:#fdf2f8;border-radius:10px;padding:10px 12px;margin:0 14px 12px'>
+      Marca si <b>se trabaja o no</b> cada feriado del Perú. Si "No se trabaja": la agenda de
+      las psicólogas queda vacía ese día y Recepción no puede agendar sesiones — no se
+      contabiliza como sesión perdida. Si "Sí se trabaja": el día funciona normal, sin cambios.
+    </div>
+    <div style='padding:0 14px 14px' id='listaFeriados'></div>
+  </div>
+</div>
+
+<!-- RENDIMIENTO DE RECEPCIÓN -->
+<div class='page' id='page-rendimiento'>
+  <div class='card'>
+    <div class='card-header'><div class='card-title'>📈 Rendimiento de Recepción</div>
+      <button class='btn btn-primary btn-sm' onclick='generarRendimientoMes()'>🔄 Generar reporte del mes</button></div>
+    <div style='font-size:11px;color:#9d174d;background:#fdf2f8;border-radius:10px;padding:10px 12px;margin:0 14px 12px'>
+      Mide cuántos pacientes con <b>consulta</b> agendada terminan agendando un <b>paquete</b>
+      (se quedan) frente a los que no continúan (se van), por recepcionista y por mes. El
+      puntaje combina esa tasa de conversión con el % de asistencia de las sesiones que
+      cargó. Visible también para Gerencia.
+    </div>
+    <div style='padding:0 14px 14px' id='listaRendimiento'></div>
+  </div>
+</div>
+
     <!-- CALENDARIO -->
     <div class='page' id='page-calendario'>
       <div class='card'><div class='card-header'><div class='card-title'>📅 Calendario de Pagos y Cumpleaños</div></div>
@@ -355,6 +386,25 @@ try{
   <button class='btn btn-primary' style='width:100%;margin-top:12px' onclick='guardarBono()'>Asignar Bono</button>
  </div>
 </div>
+<div class='modal-overlay' id='modalFeriado'>
+ <div class='modal-box'>
+  <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px' id='ferModalTit'>🎉 Nuevo Feriado</span><button onclick="document.getElementById('modalFeriado').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
+  <input type='hidden' id='ferId'>
+  <label class='flabel'>Fecha *</label><input type='date' class='finput' id='ferFecha'>
+  <label class='flabel'>Descripción *</label><input class='finput' id='ferDesc' placeholder='Ej: Día de la Independencia'>
+  <label class='flabel'>Sede</label>
+  <select class='finput' id='ferSede'>
+    <option value='Todas'>Todas las sedes</option>
+    <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option>
+  </select>
+  <label class='flabel'>¿Se trabaja este feriado?</label>
+  <select class='finput' id='ferTipo'>
+    <option value='no_laborable'>❌ No se trabaja — agenda vacía, no se agenda ni cuenta nada</option>
+    <option value='laborable'>✅ Sí se trabaja — día normal</option>
+  </select>
+  <button class='btn btn-primary' style='width:100%;margin-top:12px' onclick='guardarFeriado()'>Guardar</button>
+ </div>
+</div>
 <div class='modal-overlay' id='modalDescuento'>
  <div class='modal-box'>
   <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px'>➖ Configurar Descuentos</span><button onclick="document.getElementById('modalDescuento').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
@@ -437,6 +487,7 @@ try{
   <div class='grid g2'>
     <div class='form-group'><label class='form-label'>CPSP / Colegiatura</label><input class='form-control' id='psCpsp' placeholder='CPSP-12345'></div>
     <div class='form-group'><label class='form-label'>Especialidad</label><input class='form-control' id='psEsp' placeholder='Clínica, Educativa...'></div>
+    <div class='form-group'><label class='form-label'>Grado académico</label><input class='form-control' id='psGrado' placeholder='Ej: Magíster en Psicología Clínica'></div>
     <div class='form-group'><label class='form-label'>Email <span id='psEmailReq'>*</span></label><input class='form-control' type='email' id='psEmail' placeholder='psicologa@psicoluz.pe'></div>
     <div class='form-group'><label class='form-label'>Contraseña <span id='psPassReq'>*</span></label><input class='form-control' type='password' id='psPass' placeholder='Dejar vacío para no cambiarla'></div>
     <div class='form-group'><label class='form-label'>Teléfono</label><input class='form-control' id='psTel' placeholder='987654321'></div>
@@ -477,7 +528,7 @@ function toast(msg,type){var el=document.getElementById('toast');if(!el)return;e
 function badge(e){var m={activo:'bg',activa:'bg',activo:'bg',firmado:'bg',presente:'bg',programado:'bb',pendiente:'bo',noasistio:'br',vencido:'br',cesada:'bgr'};return'<span class="badge '+(m[String(e||'').toLowerCase()]||'bgr')+'">'+e+'</span>';}
 
 var ADM={nombre:'',email:'',id:null};
-var D={sesiones:[],pacientes:[],pagos:[],psicologas:[],contratos:[],gastos:[],honorarios:[],asistencia:[],insumos:[],terapias:[],recepcionistas:[],usuariosGerencia:[],sede:''};
+var D={sesiones:[],pacientes:[],pagos:[],psicologas:[],contratos:[],gastos:[],honorarios:[],asistencia:[],insumos:[],terapias:[],recepcionistas:[],usuariosGerencia:[],feriados:[],rendimiento:[],sede:''};
 
 // LOGIN
 async function doLogin(){
@@ -524,12 +575,15 @@ async function recargar(){
       sbGet('pagos_recurrentes',Object.assign({select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
       sbGet('terapias',sed?{select:'*',or:'(sede.is.null,sede.eq.'+sed+')'}:{select:'*'}).catch(function(){return[];}),
       sbGet('recepcionistas',Object.assign({select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
-      sbGet('usuarios_gerencia',{select:'*'}).catch(function(){return[];})
+      sbGet('usuarios_gerencia',{select:'*'}).catch(function(){return[];}),
+      sbGet('feriados',{select:'*',order:'fecha.asc'}).catch(function(){return[];}),
+      sbGet('rendimiento_recepcion',Object.assign({mes:'eq.'+mes,select:'*'},sedeFiltro(sed))).catch(function(){return[];})
     ]);
     D.sesiones=res[0]||[];D.pacientes=res[1]||[];D.pagos=res[2]||[];D.psicologas=res[3]||[];
     D.contratos=res[4]||[];D.gastos=res[5]||[];D.honorarios=res[6]||[];D.asistencia=res[7]||[];D.insumos=res[8]||[];
     D.tarifas=res[9]||[];D.precios=res[10]||[];D.bonos=res[11]||[];D.pagosRecurrentes=res[12]||[];
-    D.terapias=res[13]||[];D.recepcionistas=res[14]||[];D.usuariosGerencia=res[15]||[];
+    D.terapias=res[13]||[];D.recepcionistas=res[14]||[];D.usuariosGerencia=res[15]||[];D.feriados=res[16]||[];
+    D.rendimiento=res[17]||[];
     D.sede=sed;D.mes=mes;
     renderActiva();
     toast('✅ Datos actualizados','success');
@@ -566,7 +620,7 @@ function showPage(name,el){
   var pg=document.getElementById('page-'+name);if(pg)pg.classList.add('active');
   if(el)el.classList.add('active');
   document.getElementById('pageTitle').textContent=PAGE_TITLES[name]||name;
-  var renders={dashboard:renderDashboard,contratos:renderContratos,sueldos:renderSueldos,asistencia:renderAsistencia,inventario:renderInventario,personal:renderPersonal,sedes:renderSedes,gastos:renderGastos,alquiler:renderAlquiler,auditoria:renderAuditoria,chat:renderChat,cumpleanos:renderCumpleanos,calendario:function(){renderCalendarioPagos('calendarioPagosContainer');},metas:renderMetasPsicologas,fichas:renderFichaPacSel,accesos:renderAccesos};
+  var renders={dashboard:renderDashboard,contratos:renderContratos,sueldos:renderSueldos,asistencia:renderAsistencia,inventario:renderInventario,personal:renderPersonal,sedes:renderSedes,gastos:renderGastos,alquiler:renderAlquiler,auditoria:renderAuditoria,chat:renderChat,cumpleanos:renderCumpleanos,calendario:function(){renderCalendarioPagos('calendarioPagosContainer');},metas:renderMetasPsicologas,fichas:renderFichaPacSel,accesos:renderAccesos,feriados:renderFeriados,rendimiento:renderRendimiento};
   if(renders[name])renders[name]();
   // Cerrar el menú lateral al elegir una sección (igual que las demás
   // apps) — en escritorio no afecta nada (el sidebar ya es fijo ahí),
@@ -578,7 +632,7 @@ function toggleSidebar(){document.getElementById('sidebar').classList.toggle('op
 function cambiarSede(){
   var sel=document.getElementById('selectorSede');if(sel){D.sede=sel.value;recargar();}
 }
-var PAGE_TITLES={dashboard:'Dashboard',contratos:'Contratos',sueldos:'Sueldos y Bonos',asistencia:'Asistencia',inventario:'Inventario',personal:'Personal',sedes:'Sedes',gastos:'Gastos',alquiler:'Alquiler y Pagos Fijos',tarifas:'Tarifas y Precios',accesos:'Gestión de Accesos',auditoria:'Auditoría',chat:'Chat',cumpleanos:'Cumpleaños',calendario:'Calendario',metas:'Metas',fichas:'Fichas y Reportes'};
+var PAGE_TITLES={dashboard:'Dashboard',contratos:'Contratos',sueldos:'Sueldos y Bonos',asistencia:'Asistencia',inventario:'Inventario',personal:'Personal',sedes:'Sedes',feriados:'Feriados',rendimiento:'Rendimiento Recepción',gastos:'Gastos',alquiler:'Alquiler y Pagos Fijos',tarifas:'Tarifas y Precios',accesos:'Gestión de Accesos',auditoria:'Auditoría',chat:'Chat',cumpleanos:'Cumpleaños',calendario:'Calendario',metas:'Metas',fichas:'Fichas y Reportes'};
 
 // DASHBOARD
 function renderDashboard(){
@@ -722,14 +776,14 @@ async function guardarInsumo(){
 function renderPersonal(){
   var el=document.getElementById('listaPersonal');if(!el)return;
   if(!D.psicologas.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin psicólogas</p>';return;}
-  el.innerHTML='<div style="display:grid;gap:10px">'+D.psicologas.map(function(p){return'<div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f8faff;border-radius:10px"><div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#4a0e2e,#e91e8c);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:900">'+p.nombre.charAt(0)+'</div><div style="flex:1"><div style="font-weight:800">'+p.nombre+'</div><div style="font-size:11px;color:var(--muted)">'+(p.cpsp||'')+(p.especialidad?' · '+p.especialidad:'')+'</div><div style="font-size:11px;color:var(--muted)">'+(p.email||'')+(p.telefono?' · '+p.telefono:'')+'</div></div>'+badge(p.estado||'activa')+'<button style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="editarPsicologa('+JSON.stringify(p.id)+')">✏️ Editar</button><button style="padding:5px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="cesarPersonal('+JSON.stringify(p.id)+')">Cesar</button></div>';}).join('')+'</div>';
+  el.innerHTML='<div style="display:grid;gap:10px">'+D.psicologas.map(function(p){return'<div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f8faff;border-radius:10px"><div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#4a0e2e,#e91e8c);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:900">'+p.nombre.charAt(0)+'</div><div style="flex:1"><div style="font-weight:800">'+p.nombre+'</div><div style="font-size:11px;color:var(--muted)">'+(p.cpsp||'')+(p.especialidad?' · '+p.especialidad:'')+(p.grado_academico?' · '+p.grado_academico:'')+'</div><div style="font-size:11px;color:var(--muted)">'+(p.email||'')+(p.telefono?' · '+p.telefono:'')+'</div></div>'+badge(p.estado||'activa')+'<button style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="editarPsicologa('+JSON.stringify(p.id)+')">✏️ Editar</button><button style="padding:5px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="cesarPersonal('+JSON.stringify(p.id)+')">Cesar</button></div>';}).join('')+'</div>';
 }
 async function cesarPersonal(id){
   if(!confirm('¿Confirmas cesar a esta psicóloga?'))return;
   try{await sbPatch('psicologas',{estado:'cesada'},{id:'eq.'+id});toast('✅ Personal cesado');await recargar();}catch(e){toast('Error: '+e.message,'error');}
 }
 function abrirModalPsicologa(){
-  ['psId','psNombre','psCpsp','psEsp','psEmail','psPass','psTel'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  ['psId','psNombre','psCpsp','psEsp','psGrado','psEmail','psPass','psTel'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('psSueldo').value='0';
   document.getElementById('psHoraIn').value='08:00';
   document.getElementById('psHoraFin').value='19:00';
@@ -746,6 +800,7 @@ function editarPsicologa(id){
   document.getElementById('psNombre').value=p.nombre||'';
   document.getElementById('psCpsp').value=p.cpsp||'';
   document.getElementById('psEsp').value=p.especialidad||'';
+  document.getElementById('psGrado').value=p.grado_academico||'';
   document.getElementById('psEmail').value=p.email||'';
   document.getElementById('psPass').value='';
   document.getElementById('psTel').value=p.telefono||'';
@@ -762,7 +817,7 @@ function editarPsicologa(id){
 async function guardarPsicologa(){
   var id=document.getElementById('psId').value;
   var pass=document.getElementById('psPass').value;
-  var d={nombre:document.getElementById('psNombre').value,cpsp:document.getElementById('psCpsp').value,especialidad:document.getElementById('psEsp').value,email:document.getElementById('psEmail').value,telefono:document.getElementById('psTel').value,sueldo:parseFloat(document.getElementById('psSueldo').value)||0,hora_inicio:document.getElementById('psHoraIn').value,hora_fin:document.getElementById('psHoraFin').value};
+  var d={nombre:document.getElementById('psNombre').value,cpsp:document.getElementById('psCpsp').value,especialidad:document.getElementById('psEsp').value,grado_academico:document.getElementById('psGrado').value,email:document.getElementById('psEmail').value,telefono:document.getElementById('psTel').value,sueldo:parseFloat(document.getElementById('psSueldo').value)||0,hora_inicio:document.getElementById('psHoraIn').value,hora_fin:document.getElementById('psHoraFin').value};
   if(!d.nombre||!d.email){toast('Nombre y email son obligatorios','error');return;}
   if(!id&&!pass){toast('La contraseña es obligatoria para una psicóloga nueva','error');return;}
   if(pass)d.password=pass;
@@ -866,6 +921,108 @@ async function guardarAcceso(){
 async function eliminarAcceso(tabla,id){
   if(!confirm('¿Eliminar este acceso? La persona ya no podrá iniciar sesión.'))return;
   try{await sbDelete(tabla,{id:'eq.'+id});toast('✅ Acceso eliminado');await recargar();}catch(e){toast('Error: '+e.message,'error');}
+}
+
+// FERIADOS
+function renderFeriados(){
+  var el=document.getElementById('listaFeriados');if(!el)return;
+  var lista=(D.feriados||[]).slice().sort(function(a,b){return (a.fecha||'').localeCompare(b.fecha||'');});
+  if(!lista.length){el.innerHTML='<p style="color:var(--muted);text-align:center;padding:16px">Sin feriados registrados</p>';return;}
+  el.innerHTML='<div style="display:grid;gap:8px">'+lista.map(function(f){
+    var noLab=f.tipo_gestion==='no_laborable';
+    var inactivo=f.estado==='inactivo';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px;background:'+(inactivo?'#f1f5f9':(noLab?'#fef2f2':'#f0fdf4'))+';border-radius:10px;flex-wrap:wrap'+(inactivo?';opacity:.6':'')+'">'+
+      '<div style="flex:1;min-width:160px"><div style="font-weight:700;font-size:13px">'+fmtF(f.fecha)+' — '+(f.descripcion||'—')+'</div>'+
+      '<div style="font-size:11px;color:var(--muted)">'+(f.sede||'Todas')+' · '+(noLab?'❌ No se trabaja':'✅ Sí se trabaja')+(inactivo?' · inactivo':'')+'</div></div>'+
+      '<button style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="editarFeriado(\''+f.id+'\')">✏️</button>'+
+      '<button style="padding:5px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="eliminarFeriado(\''+f.id+'\')">🗑️</button>'+
+      '</div>';
+  }).join('')+'</div>';
+}
+function abrirModalFeriado(){
+  ['ferId','ferFecha','ferDesc'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('ferSede').value='Todas';
+  document.getElementById('ferTipo').value='no_laborable';
+  document.getElementById('ferModalTit').textContent='🎉 Nuevo Feriado';
+  document.getElementById('modalFeriado').classList.add('open');
+}
+function editarFeriado(id){
+  var f=(D.feriados||[]).find(function(x){return String(x.id)===String(id);});if(!f)return;
+  document.getElementById('ferId').value=f.id;
+  document.getElementById('ferFecha').value=f.fecha||'';
+  document.getElementById('ferDesc').value=f.descripcion||'';
+  document.getElementById('ferSede').value=f.sede||'Todas';
+  document.getElementById('ferTipo').value=f.tipo_gestion||'no_laborable';
+  document.getElementById('ferModalTit').textContent='✏️ Editar Feriado';
+  document.getElementById('modalFeriado').classList.add('open');
+}
+async function guardarFeriado(){
+  var id=document.getElementById('ferId').value;
+  var fecha=document.getElementById('ferFecha').value;
+  var desc=document.getElementById('ferDesc').value.trim();
+  if(!fecha||!desc){toast('Fecha y descripción son obligatorias','error');return;}
+  var d={fecha:fecha,descripcion:desc,sede:document.getElementById('ferSede').value,
+    tipo_gestion:document.getElementById('ferTipo').value,estado:'activo'};
+  try{
+    if(id)await sbPatch('feriados',d,{id:'eq.'+id});else await sbPost('feriados',d);
+    document.getElementById('modalFeriado').classList.remove('open');
+    toast('✅ Feriado guardado');await recargar();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+async function eliminarFeriado(id){
+  if(!confirm('¿Eliminar este feriado?'))return;
+  try{await sbDelete('feriados',{id:'eq.'+id});toast('✅ Feriado eliminado');await recargar();}catch(e){toast('Error: '+e.message,'error');}
+}
+
+// RENDIMIENTO DE RECEPCIÓN
+function renderRendimiento(){
+  var el=document.getElementById('listaRendimiento');if(!el)return;
+  var lista=(D.rendimiento||[]).slice().sort(function(a,b){return (b.score_rendimiento||0)-(a.score_rendimiento||0);});
+  if(!lista.length){el.innerHTML='<p style="color:var(--muted);text-align:center;padding:16px">Sin reporte generado para '+mesY()+' — usa "Generar reporte del mes"</p>';return;}
+  el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Recepcionista</th><th>Sede</th><th>Consultas</th><th>Paquetes</th><th>Conversión</th><th>% Asistencia</th><th>Puntaje</th><th>Nivel</th></tr></thead><tbody>'+
+  lista.map(function(r){
+    var conv=r.consultas_agendadas>0?Math.round((r.paquetes_agendados/r.consultas_agendadas)*100):0;
+    var colorNivel={'Excelente':'#15803d','Bueno':'#2563eb','Regular':'#d97706','Bajo':'#dc2626'}[r.nivel_rendimiento]||'#64748b';
+    return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(r.nombre||'—')+'</td>'+
+      '<td style="font-size:11px;color:var(--muted)">'+(r.sede||'—')+'</td>'+
+      '<td style="text-align:center">'+(r.consultas_agendadas||0)+'</td>'+
+      '<td style="text-align:center">'+(r.paquetes_agendados||0)+'</td>'+
+      '<td style="text-align:center;font-weight:700">'+conv+'%</td>'+
+      '<td style="text-align:center">'+(r.porcentaje_asistencia||0).toFixed(0)+'%</td>'+
+      '<td style="text-align:center;font-weight:900">'+(r.score_rendimiento||0).toFixed(0)+'</td>'+
+      '<td style="text-align:center;font-weight:700;color:'+colorNivel+'">'+(r.nivel_rendimiento||'—')+'</td></tr>';
+  }).join('')+'</tbody></table>'+
+  '<div style="font-size:10px;color:var(--muted);padding:10px 4px 0">"Conversión" = paquetes agendados ÷ consultas agendadas (cuántos pacientes se quedan tras la consulta). Puntaje = 60% conversión + 40% % de asistencia.</div>';
+}
+async function generarRendimientoMes(){
+  var mes=mesY();
+  var recs=(D.recepcionistas||[]).filter(function(r){return !D.sede||r.sede===D.sede;});
+  if(!recs.length){toast('No hay recepcionistas registradas para generar el reporte','error');return;}
+  toast('⏳ Calculando rendimiento de '+mes+'...');
+  try{
+    for(var i=0;i<recs.length;i++){
+      var rc=recs[i];
+      var ses=await sbGet('sesiones',{registrado_por:'eq.'+rc.nombre,fecha:'gte.'+mes+'-01',select:'*',limit:'2000'});
+      ses=(ses||[]).filter(function(s){return (s.fecha||'').startsWith(mes);});
+      var cargadas=ses.length;
+      var cumplidas=ses.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
+      var consultas=ses.filter(function(s){return s.tipo==='consulta';}).length;
+      var paquetes=ses.filter(function(s){return s.tipo==='paquete';}).length;
+      var pctAsist=cargadas>0?(cumplidas/cargadas)*100:0;
+      var conversion=consultas>0?(paquetes/consultas)*100:(paquetes>0?100:0);
+      var score=Math.min(100,Math.round(conversion*0.6+pctAsist*0.4));
+      var nivel=score>=80?'Excelente':score>=60?'Bueno':score>=40?'Regular':'Bajo';
+      var fila={mes:mes,nombre:rc.nombre,email:rc.email||'',tipo:'recepcion',sede:rc.sede||'',
+        sesiones_cargadas:cargadas,sesiones_cumplidas:cumplidas,porcentaje_asistencia:Math.round(pctAsist*10)/10,
+        paquetes_agendados:paquetes,consultas_agendadas:consultas,score_rendimiento:score,
+        nivel_rendimiento:nivel,generado_por:(typeof ADM!=='undefined'&&ADM&&ADM.nombre)?ADM.nombre:''};
+      var existente=(D.rendimiento||[]).find(function(x){return x.nombre===rc.nombre&&x.mes===mes;});
+      if(existente)await sbPatch('rendimiento_recepcion',fila,{id:'eq.'+existente.id});
+      else await sbPost('rendimiento_recepcion',fila);
+    }
+    toast('✅ Reporte de rendimiento generado');
+    await recargar();
+  }catch(e){toast('Error: '+e.message,'error');}
 }
 
 // SEDES

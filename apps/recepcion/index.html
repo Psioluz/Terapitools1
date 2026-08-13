@@ -730,6 +730,14 @@ try{
         <label class="form-label">Apoderado / Contacto (si es menor)</label>
         <input class="form-control" id="p-apoderado" placeholder="Nombre del apoderado">
       </div>
+      <div class="form-group">
+        <label class="form-label">Colegio</label>
+        <input class="form-control" id="p-colegio" placeholder="Ej: I.E. San Martín">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Grado</label>
+        <input class="form-control" id="p-grado" placeholder="Ej: 3ro de primaria">
+      </div>
       <div class="form-group" style="grid-column:1/-1">
         <label class="form-label">Motivo de Consulta</label>
         <textarea class="form-control" id="p-motivo" rows="2" placeholder="Motivo inicial..."></textarea>
@@ -927,7 +935,7 @@ function mostrarError(el, msg) {
 
 
 // ── STATE ──
-let DB={sede:'',usuario:'',psicologas:[],terapias:[],paquetes:[],pacientes:[],sesiones:[],pagos:[],programas:[]};
+let DB={sede:'',usuario:'',psicologas:[],terapias:[],paquetes:[],pacientes:[],sesiones:[],pagos:[],programas:[],feriados:[]};
 let _sede='';
 let _semOff=0;
 let _tickTimer=null;
@@ -1590,6 +1598,10 @@ async function guardarSesion(){
   if(DB.sesiones.find(s=>s.psId===psId&&s.fecha===fecha&&s.hora===hora)){
     showToast('Ese horario ya está ocupado para esta psicóloga','error');return;
   }
+  const fer=feriadoDe(fecha);
+  if(fer&&fer.tipo_gestion==='no_laborable'){
+    showToast('No se puede agendar: '+fecha+' es feriado ('+(fer.descripcion||'')+') y no se trabaja','error');return;
+  }
 
   const pac=getPac(pacId);const ps=getPs(psId);const ter=getTer(terId);
 
@@ -1758,7 +1770,7 @@ function renderPacientes(){
 let _pacEditId=null;
 function abrirNuevoPaciente(){
   _pacEditId=null;
-  ['p-nombre','p-nac','p-dni','p-tel','p-apoderado','p-motivo','p-terapias'].forEach(function(id){
+  ['p-nombre','p-nac','p-dni','p-tel','p-apoderado','p-colegio','p-grado','p-motivo','p-terapias'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.value='';
   });
   document.getElementById('p-genero').value='';
@@ -1776,6 +1788,8 @@ function abrirEditarPaciente(pacId){
   document.getElementById('p-tel').value=pac.tel||'';
   document.getElementById('p-genero').value=pac.genero||'';
   document.getElementById('p-apoderado').value=pac.apoderado||'';
+  document.getElementById('p-colegio').value=pac.colegio||'';
+  document.getElementById('p-grado').value=pac.grado||'';
   document.getElementById('p-motivo').value=pac.motivo||'';
   var elTer=document.getElementById('p-terapias');if(elTer)elTer.value=pac.terapias||'';
   var t=document.getElementById('modalPacienteTitulo');if(t)t.textContent='✏️ Editar Paciente';
@@ -1791,11 +1805,13 @@ function guardarPaciente(){
     tel:document.getElementById('p-tel').value.trim(),
     genero:document.getElementById('p-genero').value,
     apoderado:document.getElementById('p-apoderado').value.trim(),
+    colegio:document.getElementById('p-colegio').value.trim(),
+    grado:document.getElementById('p-grado').value.trim(),
     motivo:document.getElementById('p-motivo').value.trim(),
     activo:true,notas:'',psId:null,terId:null,mod:'sesion',paq:0,sesUsadas:0,saldo:0,adelanto:0,costo:0
   };
   const datosSB={nombre:p.nombre,fecha_nac:p.nac||null,dni:p.dni||'',telefono:p.tel||'',
-    genero:p.genero||'',apoderado:p.apoderado||'',motivo:p.motivo||'',
+    genero:p.genero||'',apoderado:p.apoderado||'',colegio:p.colegio||'',grado:p.grado||'',motivo:p.motivo||'',
     terapias:(document.getElementById('p-terapias')?document.getElementById('p-terapias').value.trim():'')};
   const editando=!!_pacEditId;
   showToast(editando?'⏳ Guardando cambios...':'⏳ Guardando paciente...');
@@ -1804,7 +1820,7 @@ function guardarPaciente(){
     ? sbPatch('pacientes',datosSB,{id:'eq.'+((pacExistente&&pacExistente._sb&&pacExistente._sb.id)||_pacEditId)})
     : sbPost('pacientes',Object.assign({diagnostico:'',estado:'activo',sede:DB.sede,registrado_por:DB.usuario||''},datosSB));
   promesa.then(function(){
-    ['p-nombre','p-nac','p-dni','p-tel','p-apoderado','p-motivo','p-terapias'].forEach(id=>{
+    ['p-nombre','p-nac','p-dni','p-tel','p-apoderado','p-colegio','p-grado','p-motivo','p-terapias'].forEach(id=>{
       const el=document.getElementById(id);if(el)el.value='';
     });
     document.getElementById('p-genero').value='';
@@ -2350,11 +2366,33 @@ function loadTema(){} // tema fijo rosa (ver :root en <style>) — ya no es conf
 // ══════════════════════════════════════════════════
 function getVistaAgenda(){return document.getElementById('agVista')?.value||'semana';}
 
+// Feriado activo para una fecha, si lo hay (aplica a la sede actual o a "Todas")
+function feriadoDe(fecha){
+  return (DB.feriados||[]).find(function(f){
+    return f.fecha===fecha&&(!f.sede||f.sede==='Todas'||f.sede===DB.sede);
+  })||null;
+}
+function esFeriadoNoLaborable(fecha){
+  var f=feriadoDe(fecha);
+  return !!(f&&f.tipo_gestion==='no_laborable');
+}
+
 function renderAgendaViaDia(fecha){
   const filtPs=parseInt(document.getElementById('agPs')?.value)||0;
   const grid=document.getElementById('gridSemanal');if(!grid)return;
   const det=document.getElementById('agendaDetalle');if(det){det.style.display='none';det.innerHTML='';}
   grid.style.gridTemplateColumns='1fr';
+  const fer=feriadoDe(fecha);
+  if(fer&&fer.tipo_gestion==='no_laborable'){
+    grid.innerHTML='<div style="background:var(--sidebar);color:#fff;padding:14px 18px">'+
+      '<span style="font-size:14px;font-weight:800">📅 '+fmtF(fecha)+'</span></div>'+
+      '<div style="padding:30px 20px;text-align:center">'+
+      '<div style="font-size:32px;margin-bottom:10px">🎉</div>'+
+      '<div style="font-weight:800;font-size:14px;margin-bottom:4px">Hoy es feriado: '+(fer.descripcion||'')+'</div>'+
+      '<div style="color:var(--muted);font-size:12px">No se trabaja este día — no hay agenda ni sesiones para agendar.</div>'+
+      '</div>';
+    return;
+  }
   const psicologas=filtPs?DB.psicologas.filter(p=>p.id===filtPs):DB.psicologas;
   if(!psicologas.length){
     grid.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">Sin psicólogas.</div>';return;
@@ -2712,7 +2750,8 @@ async function cargarDesdeSB(silencioso) {
       sbGet('asistencia_personal',{sede:'eq.'+DB.sede,fecha:'gte.'+desde,select:'*',order:'fecha.desc'}),
       sbGet('terapias',{select:'*',or:'(sede.is.null,sede.eq.'+DB.sede+')'}).catch(function(){return[];}),
       sbGet('tarifas_sede',{sede:'eq.'+DB.sede,select:'*'}).catch(function(){return[];}),
-      sbGet('programas_paciente',{sede:'eq.'+DB.sede,estado:'eq.activo',select:'*,programa_terapias(*)'}).catch(function(){return[];})
+      sbGet('programas_paciente',{sede:'eq.'+DB.sede,estado:'eq.activo',select:'*,programa_terapias(*)'}).catch(function(){return[];}),
+      sbGet('feriados',{estado:'eq.activo',select:'*'}).catch(function(){return[];})
     ]);
     DB.sesiones=(res[0]||[]).map(function(s){return{id:s.id,fecha:s.fecha,hora:s.hora,
       pacId:s.paciente_nombre,pacNom:s.paciente_nombre,psId:s.psicologa,psNom:s.psicologa,
@@ -2721,6 +2760,7 @@ async function cargarDesdeSB(silencioso) {
     DB.pacientes=(res[1]||[]).map(function(p){return{id:p.id||p.nombre,nombre:p.nombre,
       tel:p.telefono||'',nac:p.fecha_nac||'',dni:p.dni||'',diagnostico:p.diagnostico||'',
       psId:p.psicologa,terId:p.terapia,terapias:p.terapias||p.terapia||'',apoderado:p.apoderado||'',
+      colegio:p.colegio||'',grado:p.grado||'',
       paq:parseInt(p.paquete)||12,saldo:p.saldo||0,estado:p.estado||'activo',_sb:p};});
     DB.pagos=(res[2]||[]).map(function(p){return{id:p.id,fecha:p.fecha,pacId:p.paciente_nombre,
       concepto:p.concepto||'',monto:p.monto||0,metodo:p.metodo||'efectivo',_sb:p};});
@@ -2738,6 +2778,7 @@ async function cargarDesdeSB(silencioso) {
       costoTotal:t.costo_total||0,precio:t.costo_total||0,
       cuotas:t.cantidad_cuotas||1,montoCuota:t.monto_cuota||((t.costo_total||0)/(t.cantidad_cuotas||1)),_sb:t};});
     DB.programas=res[7]||[];
+    DB.feriados=res[8]||[];
     if(typeof fillSelects==='function')fillSelects();
     var ap=document.querySelector('.page.active');
     if(ap&&typeof showPage==='function')showPage(ap.id.replace('page-',''));

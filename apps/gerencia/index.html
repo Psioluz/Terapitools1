@@ -527,6 +527,12 @@ select.fsel{
   <!-- Recepción y Gerencia -->
   <div id="listOtroPersonal"></div>
 
+  <!-- Rendimiento de Recepción (solo lectura, se genera desde Administración) -->
+  <div class="card" style="margin-top:14px">
+    <div class="ch"><div class="ct">📈 Rendimiento de Recepción</div></div>
+    <div class="cb" id="rendimientoRecepcionCont" style="padding:14px">Cargando…</div>
+  </div>
+
 </div><!-- /tPersonal -->
 
 <!-- ════════ SEDES ════════ -->
@@ -1853,10 +1859,32 @@ function renderPacientes(){
 // ════════════════════════════════════════════════════════════════════════════
 //  PERSONAL
 // ════════════════════════════════════════════════════════════════════════════
+function renderRendimientoRecepcionGer(){
+  var cont=document.getElementById('rendimientoRecepcionCont');if(!cont)return;
+  var mes=mesActual();var sede=getFiltSede();
+  var q={mes:'eq.'+mes,select:'*'};if(sede)q.sede='eq.'+sede;
+  accGet('rendimiento_recepcion',q).then(function(rows){
+    rows=rows||[];
+    if(!rows.length){cont.innerHTML='<p style="color:var(--muted);text-align:center;padding:10px">Sin reporte de '+mes+' — se genera desde Administración</p>';return;}
+    rows.sort(function(a,b){return (b.score_rendimiento||0)-(a.score_rendimiento||0);});
+    cont.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:8px;font-size:10px;text-align:left;color:var(--muted)">Recepcionista</th><th>Sede</th><th>Consultas</th><th>Paquetes</th><th>% Asist.</th><th>Puntaje</th><th>Nivel</th></tr></thead><tbody>'+
+      rows.map(function(r){
+        var colorNivel={'Excelente':'#15803d','Bueno':'#2563eb','Regular':'#d97706','Bajo':'#dc2626'}[r.nivel_rendimiento]||'#64748b';
+        return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:8px;font-weight:700">'+(r.nombre||'—')+'</td>'+
+          '<td style="font-size:11px;color:var(--muted)">'+(r.sede||'—')+'</td>'+
+          '<td style="text-align:center">'+(r.consultas_agendadas||0)+'</td>'+
+          '<td style="text-align:center">'+(r.paquetes_agendados||0)+'</td>'+
+          '<td style="text-align:center">'+(r.porcentaje_asistencia||0).toFixed(0)+'%</td>'+
+          '<td style="text-align:center;font-weight:900">'+(r.score_rendimiento||0).toFixed(0)+'</td>'+
+          '<td style="text-align:center;font-weight:700;color:'+colorNivel+'">'+(r.nivel_rendimiento||'—')+'</td></tr>';
+      }).join('')+'</tbody></table>';
+  }).catch(function(e){cont.innerHTML='<p style="color:var(--red);padding:10px">Error: '+e.message+'</p>';});
+}
 function renderPersonal(){
   var psList = filtPac(G.psicologas);
   var ses    = filtSes(G.sesiones);
   var hoy    = today();
+  renderRendimientoRecepcionGer();
   var asistHoy = G.asistencia.filter(a=>a.fecha===hoy&&a.estado==='presente');
   var hon    = G.honorarios.filter(h=>h.mes===mesActual());
 
