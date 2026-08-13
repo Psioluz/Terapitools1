@@ -2731,12 +2731,11 @@ async function cargarDesdeSB(silencioso) {
       estado:p.estado||'activa',_sb:p};});
     DB.asistPersonal=res[4]||[];
     DB.terapias=(res[5]||[]).map(function(t){return{id:t.id||t.nombre,nombre:t.nombre,color:t.color||''};});
-    DB.paquetes=(res[6]||[]).map(function(t){return{id:t.id||t.nombre_servicio||t.terapia,
-      nombre:t.nombre_servicio||t.terapia||'Servicio',tipo:t.tipo||'paquete',
-      terId:t.terapia||t.nombre_servicio,terNom:t.terapia||t.nombre_servicio,
+    DB.paquetes=(res[6]||[]).map(function(t){return{id:t.id||t.nombre_servicio,
+      nombre:t.nombre_servicio||'Servicio',tipo:t.tipo||'paquete',
+      terId:t.nombre_servicio,terNom:t.nombre_servicio,
       nroSes:t.nro_sesiones||12,sesiones:t.nro_sesiones||12,
-      costoTotal:t.costo_total||t.precio_paquete||0,precio:t.costo_total||t.precio_paquete||0,
-      costoPorSes:t.costo_por_sesion||t.precio_sesion||0,precioSesion:t.costo_por_sesion||t.precio_sesion||0,
+      costoTotal:t.costo_total||0,precio:t.costo_total||0,
       cuotas:t.cantidad_cuotas||1,montoCuota:t.monto_cuota||((t.costo_total||0)/(t.cantidad_cuotas||1)),_sb:t};});
     DB.programas=res[7]||[];
     if(typeof fillSelects==='function')fillSelects();

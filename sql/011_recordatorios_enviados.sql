@@ -3,8 +3,8 @@
 -- su API de pago), pero ahora queda registrado quién, cuándo y a qué sesión
 -- se le mandó el recordatorio, para que no se pierda el rastro si algo falla.
 create table if not exists recordatorios_enviados (
-  id bigint generated always as identity primary key,
-  sesion_id bigint not null,
+  id uuid primary key default gen_random_uuid(),
+  sesion_id uuid not null,
   sede text not null,
   paciente_nombre text not null,
   fecha date not null,

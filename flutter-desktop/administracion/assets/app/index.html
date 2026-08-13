@@ -1008,7 +1008,7 @@ function renderTarifas(){
     var verTodas=!D.sede;
     if(!(D.tarifas||[]).length)el.innerHTML='<p style="color:var(--muted);text-align:center;padding:16px">Sin tarifas registradas'+(verTodas?'':' para esta sede')+'</p>';
     else el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Servicio</th>'+(verTodas?'<th>Sede</th>':'')+'<th>Tipo</th><th>Sesiones</th><th>Precio</th><th>Cuotas</th><th>Por cuota</th><th></th></tr></thead><tbody>'+
-    D.tarifas.map(function(t){var cuotas=t.cantidad_cuotas||1;var porCuota=t.monto_cuota||((t.costo_total||0)/cuotas);return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(t.nombre_servicio||t.terapia||'—')+'</td>'+(verTodas?'<td style="font-size:11px;color:var(--muted)">'+(t.sede||'—')+'</td>':'')+'<td style="font-size:12px">'+(t.tipo||'paquete')+'</td><td style="font-weight:700">'+(t.nro_sesiones||0)+'</td><td style="font-weight:900;color:#15803d">S/'+(t.costo_total||t.precio_paquete||0)+'</td><td style="text-align:center">'+cuotas+'</td><td>S/'+porCuota.toFixed(2)+'</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-sm" style="background:#eef2ff;color:#4338ca" onclick="editarTarifa(\''+t.id+'\')">✏️</button> <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarTarifa(\''+t.id+'\')">🗑</button></td></tr>';}).join('')+'</tbody></table>';
+    D.tarifas.map(function(t){var cuotas=t.cantidad_cuotas||1;var porCuota=t.monto_cuota||((t.costo_total||0)/cuotas);return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(t.nombre_servicio||'—')+'</td>'+(verTodas?'<td style="font-size:11px;color:var(--muted)">'+(t.sede||'—')+'</td>':'')+'<td style="font-size:12px">'+(t.tipo||'paquete')+'</td><td style="font-weight:700">'+(t.nro_sesiones||0)+'</td><td style="font-weight:900;color:#15803d">S/'+(t.costo_total||0)+'</td><td style="text-align:center">'+cuotas+'</td><td>S/'+porCuota.toFixed(2)+'</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-sm" style="background:#eef2ff;color:#4338ca" onclick="editarTarifa(\''+t.id+'\')">✏️</button> <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarTarifa(\''+t.id+'\')">🗑</button></td></tr>';}).join('')+'</tbody></table>';
   }
   var el2=document.getElementById('listaPrecios');
   if(el2){
@@ -1030,10 +1030,10 @@ function editarTarifa(id){
   var t=(D.tarifas||[]).find(function(x){return String(x.id)===String(id);});if(!t)return;
   document.getElementById('tfId').value=t.id;
   document.getElementById('tfSede').value=t.sede||D.sede||'Comas';
-  document.getElementById('tfNombre').value=t.nombre_servicio||t.terapia||'';
+  document.getElementById('tfNombre').value=t.nombre_servicio||'';
   document.getElementById('tfTipo').value=t.tipo||'paquete';
   document.getElementById('tfNro').value=t.nro_sesiones||12;
-  document.getElementById('tfTotal').value=t.costo_total||t.precio_paquete||0;
+  document.getElementById('tfTotal').value=t.costo_total||0;
   document.getElementById('tfCuotas').value=t.cantidad_cuotas||1;
   calcCuotaTarifa();
   document.getElementById('modalTarifa').classList.add('open');
