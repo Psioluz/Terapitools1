@@ -995,7 +995,13 @@ function _diasTrabajoANum(txt){
                 nac:p.fecha_nac||'',apoderado:p.apoderado||'',
                 estado:p.estado,saldo:p.saldo||0};
             }),
-            terapias:ters,fichas:fichas,bonos:bonos,honorarios:hon,
+            terapias:ters,fichas:fichas,bonos:bonos,
+            honorarios:hon.map(function(h){
+              return {id:h.id,nombre:h.psicologa_nombre||'',sede:h.sede||'',mes:h.mes||'',
+                estado:h.estado||'pendiente',montoBase:h.monto_base||0,
+                descuentoTardanza:h.descuento_tardanza||0,descuentoInasistencia:h.descuento_inasistencia||0,
+                neto:h.total||h.monto_base||0};
+            }),
             contratos:conts,pagos:pagos,gastos:gastos,
             asistencia:asistPers.map(function(a){
               return {id:a.id,fecha:a.fecha,nombre:a.psicologa||'',sede:a.sede||'',
