@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Psicoluz Visor por Sede</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--acc:#e91e8c;--dark:#4a0e2e;--bg:#fdf0f7;--text:#1e293b;--muted:#64748b;--border:#e2e8f0;--card:#fff}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,var(--dark),var(--acc));color:#fff;padding:16px 20px;position:sticky;top:0;z-index:10;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+header h1{font-size:16px;font-weight:900}
+header p{font-size:11px;opacity:.85;margin-top:2px}
+.filtros{max-width:1100px;margin:16px auto 0;padding:0 16px}
+.filtros label{font-size:11px;font-weight:800;color:var(--muted);display:block;margin-bottom:4px}
+.filtros select{padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:#fff;min-width:220px;color:var(--text)}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden}
+.ch{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px}
+.ct{font-size:14px;font-weight:800;color:var(--dark)}
+.hint{font-size:11px;color:var(--muted)}
+.cb{overflow:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
+.tbl th{padding:8px 10px;font-size:10px;font-weight:800;text-align:left;color:var(--muted);background:#fdf2f8;border-bottom:2px solid var(--border);position:sticky;top:0}
+.tbl td{padding:7px 10px;border-bottom:1px solid var(--border)}
+.tbl tr:hover td{background:#fdf2f8}
+.empty{padding:16px;text-align:center;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🔍 Psicoluz — Visor por Sede</h1>
+  <p>Solo lectura — revisa qué se ha llenado en Supabase, sede por sede. Para editar, usa Administración o Sistema.</p>
+</header>
+<div class="filtros">
+  <label>Sede</label>
+  <select id="visorSede" onchange="visorCargar()">
+    <option value="">Todas las sedes</option>
+    <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option>
+  </select>
+</div>
+<main id="visorContenido"></main>
+
+<script>
+const SBU='https://uorxwmgaekeeuxeiikkw.supabase.co';
+const SBK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
+const SBH={apikey:SBK,'Authorization':'Bearer '+SBK,'Content-Type':'application/json'};
+
+async function sbGet(t,p){
+  p=p||{};let u=SBU+'/rest/v1/'+t;
+  const qs=Object.entries(p).map(function(e){return e[0]+'='+encodeURIComponent(e[1]);}).join('&');
+  if(qs)u+='?'+qs;
+  const r=await fetch(u,{headers:Object.assign({},SBH,{'Prefer':'count=exact'})});
+  const txt=await r.text();let data=null;try{data=JSON.parse(txt);}catch(e){}
+  if(!r.ok)throw new Error((data&&(data.message||data.hint))||txt.slice(0,200));
+  const cr=r.headers.get('content-range')||'';const m=cr.match(/\/(\d+|\*)$/);
+  return {data:data,count:(m&&m[1]!=='*')?parseInt(m[1],10):null};
+}
+
+// Tablas que NO tienen columna "sede" -- el filtro se ignora en estas.
+const TABLAS_SIN_SEDE=['sedes','programa_terapias'];
+
+const VISOR_SECCIONES=[
+  {tabla:'terapias',titulo:'🧠 Tipos de Terapia',orden:'nombre.asc',cols:[
+    {k:'nombre',l:'Nombre'},{k:'color',l:'Color',fmt:function(v){return v?'<span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:'+v+';vertical-align:middle;margin-right:4px"></span>'+v:'—';}},
+    {k:'activa',l:'Activa',fmt:function(v){return v?'✅':'❌';}},{k:'sede',l:'Sede',fmt:function(v){return v||'Todas';}}]},
+  {tabla:'psicologas',titulo:'👩‍⚕️ Psicólogas',orden:'nombre.asc',cols:[
+    {k:'nombre',l:'Nombre'},{k:'especialidad',l:'Especialidad'},{k:'grado_academico',l:'Grado académico'},
+    {k:'sede',l:'Sede'},{k:'estado',l:'Estado'},{k:'telefono',l:'Teléfono'},{k:'email',l:'Email'}]},
+  {tabla:'recepcionistas',titulo:'💻 Recepcionistas',orden:'nombre.asc',cols:[
+    {k:'nombre',l:'Nombre'},{k:'sede',l:'Sede'},{k:'estado',l:'Estado'},{k:'telefono',l:'Teléfono'},{k:'email',l:'Email'}]},
+  {tabla:'pacientes',titulo:'🧒 Pacientes',orden:'nombre.asc',limite:200,cols:[
+    {k:'nombre',l:'Nombre'},{k:'sede',l:'Sede'},{k:'psicologa',l:'Psicóloga'},{k:'terapia',l:'Terapia'},
+    {k:'colegio',l:'Colegio'},{k:'grado',l:'Grado'},{k:'estado',l:'Estado'},{k:'saldo',l:'Saldo',fmt:function(v){return 'S/'+(v||0);}}]},
+  {tabla:'tarifas_sede',titulo:'💲 Tarifas y Precios',orden:'nombre_servicio.asc',cols:[
+    {k:'nombre_servicio',l:'Servicio'},{k:'sede',l:'Sede',fmt:function(v){return v||'Todas';}},{k:'tipo',l:'Tipo'},
+    {k:'nro_sesiones',l:'Sesiones'},{k:'costo_total',l:'Precio total',fmt:function(v){return 'S/'+(v||0);}},
+    {k:'cantidad_cuotas',l:'Cuotas'},{k:'monto_cuota',l:'Por cuota',fmt:function(v){return 'S/'+(v||0);}}]},
+  {tabla:'sesiones',titulo:'📅 Sesiones recientes',orden:'fecha.desc',limite:100,cols:[
+    {k:'fecha',l:'Fecha'},{k:'hora',l:'Hora'},{k:'paciente_nombre',l:'Paciente'},{k:'psicologa',l:'Psicóloga'},
+    {k:'terapia',l:'Terapia'},{k:'estado',l:'Estado'},{k:'sede',l:'Sede'}]},
+  {tabla:'pagos',titulo:'💰 Pagos recientes',orden:'fecha.desc',limite:100,cols:[
+    {k:'fecha',l:'Fecha'},{k:'paciente_nombre',l:'Paciente'},{k:'monto',l:'Monto',fmt:function(v){return 'S/'+(v||0);}},
+    {k:'metodo',l:'Método'},{k:'sede',l:'Sede'}]},
+  {tabla:'contratos',titulo:'📋 Contratos',orden:'created_at.desc',cols:[
+    {k:'trabajadora',l:'Trabajadora'},{k:'tipo',l:'Tipo'},{k:'sede',l:'Sede'},{k:'estado',l:'Estado'},
+    {k:'monto',l:'Monto',fmt:function(v){return 'S/'+(v||0);}}]},
+  {tabla:'honorarios',titulo:'💵 Honorarios / Planilla',orden:'mes.desc',cols:[
+    {k:'psicologa_nombre',l:'Psicóloga'},{k:'mes',l:'Mes'},{k:'sede',l:'Sede'},{k:'estado',l:'Estado'},
+    {k:'monto_base',l:'Base',fmt:function(v){return 'S/'+(v||0);}},{k:'total',l:'Total',fmt:function(v){return 'S/'+(v||0);}}]},
+  {tabla:'feriados',titulo:'🎉 Feriados',orden:'fecha.asc',cols:[
+    {k:'fecha',l:'Fecha'},{k:'descripcion',l:'Descripción'},{k:'sede',l:'Sede',fmt:function(v){return v||'Todas';}},
+    {k:'tipo_gestion',l:'¿Se trabaja?',fmt:function(v){return v==='no_laborable'?'❌ No':'✅ Sí';}},{k:'estado',l:'Estado'}]}
+];
+
+async function visorCargar(){
+  const sede=document.getElementById('visorSede').value;
+  const cont=document.getElementById('visorContenido');
+  cont.innerHTML=VISOR_SECCIONES.map(function(s){
+    return '<div class="card" id="visor-'+s.tabla+'"><div class="ch"><div class="ct">'+s.titulo+'</div><span class="hint">⏳ cargando…</span></div><div class="cb"></div></div>';
+  }).join('');
+  VISOR_SECCIONES.forEach(async function(s){
+    const box=document.getElementById('visor-'+s.tabla);
+    const hintEl=box.querySelector('.hint');
+    const body=box.querySelector('.cb');
+    try{
+      const params={select:'*',order:s.orden,limit:String(s.limite||100)};
+      const sedeAplica=sede&&TABLAS_SIN_SEDE.indexOf(s.tabla)===-1;
+      if(sedeAplica)params.sede='eq.'+sede;
+      const r=await sbGet(s.tabla,params);
+      const rows=r.data||[];
+      hintEl.textContent=(r.count!==null?r.count+' en total · ':'')+rows.length+' mostradas'+(sedeAplica?' · sede: '+sede:'');
+      if(!rows.length){body.innerHTML='<div class="empty">Sin datos'+(sedeAplica?' para esta sede':'')+'.</div>';return;}
+      var html='<table class="tbl"><thead><tr>'+s.cols.map(function(c){return '<th>'+c.l+'</th>';}).join('')+'</tr></thead><tbody>';
+      rows.forEach(function(r2){
+        html+='<tr>'+s.cols.map(function(c){var v=r2[c.k];return '<td>'+(c.fmt?c.fmt(v):(v===null||v===undefined||v===''?'—':v))+'</td>';}).join('')+'</tr>';
+      });
+      html+='</tbody></table>';
+      body.innerHTML=html;
+    }catch(e){
+      hintEl.textContent='❌ error';
+      body.innerHTML='<div class="empty" style="color:#dc2626">'+e.message+'</div>';
+    }
+  });
+}
+visorCargar();
+</script>
+</body>
+</html>
