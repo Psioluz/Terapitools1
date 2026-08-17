@@ -1,0 +1,23 @@
+-- BUG REAL encontrado con el Visor por Sede: terapias.sede no estaba vacía
+-- (que es como el sistema representa "disponible en todas las sedes" -- así
+-- lo usan recepcion, administracion y gerencia al filtrar), sino que tenía
+-- una lista de nombres de sede separados por coma escrita a mano, con
+-- variaciones de formato ("Pachacútec" con tilde, espacios inconsistentes,
+-- coma con o sin espacio):
+--
+--   "Comas, Ovalo Zapallal, Flecha, Pachacutec, Rosaluz"
+--   "Comas, Ovalo Zapallal, Flecha, Rosaluz"
+--   "Comas,Ovalo Zapallal, Flecha, Pachacutec, Rosaluz"
+--   "Comas, Ovalo Zapallal, Flecha, Pachacútec, Rosaluz"
+--   " Comas, Ovalo Zapallal, Flecha, Pachacutec, Rosaluz"
+--
+-- Esto pasó porque el campo "sede" de terapias es un texto libre en el
+-- editor de Sistema, sin ninguna guía -- se terminó escribiendo el nombre
+-- de todas las sedes en vez de dejarlo vacío. El resultado: ni Recepción,
+-- ni el Visor, ni ninguna otra app mostraba estas terapias al filtrar por
+-- una sede específica (sede=eq.'Comas' no calza con ese texto largo).
+--
+-- Esta migración limpia esas 27 filas: cualquier fila cuyo texto de sede
+-- contenga una coma (indicando que se listó más de una sede a mano) se
+-- normaliza a NULL, quedando correctamente marcada como "todas las sedes".
+update terapias set sede = null where sede like '%,%';

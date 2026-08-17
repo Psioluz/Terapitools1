@@ -172,7 +172,7 @@ try{
             <label class="hint">Sede</label>
             <select id="visorSede" class="fsel" style="width:100%;max-width:320px" onchange="visorCargar()">
               <option value="">Todas las sedes</option>
-              <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option>
+              <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option><option>Rosaluz</option>
             </select>
             <div class="hint" style="margin-top:6px">Vista de solo lectura para revisar qué se ha llenado en Supabase, sede por sede. Para editar usa "Tablas de Supabase".</div>
           </div>
@@ -193,7 +193,7 @@ try{
                 <label class="hint">Sede</label>
                 <select id="tblSede" class="fsel" style="width:100%" onchange="tblCargar()">
                   <option value="">Todas las sedes</option>
-                  <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option>
+                  <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option><option>Rosaluz</option>
                 </select>
               </div>
               <div>
@@ -498,7 +498,7 @@ const COLOR_COLS={terapias:['color']};
 const COLUMN_HINTS={
   '*':{
     id:'Se genera solo — no editar.',
-    sede:'Uno de: Comas, Ovalo Zapallal, Flecha, Pachacutec',
+    sede:'Uno de: Comas, Ovalo Zapallal, Flecha, Pachacutec, Rosaluz',
     fecha:'Formato AAAA-MM-DD, ej. 2026-07-15',
     fecha_nac:'Formato AAAA-MM-DD, ej. 1995-03-20',
     fecha_ingreso:'Formato AAAA-MM-DD, ej. 2024-01-10',
@@ -580,7 +580,7 @@ const COLUMN_HINTS={
     categoria:'insumos, papeleria, servicios, movilidad, alquiler u otro'
   },
   sedes:{
-    nombre:'Nombre exacto de la sede, ej. Comas, Ovalo Zapallal, Flecha o Pachacutec',
+    nombre:'Nombre exacto de la sede, ej. Comas, Ovalo Zapallal, Flecha, Pachacutec o Rosaluz',
     direccion:'Dirección completa de la sede',
     activa:'true o false'
   },

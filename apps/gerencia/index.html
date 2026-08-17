@@ -680,6 +680,7 @@ select.fsel{
             <option value="Ovalo Zapallal">Óvalo Zapallal</option>
             <option value="Flecha">Flecha</option>
             <option value="Pachacutec">Pachacutec</option>
+            <option value="Rosaluz">Rosaluz</option>
           </select>
         </div>
       </div>
@@ -776,6 +777,7 @@ async function eliminarPagoRecurrente(id){
           <option value="Ovalo Zapallal">Óvalo Zapallal</option>
           <option value="Flecha">Flecha</option>
           <option value="Pachacutec">Pachacutec</option>
+          <option value="Rosaluz">Rosaluz</option>
         </select>
         <span style="font-size:10px;opacity:.7">· Ves mensajes de todas las sedes</span>
       </div>
@@ -801,6 +803,7 @@ async function eliminarPagoRecurrente(id){
             <option value="Ovalo Zapallal">Óvalo Zapallal</option>
             <option value="Flecha">Flecha</option>
             <option value="Pachacutec">Pachacutec</option>
+            <option value="Rosaluz">Rosaluz</option>
           </select>
         </div>
       </div>
@@ -1322,7 +1325,7 @@ function initApp(){
   }
 
   // Poblar selector de sedes y cargar directo desde Supabase (única fuente de datos).
-  var sedes=['Comas','Ovalo Zapallal','Flecha','Pachacutec'];
+  var sedes=['Comas','Ovalo Zapallal','Flecha','Pachacutec','Rosaluz'];
   var selS0=document.getElementById('fSede');
   sedes.forEach(s=>{
     if(!selS0.querySelector(`option[value="${s}"]`)){
@@ -1403,7 +1406,7 @@ function getFiltMes(){ return document.getElementById('fMes')?.value||''; }
 function getFiltSede(){ return document.getElementById('fSede')?.value||''; }
 function poblarFiltroSede(){
   var sel=document.getElementById('fSede'); if(!sel||sel.options.length>1) return;
-  ['Comas','Ovalo Zapallal','Flecha','Pachacutec'].forEach(function(s){
+  ['Comas','Ovalo Zapallal','Flecha','Pachacutec','Rosaluz'].forEach(function(s){
     var o=document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o);
   });
 }
@@ -2289,7 +2292,7 @@ function renderDonut(elId, data){
 // ── HELPERS ─────────────────────────────────────────────────────────────────
 function getSedes(){
   var set=new Set();
-  ['Comas','Ovalo Zapallal','Flecha','Pachacutec'].forEach(s=>set.add(s));
+  ['Comas','Ovalo Zapallal','Flecha','Pachacutec','Rosaluz'].forEach(s=>set.add(s));
   G.sedes.forEach(s=>set.add(s.nombre));
   G.sesiones.forEach(s=>{if(s.sede||s._sede)set.add(s.sede||s._sede);});
   G.psicologas.forEach(p=>{if(p.sede||p._sede)set.add(p.sede||p._sede);});
@@ -2745,7 +2748,7 @@ async function renderDocsPsicologas(){
     </div>
     <label style="font-size:11px;font-weight:800;color:#64748b;display:block;margin-bottom:4px">Sede</label>
     <select id="accSede" style="width:100%;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;margin-bottom:14px;box-sizing:border-box">
-      <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option><option>Todas</option>
+      <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option><option>Rosaluz</option><option>Todas</option>
     </select>
   <label class="acc-lbl" style="font-size:11px;font-weight:700;color:#64748b;display:block;margin:10px 0 4px">💵 Día de pago mensual (1-31, opcional)</label>
   <input type="number" min="1" max="31" id="accDiaPago" placeholder="Ej: 8 — si se deja vacío, usa el día de su fecha de ingreso" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;box-sizing:border-box">
