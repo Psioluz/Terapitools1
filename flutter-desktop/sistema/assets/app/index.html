@@ -582,7 +582,7 @@ const COLUMN_HINTS={
     nombre:'Nombre de la terapia, ej. Psicología Clínica',
     color:'Usa el selector de color — no escribir el código a mano',
     activa:'true o false',
-    sede:'Vacío = disponible en todas las sedes. Con un nombre de sede (ej. Comas) = solo aparece ahí'
+    sede:'Vacío = disponible en todas las sedes. Un nombre de sede (ej. Comas) = solo ahí. Varias sedes separadas por coma (ej. "Comas, Flecha") = disponible en esas, pero no en el resto'
   },
   gastos:{
     concepto:'Descripción breve del gasto, ej. "Compra de útiles de oficina"',
@@ -895,7 +895,9 @@ async function visorCargar(){
         var sedeNorm=sede.trim().toLowerCase();
         rows=rows.filter(function(row){
           var rs=(row.sede||'').trim();
-          return !rs||rs.toLowerCase()===sedeNorm;
+          if(!rs)return true;
+          var lista=rs.split(',').map(function(x){return x.trim().toLowerCase();});
+          return lista.indexOf(sedeNorm)!==-1;
         });
       }
       hintEl.textContent=(count!==null&&!filtradoLocal?count+' en total · ':'')+rows.length+' mostradas'+(sedeAplica?' · sede: '+sede:'');

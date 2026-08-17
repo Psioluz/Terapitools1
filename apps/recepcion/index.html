@@ -936,6 +936,14 @@ function mostrarError(el, msg) {
 
 // ── STATE ──
 let DB={sede:'',usuario:'',psicologas:[],terapias:[],paquetes:[],pacientes:[],sesiones:[],pagos:[],programas:[],feriados:[]};
+// terapias.sede puede estar vacía (todas las sedes), tener UNA sede, o
+// varias separadas por coma (ej. "Comas, Flecha") -- esto último para
+// terapias que se dan en más de una sede pero no en todas.
+function terapiaAplicaASede(campoSede,miSede){
+  if(!campoSede||!campoSede.trim())return true;
+  var lista=campoSede.split(',').map(function(s){return s.trim().toLowerCase();});
+  return lista.indexOf((miSede||'').trim().toLowerCase())!==-1;
+}
 let _sede='';
 let _semOff=0;
 let _tickTimer=null;
@@ -2748,7 +2756,7 @@ async function cargarDesdeSB(silencioso) {
       sbGet('pagos',{sede:'eq.'+DB.sede,fecha:'gte.'+desde,select:'*',order:'fecha.desc',limit:'1500'}),
       sbGet('psicologas',{sede:'eq.'+DB.sede,estado:'eq.activa',select:'*'}),
       sbGet('asistencia_personal',{sede:'eq.'+DB.sede,fecha:'gte.'+desde,select:'*',order:'fecha.desc'}),
-      sbGet('terapias',{select:'*',or:'(sede.is.null,sede.eq.'+DB.sede+')'}).catch(function(){return[];}),
+      sbGet('terapias',{select:'*'}).catch(function(){return[];}),
       sbGet('tarifas_sede',{sede:'eq.'+DB.sede,select:'*'}).catch(function(){return[];}),
       sbGet('programas_paciente',{sede:'eq.'+DB.sede,estado:'eq.activo',select:'*,programa_terapias(*)'}).catch(function(){return[];}),
       sbGet('feriados',{estado:'eq.activo',select:'*'}).catch(function(){return[];})
@@ -2770,7 +2778,8 @@ async function cargarDesdeSB(silencioso) {
       diaEspecial:p.dia_completo||'',
       estado:p.estado||'activa',_sb:p};});
     DB.asistPersonal=res[4]||[];
-    DB.terapias=(res[5]||[]).map(function(t){return{id:t.id||t.nombre,nombre:t.nombre,color:t.color||''};});
+    DB.terapias=(res[5]||[]).filter(function(t){return terapiaAplicaASede(t.sede,DB.sede);})
+      .map(function(t){return{id:t.id||t.nombre,nombre:t.nombre,color:t.color||''};});
     DB.paquetes=(res[6]||[]).map(function(t){return{id:t.id||t.nombre_servicio,
       nombre:t.nombre_servicio||'Servicio',tipo:t.tipo||'paquete',
       terId:t.nombre_servicio,terNom:t.nombre_servicio,

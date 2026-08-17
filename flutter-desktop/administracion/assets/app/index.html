@@ -523,6 +523,14 @@ function badge(e){var m={activo:'bg',activa:'bg',activo:'bg',firmado:'bg',presen
 
 var ADM={nombre:'',email:'',id:null};
 var D={sesiones:[],pacientes:[],pagos:[],psicologas:[],contratos:[],gastos:[],honorarios:[],asistencia:[],insumos:[],terapias:[],recepcionistas:[],usuariosGerencia:[],feriados:[],rendimiento:[],sede:''};
+// terapias.sede puede estar vacía (todas las sedes), tener UNA sede, o
+// varias separadas por coma (ej. "Comas, Flecha") para terapias que se
+// dan en más de una sede pero no en todas.
+function terapiaAplicaASede(campoSede,miSede){
+  if(!campoSede||!campoSede.trim())return true;
+  var lista=campoSede.split(',').map(function(s){return s.trim().toLowerCase();});
+  return lista.indexOf((miSede||'').trim().toLowerCase())!==-1;
+}
 // Sedes activas, cargadas de Supabase (tabla "sedes") -- no hardcodeadas,
 // para que agregar/quitar una sede no requiera tocar código en cada app.
 var SEDES_ACTIVAS=[];
@@ -585,7 +593,7 @@ async function recargar(){
       sbGet('precio_paciente',Object.assign({select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
       sbGet('bonos',{mes:'eq.'+mes,select:'*'}).catch(function(){return[];}),
       sbGet('pagos_recurrentes',Object.assign({select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
-      sbGet('terapias',sed?{select:'*',or:'(sede.is.null,sede.eq.'+sed+')'}:{select:'*'}).catch(function(){return[];}),
+      sbGet('terapias',{select:'*'}).catch(function(){return[];}),
       sbGet('recepcionistas',Object.assign({select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
       sbGet('usuarios_gerencia',{select:'*'}).catch(function(){return[];}),
       sbGet('feriados',{select:'*',order:'fecha.asc'}).catch(function(){return[];}),
@@ -594,7 +602,8 @@ async function recargar(){
     D.sesiones=res[0]||[];D.pacientes=res[1]||[];D.pagos=res[2]||[];D.psicologas=res[3]||[];
     D.contratos=res[4]||[];D.gastos=res[5]||[];D.honorarios=res[6]||[];D.asistencia=res[7]||[];D.insumos=res[8]||[];
     D.tarifas=res[9]||[];D.precios=res[10]||[];D.bonos=res[11]||[];D.pagosRecurrentes=res[12]||[];
-    D.terapias=res[13]||[];D.recepcionistas=res[14]||[];D.usuariosGerencia=res[15]||[];D.feriados=res[16]||[];
+    D.terapias=sed?(res[13]||[]).filter(function(t){return terapiaAplicaASede(t.sede,sed);}):(res[13]||[]);
+    D.recepcionistas=res[14]||[];D.usuariosGerencia=res[15]||[];D.feriados=res[16]||[];
     D.rendimiento=res[17]||[];
     D.sede=sed;D.mes=mes;
     renderActiva();

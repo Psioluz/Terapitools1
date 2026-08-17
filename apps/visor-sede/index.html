@@ -117,10 +117,15 @@ async function visorCargar(){
       const filasSinFiltrar=rows;
       const filtradoLocal=sedeAplica&&s.sedeNullable;
       if(filtradoLocal){
+        // sede puede venir vacía (todas), con una sede, o con varias
+        // separadas por coma (ej. "Comas, Flecha") para lo que aplica a
+        // más de una sede pero no a todas.
         var sedeNorm=sede.trim().toLowerCase();
         rows=rows.filter(function(row){
           var rs=(row.sede||'').trim();
-          return !rs||rs.toLowerCase()===sedeNorm;
+          if(!rs)return true;
+          var lista=rs.split(',').map(function(x){return x.trim().toLowerCase();});
+          return lista.indexOf(sedeNorm)!==-1;
         });
       }
       hintEl.textContent=(r.count!==null&&!filtradoLocal?r.count+' en total · ':'')+rows.length+' mostradas'+(sedeAplica?' · sede: '+sede:'');
