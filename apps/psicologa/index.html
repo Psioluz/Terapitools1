@@ -1491,7 +1491,7 @@ function toggleLoginPanel(emailMode){
 }
 
 // ── LOGIN CON EMAIL ───────────────────────────────────────────────────────
-function doLoginEmail(){
+async function doLoginEmail(){
   const email = (document.getElementById('lEmail')?.value||'').trim().toLowerCase();
   const pass  = document.getElementById('lPassEmail')?.value||'';
   const err   = document.getElementById('lErrEmail');
@@ -1508,7 +1508,7 @@ function doLoginEmail(){
     try{
       const cacheKey = 'psicoluz_ps_cred_'+email;
       const cached = JSON.parse(localStorage.getItem(cacheKey)||'null');
-      if(cached && cached.pass === pass) psEncontrada = cached;
+      if(cached && cached.passHash && cached.passHash === await sha256Hex(pass)) psEncontrada = cached;
     }catch(e){}
   }
 
@@ -1516,7 +1516,7 @@ function doLoginEmail(){
     // Intentar buscar en el Sheet vía Apps Script
     err.textContent = '⏳ Verificando...'; err.style.display='block';
     fetch(API+'?action=getByEmail&email='+encodeURIComponent(email)+'&_='+Date.now(),{cache:'no-store'})
-      .then(r=>r.text()).then(txt=>{
+      .then(r=>r.text()).then(async txt=>{
         if(txt&&txt.charAt(0)==='{'){
           const data=JSON.parse(txt);
           // Aceptar tanto data.psicologa como data.usuario (compatibilidad)
@@ -1534,16 +1534,15 @@ function doLoginEmail(){
             // Verificar contraseña: acepta la del sheet O la contraseña global
             const passCorrecta = (ps2.password && ps2.password === pass) || pass === PASS;
             if(passCorrecta){
-              // Guardar en cache para acceso offline
+              // Guardar perfil completo para acceso offline (sin contraseña;
+              // completarLoginConPs se encarga de cachear el hash de la clave)
               try{
-                localStorage.setItem('psicoluz_ps_cred_'+email, JSON.stringify({...ps2,pass}));
-                // También guardar el perfil completo para acceso offline
                 localStorage.setItem('psicoluz_ps_dia_'+ps2.sede+'_'+ps2.nombre,
                   JSON.stringify({diaEspecial:ps2.diaEspecial||'',inicio:ps2.inicio||'13:15',
                     fin:ps2.fin||'20:00',cop:ps2.cop||'',esp:ps2.especialidad||ps2.esp||'',
                     fechaIngreso:ps2.fechaIngreso||'',fechaNac:ps2.fechaNac||'',tel:ps2.tel||''}));
               }catch(e){}
-              completarLoginConPs(ps2);
+              await completarLoginConPs(ps2);
               return;
             } else {
               showErr('Contraseña incorrecta. Verifica tu contraseña registrada.');
@@ -1571,10 +1570,18 @@ function doLoginEmail(){
   if(psEncontrada.estado==='inactiva'){
     showErr('Tu cuenta está temporalmente inactiva. Contacta a la administradora.'); return;
   }
-  completarLoginConPs(psEncontrada);
+  await completarLoginConPs(psEncontrada);
 }
 
-function completarLoginConPs(psObj){
+// Hash de un texto con SHA-256 (nativo del navegador) -- se usa para NO
+// guardar la contraseña real en localStorage, solo su huella, así el login
+// offline sigue funcionando sin dejar la contraseña en texto plano en el
+// dispositivo.
+async function sha256Hex(str){
+  var buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str||''));
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+async function completarLoginConPs(psObj){
   PS.nombre       = psObj.nombre || psObj.name || '';
   PS.sede         = psObj.sede   || psObj._sede || '';
   PS.email        = psObj.email  || '';
@@ -1611,7 +1618,7 @@ function completarLoginConPs(psObj){
       cop:PS.cop,especialidad:PS.esp,diaEspecial:PS.diaEspecial,
       inicio:PS.inicio,fin:PS.fin,fechaIngreso:PS.fechaIngreso,
       fechaNac:PS.fechaNac,tel:PS.tel,diasSemana:PS.diasSemana,
-      pass:psObj.password||''
+      passHash:psObj.password?await sha256Hex(psObj.password):(psObj.passHash||'')
     }));
   }catch(_e){}
   loadPS();

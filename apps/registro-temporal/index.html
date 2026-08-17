@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Psicoluz Registro Temporal</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--acc:#e91e8c;--dark:#4a0e2e;--bg:#fdf0f7;--text:#1e293b;--muted:#64748b;--border:#e2e8f0;--card:#fff;--green:#16a34a;--red:#dc2626}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,var(--dark),var(--acc));color:#fff;padding:16px 20px;position:sticky;top:0;z-index:10;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+header h1{font-size:16px;font-weight:900}
+header p{font-size:11px;opacity:.85;margin-top:2px}
+main{max-width:760px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden}
+.ch{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px}
+.ct{font-size:14px;font-weight:800;color:var(--dark)}
+.cb{padding:16px}
+label{font-size:11px;font-weight:800;color:var(--muted);display:block;margin-bottom:4px}
+.fc,select,input,textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;margin-bottom:12px;font-family:inherit;background:#fff}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.btn{padding:12px 18px;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer}
+.btn-primary{background:linear-gradient(135deg,var(--dark),var(--acc));color:#fff;width:100%}
+.btn-outline{background:#fff;border:1.5px solid var(--border);color:var(--text)}
+.btn-sm{padding:7px 12px;font-size:12px}
+.pac-item{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;cursor:pointer}
+.pac-item:hover{background:#fdf2f8}
+.pac-actual{background:linear-gradient(135deg,var(--dark),var(--acc));color:#fff;padding:12px 16px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.pac-actual b{font-size:14px}
+.pac-actual span{font-size:11px;opacity:.85}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{padding:7px 8px;font-size:10px;font-weight:800;text-align:left;color:var(--muted);background:#fdf2f8;border-bottom:2px solid var(--border)}
+.tbl td{padding:7px 8px;border-bottom:1px solid var(--border)}
+.hint{font-size:11px;color:var(--muted)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--dark);color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:700;z-index:999;display:none;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.toast.show{display:block}
+.toast.err{background:var(--red)}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
+.b-asistio{background:#dcfce7;color:#166534}.b-noasistio{background:#fee2e2;color:#991b1b}.b-tardanza{background:#fef9c3;color:#92400e}
+.empty{padding:14px;text-align:center;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🗂️ Psicoluz — Registro Temporal</h1>
+  <p>Para poner al día pacientes y sesiones pasadas mientras se migra a Recepción. Todo se guarda directo en Supabase.</p>
+</header>
+<main>
+  <div class="card">
+    <div class="cb">
+      <label>Sede</label>
+      <select id="selSede" onchange="cambiarSede()">
+        <option value="">— Elige tu sede —</option>
+      </select>
+      <div class="hint" id="sedeHint">Elige una sede para empezar.</div>
+    </div>
+  </div>
+
+  <div id="zonaTrabajo" style="display:none">
+    <div id="pacActualBox"></div>
+
+    <!-- BUSCAR / CREAR PACIENTE -->
+    <div class="card" id="cardBuscarPaciente">
+      <div class="ch"><div class="ct">1️⃣ Paciente</div>
+        <button class="btn btn-outline btn-sm" onclick="toggleNuevoPaciente()" id="btnNuevoPacToggle">➕ Registrar paciente nuevo</button>
+      </div>
+      <div class="cb">
+        <label>Buscar paciente existente</label>
+        <input id="buscarPac" placeholder="Escribe el nombre..." oninput="renderBusquedaPac()">
+        <div id="listaBusquedaPac"></div>
+
+        <div id="formNuevoPaciente" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+          <div class="grid2">
+            <div><label>Nombre completo *</label><input id="npNombre" placeholder="Nombres y apellidos"></div>
+            <div><label>DNI</label><input id="npDni" maxlength="8" placeholder="12345678"></div>
+            <div><label>Teléfono / WhatsApp</label><input id="npTel" placeholder="+51 9XX XXX XXX"></div>
+            <div><label>Fecha de nacimiento</label><input type="date" id="npNac"></div>
+            <div><label>Género</label><select id="npGenero"><option value="">— Seleccionar —</option><option value="F">Femenino</option><option value="M">Masculino</option><option value="O">Otro</option></select></div>
+            <div><label>Apoderado (si es menor)</label><input id="npApoderado" placeholder="Nombre del apoderado"></div>
+            <div><label>Colegio</label><input id="npColegio"></div>
+            <div><label>Grado</label><input id="npGrado"></div>
+          </div>
+          <label>Motivo de consulta</label>
+          <textarea id="npMotivo" rows="2"></textarea>
+          <button class="btn btn-primary" onclick="guardarPacienteNuevo()">💾 Registrar paciente y continuar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORIAL Y REGISTRO DE SESIONES -->
+    <div class="card" id="cardSesiones" style="display:none">
+      <div class="ch"><div class="ct">2️⃣ Sesiones ya registradas</div><span class="hint" id="sesHint"></span></div>
+      <div class="cb" style="overflow:auto;padding:0" id="listaSesionesPac"></div>
+    </div>
+
+    <div class="card" id="cardNuevaSesion" style="display:none">
+      <div class="ch"><div class="ct">3️⃣ Registrar sesión pasada</div></div>
+      <div class="cb">
+        <div class="grid2">
+          <div><label>Fecha de la sesión *</label><input type="date" id="sFecha"></div>
+          <div><label>Hora</label><input type="time" id="sHora" value="15:00"></div>
+          <div>
+            <label>Psicóloga *</label>
+            <select id="sPsicologa"><option value="">— Elige —</option></select>
+          </div>
+          <div>
+            <label>Terapia que llevó *</label>
+            <select id="sTerapia"><option value="">— Elige —</option></select>
+          </div>
+          <div>
+            <label>Tipo</label>
+            <select id="sTipo">
+              <option value="paquete">📦 Paquete de sesiones</option>
+              <option value="sesion">Sesión suelta</option>
+              <option value="consulta">🩺 Consulta</option>
+            </select>
+          </div>
+          <div>
+            <label>¿Asistió?</label>
+            <select id="sEstado">
+              <option value="asistio">✅ Asistió</option>
+              <option value="tardanza">⏰ Llegó tarde</option>
+              <option value="noasistio">❌ No asistió</option>
+            </select>
+          </div>
+          <div><label>Costo de la sesión/paquete (S/)</label><input type="number" id="sCosto" value="0" step="0.01"></div>
+          <div><label>Pago recibido ese día (S/, opcional)</label><input type="number" id="sPago" value="0" step="0.01"></div>
+        </div>
+        <label>Método de pago (si registraste un pago)</label>
+        <select id="sMetodo"><option value="Efectivo">Efectivo</option><option value="Yape">Yape</option><option value="Plin">Plin</option><option value="Transferencia">Transferencia</option><option value="Tarjeta">Tarjeta</option></select>
+        <button class="btn btn-primary" onclick="guardarSesionPasada()">💾 Guardar sesión</button>
+        <div class="hint" style="margin-top:8px">Después de guardar, el formulario queda listo para cargar la siguiente sesión del mismo paciente sin tener que volver a buscarlo.</div>
+      </div>
+    </div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const SBU='https://uorxwmgaekeeuxeiikkw.supabase.co';
+const SBK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
+const SBH={apikey:SBK,'Authorization':'Bearer '+SBK,'Content-Type':'application/json','Prefer':'return=representation'};
+
+async function sbGet(t,p){
+  p=p||{};let u=SBU+'/rest/v1/'+t;
+  const qs=Object.entries(p).map(function(e){return e[0]+'='+encodeURIComponent(e[1]);}).join('&');
+  if(qs)u+='?'+qs;
+  const r=await fetch(u,{headers:SBH});
+  const txt=await r.text();let data=null;try{data=JSON.parse(txt);}catch(e){}
+  if(!r.ok)throw new Error((data&&(data.message||data.hint))||txt.slice(0,200));
+  return data||[];
+}
+async function sbPost(t,d){
+  const r=await fetch(SBU+'/rest/v1/'+t,{method:'POST',headers:SBH,body:JSON.stringify(d)});
+  const txt=await r.text();if(!r.ok)throw new Error(txt.slice(0,300));
+  return txt?JSON.parse(txt):null;
+}
+
+function toast(msg,tipo){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.className='toast show'+(tipo?' '+tipo:'');
+  clearTimeout(window._tt);window._tt=setTimeout(function(){el.classList.remove('show');},3500);
+}
+function today(){return new Date(Date.now()-5*3600000).toISOString().split('T')[0];}
+
+// terapias.sede puede ser vacío (todas), una sede, o varias separadas por
+// coma -- igual que en el resto de las apps.
+function terapiaAplicaASede(campoSede,miSede){
+  if(!campoSede||!campoSede.trim())return true;
+  var lista=campoSede.split(',').map(function(s){return s.trim().toLowerCase();});
+  return lista.indexOf((miSede||'').trim().toLowerCase())!==-1;
+}
+
+var SEDE='';
+var PACIENTE=null; // {id?, nombre, sede, ...}
+var PSICOLOGAS=[];
+var TERAPIAS=[];
+
+async function cargarSedes(){
+  try{
+    var rows=await sbGet('sedes',{select:'nombre',activa:'eq.true',order:'nombre.asc'});
+    var sel=document.getElementById('selSede');
+    rows.forEach(function(s){
+      var opt=document.createElement('option');opt.value=s.nombre;opt.textContent=s.nombre;sel.appendChild(opt);
+    });
+  }catch(e){toast('No se pudo cargar la lista de sedes: '+e.message,'err');}
+}
+
+async function cambiarSede(){
+  SEDE=document.getElementById('selSede').value;
+  PACIENTE=null;
+  document.getElementById('pacActualBox').innerHTML='';
+  document.getElementById('cardSesiones').style.display='none';
+  document.getElementById('cardNuevaSesion').style.display='none';
+  document.getElementById('buscarPac').value='';
+  document.getElementById('listaBusquedaPac').innerHTML='';
+  if(!SEDE){
+    document.getElementById('zonaTrabajo').style.display='none';
+    return;
+  }
+  document.getElementById('zonaTrabajo').style.display='block';
+  document.getElementById('sedeHint').textContent='Trabajando en la sede: '+SEDE;
+  try{
+    PSICOLOGAS=await sbGet('psicologas',{select:'id,nombre',sede:'eq.'+SEDE,estado:'eq.activa',order:'nombre.asc'});
+  }catch(e){PSICOLOGAS=[];toast('Error cargando psicólogas: '+e.message,'err');}
+  try{
+    TERAPIAS=(await sbGet('terapias',{select:'nombre,sede,activa',order:'nombre.asc'}))
+      .filter(function(t){return t.activa!==false&&terapiaAplicaASede(t.sede,SEDE);});
+  }catch(e){TERAPIAS=[];toast('Error cargando terapias: '+e.message,'err');}
+  var selPs=document.getElementById('sPsicologa');
+  selPs.innerHTML='<option value="">— Elige —</option>'+PSICOLOGAS.map(function(p){return '<option value="'+p.nombre.replace(/"/g,'')+'">'+p.nombre+'</option>';}).join('');
+  var selTer=document.getElementById('sTerapia');
+  selTer.innerHTML='<option value="">— Elige —</option>'+TERAPIAS.map(function(t){return '<option value="'+t.nombre.replace(/"/g,'')+'">'+t.nombre+'</option>';}).join('');
+  document.getElementById('sFecha').value=today();
+}
+
+var _pacientesCache=[];
+async function renderBusquedaPac(){
+  var q=document.getElementById('buscarPac').value.trim();
+  var cont=document.getElementById('listaBusquedaPac');
+  if(!q){cont.innerHTML='';return;}
+  cont.innerHTML='<div class="hint">Buscando…</div>';
+  try{
+    var rows=await sbGet('pacientes',{select:'id,nombre,telefono,estado',sede:'eq.'+SEDE,nombre:'ilike.*'+q+'*',limit:'8'});
+    if(!rows.length){cont.innerHTML='<div class="hint">Sin coincidencias — usa "➕ Registrar paciente nuevo" si no existe.</div>';return;}
+    cont.innerHTML=rows.map(function(p){
+      return '<div class="pac-item" onclick=\'seleccionarPaciente('+JSON.stringify(p)+')\'>'+
+        '<div><b>'+p.nombre+'</b><div class="hint">'+(p.telefono||'sin teléfono')+'</div></div>'+
+        '<span class="badge b-asistio">'+(p.estado||'activo')+'</span></div>';
+    }).join('');
+  }catch(e){cont.innerHTML='<div class="hint" style="color:var(--red)">Error: '+e.message+'</div>';}
+}
+
+function toggleNuevoPaciente(){
+  var f=document.getElementById('formNuevoPaciente');
+  f.style.display=f.style.display==='none'?'block':'none';
+}
+
+async function guardarPacienteNuevo(){
+  var nombre=document.getElementById('npNombre').value.trim();
+  if(!nombre){toast('El nombre es obligatorio','err');return;}
+  var d={
+    nombre:nombre,
+    dni:document.getElementById('npDni').value.trim(),
+    telefono:document.getElementById('npTel').value.trim(),
+    fecha_nac:document.getElementById('npNac').value||null,
+    genero:document.getElementById('npGenero').value,
+    apoderado:document.getElementById('npApoderado').value.trim(),
+    colegio:document.getElementById('npColegio').value.trim(),
+    grado:document.getElementById('npGrado').value.trim(),
+    motivo:document.getElementById('npMotivo').value.trim(),
+    sede:SEDE,estado:'activo',registrado_por:'Registro Temporal'
+  };
+  try{
+    var rows=await sbPost('pacientes',d);
+    toast('✅ Paciente registrado: '+nombre);
+    document.getElementById('formNuevoPaciente').style.display='none';
+    ['npNombre','npDni','npTel','npNac','npApoderado','npColegio','npGrado','npMotivo'].forEach(function(id){document.getElementById(id).value='';});
+    document.getElementById('npGenero').value='';
+    seleccionarPaciente({id:(rows&&rows[0]&&rows[0].id)||null,nombre:nombre,telefono:d.telefono});
+  }catch(e){toast('Error al registrar paciente: '+e.message,'err');}
+}
+
+function seleccionarPaciente(p){
+  PACIENTE=p;
+  document.getElementById('buscarPac').value='';
+  document.getElementById('listaBusquedaPac').innerHTML='';
+  document.getElementById('pacActualBox').innerHTML=
+    '<div class="pac-actual"><div><b>👤 '+p.nombre+'</b><br><span>'+(p.telefono||'sin teléfono')+' · '+SEDE+'</span></div>'+
+    '<button class="btn btn-outline btn-sm" onclick="cambiarPaciente()">🔁 Cambiar paciente</button></div>';
+  document.getElementById('cardSesiones').style.display='block';
+  document.getElementById('cardNuevaSesion').style.display='block';
+  cargarSesionesPaciente();
+}
+function cambiarPaciente(){
+  PACIENTE=null;
+  document.getElementById('pacActualBox').innerHTML='';
+  document.getElementById('cardSesiones').style.display='none';
+  document.getElementById('cardNuevaSesion').style.display='none';
+}
+
+async function cargarSesionesPaciente(){
+  var cont=document.getElementById('listaSesionesPac');
+  var hint=document.getElementById('sesHint');
+  cont.innerHTML='<div class="empty">Cargando…</div>';
+  try{
+    var rows=await sbGet('sesiones',{select:'*',sede:'eq.'+SEDE,paciente_nombre:'eq.'+PACIENTE.nombre,order:'fecha.desc',limit:'50'});
+    hint.textContent=rows.length+' sesiones registradas';
+    if(!rows.length){cont.innerHTML='<div class="empty">Este paciente todavía no tiene sesiones registradas.</div>';return;}
+    var badgeClass={asistio:'b-asistio',noasistio:'b-noasistio',tardanza:'b-tardanza'};
+    cont.innerHTML='<table class="tbl"><thead><tr><th>Fecha</th><th>Hora</th><th>Psicóloga</th><th>Terapia</th><th>Estado</th><th>Costo</th></tr></thead><tbody>'+
+      rows.map(function(s){
+        return '<tr><td>'+(s.fecha||'—')+'</td><td>'+(s.hora||'—')+'</td><td>'+(s.psicologa||'—')+'</td><td>'+(s.terapia||'—')+'</td>'+
+          '<td><span class="badge '+(badgeClass[s.estado]||'b-tardanza')+'">'+(s.estado||'—')+'</span></td>'+
+          '<td>S/'+(s.costo_total||0)+'</td></tr>';
+      }).join('')+'</tbody></table>';
+  }catch(e){cont.innerHTML='<div class="empty" style="color:var(--red)">Error: '+e.message+'</div>';}
+}
+
+async function guardarSesionPasada(){
+  if(!PACIENTE){toast('Primero elige o registra un paciente','err');return;}
+  var fecha=document.getElementById('sFecha').value;
+  var hora=document.getElementById('sHora').value;
+  var psicologa=document.getElementById('sPsicologa').value;
+  var terapia=document.getElementById('sTerapia').value;
+  if(!fecha||!psicologa||!terapia){toast('Fecha, psicóloga y terapia son obligatorios','err');return;}
+  var costo=parseFloat(document.getElementById('sCosto').value)||0;
+  var pago=parseFloat(document.getElementById('sPago').value)||0;
+  var sesion={
+    fecha:fecha,hora:hora,paciente_nombre:PACIENTE.nombre,paciente_tel:PACIENTE.telefono||'',
+    psicologa:psicologa,terapia:terapia,estado:document.getElementById('sEstado').value,
+    tipo:document.getElementById('sTipo').value,costo_total:costo,
+    saldo:Math.max(0,costo-pago),adelanto:pago,sede:SEDE,registrado_por:'Registro Temporal'
+  };
+  try{
+    await sbPost('sesiones',sesion);
+    if(pago>0){
+      await sbPost('pagos',{
+        fecha:fecha,hora:hora,monto:pago,metodo:document.getElementById('sMetodo').value,
+        concepto:terapia,paciente_nombre:PACIENTE.nombre,psicologa_nombre:psicologa,
+        terapia_nombre:terapia,sede:SEDE,registrado_por:'Registro Temporal'
+      });
+    }
+    toast('✅ Sesión guardada'+(pago>0?' con pago de S/'+pago:''));
+    document.getElementById('sCosto').value='0';
+    document.getElementById('sPago').value='0';
+    cargarSesionesPaciente();
+  }catch(e){toast('Error al guardar la sesión: '+e.message,'err');}
+}
+
+cargarSedes();
+</script>
+</body>
+</html>
