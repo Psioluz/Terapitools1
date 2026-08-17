@@ -875,13 +875,21 @@ async function visorCargar(){
     try{
       const params={select:'*',order:s.orden,limit:String(s.limite||100)};
       const sedeAplica=sede&&TABLAS_SIN_SEDE.indexOf(s.tabla)===-1;
-      if(sedeAplica){
-        if(s.sedeNullable)params.or='(sede.is.null,sede.eq.'+sede+')';
-        else params.sede='eq.'+sede;
-      }
+      // Tablas con sede vacía/NULL = "todas las sedes" (ej. terapias): no se
+      // sabe si esas filas están en NULL o en '' sin poder revisar la base
+      // en vivo, así que se trae todo sin filtrar y se filtra aquí mismo.
+      if(sedeAplica&&!s.sedeNullable)params.sede='eq.'+sede;
       const {data,count}=await sbGet(s.tabla,params);
-      const rows=data||[];
-      hintEl.textContent=(count!==null?count+' en total · ':'')+rows.length+' mostradas'+(sedeAplica?' · sede: '+sede:'');
+      let rows=data||[];
+      const filtradoLocal=sedeAplica&&s.sedeNullable;
+      if(filtradoLocal){
+        var sedeNorm=sede.trim().toLowerCase();
+        rows=rows.filter(function(row){
+          var rs=(row.sede||'').trim();
+          return !rs||rs.toLowerCase()===sedeNorm;
+        });
+      }
+      hintEl.textContent=(count!==null&&!filtradoLocal?count+' en total · ':'')+rows.length+' mostradas'+(sedeAplica?' · sede: '+sede:'');
       if(!rows.length){body.innerHTML='<div class="hint" style="padding:10px">Sin datos'+(sedeAplica?' para esta sede':'')+'.</div>';return;}
       var html='<table class="tbl"><thead><tr>'+s.cols.map(function(c){return '<th>'+c.l+'</th>';}).join('')+'</tr></thead><tbody>';
       rows.forEach(function(r){

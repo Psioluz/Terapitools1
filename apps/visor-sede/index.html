@@ -106,17 +106,34 @@ async function visorCargar(){
     try{
       const params={select:'*',order:s.orden,limit:String(s.limite||100)};
       const sedeAplica=sede&&TABLAS_SIN_SEDE.indexOf(s.tabla)===-1;
-      if(sedeAplica){
-        // Algunas tablas (ej. terapias) usan sede=NULL para decir "todas las
-        // sedes" -- un filtro sede=eq.X las excluiría por completo. Hay que
-        // pedir también las que no tienen sede asignada.
-        if(s.sedeNullable)params.or='(sede.is.null,sede.eq.'+sede+')';
-        else params.sede='eq.'+sede;
-      }
+      // Algunas tablas (ej. terapias) usan sede vacía/NULL para decir "todas
+      // las sedes". Filtrar con sede=eq.X en el servidor las excluiría por
+      // completo si esas filas están en NULL, pero también si por algún
+      // motivo se guardaron como '' (texto vacío) en vez de NULL -- para no
+      // depender de cuál de las dos usa la base, en estos casos se trae todo
+      // sin filtrar y se filtra aquí mismo en el navegador.
+      if(sedeAplica&&!s.sedeNullable)params.sede='eq.'+sede;
       const r=await sbGet(s.tabla,params);
-      const rows=r.data||[];
-      hintEl.textContent=(r.count!==null?r.count+' en total · ':'')+rows.length+' mostradas'+(sedeAplica?' · sede: '+sede:'');
-      if(!rows.length){body.innerHTML='<div class="empty">Sin datos'+(sedeAplica?' para esta sede':'')+'.</div>';return;}
+      let rows=r.data||[];
+      const filasSinFiltrar=rows;
+      const filtradoLocal=sedeAplica&&s.sedeNullable;
+      if(filtradoLocal){
+        var sedeNorm=sede.trim().toLowerCase();
+        rows=rows.filter(function(row){
+          var rs=(row.sede||'').trim();
+          return !rs||rs.toLowerCase()===sedeNorm;
+        });
+      }
+      hintEl.textContent=(r.count!==null&&!filtradoLocal?r.count+' en total · ':'')+rows.length+' mostradas'+(sedeAplica?' · sede: '+sede:'');
+      if(!rows.length){
+        var diag='';
+        if(filtradoLocal&&filasSinFiltrar.length){
+          var vistos=[...new Set(filasSinFiltrar.map(function(row){return JSON.stringify(row.sede);}))];
+          diag='<div class="hint" style="margin-top:6px">Valores de "sede" encontrados en esta tabla (sin filtrar): '+vistos.join(', ')+'</div>';
+        }
+        body.innerHTML='<div class="empty">Sin datos'+(sedeAplica?' para esta sede':'')+'.'+diag+'</div>';
+        return;
+      }
       var html='<table class="tbl"><thead><tr>'+s.cols.map(function(c){return '<th>'+c.l+'</th>';}).join('')+'</tr></thead><tbody>';
       rows.forEach(function(r2){
         html+='<tr>'+s.cols.map(function(c){var v=r2[c.k];return '<td>'+(c.fmt?c.fmt(v):(v===null||v===undefined||v===''?'—':v))+'</td>';}).join('')+'</tr>';
