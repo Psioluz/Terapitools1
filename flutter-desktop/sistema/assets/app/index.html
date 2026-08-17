@@ -833,7 +833,7 @@ async function tblCargar(){
 
 // ══ VISOR POR SEDE — vista de solo lectura, agrupada por tema ══
 const VISOR_SECCIONES=[
-  {tabla:'terapias',titulo:'🧠 Tipos de Terapia',sinSede:false,orden:'nombre.asc',cols:[
+  {tabla:'terapias',titulo:'🧠 Tipos de Terapia',sinSede:false,sedeNullable:true,orden:'nombre.asc',cols:[
     {k:'nombre',l:'Nombre'},{k:'color',l:'Color',fmt:function(v){return v?'<span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:'+v+';vertical-align:middle;margin-right:4px"></span>'+v:'—';}},
     {k:'activa',l:'Activa',fmt:function(v){return v?'✅':'❌';}},{k:'sede',l:'Sede',fmt:function(v){return v||'Todas';}}]},
   {tabla:'psicologas',titulo:'👩‍⚕️ Psicólogas',orden:'nombre.asc',cols:[
@@ -875,7 +875,10 @@ async function visorCargar(){
     try{
       const params={select:'*',order:s.orden,limit:String(s.limite||100)};
       const sedeAplica=sede&&TABLAS_SIN_SEDE.indexOf(s.tabla)===-1;
-      if(sedeAplica)params.sede='eq.'+sede;
+      if(sedeAplica){
+        if(s.sedeNullable)params.or='(sede.is.null,sede.eq.'+sede+')';
+        else params.sede='eq.'+sede;
+      }
       const {data,count}=await sbGet(s.tabla,params);
       const rows=data||[];
       hintEl.textContent=(count!==null?count+' en total · ':'')+rows.length+' mostradas'+(sedeAplica?' · sede: '+sede:'');
