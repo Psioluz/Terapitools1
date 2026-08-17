@@ -676,11 +676,6 @@ select.fsel{
           <label style="display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">Sede</label>
           <select id="precSede" style="width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--border);font-size:13px;box-sizing:border-box">
             <option value="">Todas las sedes</option>
-            <option value="Comas">Comas</option>
-            <option value="Ovalo Zapallal">Óvalo Zapallal</option>
-            <option value="Flecha">Flecha</option>
-            <option value="Pachacutec">Pachacutec</option>
-            <option value="Rosaluz">Rosaluz</option>
           </select>
         </div>
       </div>
@@ -773,11 +768,6 @@ async function eliminarPagoRecurrente(id){
         <label style="font-size:10px;opacity:.8">Enviar a sede:</label>
         <select id="chatSedeSelGer" onchange="window._chatSedeSelGerVal=this.value" style="font-size:11px;padding:3px 8px;border-radius:6px;border:none;background:rgba(255,255,255,.2);color:#fff">
           <option value="">— Elige la sede —</option>
-          <option value="Comas">Comas</option>
-          <option value="Ovalo Zapallal">Óvalo Zapallal</option>
-          <option value="Flecha">Flecha</option>
-          <option value="Pachacutec">Pachacutec</option>
-          <option value="Rosaluz">Rosaluz</option>
         </select>
         <span style="font-size:10px;opacity:.7">· Ves mensajes de todas las sedes</span>
       </div>
@@ -799,11 +789,6 @@ async function eliminarPagoRecurrente(id){
         <div style="display:flex;gap:8px">
           <select id="docsPsFilSede" class="fsel" onchange="renderDocsPsicologas()" style="font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--border)">
             <option value="">Todas las sedes</option>
-            <option value="Comas">Comas</option>
-            <option value="Ovalo Zapallal">Óvalo Zapallal</option>
-            <option value="Flecha">Flecha</option>
-            <option value="Pachacutec">Pachacutec</option>
-            <option value="Rosaluz">Rosaluz</option>
           </select>
         </div>
       </div>
@@ -1325,13 +1310,7 @@ function initApp(){
   }
 
   // Poblar selector de sedes y cargar directo desde Supabase (única fuente de datos).
-  var sedes=['Comas','Ovalo Zapallal','Flecha','Pachacutec','Rosaluz'];
-  var selS0=document.getElementById('fSede');
-  sedes.forEach(s=>{
-    if(!selS0.querySelector(`option[value="${s}"]`)){
-      var opt=document.createElement('option');opt.value=s;opt.textContent=s;selS0.appendChild(opt);
-    }
-  });
+  cargarSedesActivasGer();
 
   // Activar la primera tab explícitamente
   var firstTab=document.getElementById('tFinanzas');
@@ -1404,11 +1383,20 @@ async function sincronizar(mostrar){
 // ── FILTROS ──────────────────────────────────────────────────────────────────
 function getFiltMes(){ return document.getElementById('fMes')?.value||''; }
 function getFiltSede(){ return document.getElementById('fSede')?.value||''; }
-function poblarFiltroSede(){
-  var sel=document.getElementById('fSede'); if(!sel||sel.options.length>1) return;
-  ['Comas','Ovalo Zapallal','Flecha','Pachacutec','Rosaluz'].forEach(function(s){
-    var o=document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o);
+// El selector de sede se puebla en initApp() -> cargarSedesActivasGer(),
+// leyendo directo de la tabla "sedes" de Supabase (no hardcodeado aquí).
+var SEDES_ACTIVAS=[];
+async function cargarSedesActivasGer(){
+  try{
+    var rows=await accGet('sedes',{select:'nombre',activa:'eq.true',order:'nombre.asc'});
+    SEDES_ACTIVAS=(rows||[]).map(function(s){return s.nombre;});
+  }catch(e){console.warn('[sedes]',e.message);SEDES_ACTIVAS=['Comas','Ovalo Zapallal','Flecha','Pachacutec','Rosaluz'];}
+  var opts=SEDES_ACTIVAS.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
+  ['fSede','precSede','chatSedeSelGer','docsPsFilSede'].forEach(function(id){
+    var sel=document.getElementById(id);if(sel)sel.insertAdjacentHTML('beforeend',opts);
   });
+  var accSel=document.getElementById('accSede');
+  if(accSel)accSel.insertAdjacentHTML('afterbegin',opts);
 }
 function poblarFiltroMes(){
   var sel=document.getElementById('fMes'); if(!sel) return;
@@ -1424,7 +1412,6 @@ function poblarFiltroMes(){
   }).join('');
   if(lista.indexOf(valPrevio)>-1)sel.value=valPrevio;
 }
-poblarFiltroSede();
 
 function filtSes(arr){
   var m=getFiltMes(), sd=getFiltSede();
@@ -2292,7 +2279,7 @@ function renderDonut(elId, data){
 // ── HELPERS ─────────────────────────────────────────────────────────────────
 function getSedes(){
   var set=new Set();
-  ['Comas','Ovalo Zapallal','Flecha','Pachacutec','Rosaluz'].forEach(s=>set.add(s));
+  SEDES_ACTIVAS.forEach(s=>set.add(s));
   G.sedes.forEach(s=>set.add(s.nombre));
   G.sesiones.forEach(s=>{if(s.sede||s._sede)set.add(s.sede||s._sede);});
   G.psicologas.forEach(p=>{if(p.sede||p._sede)set.add(p.sede||p._sede);});
@@ -2748,7 +2735,7 @@ async function renderDocsPsicologas(){
     </div>
     <label style="font-size:11px;font-weight:800;color:#64748b;display:block;margin-bottom:4px">Sede</label>
     <select id="accSede" style="width:100%;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;margin-bottom:14px;box-sizing:border-box">
-      <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option><option>Rosaluz</option><option>Todas</option>
+      <option>Todas</option>
     </select>
   <label class="acc-lbl" style="font-size:11px;font-weight:700;color:#64748b;display:block;margin:10px 0 4px">💵 Día de pago mensual (1-31, opcional)</label>
   <input type="number" min="1" max="31" id="accDiaPago" placeholder="Ej: 8 — si se deja vacío, usa el día de su fecha de ingreso" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;box-sizing:border-box">

@@ -138,11 +138,6 @@ try{
     <div style='flex:1;font-size:15px;font-weight:800;color:#1e293b' id='pageTitle'>Dashboard</div>
     <select id='selectorSede' class='form-control' style='width:160px' onchange='cambiarSede()'>
       <option value=''>Todas las sedes</option>
-      <option value='Comas'>Sede Comas</option>
-      <option value='Ovalo Zapallal'>Óvalo Zapallal</option>
-      <option value='Flecha'>Sede Flecha</option>
-      <option value='Pachacutec'>Pachacutec</option>
-      <option value='Rosaluz'>Rosaluz</option>
     </select>
     <button onclick='recargar()' style='padding:7px 12px;background:#e91e8c;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer'>🔄 Actualizar</button>
   </div>
@@ -342,7 +337,7 @@ try{
   <input type='hidden' id='terAdmId'>
   <label class='flabel'>Nombre *</label><input class='finput' id='terAdmNombre' placeholder='Ej: Psicología Clínica'>
   <label class='flabel'>Descripción</label><input class='finput' id='terAdmDesc' placeholder='Breve descripción (opcional)'>
-  <label class='flabel'>Sede</label><select class='finput' id='terAdmSede'><option value=''>Todas las sedes</option><option value='Comas'>Solo Comas</option><option value='Ovalo Zapallal'>Solo Óvalo Zapallal</option><option value='Flecha'>Solo Flecha</option><option value='Pachacutec'>Solo Pachacutec</option><option value='Rosaluz'>Solo Rosaluz</option></select>
+  <label class='flabel'>Sede</label><select class='finput' id='terAdmSede'><option value=''>Todas las sedes</option></select>
   <label class='flabel'>Color</label>
   <select class='finput' id='terAdmColor'>
     <option value='bp'>🟣 Morado</option><option value='bc'>🔵 Celeste</option>
@@ -358,7 +353,7 @@ try{
  <div class='modal-box'>
   <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px'>💲 Tarifa</span><button onclick="document.getElementById('modalTarifa').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
   <input type='hidden' id='tfId'>
-  <label class='flabel'>Sede</label><select class='finput' id='tfSede'><option value='Comas'>Comas</option><option value='Ovalo Zapallal'>Óvalo Zapallal</option><option value='Flecha'>Flecha</option><option value='Pachacutec'>Pachacutec</option><option value='Rosaluz'>Rosaluz</option></select>
+  <label class='flabel'>Sede</label><select class='finput' id='tfSede'></select>
   <label class='flabel'>Nombre del servicio</label><input class='finput' id='tfNombre' placeholder='Ej: Paquete 12 sesiones'>
   <label class='flabel'>Tipo</label><select class='finput' id='tfTipo'><option value='paquete'>Paquete</option><option value='consulta'>Consulta</option><option value='informe'>Informe</option><option value='constancia'>Constancia</option><option value='neuropsico'>Neuropsicológica</option><option value='otro'>Otro</option></select>
   <label class='flabel'>N° de sesiones</label><input type='number' class='finput' id='tfNro' value='12'>
@@ -396,7 +391,6 @@ try{
   <label class='flabel'>Sede</label>
   <select class='finput' id='ferSede'>
     <option value='Todas'>Todas las sedes</option>
-    <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option><option>Rosaluz</option>
   </select>
   <label class='flabel'>¿Se trabaja este feriado?</label>
   <select class='finput' id='ferTipo'>
@@ -441,7 +435,6 @@ try{
     </div>
     <label id="accSedeLabel" style="font-size:11px;font-weight:800;color:#64748b;display:block;margin-bottom:4px">Sede</label>
     <select id="accSede" style="width:100%;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;margin-bottom:14px;box-sizing:border-box">
-      <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option><option>Rosaluz</option><option>Todas</option>
     </select>
     <button onclick="guardarAcceso()" style="width:100%;padding:13px;background:linear-gradient(135deg,#4a0e2e,#e91e8c);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:900;cursor:pointer">💾 Guardar acceso</button>
   </div>
@@ -530,6 +523,23 @@ function badge(e){var m={activo:'bg',activa:'bg',activo:'bg',firmado:'bg',presen
 
 var ADM={nombre:'',email:'',id:null};
 var D={sesiones:[],pacientes:[],pagos:[],psicologas:[],contratos:[],gastos:[],honorarios:[],asistencia:[],insumos:[],terapias:[],recepcionistas:[],usuariosGerencia:[],feriados:[],rendimiento:[],sede:''};
+// Sedes activas, cargadas de Supabase (tabla "sedes") -- no hardcodeadas,
+// para que agregar/quitar una sede no requiera tocar código en cada app.
+var SEDES_ACTIVAS=[];
+async function cargarSedesActivas(){
+  try{
+    var r=await sbGet('sedes',{select:'nombre',activa:'eq.true',order:'nombre.asc'});
+    SEDES_ACTIVAS=(r||[]).map(function(s){return s.nombre;});
+  }catch(e){console.warn('[sedes]',e.message);SEDES_ACTIVAS=['Comas','Ovalo Zapallal','Flecha','Pachacutec','Rosaluz'];}
+  var opts=SEDES_ACTIVAS.map(function(s){return '<option>'+s+'</option>';}).join('');
+  var optsConValor=SEDES_ACTIVAS.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
+  var sel=document.getElementById('selectorSede');if(sel)sel.insertAdjacentHTML('beforeend',optsConValor);
+  var terSel=document.getElementById('terAdmSede');if(terSel)terSel.insertAdjacentHTML('beforeend',
+    SEDES_ACTIVAS.map(function(s){return '<option value="'+s+'">Solo '+s+'</option>';}).join(''));
+  var tfSel=document.getElementById('tfSede');if(tfSel)tfSel.innerHTML=optsConValor;
+  var ferSel=document.getElementById('ferSede');if(ferSel)ferSel.insertAdjacentHTML('beforeend',opts);
+  var accSel=document.getElementById('accSede');if(accSel&&!accSel.children.length)accSel.innerHTML=opts+'<option>Todas</option>';
+}
 
 // LOGIN
 async function doLogin(){
@@ -548,10 +558,11 @@ async function doLogin(){
 }
 function doLogout(){localStorage.removeItem('adm_v1');ADM={};document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';}
 
-function iniciarApp(){
+async function iniciarApp(){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('app').style.display='flex';
   document.getElementById('admNombre').textContent=ADM.nombre;
+  await cargarSedesActivas();
   recargar();
 }
 
@@ -863,7 +874,7 @@ function _accTablaChange(){
     sel.innerHTML='<option value="Todas">📊 Gerencia (ve todas las sedes)</option><option value="Comas">🗂️ Administración</option>';
   }else{
     lbl.textContent='Sede';
-    sel.innerHTML='<option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option><option>Rosaluz</option><option>Todas</option>';
+    sel.innerHTML=SEDES_ACTIVAS.map(function(s){return '<option>'+s+'</option>';}).join('')+'<option>Todas</option>';
   }
 }
 function generarPass(){
@@ -1028,7 +1039,7 @@ async function generarRendimientoMes(){
 
 // SEDES
 function renderSedes(){
-  var sedes=['Comas','Ovalo Zapallal','Flecha','Pachacutec','Rosaluz'];
+  var sedes=SEDES_ACTIVAS;
   var el=document.getElementById('listaSedes');if(!el)return;
   el.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+sedes.map(function(s){
     var pacs=D.pacientes.filter(function(p){return p.sede===s;}).length;
@@ -1456,7 +1467,7 @@ function abrirModalRecurrente(){
       '<div class="form-group"><label class="form-label">Monto mensual (S/)</label><input class="form-control" type="number" id="rcMonto" value="0"></div>'+
       '<div class="form-group"><label class="form-label">Día de pago (1-31)</label><input class="form-control" type="number" id="rcDia" min="1" max="31" value="1"></div>'+
       '</div>'+
-      '<div class="form-group"><label class="form-label">Sede (vacío = todas)</label><select class="form-control" id="rcSede"><option value="">Todas las sedes</option><option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option><option>Rosaluz</option></select></div>'+
+      '<div class="form-group"><label class="form-label">Sede (vacío = todas)</label><select class="form-control" id="rcSede"><option value="">Todas las sedes</option>'+SEDES_ACTIVAS.map(function(s){return '<option>'+s+'</option>';}).join('')+'</select></div>'+
       '<button class="btn btn-primary" style="width:100%;padding:12px;font-size:14px;margin-top:4px" onclick="guardarRecurrente()">💾 Guardar</button></div>';
     document.body.appendChild(modal);
   }

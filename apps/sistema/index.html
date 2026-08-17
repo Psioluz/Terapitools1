@@ -172,7 +172,6 @@ try{
             <label class="hint">Sede</label>
             <select id="visorSede" class="fsel" style="width:100%;max-width:320px" onchange="visorCargar()">
               <option value="">Todas las sedes</option>
-              <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option><option>Rosaluz</option>
             </select>
             <div class="hint" style="margin-top:6px">Vista de solo lectura para revisar qué se ha llenado en Supabase, sede por sede. Para editar usa "Tablas de Supabase".</div>
           </div>
@@ -193,7 +192,6 @@ try{
                 <label class="hint">Sede</label>
                 <select id="tblSede" class="fsel" style="width:100%" onchange="tblCargar()">
                   <option value="">Todas las sedes</option>
-                  <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option><option>Rosaluz</option>
                 </select>
               </div>
               <div>
@@ -426,9 +424,20 @@ function showPage(id,btn){
   if(id==='visor')visorCargar();
 }
 
+async function cargarSelectsSede(){
+  try{
+    const {data}=await sbGet('sedes',{select:'nombre',activa:'eq.true',order:'nombre.asc'});
+    const opts=(data||[]).map(function(s){return '<option>'+s.nombre+'</option>';}).join('');
+    ['tblSede','visorSede'].forEach(function(id){
+      const sel=document.getElementById(id);
+      if(sel)sel.insertAdjacentHTML('beforeend',opts);
+    });
+  }catch(e){console.warn('[sedes]',e.message);}
+}
 function initApp(){
   const sel=document.getElementById('tblSelect');
   sel.innerHTML=TABLAS.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
+  cargarSelectsSede();
   cargarStats();
   // Auto-actualización silenciosa cada 40s — antes si otra persona
   // cargaba datos desde Sistema al mismo tiempo, no se veía hasta
