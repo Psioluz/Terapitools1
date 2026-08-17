@@ -1582,6 +1582,7 @@ async function sha256Hex(str){
   return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
 }
 async function completarLoginConPs(psObj){
+  try{if(psObj.email)localStorage.setItem('psicoluz_last_email',psObj.email);}catch(_e){}
   PS.nombre       = psObj.nombre || psObj.name || '';
   PS.sede         = psObj.sede   || psObj._sede || '';
   PS.email        = psObj.email  || '';

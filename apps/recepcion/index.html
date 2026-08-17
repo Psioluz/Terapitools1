@@ -919,6 +919,7 @@ async function loginConSB(tabla, emailId, passId, errId, onSuccess) {
     }
     
     console.log('[LOGIN] ✅ Login exitoso:', user.nombre);
+    try{localStorage.setItem('psicoluz_recepcion_last_email',email);}catch(e){}
     onSuccess(user);
     
   } catch(e) {
@@ -3137,5 +3138,9 @@ async function guardarCambioPs(){
         stack:String(ev.error&&ev.error.stack||'').substring(0,600),url:String(ev.filename||'')+':'+(ev.lineno||0)})}).catch(function(){});
   });
 })();
+try{
+  var _ultCorreoRecep=localStorage.getItem('psicoluz_recepcion_last_email');
+  if(_ultCorreoRecep&&document.getElementById('lEmail'))document.getElementById('lEmail').value=_ultCorreoRecep;
+}catch(e){}
 </script>
 </html>

@@ -1201,6 +1201,13 @@ function _diasTrabajoANum(txt){
 //  se eliminó porque sobreescribía esa versión más completa.)
 
 
+try{
+  var _gerSesPrev=JSON.parse(localStorage.getItem('psicoluz_ger_session')||'null');
+  if(_gerSesPrev&&_gerSesPrev.email){
+    var _elPrev=document.getElementById('lEmailG');
+    if(_elPrev)_elPrev.value=_gerSesPrev.email;
+  }
+}catch(e){}
 function doLogin(){
   var email=(document.getElementById('lEmailG')||{value:''}).value.trim().toLowerCase();
   var pass=(document.getElementById('lPass')||{value:''}).value;

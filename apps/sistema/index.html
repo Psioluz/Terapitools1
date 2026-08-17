@@ -148,6 +148,18 @@ try{
     <div class="topbar">
       <button class="hamburger" id="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('open')">☰</button>
       <div class="topbar-title" id="pageTitle">Inicio</div>
+      <div style="position:relative">
+        <button class="btn btn-outline btn-sm" onclick="toggleTemaPanel()" title="Color de la interfaz">🎨</button>
+        <div id="temaPanel" style="display:none;position:absolute;right:0;top:38px;background:#fff;border:1.5px solid var(--border);
+          border-radius:12px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:50;width:220px">
+          <div class="hint" style="margin-bottom:8px;font-weight:800;color:var(--text)">Color de la interfaz</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px" id="temaPresets"></div>
+          <label class="hint" style="display:block;margin-bottom:4px">Color personalizado</label>
+          <input type="color" id="temaCustom" value="#2563eb" style="width:100%;height:36px;border:none;border-radius:8px;cursor:pointer"
+            oninput="aplicarTema(this.value)">
+          <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px" onclick="restaurarTemaDefault()">Restaurar color original</button>
+        </div>
+      </div>
     </div>
     <div class="content">
 
@@ -382,6 +394,7 @@ async function doLogin(){
   if(!ok){
     err.textContent='Credenciales incorrectas';err.style.display='block';return;
   }
+  try{localStorage.setItem('psicoluz_sistema_last_email',email);}catch(e){}
   SESSION.email=email;
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('app').style.display='flex';
@@ -422,6 +435,47 @@ function showPage(id,btn){
   if(id==='docs')renderDocs();
   if(id==='duplicados')renderDuplicados();
   if(id==='visor')visorCargar();
+}
+
+// ── COLOR DE LA INTERFAZ ── preferencia solo de pantalla (no es dato de
+// la clínica), se guarda en este dispositivo para que cada quien elija su color.
+const TEMA_DEFAULT='#2563eb';
+const TEMA_PRESETS=['#2563eb','#e91e8c','#0ea5e9','#10b981','#f59e0b','#8b5cf6','#ef4444','#0c1e3d'];
+function _temaOscurecer(hex,f){
+  hex=hex.replace('#','');
+  var r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);
+  r=Math.max(0,Math.round(r*f));g=Math.max(0,Math.round(g*f));b=Math.max(0,Math.round(b*f));
+  return '#'+[r,g,b].map(function(v){return v.toString(16).padStart(2,'0');}).join('');
+}
+function aplicarTema(color,guardar){
+  if(!/^#[0-9a-fA-F]{6}$/.test(color))return;
+  document.documentElement.style.setProperty('--acc',color);
+  document.documentElement.style.setProperty('--dark',_temaOscurecer(color,.55));
+  document.documentElement.style.setProperty('--acc2',color);
+  var custom=document.getElementById('temaCustom');if(custom)custom.value=color;
+  if(guardar!==false){try{localStorage.setItem('psicoluz_sistema_tema',color);}catch(e){}}
+}
+function restaurarTemaDefault(){aplicarTema(TEMA_DEFAULT);}
+function toggleTemaPanel(){
+  var p=document.getElementById('temaPanel');
+  if(!p)return;
+  p.style.display=(p.style.display==='none'||!p.style.display)?'block':'none';
+}
+document.addEventListener('click',function(e){
+  var panel=document.getElementById('temaPanel');
+  if(!panel||panel.style.display==='none')return;
+  if(!panel.contains(e.target)&&e.target.title!=='Color de la interfaz')panel.style.display='none';
+});
+function initTemaPanel(){
+  var cont=document.getElementById('temaPresets');
+  if(cont)cont.innerHTML=TEMA_PRESETS.map(function(c){
+    return '<button onclick="aplicarTema(\''+c+'\')" title="'+c+'" style="width:28px;height:28px;border-radius:50%;'+
+      'border:2px solid #fff;box-shadow:0 0 0 1.5px var(--border);background:'+c+';cursor:pointer"></button>';
+  }).join('');
+  try{
+    var guardado=localStorage.getItem('psicoluz_sistema_tema');
+    if(guardado)aplicarTema(guardado,false);
+  }catch(e){}
 }
 
 async function cargarSelectsSede(){
@@ -790,8 +844,14 @@ async function tblGuardarFilaInline(tabla,idx){
   try{
     await sbPatch(tabla,data,{id:'eq.'+row.id});
     toast('✅ Fila actualizada');
-    if(document.getElementById('tblSelect')&&document.getElementById('tblSelect').value===tabla)tblCargar();
-    if(document.getElementById('cuentasTabla')&&document.getElementById('cuentasTabla').value===tabla)cargarCuentas();
+    tr.classList.remove('dirty');
+    // Si quedan otras filas sin guardar en pantalla, no recargamos la tabla
+    // entera todavía -- eso las borraría antes de que la persona alcance a
+    // guardarlas. Se recarga solo cuando ya no queda nada pendiente.
+    if(!tr.parentElement||!tr.parentElement.querySelector('tr.dirty')){
+      if(document.getElementById('tblSelect')&&document.getElementById('tblSelect').value===tabla)tblCargar();
+      if(document.getElementById('cuentasTabla')&&document.getElementById('cuentasTabla').value===tabla)cargarCuentas();
+    }
     if(tabla==='sedes')cargarSedes();
   }catch(e){toast('Error: '+e.message,'error');}
 }
@@ -1300,6 +1360,11 @@ async function borrarDuplicado(tabla,id,btn){
     btn.closest('div[style*="border-top"]').remove();
   }catch(e){toast('Error: '+e.message,'error');}
 }
+initTemaPanel();
+try{
+  var _ultCorreo=localStorage.getItem('psicoluz_sistema_last_email');
+  if(_ultCorreo&&document.getElementById('lEmail'))document.getElementById('lEmail').value=_ultCorreo;
+}catch(e){}
 </script>
 </body>
 </html>

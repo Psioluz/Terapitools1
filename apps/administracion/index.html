@@ -561,6 +561,7 @@ async function doLogin(){
     if(!rows||!rows.length){if(errEl){errEl.textContent='Correo o contraseña incorrectos';errEl.style.display='block';}return;}
     ADM={nombre:rows[0].nombre||email,email:email,id:rows[0].id};
     localStorage.setItem('adm_v1',JSON.stringify(ADM));
+    try{localStorage.setItem('psicoluz_adm_last_email',email);}catch(e){}
     iniciarApp();
   }catch(e){if(errEl){errEl.textContent='Error: '+e.message;errEl.style.display='block';}}
 }
@@ -1123,6 +1124,10 @@ function renderCumpleanos(){
   try{var s=JSON.parse(localStorage.getItem('adm_v1')||'null');if(s&&s.email){ADM=s;iniciarApp();return;}}catch(e){}
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('app').style.display='none';
+  try{
+    var _ultCorreo=localStorage.getItem('psicoluz_adm_last_email');
+    if(_ultCorreo&&document.getElementById('lEmail'))document.getElementById('lEmail').value=_ultCorreo;
+  }catch(e){}
 })();
 
 
