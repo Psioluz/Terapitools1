@@ -63,6 +63,10 @@ textarea.jsonEdit{width:100%;min-height:220px;font-family:monospace;font-size:12
 .modal-overlay.open{display:flex}
 .modal{background:#fff;border-radius:16px;padding:20px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto}
 .hint{font-size:11px;color:var(--muted)}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
+.tbl th{padding:8px 10px;font-size:10px;font-weight:800;text-align:left;color:var(--muted);background:#f8faff;border-bottom:2px solid var(--border);position:sticky;top:0}
+.tbl td{padding:7px 10px;border-bottom:1px solid var(--border)}
+.tbl tr:hover td{background:#f8faff}
 .hamburger{display:none;background:none;border:none;cursor:pointer;font-size:20px;color:var(--dark)}
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
 .sidebar-overlay.open{display:block}
@@ -123,6 +127,7 @@ try{
     <div class="sidebar-logo">🛠️ Psicoluz Sistema<small>Super-administración</small></div>
     <div style="overflow-y:auto;flex:1">
       <div class="nav-item active" onclick="showPage('inicio',this)">📊 Inicio</div>
+      <div class="nav-item" onclick="showPage('visor',this)">🔍 Visor por Sede</div>
       <div class="nav-item" onclick="showPage('tablas',this)">🗄️ Tablas de Supabase</div>
       <div class="nav-item" onclick="showPage('cuentas',this)">👤 Cuentas y Accesos</div>
       <div class="nav-item" onclick="showPage('sedes',this)">🏥 Sedes</div>
@@ -160,6 +165,21 @@ try{
         </div>
       </div>
 
+      <!-- VISOR POR SEDE -->
+      <div class="page" id="pg-visor">
+        <div class="card">
+          <div class="cb">
+            <label class="hint">Sede</label>
+            <select id="visorSede" class="fsel" style="width:100%;max-width:320px" onchange="visorCargar()">
+              <option value="">Todas las sedes</option>
+              <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option>
+            </select>
+            <div class="hint" style="margin-top:6px">Vista de solo lectura para revisar qué se ha llenado en Supabase, sede por sede. Para editar usa "Tablas de Supabase".</div>
+          </div>
+        </div>
+        <div id="visorContenido"></div>
+      </div>
+
       <!-- TABLAS -->
       <div class="page" id="pg-tablas">
         <div class="card">
@@ -170,6 +190,13 @@ try{
                 <select id="tblSelect" class="fsel" style="width:100%" onchange="tblCargar()"></select>
               </div>
               <div>
+                <label class="hint">Sede</label>
+                <select id="tblSede" class="fsel" style="width:100%" onchange="tblCargar()">
+                  <option value="">Todas las sedes</option>
+                  <option>Comas</option><option>Ovalo Zapallal</option><option>Flecha</option><option>Pachacutec</option>
+                </select>
+              </div>
+              <div>
                 <label class="hint">Límite</label>
                 <input class="fsel" id="tblLimit" type="number" value="50" style="width:100%">
               </div>
@@ -177,7 +204,7 @@ try{
             <button class="btn btn-primary" style="width:auto" onclick="tblCargar()">Cargar filas</button>
             <button class="btn btn-outline btn-sm" onclick="tblNuevaFila()">+ Nueva fila</button>
             <button class="btn btn-outline btn-sm" onclick="tblActualizarTodo(document.getElementById('tblSelect').value,'tblGrid')">💾 Actualizar todo</button>
-            <div class="hint" style="margin-top:6px">Las filas con cambios sin guardar se resaltan en amarillo. Los campos con 🔒 (id, fechas de creación) no se pueden editar.</div>
+            <div class="hint" style="margin-top:6px">Las filas con cambios sin guardar se resaltan en amarillo. Los campos con 🔒 (id, fechas de creación) no se pueden editar. El filtro de Sede se ignora en tablas que no tienen columna "sede" (ej. Sedes).</div>
           </div>
         </div>
         <div class="card">
@@ -371,13 +398,15 @@ function cerrarSesion(){
   document.getElementById('lPass').value='';
 }
 
-const TABLAS=['pacientes','programas_paciente','programa_terapias','pacientes_terapias','sesiones','pagos',
+const TABLAS=['pacientes','programas_paciente','programa_terapias','sesiones','pagos',
   'psicologas','recepcionistas','usuarios_gerencia','terapias','fichas_seguimiento',
   'documentos','documentos_personal','bonos_diarios','bonos','honorarios','contratos',
   'pagos_recurrentes','gastos','insumos','chat_sede','asistencia_personal','reprogramaciones',
-  'tarifas_sede','paquetes','precio_paciente','notas_clinicas','objetivos_terapeuticos','registro_animo',
-  'feriados','rendimiento_recepcion','alertas_log','fichas_recepcion_log',
+  'tarifas_sede','precio_paciente','notas_clinicas','objetivos_terapeuticos','registro_animo',
+  'feriados','rendimiento_recepcion','alertas_log','fichas_recepcion_log','recordatorios_enviados',
   'sedes','log_accesos','log_errores'];
+// Tablas que NO tienen columna "sede" -- el filtro de sede se ignora en estas.
+const TABLAS_SIN_SEDE=['sedes','programa_terapias'];
 
 function showPage(id,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -394,6 +423,7 @@ function showPage(id,btn){
   if(id==='storage'&&!document.getElementById('bucketChips').children.length)listarBuckets();
   if(id==='docs')renderDocs();
   if(id==='duplicados')renderDuplicados();
+  if(id==='visor')visorCargar();
 }
 
 function initApp(){
@@ -780,22 +810,89 @@ let _tblRows={};
 async function tblCargar(){
   const t=document.getElementById('tblSelect').value;
   const lim=document.getElementById('tblLimit').value||'50';
-  document.getElementById('tblTitulo').textContent=t;
+  const sede=document.getElementById('tblSede')?document.getElementById('tblSede').value:'';
+  const filtroSedeActivo=sede&&TABLAS_SIN_SEDE.indexOf(t)===-1;
+  document.getElementById('tblTitulo').textContent=t+(filtroSedeActivo?' · '+sede:'');
   document.getElementById('tblCount').textContent='⏳ cargando…';
   try{
     // order:'id.asc' evita que las filas "salten" de posición cada vez que
     // se recarga la tabla — sin un orden explícito, Postgres no garantiza
     // el mismo orden entre consultas, y después de editar una fila podía
     // aparecer en otro lugar de la lista.
-    const {data,count}=await sbGet(t,{select:'*',limit:lim,order:'id.asc'});
+    const params={select:'*',limit:lim,order:'id.asc'};
+    if(filtroSedeActivo)params.sede='eq.'+sede;
+    const {data,count}=await sbGet(t,params);
     _tblRows[t]=data||[];
-    document.getElementById('tblCount').textContent=(count!==null?count+' filas totales · ':'')+(data?data.length:0)+' mostradas';
+    document.getElementById('tblCount').textContent=(count!==null?count+' filas totales · ':'')+(data?data.length:0)+' mostradas'+(sede&&!filtroSedeActivo?' (esta tabla no tiene columna "sede", se ignoró el filtro)':'');
     renderEditableGrid('tblGrid',data,t);
   }catch(e){
     document.getElementById('tblCount').textContent='❌ '+e.message;
     document.getElementById('tblGrid').innerHTML='';
   }
 }
+
+// ══ VISOR POR SEDE — vista de solo lectura, agrupada por tema ══
+const VISOR_SECCIONES=[
+  {tabla:'terapias',titulo:'🧠 Tipos de Terapia',sinSede:false,orden:'nombre.asc',cols:[
+    {k:'nombre',l:'Nombre'},{k:'color',l:'Color',fmt:function(v){return v?'<span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:'+v+';vertical-align:middle;margin-right:4px"></span>'+v:'—';}},
+    {k:'activa',l:'Activa',fmt:function(v){return v?'✅':'❌';}},{k:'sede',l:'Sede',fmt:function(v){return v||'Todas';}}]},
+  {tabla:'psicologas',titulo:'👩‍⚕️ Psicólogas',orden:'nombre.asc',cols:[
+    {k:'nombre',l:'Nombre'},{k:'especialidad',l:'Especialidad'},{k:'grado_academico',l:'Grado académico'},
+    {k:'sede',l:'Sede'},{k:'estado',l:'Estado'},{k:'telefono',l:'Teléfono'},{k:'email',l:'Email'}]},
+  {tabla:'recepcionistas',titulo:'💻 Recepcionistas',orden:'nombre.asc',cols:[
+    {k:'nombre',l:'Nombre'},{k:'sede',l:'Sede'},{k:'estado',l:'Estado'},{k:'telefono',l:'Teléfono'},{k:'email',l:'Email'}]},
+  {tabla:'pacientes',titulo:'🧒 Pacientes',orden:'nombre.asc',limite:200,cols:[
+    {k:'nombre',l:'Nombre'},{k:'sede',l:'Sede'},{k:'psicologa',l:'Psicóloga'},{k:'terapia',l:'Terapia'},
+    {k:'colegio',l:'Colegio'},{k:'grado',l:'Grado'},{k:'estado',l:'Estado'},{k:'saldo',l:'Saldo',fmt:function(v){return 'S/'+(v||0);}}]},
+  {tabla:'tarifas_sede',titulo:'💲 Tarifas y Precios',orden:'nombre_servicio.asc',cols:[
+    {k:'nombre_servicio',l:'Servicio'},{k:'sede',l:'Sede',fmt:function(v){return v||'Todas';}},{k:'tipo',l:'Tipo'},
+    {k:'nro_sesiones',l:'Sesiones'},{k:'costo_total',l:'Precio total',fmt:function(v){return 'S/'+(v||0);}},
+    {k:'cantidad_cuotas',l:'Cuotas'},{k:'monto_cuota',l:'Por cuota',fmt:function(v){return 'S/'+(v||0);}}]},
+  {tabla:'sesiones',titulo:'📅 Sesiones recientes',orden:'fecha.desc',limite:100,cols:[
+    {k:'fecha',l:'Fecha'},{k:'hora',l:'Hora'},{k:'paciente_nombre',l:'Paciente'},{k:'psicologa',l:'Psicóloga'},
+    {k:'terapia',l:'Terapia'},{k:'estado',l:'Estado'},{k:'sede',l:'Sede'}]},
+  {tabla:'pagos',titulo:'💰 Pagos recientes',orden:'fecha.desc',limite:100,cols:[
+    {k:'fecha',l:'Fecha'},{k:'paciente_nombre',l:'Paciente'},{k:'monto',l:'Monto',fmt:function(v){return 'S/'+(v||0);}},
+    {k:'metodo',l:'Método'},{k:'sede',l:'Sede'}]},
+  {tabla:'contratos',titulo:'📋 Contratos',orden:'created_at.desc',cols:[
+    {k:'trabajadora',l:'Trabajadora'},{k:'tipo',l:'Tipo'},{k:'sede',l:'Sede'},{k:'estado',l:'Estado'},
+    {k:'monto',l:'Monto',fmt:function(v){return 'S/'+(v||0);}}]},
+  {tabla:'honorarios',titulo:'💵 Honorarios / Planilla',orden:'mes.desc',cols:[
+    {k:'psicologa_nombre',l:'Psicóloga'},{k:'mes',l:'Mes'},{k:'sede',l:'Sede'},{k:'estado',l:'Estado'},
+    {k:'monto_base',l:'Base',fmt:function(v){return 'S/'+(v||0);}},{k:'total',l:'Total',fmt:function(v){return 'S/'+(v||0);}}]},
+  {tabla:'feriados',titulo:'🎉 Feriados',orden:'fecha.asc',cols:[
+    {k:'fecha',l:'Fecha'},{k:'descripcion',l:'Descripción'},{k:'sede',l:'Sede',fmt:function(v){return v||'Todas';}},
+    {k:'tipo_gestion',l:'¿Se trabaja?',fmt:function(v){return v==='no_laborable'?'❌ No':'✅ Sí';}},{k:'estado',l:'Estado'}]}
+];
+async function visorCargar(){
+  const sede=document.getElementById('visorSede').value;
+  const cont=document.getElementById('visorContenido');
+  cont.innerHTML=VISOR_SECCIONES.map(function(s){return '<div class="card" id="visor-'+s.tabla+'"><div class="ch"><div class="ct">'+s.titulo+'</div><span class="hint">⏳ cargando…</span></div><div class="cb" style="overflow:auto"></div></div>';}).join('');
+  VISOR_SECCIONES.forEach(async function(s){
+    const box=document.getElementById('visor-'+s.tabla);
+    const hintEl=box.querySelector('.hint');
+    const body=box.querySelector('.cb');
+    try{
+      const params={select:'*',order:s.orden,limit:String(s.limite||100)};
+      const sedeAplica=sede&&TABLAS_SIN_SEDE.indexOf(s.tabla)===-1;
+      if(sedeAplica)params.sede='eq.'+sede;
+      const {data,count}=await sbGet(s.tabla,params);
+      const rows=data||[];
+      hintEl.textContent=(count!==null?count+' en total · ':'')+rows.length+' mostradas'+(sedeAplica?' · sede: '+sede:'');
+      if(!rows.length){body.innerHTML='<div class="hint" style="padding:10px">Sin datos'+(sedeAplica?' para esta sede':'')+'.</div>';return;}
+      var html='<table class="tbl"><thead><tr>'+s.cols.map(function(c){return '<th>'+c.l+'</th>';}).join('')+'</tr></thead><tbody>';
+      rows.forEach(function(r){
+        html+='<tr>'+s.cols.map(function(c){var v=r[c.k];return '<td>'+(c.fmt?c.fmt(v):(v===null||v===undefined||v===''?'—':v))+'</td>';}).join('')+'</tr>';
+      });
+      html+='</tbody></table>';
+      body.innerHTML=html;
+    }catch(e){
+      hintEl.textContent='❌ error';
+      body.innerHTML='<div class="hint" style="color:#dc2626;padding:10px">'+e.message+'</div>';
+    }
+  });
+}
+
 let _modalCtx=null;
 // Plantilla de columnas conocidas para tablas que todavía no se han cargado
 // (para que "+ Nueva fila" siempre muestre los nombres reales, no un {} vacío)
