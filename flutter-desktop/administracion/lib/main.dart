@@ -52,9 +52,21 @@ class _WebviewHostState extends State<WebviewHost> {
         setState(() => _error = 'No se encontró:\n$indexPath');
         return;
       }
+      // WebView2 (el motor que usa esta app por dentro) puede guardar en
+      // caché el HTML aunque sea un archivo local -- si el index.html se
+      // reemplaza en el disco para llevar una actualización, la ventana
+      // seguía mostrando la versión vieja hasta borrar la caché a mano.
+      // Agregar la fecha de modificación del archivo como parámetro en la
+      // URL evita esto: cada vez que el archivo cambia, la URL cambia, y
+      // WebView2 lo trata como una página distinta en vez de servir la
+      // copia guardada.
+      final mtime = File(indexPath).lastModifiedSync().millisecondsSinceEpoch;
+      final uri = Uri.file(indexPath).replace(
+        queryParameters: {'v': '$mtime'},
+      );
       final controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..loadRequest(Uri.file(indexPath));
+        ..loadRequest(uri);
       setState(() => _controller = controller);
     } catch (e) {
       setState(() => _error = 'Error iniciando el WebView: $e');
