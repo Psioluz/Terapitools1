@@ -478,20 +478,23 @@ function initTemaPanel(){
   }catch(e){}
 }
 
+let SEDES_ACTIVAS=[];
 async function cargarSelectsSede(){
   try{
     const {data}=await sbGet('sedes',{select:'nombre',activa:'eq.true',order:'nombre.asc'});
-    const opts=(data||[]).map(function(s){return '<option>'+s.nombre+'</option>';}).join('');
+    SEDES_ACTIVAS=(data||[]).map(function(s){return s.nombre;});
+    const opts=SEDES_ACTIVAS.map(function(s){return '<option>'+s+'</option>';}).join('');
     ['tblSede','visorSede'].forEach(function(id){
       const sel=document.getElementById(id);
       if(sel)sel.insertAdjacentHTML('beforeend',opts);
     });
   }catch(e){console.warn('[sedes]',e.message);}
 }
-function initApp(){
+async function initApp(){
   const sel=document.getElementById('tblSelect');
   sel.innerHTML=TABLAS.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
-  cargarSelectsSede();
+  await cargarSelectsSede();
+  restaurarFiltrosTabla();
   cargarStats();
   // Auto-actualización silenciosa cada 40s — antes si otra persona
   // cargaba datos desde Sistema al mismo tiempo, no se veía hasta
@@ -554,6 +557,16 @@ const TABLE_ENUMS={
   sedes:{activa:['true','false']}
 };
 const COLOR_COLS={terapias:['color']};
+// Columnas de texto libre donde NO se aplica el "Primera letra mayúscula,
+// resto minúscula" por defecto -- correos, contraseñas, códigos y URLs se
+// guardan tal cual se escriben.
+const NO_CAPITALIZAR=['email','password','dni','telefono','url','url_documento','url_evidencia',
+  'numero_cuenta','cci','cpsp','id','banco'];
+function capitalizarDefault(s){
+  s=(s||'').toString();
+  if(!s)return s;
+  return s.charAt(0).toUpperCase()+s.slice(1).toLowerCase();
+}
 
 // Ejemplos/formato esperado por columna, para mostrar como ayuda (tooltip al
 // pasar el mouse por el encabezado) y así saber cómo llenar cada campo sin
@@ -762,6 +775,57 @@ function celdaInput(tabla,col,v){
     const iv=Array.isArray(v)?v.join(','):(v||'');
     return '<input class="cellinp" data-col="'+col+'" data-kind="array" value="'+String(iv).replace(/"/g,'&quot;')+'" placeholder="1,2,3">';
   }
+  // Columna "sede" -- lista desplegable con las sedes reales de Supabase en
+  // vez de texto libre, para no arriesgarse a un typo (ej. "Pachacútec" vs
+  // "Pachacutec") que rompa los filtros por sede en las demás apps.
+  if(col==='sede'){
+    if(tabla==='terapias'){
+      // terapias.sede puede tener varias sedes a la vez (lista separada por
+      // coma) -- checkboxes en vez de un solo valor.
+      const seleccionadas=String(v||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+      return '<div class="cellinp" data-col="sede" data-kind="sede_multi" style="display:flex;flex-wrap:wrap;gap:4px;max-width:210px">'+
+        SEDES_ACTIVAS.map(function(s){
+          const chk=seleccionadas.indexOf(s)>-1?' checked':'';
+          return '<label style="display:flex;align-items:center;gap:3px;font-size:10px;background:var(--bg);padding:2px 6px;border-radius:6px;cursor:pointer">'+
+            '<input type="checkbox" value="'+s+'"'+chk+'> '+s+'</label>';
+        }).join('')+
+        (SEDES_ACTIVAS.length?'':'<span class="hint">Cargando sedes…</span>')+
+        '</div>';
+    }
+    const actual=String(v||'').trim();
+    return '<select class="cellsel" data-col="sede" data-kind="text">'+
+      '<option value=""'+(!actual?' selected':'')+'>— (vacío)</option>'+
+      '<option value="Todas"'+(actual==='Todas'?' selected':'')+'>Todas</option>'+
+      SEDES_ACTIVAS.map(function(s){return '<option value="'+s+'"'+(actual===s?' selected':'')+'>'+s+'</option>';}).join('')+
+      '</select>';
+  }
+  // Horas y fechas: usar los selectores nativos del navegador (reloj/
+  // calendario) en vez de texto libre -- así es imposible escribir algo
+  // como "1.5" donde debería ir "13:50".
+  if(col==='hora'||/^hora_/.test(col)){
+    let hv=String(v||'').slice(0,5);
+    if(!/^\d{2}:\d{2}$/.test(hv))hv='';
+    return '<input type="time" class="cellinp" data-col="'+col+'" data-kind="text" value="'+hv+'">';
+  }
+  if(col==='mes'){
+    let mv=String(v||'').slice(0,7);
+    return '<input type="month" class="cellinp" data-col="'+col+'" data-kind="text" value="'+mv+'">';
+  }
+  if(col==='fecha'||/^fecha_/.test(col)||col==='proxima_sesion'){
+    let fv=String(v||'').slice(0,10);
+    return '<input type="date" class="cellinp" data-col="'+col+'" data-kind="text" value="'+fv+'">';
+  }
+  if(col==='email'){
+    return '<input type="email" class="cellinp" data-col="'+col+'" data-kind="text" value="'+String(v||'').replace(/"/g,'&quot;')+'">';
+  }
+  if(col==='dni'){
+    return '<input class="cellinp" data-col="'+col+'" data-kind="text" inputmode="numeric" maxlength="8" '+
+      'oninput="this.value=this.value.replace(/[^0-9]/g,\'\').slice(0,8)" value="'+String(v||'').replace(/[^0-9]/g,'')+'">';
+  }
+  if(col==='telefono'){
+    return '<input class="cellinp" data-col="'+col+'" data-kind="text" inputmode="numeric" maxlength="9" '+
+      'oninput="this.value=this.value.replace(/[^0-9]/g,\'\')" value="'+String(v||'').replace(/[^0-9]/g,'')+'">';
+  }
   if(typeof v==='boolean'){
     // Antes esto era un <input> de texto libre con "true"/"false" escrito
     // como texto — si alguien lo retipeaba distinto (mayúscula, espacio,
@@ -774,7 +838,12 @@ function celdaInput(tabla,col,v){
   }
   let iv=(v===null||v===undefined)?'':(typeof v==='object'?JSON.stringify(v):String(v));
   let kind=(v===null||v===undefined)?'text':(typeof v==='number'?'number':typeof v==='object'?'json':'text');
-  return '<input class="cellinp" data-col="'+col+'" data-kind="'+kind+'" value="'+iv.replace(/"/g,'&quot;')+'">';
+  // Texto libre: por defecto se guarda con solo la primera letra en
+  // mayúscula (ej. "maria lopez" -> "Maria lopez"), salvo columnas donde
+  // eso rompería el dato (correos, contraseñas, documentos, códigos).
+  const capAttr=(kind==='text'&&NO_CAPITALIZAR.indexOf(col)===-1)
+    ?' onblur="this.value=capitalizarDefault(this.value)"':'';
+  return '<input class="cellinp" data-col="'+col+'" data-kind="'+kind+'"'+capAttr+' value="'+iv.replace(/"/g,'&quot;')+'">';
 }
 function renderEditableGrid(containerId,rows,tabla){
   const el=document.getElementById(containerId);
@@ -819,7 +888,13 @@ function leerFilaForm(tr,row){
   const data={};
   tr.querySelectorAll('[data-col]').forEach(function(inp){
     if(inp.dataset.kind==='colortext')return; // solo el color picker manda el valor real
-    var col=inp.dataset.col,kind=inp.dataset.kind,raw=inp.value;
+    var col=inp.dataset.col,kind=inp.dataset.kind;
+    if(kind==='sede_multi'){
+      var marcadas=Array.from(inp.querySelectorAll('input[type=checkbox]:checked')).map(function(c){return c.value;});
+      data[col]=marcadas.join(', ');
+      return;
+    }
+    var raw=inp.value;
     if(kind==='number'){var n=parseFloat(raw);data[col]=raw===''?null:(isNaN(n)?null:n);}
     else if(kind==='bool'){data[col]=(raw==='true');}
     else if(kind==='json'){try{data[col]=raw===''?null:JSON.parse(raw);}catch(e){throw new Error('Columna "'+col+'": JSON inválido');}}
@@ -875,8 +950,33 @@ async function tblActualizarTodo(tabla,contenedorId){
   if(document.getElementById('cuentasTabla')&&document.getElementById('cuentasTabla').value===tabla)cargarCuentas();
   if(tabla==='sedes')cargarSedes();
 }
+// Recuerda la tabla/sede/límite elegidos mientras dure la sesión (pestaña
+// abierta), para no tener que volver a elegirlos cada vez que se cambia de
+// página dentro de Sistema o se recarga por accidente.
+function guardarFiltrosTabla(){
+  try{
+    sessionStorage.setItem('psicoluz_sis_filtros',JSON.stringify({
+      tabla:(document.getElementById('tblSelect')||{}).value||'',
+      sede:(document.getElementById('tblSede')||{}).value||'',
+      limite:(document.getElementById('tblLimit')||{}).value||'',
+      cuentasTabla:(document.getElementById('cuentasTabla')||{}).value||''
+    }));
+  }catch(e){}
+}
+function restaurarFiltrosTabla(){
+  try{
+    var f=JSON.parse(sessionStorage.getItem('psicoluz_sis_filtros')||'null');
+    if(!f)return;
+    if(f.tabla&&document.getElementById('tblSelect'))document.getElementById('tblSelect').value=f.tabla;
+    if(f.sede&&document.getElementById('tblSede'))document.getElementById('tblSede').value=f.sede;
+    if(f.limite&&document.getElementById('tblLimit'))document.getElementById('tblLimit').value=f.limite;
+    if(f.cuentasTabla&&document.getElementById('cuentasTabla'))document.getElementById('cuentasTabla').value=f.cuentasTabla;
+    if(f.tabla)tblCargar();
+  }catch(e){}
+}
 let _tblRows={};
 async function tblCargar(){
+  guardarFiltrosTabla();
   const t=document.getElementById('tblSelect').value;
   const lim=document.getElementById('tblLimit').value||'50';
   const sede=document.getElementById('tblSede')?document.getElementById('tblSede').value:'';
@@ -1044,6 +1144,7 @@ async function tblEliminarFila(tabla,idx){
 
 // ── CUENTAS ──
 async function cargarCuentas(){
+  guardarFiltrosTabla();
   const t=document.getElementById('cuentasTabla').value;
   const el=document.getElementById('cuentasGrid');
   el.innerHTML='⏳ cargando…';
