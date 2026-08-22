@@ -167,22 +167,21 @@
         </div>
       </div>
 
+      <div class="grid" style="margin-bottom:6px">
+        <div><label>Psicóloga que atendió <span class="req">*</span></label><select id="s-psicologa-sesion" required></select></div>
+        <div><label>Terapia <span class="req">*</span></label><select id="s-terapia-sesion" required></select></div>
+      </div>
+
       <div class="grid" id="s-programa-wrap" style="display:none; margin-bottom:6px">
         <div class="full">
-          <label>Terapia / programa <span class="req">*</span></label>
+          <label>Vincular a un programa/paquete activo de este paciente (opcional)</label>
           <select id="s-programa-select" onchange="onProgramaSelectChange()"></select>
-          <div class="hint">El paquete y el número de sesión se calculan solos a partir del historial.</div>
+          <div class="hint">Si eliges uno, el paquete y el número de sesión se calculan solos a partir del historial. Si no, se registra como sesión suelta.</div>
         </div>
       </div>
 
       <div id="s-nuevo-programa-wrap" style="display:none"></div>
       <div class="info-box" id="s-info-programa" style="display:none; margin-bottom:14px"></div>
-
-      <div class="grid" id="s-quien-atiende-wrap" style="display:none; margin-bottom:6px">
-        <div><label>Psicóloga que atendió esta sesión <span class="req">*</span></label><select id="s-psicologa-sesion" required></select></div>
-        <div><label>Terapia de esta sesión <span class="req">*</span></label><select id="s-terapia-sesion" required></select></div>
-        <div class="hint full">Vienen precargadas del programa, pero puedes cambiarlas si esta sesión en particular la atendió otra psicóloga o fue de otra terapia.</div>
-      </div>
 
       <div class="grid">
         <div><label>Fecha <span class="req">*</span></label><input type="date" id="s-fecha" required></div>
@@ -195,7 +194,7 @@
             <option value="noasistio">No asistió</option>
           </select>
         </div>
-        <div></div>
+        <div><label>Costo de esta sesión (S/)</label><input type="number" step="0.01" id="s-costo-suelto" value="0" oninput="calcSaldoSesion()"></div>
 
         <div><label>Pago de hoy (S/)</label><input type="number" step="0.01" id="s-pago-monto" value="0" oninput="calcSaldoSesion()"></div>
         <div><label>Método de pago <span class="req">*</span> <span id="s-metodo-req-hint" class="hint"></span></label>
@@ -207,7 +206,7 @@
           </select>
         </div>
 
-        <div class="saldo-box"><span>Saldo pendiente del programa</span><b id="s-saldo-display">S/ 0.00</b></div>
+        <div class="saldo-box"><span>Saldo pendiente</span><b id="s-saldo-display">S/ 0.00</b></div>
 
         <div class="full"><label>Registrado por (tu nombre) <span class="req">*</span></label><input id="s-registrado-por" required></div>
       </div>
@@ -725,53 +724,57 @@ function readProgramCards(containerId, errEl){
 async function onPacienteChange(){
   const nombre = document.getElementById('s-paciente').value.trim();
   const wrap = document.getElementById('s-programa-wrap');
-  if(!nombre){ wrap.style.display='none'; document.getElementById('s-nuevo-programa-wrap').innerHTML=''; document.getElementById('s-nuevo-programa-wrap').style.display='none'; return; }
+  if(!nombre){ wrap.style.display='none'; return; }
 
   const {data: programas, error} = await sb.from('programas_paciente')
     .select('*, programa_terapias(*)')
     .ilike('paciente_nombre', nombre)
     .eq('estado','activo');
-  if(error){ return; }
+  if(error || !programas || !programas.length){ wrap.style.display='none'; return; }
 
   const opciones = [];
-  (programas||[]).forEach(prog=>{
+  programas.forEach(prog=>{
     (prog.programa_terapias||[]).forEach(pt=>{
       opciones.push({programa: prog, terapia: pt});
     });
   });
+  if(!opciones.length){ wrap.style.display='none'; return; }
 
   const sel = document.getElementById('s-programa-select');
-  if(opciones.length === 0){
-    wrap.style.display = 'none';
-    mostrarNuevoProgramaEnSesion(true);
-    return;
-  }
   wrap.style.display = '';
-  sel.innerHTML = opciones.map((o,i)=>
-    `<option value="${i}">${escapeHtml(o.terapia.terapia)} · ${escapeHtml(o.terapia.psicologa)} — ${escapeHtml(o.programa.paquete_nombre || 'Sesiones sueltas')} (sesión ${(o.terapia.sesiones_realizadas||0)+1} de ${o.programa.nro_sesiones_total})</option>`
-  ).join('') + `<option value="nuevo">➕ Nuevo programa para este paciente</option>`;
+  sel.innerHTML = '<option value="">— Sesión suelta (sin vincular a ningún programa) —</option>' +
+    opciones.map((o,i)=>
+      `<option value="${i}">${escapeHtml(o.terapia.terapia)} · ${escapeHtml(o.terapia.psicologa)} — ${escapeHtml(o.programa.paquete_nombre || 'Sesiones sueltas')} (sesión ${(o.terapia.sesiones_realizadas||0)+1} de ${o.programa.nro_sesiones_total})</option>`
+    ).join('') + '<option value="nuevo">➕ Crear un programa/paquete nuevo para este paciente</option>';
   sel._opciones = opciones;
+  sel.value = '';
   onProgramaSelectChange();
 }
 
 function onProgramaSelectChange(){
   const sel = document.getElementById('s-programa-select');
   const val = sel.value;
+  const info = document.getElementById('s-info-programa');
   if(val === 'nuevo'){
     mostrarNuevoProgramaEnSesion(true);
-    document.getElementById('s-info-programa').style.display = 'none';
-    document.getElementById('s-quien-atiende-wrap').style.display = 'none';
+    info.style.display = 'none';
+    sel._selected = null;
     return;
   }
   mostrarNuevoProgramaEnSesion(false);
+  if(val === ''){
+    info.style.display = 'none';
+    sel._selected = null;
+    calcSaldoSesion();
+    return;
+  }
   const o = sel._opciones[parseInt(val)];
-  const info = document.getElementById('s-info-programa');
   info.style.display = '';
   info.innerHTML = `Continúa <b>${escapeHtml(o.terapia.terapia)}</b> con <b>${escapeHtml(o.terapia.psicologa)}</b> — próxima será la <b>sesión ${(o.terapia.sesiones_realizadas||0)+1} de ${o.programa.nro_sesiones_total}</b>.`;
   sel._selected = o;
 
-  // Psicóloga y terapia vienen precargadas del programa, pero se pueden
-  // cambiar por si esta sesión puntual la atendió alguien más.
+  // Precarga la psicóloga/terapia del programa en los selects de arriba,
+  // pero se pueden cambiar por si esta sesión puntual la atendió alguien más.
   const sede = o.programa.sede || selectedSede || SEDES[0];
   const selPs = document.getElementById('s-psicologa-sesion');
   const selTer = document.getElementById('s-terapia-sesion');
@@ -779,7 +782,6 @@ function onProgramaSelectChange(){
   fillSelect2(selTer, terapiasDeSede(sede));
   selPs.value = o.terapia.psicologa;
   selTer.value = o.terapia.terapia;
-  document.getElementById('s-quien-atiende-wrap').style.display = '';
 
   calcSaldoSesion();
 }
@@ -807,16 +809,20 @@ function mostrarNuevoProgramaEnSesion(show){
 
 function calcSaldoSesion(){
   const sel = document.getElementById('s-programa-select');
-  const usandoExistente = document.getElementById('s-programa-wrap').style.display !== 'none' && sel.value !== 'nuevo';
+  const usandoExistente = sel.value !== '' && sel.value !== 'nuevo' && sel._selected;
   const pagoHoy = parseFloat(document.getElementById('s-pago-monto').value) || 0;
   let costoTotal, adelantoPrevio;
-  if(usandoExistente && sel._selected){
+  if(usandoExistente){
     costoTotal = Number(sel._selected.programa.costo_total || 0);
     adelantoPrevio = Number(sel._selected.programa.adelanto_acumulado || 0);
-  } else {
+  } else if(sel.value === 'nuevo'){
     const wrap = document.getElementById('s-nuevo-programa-wrap');
     const costoInput = wrap.querySelector('.pg-costo');
     costoTotal = costoInput ? (parseFloat(costoInput.value)||0) : 0;
+    adelantoPrevio = 0;
+  } else {
+    // Sesión suelta, sin programa -- el costo lo define directamente esta sesión.
+    costoTotal = parseFloat(document.getElementById('s-costo-suelto').value) || 0;
     adelantoPrevio = 0;
   }
   const saldo = Math.max(costoTotal - (adelantoPrevio + pagoHoy), 0);
@@ -832,9 +838,12 @@ function openSessionForm(){
   document.getElementById('s-nuevo-programa-wrap').innerHTML = '';
   document.getElementById('s-nuevo-programa-wrap').style.display = 'none';
   document.getElementById('s-info-programa').style.display = 'none';
-  document.getElementById('s-quien-atiende-wrap').style.display = 'none';
   document.getElementById('s-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('s-costo-suelto').value = '0';
   document.getElementById('s-saldo-display').textContent = 'S/ 0.00';
+  const sede = selectedSede || SEDES[0];
+  fillSelect2(document.getElementById('s-psicologa-sesion'), psicologasDeSede(sede));
+  fillSelect2(document.getElementById('s-terapia-sesion'), terapiasDeSede(sede));
   document.getElementById('overlay-sesion').classList.add('open');
 }
 function closeSessionForm(){ document.getElementById('overlay-sesion').classList.remove('open'); }
@@ -846,8 +855,16 @@ async function saveSession(evt){
   errEl.style.display = 'none';
 
   const pacienteNombre = document.getElementById('s-paciente').value.trim();
+  const psicologaSesionTop = document.getElementById('s-psicologa-sesion').value;
+  const terapiaSesionTop = document.getElementById('s-terapia-sesion').value;
+  if(!psicologaSesionTop || !terapiaSesionTop){
+    errEl.textContent = 'Elige la psicóloga y la terapia de esta sesión.';
+    errEl.style.display = 'block';
+    return false;
+  }
   const sel = document.getElementById('s-programa-select');
-  const usandoExistente = document.getElementById('s-programa-wrap').style.display !== 'none' && sel.value !== 'nuevo';
+  const usandoExistente = sel.value !== '' && sel.value !== 'nuevo' && !!sel._selected;
+  const esNueva = sel.value === 'nuevo';
   const pagoHoy = parseFloat(document.getElementById('s-pago-monto').value) || 0;
   const metodo = document.getElementById('s-pago-metodo').value;
   const registradoPor = document.getElementById('s-registrado-por').value.trim();
@@ -861,15 +878,40 @@ async function saveSession(evt){
 
   btn.disabled = true; btn.textContent = 'Guardando…';
   try{
-    if(usandoExistente){
+    if(!usandoExistente && !esNueva){
+      // Sesión suelta directa: sin programa/paquete detrás, solo la
+      // psicóloga y terapia de arriba + costo/pago de esta sesión.
+      const costo = parseFloat(document.getElementById('s-costo-suelto').value) || 0;
+      const saldo = Math.max(costo - pagoHoy, 0);
+      const {error: errSes} = await sb.from('sesiones').insert({
+        fecha: document.getElementById('s-fecha').value,
+        hora: document.getElementById('s-hora').value || null,
+        sede, psicologa: psicologaSesionTop, terapia: terapiaSesionTop,
+        paciente_nombre: pacienteNombre,
+        estado: document.getElementById('s-estado').value,
+        nro_en_paquete: 1, total_paquete: 1,
+        costo_total: costo, adelanto: pagoHoy, saldo,
+        tipo: 'sesion', registrado_por: registradoPor
+      });
+      if(errSes) throw errSes;
+      if(pagoHoy > 0){
+        const {error: errPago} = await sb.from('pagos').insert({
+          fecha: document.getElementById('s-fecha').value, monto: pagoHoy, metodo,
+          concepto: `Pago sesión suelta - ${terapiaSesionTop}`,
+          paciente_nombre: pacienteNombre, psicologa_nombre: psicologaSesionTop,
+          terapia_nombre: terapiaSesionTop, sede, registrado_por: registradoPor
+        });
+        if(errPago) throw errPago;
+      }
+    } else if(usandoExistente){
       const o = sel._selected;
       const programa = o.programa, pt = o.terapia;
       // La psicóloga y terapia de ESTA sesión pueden diferir de las del
-      // programa (por eso son editables) -- el progreso del programa
-      // (sesiones_realizadas) sigue contándose sobre pt, que es el
-      // "slot" del programa que se está avanzando.
-      const psicologaSesion = document.getElementById('s-psicologa-sesion').value || pt.psicologa;
-      const terapiaSesion = document.getElementById('s-terapia-sesion').value || pt.terapia;
+      // programa (por eso son editables arriba) -- el progreso del
+      // programa (sesiones_realizadas) sigue contándose sobre pt, que es
+      // el "slot" del programa que se está avanzando.
+      const psicologaSesion = psicologaSesionTop || pt.psicologa;
+      const terapiaSesion = terapiaSesionTop || pt.terapia;
       const nro_en_paquete = (pt.sesiones_realizadas||0) + 1;
       const adelantoAcumulado = Number(programa.adelanto_acumulado||0) + pagoHoy;
       const saldo = Math.max(Number(programa.costo_total||0) - adelantoAcumulado, 0);
