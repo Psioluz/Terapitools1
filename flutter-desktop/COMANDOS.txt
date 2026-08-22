@@ -1,0 +1,128 @@
+═══════════════════════════════════════════════════════════
+ PSICOLUZ — Empaquetado con Flutter (Windows)
+═══════════════════════════════════════════════════════════
+
+⚠️ ACTUALIZACIÓN IMPORTANTE (si ya compilaste Sistema con la
+versión anterior de este paquete): el paquete "webview_windows"
+que usaba la primera versión tiene un bug conocido y sin arreglo
+(reportado por muchos desarrolladores, no es tu PC) que hace que
+los <select> (menús desplegables) no abran y el scroll con la
+rueda del mouse no funcione. Lo reemplacé por "webview_win_floating",
+que sí soporta esto bien. Si ya tienes el proyecto psicoluz_sistema
+creado, solo necesitas repetir los pasos 2 a 5 de abajo con los
+archivos nuevos (no hace falta borrar el proyecto ni empezar de cero).
+
+Esto reemplaza el empaquetado anterior (Neutralino). Con Flutter
+obtienes una ventana nativa de Windows de verdad que carga tu app
+(index.html) en un WebView embebido — el código HTML queda
+empacado dentro del .exe compilado, no queda una carpeta con el
+HTML suelto al lado.
+
+REQUISITOS (una sola vez en tu PC Windows):
+  1. Instala Flutter SDK: https://docs.flutter.dev/get-started/install/windows
+  2. Instala Visual Studio con el workload "Desktop development with C++"
+     (Flutter lo necesita para compilar apps de Windows).
+  3. Activa el Modo de Programador de Windows (una sola vez):
+       start ms-settings:developers
+     y activa el interruptor "Modo de programador" / "Developer Mode".
+  4. Verifica que todo esté bien con:
+       flutter doctor
+
+REPITE ESTOS PASOS PARA CADA UNA DE LAS 3 APPS
+(sistema, recepcion, administracion) — están en carpetas
+separadas en esta misma entrega, cada una ya trae su propio
+pubspec.yaml, lib/main.dart, assets/app/index.html y app_icon.ico
+listos. Solo tienes que "inyectarlos" dentro de un proyecto
+Flutter recién creado, así:
+
+────────────────────────────────────────────────────────────
+  EJEMPLO CON "sistema" (repite cambiando el nombre para
+  "recepcion" y "administracion")
+────────────────────────────────────────────────────────────
+
+:: 1) Crea el proyecto base de Flutter para Windows
+flutter create --platforms=windows psicoluz_sistema
+cd psicoluz_sistema
+
+:: 2) Agrega las dependencias que usa la app
+flutter pub add webview_flutter
+flutter pub add webview_win_floating
+flutter pub add path
+
+:: 3) Copia ENCIMA los archivos que te entregué en la carpeta
+::    flutter-desktop\sistema\ (pisa lo que ya existe):
+::      - pubspec.yaml          -> psicoluz_sistema\pubspec.yaml
+::      - lib\main.dart         -> psicoluz_sistema\lib\main.dart
+::      - assets\app\index.html -> psicoluz_sistema\assets\app\index.html
+::      - app_icon.ico          -> psicoluz_sistema\windows\runner\resources\app_icon.ico
+::      (ese último SÍ reemplaza el ícono genérico de Flutter por el de Psicoluz)
+
+:: 4) Cambia el título de la ventana nativa (el que se ve en la
+::    barra de tareas y en la esquina de la ventana). Este texto
+::    NO se lee de ningún archivo de configuración: está escrito
+::    directo en el código C++ de arranque. Abre con el Bloc de
+::    notas:
+::        windows\runner\main.cpp
+::    Busca la línea que dice algo como:
+::        if (!window.CreateAndShow(L"psicoluz_sistema", origin, size))
+::    y cambia el texto entre L"..." por el nombre correcto, por
+::    ejemplo:
+::        if (!window.CreateAndShow(L"Psicoluz Sistema", origin, size))
+::    (para Recepción sería L"Psicoluz Recepción", para
+::    Administración L"Psicoluz Administración" — SIN guiones,
+::    tal como lo pediste)
+
+:: 5) Trae de vuelta las dependencias y compila
+flutter pub get
+flutter build windows --release
+
+:: 6) El programa final queda en:
+::      psicoluz_sistema\build\windows\x64\runner\Release\
+::    Esa carpeta completa (el .exe + las .dll + la carpeta data\)
+::    es lo que se copia a otra PC para probar. Debe ir TODO junto.
+
+────────────────────────────────────────────────────────────
+  SIGUIENTE PASO: instalador de verdad (Disco C, modo admin,
+  sin dejar el código suelto) — carpeta "instalador\"
+────────────────────────────────────────────────────────────
+Con solo "flutter build windows" el resultado es una carpeta con
+varios archivos — funciona, pero no "instala" nada ni pide
+permisos. Para eso se usa Inno Setup (gratis):
+
+  1. Descarga e instala Inno Setup: https://jrsoftware.org/isdl.php
+  2. Abre el archivo instalador\Sistema.iss (o Recepcion.iss /
+     Administracion.iss) con Inno Setup.
+  3. Ajusta la línea "Source" para que apunte a la carpeta
+     build\windows\x64\runner\Release\ que generaste en el paso
+     anterior (ya viene con una ruta de ejemplo, solo verifica
+     que coincida con dónde creaste el proyecto).
+  4. Presiona "Compile" (Ctrl+F9). Esto genera UN SOLO .exe
+     instalador (ej. Instalar_Psicoluz_Sistema.exe) que:
+       - Pide permisos de administrador al abrirse.
+       - Instala todo en C:\Psicoluz\Sistema\ (no queda el
+         código HTML suelto visible al usuario común — queda
+         dentro de la carpeta de instalación del programa,
+         igual que cualquier otro software instalado en Windows).
+       - Crea acceso directo en el Escritorio y en el Menú
+         Inicio, con el ícono de Psicoluz.
+       - Incluye un desinstalador automático.
+  5. Ese .exe instalador es el que copias a cualquier otra PC.
+
+NOTA IMPORTANTE Y HONESTA: ni Flutter ni Inno Setup "encriptan"
+ni hacen imposible ver el HTML — un usuario con conocimientos
+técnicos podría igual extraerlo de la carpeta de instalación.
+Lo que sí logran es que un usuario normal NO vea el código como
+una carpeta suelta de archivos: lo ve como "un programa instalado"
+igual que cualquier otro software de Windows, que es lo que
+pediste. Para una protección real del código (imposible de
+extraer) se necesitaría reescribir la lógica en un lenguaje
+compilado (Dart/Flutter nativo, no HTML/JS) — es un proyecto
+grande, aparte, si lo quieres evaluar más adelante.
+
+NOTA SOBRE PRUEBAS: no tengo una PC con Windows en este entorno
+para compilar y probar esto de punta a punta, así que estos
+pasos están armados con la documentación oficial de Flutter y
+del paquete webview_win_floating, pero no verificados en vivo.
+Si algo no compila tal cual, mándame el mensaje de error exacto
+y lo ajustamos — como hicimos con el paso de "path" y el de
+"Modo de programador".

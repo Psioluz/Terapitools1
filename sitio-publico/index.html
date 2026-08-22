@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Psicoluz · Centro Terapéutico Integral</title>
+<meta name="description" content="Psicoluz, Centro Terapéutico Integral. Terapia psicológica y de lenguaje para niños y adultos en Comas, Óvalo Zapallal, Flecha y Pachacutec.">
+<link rel="icon" href="assets/logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1c3a4b; --teal:#2c7a76; --accent:#3d2233;
+    --bg:#ffffff; --bg-alt:#f4f7f7;
+    --text:#1e2a2e; --muted:#5c6b6e; --line:#e2e8e8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:'Inter',sans-serif;color:var(--text);background:var(--bg);line-height:1.6;overflow-x:hidden}
+  a{text-decoration:none;color:inherit}
+  img{max-width:100%;display:block}
+  .wrap{max-width:1160px;margin:0 auto;padding:0 24px}
+  h1,h2,h3{font-family:'Lora',serif;font-weight:600;color:var(--navy);text-wrap:balance}
+  section{padding:80px 0}
+  .center{text-align:center}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:6px;font-weight:600;font-size:14.5px;border:none;cursor:pointer;transition:.2s;font-family:'Inter',sans-serif}
+  .btn-primary{background:var(--teal);color:#fff}
+  .btn-primary:hover{background:#256461}
+  .btn-outline{background:transparent;color:var(--navy);border:1.5px solid var(--line)}
+  .btn-outline:hover{border-color:var(--teal);color:var(--teal)}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--teal);margin-bottom:14px}
+  .eyebrow::before{content:'';width:22px;height:2px;background:var(--teal);display:inline-block}
+
+  /* ===== DOCK SOCIAL FLOTANTE ===== */
+  .social-dock{position:fixed;right:22px;bottom:92px;z-index:600;display:flex;flex-direction:column;gap:10px}
+  .social-dock a{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;box-shadow:0 6px 16px rgba(28,58,75,.25)}
+  .social-dock a.fb{background:#1877F2}
+  .social-dock a.ig{background:linear-gradient(135deg,#4f5bd5,#962fbf,#d62976,#fa7e1e,#feda75)}
+  @media(max-width:700px){.social-dock{right:14px;bottom:84px}.social-dock a{width:40px;height:40px}}
+
+  /* ===== HEADER ===== */
+  header{position:sticky;top:0;z-index:500;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;max-width:1160px;margin:0 auto}
+  .brand img{height:52px;width:auto}
+  .navlinks{display:flex;gap:30px;align-items:center;font-weight:500;font-size:14px}
+  .navlinks a{color:var(--navy);padding:6px 2px;border-bottom:2px solid transparent}
+  .navlinks a:hover,.navlinks a.active{border-color:var(--teal);color:var(--teal)}
+  .navBtns{display:flex;gap:10px;align-items:center}
+  .burger{display:none;font-size:22px;background:none;border:none;cursor:pointer;color:var(--navy)}
+  @media(max-width:900px){
+    .navlinks{position:fixed;top:74px;left:0;right:0;background:#fff;flex-direction:column;align-items:flex-start;padding:18px 24px;gap:14px;box-shadow:0 12px 24px rgba(0,0,0,.08);display:none}
+    .navlinks.open{display:flex}
+    .burger{display:block}
+    .navBtns .btn-outline{display:none}
+  }
+
+  /* ===== HERO ===== */
+  .hero{background:var(--bg-alt);border-bottom:1px solid var(--line)}
+  .hero .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center;padding:70px 24px}
+  @media(max-width:900px){.hero .wrap{grid-template-columns:1fr;padding-top:44px;padding-bottom:44px}}
+  .hero h1{font-size:38px;line-height:1.28;margin-bottom:18px}
+  .hero p{color:var(--muted);font-size:16px;margin-bottom:28px;max-width:480px}
+  .hero-actions{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:36px}
+  .hero-stats{display:flex;gap:0;border-top:1px solid var(--line);padding-top:22px}
+  .hero-stat{flex:1;padding-right:18px}
+  .hero-stat b{display:block;font-family:'Lora',serif;font-size:26px;color:var(--navy)}
+  .hero-stat span{font-size:12px;color:var(--muted);font-weight:500}
+  .hero-panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:38px;box-shadow:0 20px 40px -20px rgba(28,58,75,.18)}
+  .hero-panel img{width:60%;margin:0 auto 22px}
+  .hero-panel-list{display:flex;flex-direction:column;gap:14px}
+  .hero-panel-item{display:flex;align-items:flex-start;gap:12px;font-size:13.5px;color:var(--text);padding:12px 0;border-top:1px solid var(--line)}
+  .hero-panel-item:first-child{border-top:none;padding-top:0}
+  .hero-panel-item .dot{width:8px;height:8px;border-radius:50%;background:var(--teal);margin-top:6px;flex-shrink:0}
+
+  /* ===== SEDES ===== */
+  .sedes-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:36px;border-radius:8px;overflow:hidden}
+  @media(max-width:900px){.sedes-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.sedes-grid{grid-template-columns:1fr}}
+  .sede-card{background:#fff;padding:26px 22px}
+  .sede-card .num{font-family:'Lora',serif;font-size:13px;color:var(--teal);font-weight:600;margin-bottom:8px}
+  .sede-card h3{font-size:17px;margin-bottom:6px}
+  .sede-card p{font-size:13px;color:var(--muted)}
+
+  /* ===== SERVICIOS ===== */
+  .serv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:40px;border-radius:8px;overflow:hidden}
+  @media(max-width:860px){.serv-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.serv-grid{grid-template-columns:1fr}}
+  .serv-card{background:#fff;padding:30px 26px}
+  .serv-card .ic{width:42px;height:42px;border-radius:8px;background:var(--bg-alt);display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:16px;color:var(--teal)}
+  .serv-card h3{font-size:16.5px;margin-bottom:8px}
+  .serv-card p{font-size:13.5px;color:var(--muted)}
+  .bg-alt{background:var(--bg-alt);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+
+  /* ===== PROMOS / TALLERES ===== */
+  .promo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:36px}
+  @media(max-width:860px){.promo-grid{grid-template-columns:1fr}}
+  .promo-card{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+  .promo-top{height:6px;background:var(--teal)}
+  .promo-body{padding:22px}
+  .promo-tag{font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.05em}
+  .promo-body h3{font-size:16px;margin:8px 0 8px}
+  .promo-body p{font-size:13px;color:var(--muted)}
+
+  /* ===== SOCIAL FEED ===== */
+  .social-wrap{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:36px;align-items:start}
+  @media(max-width:860px){.social-wrap{grid-template-columns:1fr}}
+  .social-box{background:#fff;border:1px solid var(--line);border-radius:8px;padding:22px;min-height:400px}
+  .social-box h3{font-size:15px;font-family:'Inter',sans-serif;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:16px;color:var(--navy)}
+  .tiktok-list{display:flex;flex-direction:column;gap:16px}
+  .social-fallback{padding:30px 16px;text-align:center;color:var(--muted);font-size:13px}
+  .social-fallback a{color:var(--teal);font-weight:600}
+
+  /* ===== VISION/MISION ===== */
+  .vm-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:32px;border-radius:8px;overflow:hidden}
+  @media(max-width:760px){.vm-grid{grid-template-columns:1fr}}
+  .vm-card{background:#fff;padding:32px}
+  .vm-card h3{font-size:18px;margin-bottom:12px;padding-bottom:12px;border-bottom:2px solid var(--bg-alt)}
+  .vm-card p{color:var(--muted);font-size:14px}
+
+  /* ===== CTA ===== */
+  .cta{background:var(--navy);padding:60px 24px;text-align:center;color:#fff}
+  .cta h2{color:#fff;font-size:27px;margin-bottom:12px}
+  .cta p{color:#c3d2d6;margin-bottom:26px;max-width:480px;margin-left:auto;margin-right:auto}
+  .cta .btn-primary{background:#fff;color:var(--navy)}
+  .cta .btn-primary:hover{background:#e8f0f0}
+
+  /* ===== FOOTER ===== */
+  footer{background:#0f2530;color:#a9c0c5;padding:56px 0 22px}
+  .foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:34px}
+  @media(max-width:760px){.foot-grid{grid-template-columns:1fr 1fr}}
+  .foot-brand{margin-bottom:14px}
+  .foot-brand img{height:40px;filter:brightness(0) invert(1);opacity:.92}
+  footer h4{font-family:'Lora',serif;color:#fff;font-size:14px;margin-bottom:14px;font-weight:600}
+  footer a,footer p{font-size:13px;color:#8fa8ae;display:block;margin-bottom:9px}
+  footer a:hover{color:#fff}
+  .social-icons{display:flex;gap:10px;margin-top:16px}
+  .social-icons a{width:36px;height:36px;border-radius:6px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:15px}
+  .social-icons a:hover{background:var(--teal)}
+  .foot-bottom{text-align:center;border-top:1px solid rgba(255,255,255,.08);margin-top:36px;padding-top:20px;font-size:11.5px;color:#5f7c82}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ CONFIGURACIÓN RÁPIDA ══════════════
+Edita estas líneas con tus datos reales; el resto de la página se arma solo.
+═══════════════════════════════════════════════════ -->
+<script>
+  const CONFIG = {
+    facebookPageUrl: 'https://www.facebook.com/psicoluz',      // URL pública de la página de Facebook
+    instagramUrl: 'https://www.instagram.com/psicoluz',        // URL del perfil de Instagram
+    tiktokProfileUrl: 'https://www.tiktok.com/@psicoluz',       // URL del perfil de TikTok
+    tiktokVideoUrls: [
+      // Pega aquí links de videos publicados, ej: 'https://www.tiktok.com/@psicoluz/video/1234567890123456789'
+    ],
+    whatsappNumber: '51900000000',   // número con código de país, sin +
+    whatsappMsg: 'Hola Psicoluz, quisiera más información sobre sus terapias.'
+  };
+</script>
+
+<div class="social-dock">
+  <a class="fb" href="#" id="dockFb" target="_blank" title="Facebook">📘</a>
+  <a class="ig" href="#" id="dockIg" target="_blank" title="Instagram">📷</a>
+</div>
+
+<header>
+  <div class="nav">
+    <a class="brand" href="#top"><img src="assets/logo.png" alt="Psicoluz"></a>
+    <nav class="navlinks" id="navlinks">
+      <a href="#top" class="active" onclick="closeNav()">Inicio</a>
+      <a href="#servicios" onclick="closeNav()">Servicios</a>
+      <a href="#talleres" onclick="closeNav()">Talleres y Promos</a>
+      <a href="#sedes" onclick="closeNav()">Sedes</a>
+      <a href="#nosotros" onclick="closeNav()">Nosotros</a>
+      <a href="#social" onclick="closeNav()">Síguenos</a>
+      <a href="#contacto" onclick="closeNav()">Contacto</a>
+    </nav>
+    <div class="navBtns">
+      <a class="btn btn-outline" href="#contacto">Contáctanos</a>
+      <a class="btn btn-primary" id="waHeroBtn" href="#" target="_blank">Agenda una cita</a>
+      <button class="burger" onclick="toggleNav()">☰</button>
+    </div>
+  </div>
+</header>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Centro Terapéutico Integral</span>
+      <h1>Acompañamiento psicológico y terapia de lenguaje con criterio clínico</h1>
+      <p>Evaluación, diagnóstico e intervención personalizada para niños, adolescentes y familias, a cargo de un equipo de psicólogas colegiadas. Cuatro sedes en Lima Norte.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#contacto">Agenda una evaluación</a>
+        <a class="btn btn-outline" href="#servicios">Ver servicios</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><b>4</b><span>SEDES EN LIMA NORTE</span></div>
+        <div class="hero-stat"><b>+500</b><span>FAMILIAS ATENDIDAS</span></div>
+        <div class="hero-stat"><b>100%</b><span>PSICÓLOGAS COLEGIADAS</span></div>
+      </div>
+    </div>
+    <div class="hero-panel">
+      <img src="assets/logo.png" alt="Psicoluz">
+      <div class="hero-panel-list">
+        <div class="hero-panel-item"><span class="dot"></span>Evaluación psicológica inicial con informe</div>
+        <div class="hero-panel-item"><span class="dot"></span>Plan terapéutico individualizado por paciente</div>
+        <div class="hero-panel-item"><span class="dot"></span>Seguimiento de metas por hito de desarrollo</div>
+        <div class="hero-panel-item"><span class="dot"></span>Orientación continua a padres y familia</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="servicios">
+  <div class="wrap">
+    <span class="eyebrow">Lo que hacemos</span>
+    <h2 style="font-size:28px">Servicios terapéuticos</h2>
+    <div class="serv-grid">
+      <div class="serv-card"><div class="ic">◐</div><h3>Terapia psicológica infantil</h3><p>Evaluación y acompañamiento en conducta, emociones y desarrollo, con enfoque individualizado.</p></div>
+      <div class="serv-card"><div class="ic">◑</div><h3>Terapia de lenguaje</h3><p>Estimulación y corrección del habla, articulación y comunicación, con herramientas clínicas y digitales.</p></div>
+      <div class="serv-card"><div class="ic">◒</div><h3>Intervención en TEA / TDAH</h3><p>Programas de intervención temprana centrados en comunicación, autorregulación y autonomía.</p></div>
+      <div class="serv-card"><div class="ic">◓</div><h3>Orientación a padres</h3><p>Acompañamiento a la familia con pautas prácticas para reforzar los avances logrados en terapia.</p></div>
+      <div class="serv-card"><div class="ic">◔</div><h3>Evaluación psicológica</h3><p>Diagnóstico integral para definir el plan terapéutico más adecuado desde la primera cita.</p></div>
+      <div class="serv-card"><div class="ic">◕</div><h3>Seguimiento de metas</h3><p>Reportes de avance por hitos de desarrollo, no solo asistencia — progreso real y medible.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="talleres" class="bg-alt">
+  <div class="wrap">
+    <span class="eyebrow">Novedades</span>
+    <h2 style="font-size:28px">Talleres, promociones e inauguraciones</h2>
+    <p style="color:var(--muted);max-width:520px;margin-top:10px">Esta sección se actualiza junto con nuestras redes sociales — revisa también Facebook e Instagram más abajo.</p>
+    <div class="promo-grid">
+      <div class="promo-card"><div class="promo-top"></div><div class="promo-body"><span class="promo-tag">Promoción</span><h3>Evaluación inicial con descuento</h3><p>Pregunta por nuestras promociones vigentes para nuevas familias en cualquiera de nuestras 4 sedes.</p></div></div>
+      <div class="promo-card"><div class="promo-top"></div><div class="promo-body"><span class="promo-tag">Taller</span><h3>Taller para padres y cuidadores</h3><p>Espacios formativos sobre manejo conductual y estrategias de comunicación en casa.</p></div></div>
+      <div class="promo-card"><div class="promo-top"></div><div class="promo-body"><span class="promo-tag">Inauguración</span><h3>Nuevas sedes Psicoluz</h3><p>Conoce nuestras sedes en Comas, Óvalo Zapallal, Flecha y Pachacutec.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="sedes">
+  <div class="wrap">
+    <span class="eyebrow">Dónde estamos</span>
+    <h2 style="font-size:28px">Nuestras sedes</h2>
+    <div class="sedes-grid">
+      <div class="sede-card"><div class="num">01</div><h3>Comas</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
+      <div class="sede-card"><div class="num">02</div><h3>Óvalo Zapallal</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
+      <div class="sede-card"><div class="num">03</div><h3>Flecha</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
+      <div class="sede-card"><div class="num">04</div><h3>Pachacutec</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="nosotros" class="bg-alt">
+  <div class="wrap">
+    <span class="eyebrow">Nosotros</span>
+    <h2 style="font-size:28px">Nuestra visión y misión</h2>
+    <div class="vm-grid">
+      <div class="vm-card"><h3>Visión</h3><p>Ser el centro terapéutico de referencia en Lima Norte para el desarrollo integral de niños, niñas y adolescentes, reconocido por la calidez humana y el rigor profesional de nuestro equipo.</p></div>
+      <div class="vm-card"><h3>Misión</h3><p>Brindar terapia psicológica y de lenguaje accesible y de calidad, acompañando a cada familia con un plan personalizado que respeta el ritmo y las necesidades de cada niño/a.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="social">
+  <div class="wrap">
+    <span class="eyebrow">Síguenos</span>
+    <h2 style="font-size:28px">Novedades desde nuestras redes</h2>
+    <p style="color:var(--muted);max-width:520px;margin-top:10px">Publicamos ahí antes que en ningún otro lado: promociones, talleres y el día a día del centro.</p>
+    <div class="social-wrap">
+      <div class="social-box">
+        <h3>Facebook</h3>
+        <div id="fbFeedHolder"></div>
+      </div>
+      <div class="social-box">
+        <h3>TikTok</h3>
+        <div id="tiktokFeedHolder"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="cta">
+  <h2>¿Listo para dar el primer paso?</h2>
+  <p>Agenda una evaluación inicial y conversemos sobre el mejor plan terapéutico para tu hijo/a.</p>
+  <a class="btn btn-primary" id="waCtaBtn" href="#" target="_blank">Escríbenos por WhatsApp</a>
+</div>
+
+<section id="contacto">
+  <div class="wrap center">
+    <span class="eyebrow" style="justify-content:center">Contacto</span>
+    <h2 style="font-size:28px">Conversemos</h2>
+    <p style="color:var(--muted);max-width:480px;margin:12px auto 26px">Escríbenos por WhatsApp o síguenos en redes para conocer horarios y disponibilidad en cada sede.</p>
+    <a class="btn btn-primary" id="waContactoBtn" href="#" target="_blank">WhatsApp Psicoluz</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand"><img src="assets/logo.png" alt="Psicoluz"></div>
+        <p>Centro Terapéutico Integral. Terapia psicológica y de lenguaje para niños, adolescentes y familias en Lima Norte.</p>
+        <div class="social-icons">
+          <a href="#" id="fbIconLink" target="_blank">FB</a>
+          <a href="#" id="igIconLink" target="_blank">IG</a>
+          <a href="#" id="tkIconLink" target="_blank">TT</a>
+          <a href="#" id="waIconLink" target="_blank">WA</a>
+        </div>
+      </div>
+      <div><h4>Navegación</h4>
+        <a href="#servicios">Servicios</a><a href="#talleres">Talleres y Promos</a><a href="#sedes">Sedes</a><a href="#nosotros">Nosotros</a>
+      </div>
+      <div><h4>Sedes</h4>
+        <a href="#sedes">Comas</a><a href="#sedes">Óvalo Zapallal</a><a href="#sedes">Flecha</a><a href="#sedes">Pachacutec</a>
+      </div>
+      <div><h4>Contacto</h4>
+        <a href="#contacto">Escríbenos</a><a href="#social">Redes sociales</a>
+      </div>
+    </div>
+    <div class="foot-bottom">© Todos los derechos reservados para Psicoluz V1</div>
+  </div>
+</footer>
+
+<script>
+  function toggleNav(){document.getElementById('navlinks').classList.toggle('open');}
+  function closeNav(){document.getElementById('navlinks').classList.remove('open');}
+
+  // WhatsApp links
+  var waUrl='https://wa.me/'+CONFIG.whatsappNumber+'?text='+encodeURIComponent(CONFIG.whatsappMsg);
+  ['waHeroBtn','waCtaBtn','waContactoBtn','waIconLink'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.href=waUrl;
+  });
+  document.getElementById('fbIconLink').href=CONFIG.facebookPageUrl;
+  document.getElementById('igIconLink').href=CONFIG.instagramUrl;
+  document.getElementById('tkIconLink').href=CONFIG.tiktokProfileUrl;
+  document.getElementById('dockFb').href=CONFIG.facebookPageUrl;
+  document.getElementById('dockIg').href=CONFIG.instagramUrl;
+
+  // ===== Facebook Page Plugin embed =====
+  (function(){
+    var holder=document.getElementById('fbFeedHolder');
+    if(!CONFIG.facebookPageUrl){holder.innerHTML='<div class="social-fallback">Configura CONFIG.facebookPageUrl para mostrar las publicaciones.</div>';return;}
+    var fbRoot=document.createElement('div'); fbRoot.id='fb-root'; document.body.appendChild(fbRoot);
+    var plugin=document.createElement('div');
+    plugin.className='fb-page';
+    plugin.setAttribute('data-href',CONFIG.facebookPageUrl);
+    plugin.setAttribute('data-tabs','timeline');
+    plugin.setAttribute('data-width','380');
+    plugin.setAttribute('data-height','420');
+    plugin.setAttribute('data-small-header','false');
+    plugin.setAttribute('data-adapt-container-width','true');
+    plugin.setAttribute('data-hide-cover','false');
+    plugin.setAttribute('data-show-facepile','true');
+    holder.appendChild(plugin);
+    holder.innerHTML+='<div class="social-fallback">¿No carga? Puede que tu navegador bloquee el widget de Facebook. <a href="'+CONFIG.facebookPageUrl+'" target="_blank">Visita la página directamente →</a></div>';
+    var js=document.createElement('script');
+    js.async=true; js.defer=true; js.crossOrigin='anonymous';
+    js.src='https://connect.facebook.net/es_LA/sdk.js#xfbml=1&version=v19.0';
+    document.body.appendChild(js);
+  })();
+
+  // ===== TikTok embed (oEmbed por video) =====
+  (function(){
+    var holder=document.getElementById('tiktokFeedHolder');
+    if(!CONFIG.tiktokVideoUrls || !CONFIG.tiktokVideoUrls.length){
+      holder.innerHTML='<div class="social-fallback">Aún no hay videos configurados.<br>Agrega links de tus videos en <b>CONFIG.tiktokVideoUrls</b> (arriba del archivo) para mostrarlos aquí, o visita nuestro perfil: <a href="'+CONFIG.tiktokProfileUrl+'" target="_blank">'+CONFIG.tiktokProfileUrl+' →</a></div>';
+      return;
+    }
+    var list=document.createElement('div'); list.className='tiktok-list';
+    CONFIG.tiktokVideoUrls.forEach(function(url){
+      var bq=document.createElement('blockquote');
+      bq.className='tiktok-embed'; bq.setAttribute('cite',url); bq.setAttribute('data-video-id',(url.match(/video\/(\d+)/)||[])[1]||'');
+      bq.style.maxWidth='100%'; bq.style.minWidth='100%';
+      bq.innerHTML='<section></section>';
+      list.appendChild(bq);
+    });
+    holder.appendChild(list);
+    var js=document.createElement('script');
+    js.async=true; js.src='https://www.tiktok.com/embed.js';
+    document.body.appendChild(js);
+  })();
+
+  // ===== Resaltar el link activo del menú al hacer scroll =====
+  (function(){
+    var links=Array.prototype.slice.call(document.querySelectorAll('.navlinks a'));
+    var secs=links.map(function(a){return document.querySelector(a.getAttribute('href'));}).filter(Boolean);
+    window.addEventListener('scroll',function(){
+      var pos=window.scrollY+120;
+      var current=secs[0];
+      secs.forEach(function(s){if(s.offsetTop<=pos)current=s;});
+      links.forEach(function(a){a.classList.toggle('active',a.getAttribute('href')==='#'+current.id);});
+    });
+  })();
+</script>
+
+</body>
+</html>

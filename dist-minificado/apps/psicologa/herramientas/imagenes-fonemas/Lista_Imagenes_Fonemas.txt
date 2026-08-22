@@ -1,0 +1,250 @@
+LISTA DE IMAGENES - JUEGO DE FONEMAS (Psicoluz)
+==================================================================
+
+Formato: PNG o JPG | Cuadrada, ideal 512x512px (min. 300x300px)
+Fondo simple (blanco o color liso) | Objeto claro y reconocible
+Peso recomendado por archivo: 20-300 KB (que cargue rápido en celular)
+El nombre del archivo debe ser EXACTO (como se indica abajo).
+
+FONEMA /M/  (22 palabras)
+--------------------------------------------------
+  m_mesa.png             palabra: mesa            [4 KB - LISTA]
+  m_mano.png             palabra: mano            [5 KB - LISTA]
+  m_mico.png             palabra: mico            [8 KB - LISTA]
+  m_moto.png             palabra: moto            [7 KB - LISTA]
+  m_mula.png             palabra: mula            [6 KB - LISTA]
+  m_mapa.png             palabra: mapa            [5 KB - LISTA]
+  m_mazo.png             palabra: mazo            [63 KB - LISTA]
+  m_mozo.png             palabra: mozo            [66 KB - LISTA]
+  m_mimo.png             palabra: mimo            [80 KB - LISTA]
+  m_muro.png             palabra: muro            [63 KB - LISTA]
+  m_lima.png             palabra: lima            [7 KB - LISTA]
+  m_cama.png             palabra: cama            [4 KB - LISTA]
+  m_rama.png             palabra: rama            [7 KB - LISTA]
+  m_goma.png             palabra: goma            [4 KB - LISTA]
+  m_loma.png             palabra: loma            [74 KB - LISTA]
+  m_ramo.png             palabra: ramo            [83 KB - LISTA]
+  m_cima.png             palabra: cima            [73 KB - LISTA]
+  m_crema.png            palabra: crema           [59 KB - LISTA]
+  m_pluma.png            palabra: pluma           [81 KB - LISTA]
+  m_media.png            palabra: media           [68 KB - LISTA]
+  m_momia.png            palabra: momia           [79 KB - LISTA]
+  m_pijama.png           palabra: pijama          [71 KB - LISTA]
+
+FONEMA /N/  (11 palabras)
+--------------------------------------------------
+  n_nene.png             palabra: nene            [FALTA]
+  n_camion.png           palabra: camion          [FALTA]
+  n_nido.png             palabra: nido            [FALTA]
+  n_nube.png             palabra: nube            [FALTA]
+  n_luna.png             palabra: luna            [FALTA]
+  n_mono.png             palabra: mono            [FALTA]
+  n_nariz.png            palabra: nariz           [FALTA]
+  n_cono.png             palabra: cono            [FALTA]
+  n_piano.png            palabra: piano           [FALTA]
+  n_raton.png            palabra: raton           [FALTA]
+  n_avion.png            palabra: avion           [FALTA]
+
+FONEMA /P/  (14 palabras)
+--------------------------------------------------
+  p_copa.png             palabra: copa            [FALTA]
+  p_papa.png             palabra: papa            [FALTA]
+  p_ropa.png             palabra: ropa            [FALTA]
+  p_puma.png             palabra: puma            [FALTA]
+  p_plato.png            palabra: plato           [FALTA]
+  p_tapa.png             palabra: tapa            [FALTA]
+  p_pelo.png             palabra: pelo            [FALTA]
+  p_piso.png             palabra: piso            [FALTA]
+  p_pato.png             palabra: pato            [FALTA]
+  p_copita.png           palabra: copita          [FALTA]
+  p_lupa.png             palabra: lupa            [FALTA]
+  p_prado.png            palabra: prado           [FALTA]
+  p_sopa.png             palabra: sopa            [FALTA]
+  p_zapato.png           palabra: zapato          [FALTA]
+
+FONEMA /T/  (13 palabras)
+--------------------------------------------------
+  t_tubo.png             palabra: tubo            [FALTA]
+  t_estrella.png         palabra: estrella        [FALTA]
+  t_mota.png             palabra: mota            [FALTA]
+  t_trompo.png           palabra: trompo          [FALTA]
+  t_bota.png             palabra: bota            [FALTA]
+  t_tela.png             palabra: tela            [FALTA]
+  t_taza.png             palabra: taza            [FALTA]
+  t_tiza.png             palabra: tiza            [FALTA]
+  t_traje.png            palabra: traje           [FALTA]
+  t_foto.png             palabra: foto            [FALTA]
+  t_toro.png             palabra: toro            [FALTA]
+  t_rata.png             palabra: rata            [FALTA]
+  t_gato.png             palabra: gato            [FALTA]
+
+FONEMA /K/  (13 palabras)
+--------------------------------------------------
+  k_saco.png             palabra: saco            [FALTA]
+  k_escuela.png          palabra: escuela         [FALTA]
+  k_queso.png            palabra: queso           [FALTA]
+  k_bicicleta.png        palabra: bicicleta       [FALTA]
+  k_vaca.png             palabra: vaca            [FALTA]
+  k_roca.png             palabra: roca            [FALTA]
+  k_foca.png             palabra: foca            [FALTA]
+  k_casa.png             palabra: casa            [FALTA]
+  k_carro.png            palabra: carro           [FALTA]
+  k_coco.png             palabra: coco            [FALTA]
+  k_cuna.png             palabra: cuna            [FALTA]
+  k_canasta.png          palabra: canasta         [FALTA]
+  k_boca.png             palabra: boca            [FALTA]
+
+FONEMA /B/  (14 palabras)
+--------------------------------------------------
+  b_uva.png              palabra: uva             [FALTA]
+  b_rabo.png             palabra: rabo            [FALTA]
+  b_cubo.png             palabra: cubo            [FALTA]
+  b_vela.png             palabra: vela            [FALTA]
+  b_lobo.png             palabra: lobo            [FALTA]
+  b_libro.png            palabra: libro           [FALTA]
+  b_cabra.png            palabra: cabra           [FALTA]
+  b_brazo.png            palabra: brazo           [FALTA]
+  b_nube.png             palabra: nube            [FALTA]
+  b_bola.png             palabra: bola            [FALTA]
+  b_blanco.png           palabra: blanco          [FALTA]
+  b_bebe.png             palabra: bebe            [FALTA]
+  b_burro.png            palabra: burro           [FALTA]
+  b_bote.png             palabra: bote            [FALTA]
+
+FONEMA /D/  (13 palabras)
+--------------------------------------------------
+  d_todo.png             palabra: todo            [FALTA]
+  d_moda.png             palabra: moda            [FALTA]
+  d_dragon.png           palabra: dragon          [FALTA]
+  d_madre.png            palabra: madre           [FALTA]
+  d_padre.png            palabra: padre           [FALTA]
+  d_cuadro.png           palabra: cuadro          [FALTA]
+  d_rueda.png            palabra: rueda           [FALTA]
+  d_dado.png             palabra: dado            [FALTA]
+  d_ducha.png            palabra: ducha           [FALTA]
+  d_nido.png             palabra: nido            [FALTA]
+  d_dedo.png             palabra: dedo            [FALTA]
+  d_dama.png             palabra: dama            [FALTA]
+  d_codo.png             palabra: codo            [FALTA]
+
+FONEMA /G/  (10 palabras)
+--------------------------------------------------
+  g_gato.png             palabra: gato            [FALTA]
+  g_granja.png           palabra: granja          [FALTA]
+  g_gallo.png            palabra: gallo           [FALTA]
+  g_tigre.png            palabra: tigre           [FALTA]
+  g_lago.png             palabra: lago            [FALTA]
+  g_agua.png             palabra: agua            [FALTA]
+  g_guante.png           palabra: guante          [FALTA]
+  g_jugo.png             palabra: jugo            [FALTA]
+  g_goma.png             palabra: goma            [FALTA]
+  g_dragon.png           palabra: dragon          [FALTA]
+
+FONEMA /L/  (12 palabras)
+--------------------------------------------------
+  l_luna.png             palabra: luna            [FALTA]
+  l_flauta.png           palabra: flauta          [FALTA]
+  l_cielo.png            palabra: cielo           [FALTA]
+  l_lapiz.png            palabra: lapiz           [FALTA]
+  l_leche.png            palabra: leche           [FALTA]
+  l_loro.png             palabra: loro            [FALTA]
+  l_playa.png            palabra: playa           [FALTA]
+  l_globo.png            palabra: globo           [FALTA]
+  l_pala.png             palabra: pala            [FALTA]
+  l_lobo.png             palabra: lobo            [FALTA]
+  l_vela.png             palabra: vela            [FALTA]
+  l_isla.png             palabra: isla            [FALTA]
+
+FONEMA /F/  (10 palabras)
+--------------------------------------------------
+  f_jirafa.png           palabra: jirafa          [FALTA]
+  f_rifa.png             palabra: rifa            [FALTA]
+  f_bufanda.png          palabra: bufanda         [FALTA]
+  f_elefante.png         palabra: elefante        [FALTA]
+  f_foca.png             palabra: foca            [FALTA]
+  f_fuego.png            palabra: fuego           [FALTA]
+  f_cafe.png             palabra: cafe            [FALTA]
+  f_sofa.png             palabra: sofa            [FALTA]
+  f_fiesta.png           palabra: fiesta          [FALTA]
+  f_foco.png             palabra: foco            [FALTA]
+
+FONEMA /CH/  (10 palabras)
+--------------------------------------------------
+  ch_coche.png           palabra: coche           [FALTA]
+  ch_choclo.png          palabra: choclo          [FALTA]
+  ch_mochila.png         palabra: mochila         [FALTA]
+  ch_ocho.png            palabra: ocho            [FALTA]
+  ch_chancho.png         palabra: chancho         [FALTA]
+  ch_cuchara.png         palabra: cuchara         [FALTA]
+  ch_leche.png           palabra: leche           [FALTA]
+  ch_chivo.png           palabra: chivo           [FALTA]
+  ch_noche.png           palabra: noche           [FALTA]
+  ch_chocolate.png       palabra: chocolate       [FALTA]
+
+FONEMA /Y/  (10 palabras)
+--------------------------------------------------
+  y_yoyo.png             palabra: yoyo            [FALTA]
+  y_tortilla.png         palabra: tortilla        [FALTA]
+  y_llave.png            palabra: llave           [FALTA]
+  y_payaso.png           palabra: payaso          [FALTA]
+  y_caballo.png          palabra: caballo         [FALTA]
+  y_yate.png             palabra: yate            [FALTA]
+  y_martillo.png         palabra: martillo        [FALTA]
+  y_llama.png            palabra: llama           [FALTA]
+  y_gallina.png          palabra: gallina         [FALTA]
+  y_toalla.png           palabra: toalla          [FALTA]
+
+FONEMA /S/  (11 palabras)
+--------------------------------------------------
+  s_sapo.png             palabra: sapo            [FALTA]
+  s_escoba.png           palabra: escoba          [FALTA]
+  s_sopa.png             palabra: sopa            [FALTA]
+  s_saco.png             palabra: saco            [FALTA]
+  s_silla.png            palabra: silla           [FALTA]
+  s_rosa.png             palabra: rosa            [FALTA]
+  s_pastel.png           palabra: pastel          [FALTA]
+  s_casa.png             palabra: casa            [FALTA]
+  s_sandia.png           palabra: sandia          [FALTA]
+  s_mesa.png             palabra: mesa            [FALTA]
+  s_masa.png             palabra: masa            [FALTA]
+
+FONEMA /J/  (9 palabras)
+--------------------------------------------------
+  j_conejo.png           palabra: conejo          [FALTA]
+  j_jabon.png            palabra: jabon           [FALTA]
+  j_oreja.png            palabra: oreja           [FALTA]
+  j_ojo.png              palabra: ojo             [FALTA]
+  j_abeja.png            palabra: abeja           [FALTA]
+  j_caja.png             palabra: caja            [FALTA]
+  j_juego.png            palabra: juego           [FALTA]
+  j_reloj.png            palabra: reloj           [FALTA]
+  j_jarra.png            palabra: jarra           [FALTA]
+
+FONEMA /R/  (10 palabras)
+--------------------------------------------------
+  r_toro.png             palabra: toro            [FALTA]
+  r_corona.png           palabra: corona          [FALTA]
+  r_pera.png             palabra: pera            [FALTA]
+  r_aro.png              palabra: aro             [FALTA]
+  r_oro.png              palabra: oro             [FALTA]
+  r_pero.png             palabra: pero            [FALTA]
+  r_cara.png             palabra: cara            [FALTA]
+  r_caro.png             palabra: caro            [FALTA]
+  r_pirata.png           palabra: pirata          [FALTA]
+  r_cero.png             palabra: cero            [FALTA]
+
+FONEMA /RR/  (10 palabras)
+--------------------------------------------------
+  rr_torre.png           palabra: torre           [FALTA]
+  rr_carro.png           palabra: carro           [FALTA]
+  rr_carreta.png         palabra: carreta         [FALTA]
+  rr_gorra.png           palabra: gorra           [FALTA]
+  rr_ropa.png            palabra: ropa            [FALTA]
+  rr_guitarra.png        palabra: guitarra        [FALTA]
+  rr_rata.png            palabra: rata            [FALTA]
+  rr_perro.png           palabra: perro           [FALTA]
+  rr_rama.png            palabra: rama            [FALTA]
+  rr_rueda.png           palabra: rueda           [FALTA]
+
+==================================================================
+TOTAL: 192 imagenes | Listas: 22 (920 KB) | Faltan: 170

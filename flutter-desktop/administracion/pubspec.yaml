@@ -1,0 +1,22 @@
+name: psicoluz_administracion
+description: "Centro de Gestión Psicoluz · Administración (envoltorio de escritorio)"
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  webview_flutter: ^4.13.0
+  webview_win_floating: ^3.0.0
+  path: ^1.9.0
+
+dev_dependencies:
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/app/
