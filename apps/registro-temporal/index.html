@@ -84,6 +84,26 @@ label{font-size:11px;font-weight:800;color:var(--muted);display:block;margin-bot
           <textarea id="npMotivo" rows="2"></textarea>
           <button class="btn btn-primary" onclick="guardarPacienteNuevo()">💾 Registrar paciente y continuar</button>
         </div>
+
+        <div id="formEditarPaciente" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+          <div class="grid2">
+            <div><label>Nombre completo *</label><input id="epNombre"></div>
+            <div><label>DNI</label><input id="epDni" maxlength="8"></div>
+            <div><label>Teléfono / WhatsApp</label><input id="epTel"></div>
+            <div><label>Fecha de nacimiento</label><input type="date" id="epNac"></div>
+            <div><label>Género</label><select id="epGenero"><option value="">— Seleccionar —</option><option value="F">Femenino</option><option value="M">Masculino</option><option value="O">Otro</option></select></div>
+            <div><label>Apoderado (si es menor)</label><input id="epApoderado"></div>
+            <div><label>Colegio</label><input id="epColegio"></div>
+            <div><label>Grado</label><input id="epGrado"></div>
+            <div><label>Estado</label><select id="epEstado"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
+          </div>
+          <label>Motivo de consulta</label>
+          <textarea id="epMotivo" rows="2"></textarea>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" onclick="guardarEdicionPaciente()">💾 Guardar cambios</button>
+            <button class="btn btn-outline" onclick="document.getElementById('formEditarPaciente').style.display='none'">Cancelar</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -152,6 +172,12 @@ async function sbGet(t,p){
 }
 async function sbPost(t,d){
   const r=await fetch(SBU+'/rest/v1/'+t,{method:'POST',headers:SBH,body:JSON.stringify(d)});
+  const txt=await r.text();if(!r.ok)throw new Error(txt.slice(0,300));
+  return txt?JSON.parse(txt):null;
+}
+async function sbPatch(t,d,filtro){
+  var u=SBU+'/rest/v1/'+t+'?'+Object.entries(filtro).map(function(e){return e[0]+'='+encodeURIComponent(e[1]);}).join('&');
+  const r=await fetch(u,{method:'PATCH',headers:SBH,body:JSON.stringify(d)});
   const txt=await r.text();if(!r.ok)throw new Error(txt.slice(0,300));
   return txt?JSON.parse(txt):null;
 }
@@ -265,9 +291,12 @@ function seleccionarPaciente(p){
   PACIENTE=p;
   document.getElementById('buscarPac').value='';
   document.getElementById('listaBusquedaPac').innerHTML='';
+  document.getElementById('formEditarPaciente').style.display='none';
   document.getElementById('pacActualBox').innerHTML=
     '<div class="pac-actual"><div><b>👤 '+p.nombre+'</b><br><span>'+(p.telefono||'sin teléfono')+' · '+SEDE+'</span></div>'+
-    '<button class="btn btn-outline btn-sm" onclick="cambiarPaciente()">🔁 Cambiar paciente</button></div>';
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+    '<button class="btn btn-outline btn-sm" onclick="abrirEdicionPaciente()">✏️ Editar datos</button>'+
+    '<button class="btn btn-outline btn-sm" onclick="cambiarPaciente()">🔁 Cambiar paciente</button></div></div>';
   document.getElementById('cardSesiones').style.display='block';
   document.getElementById('cardNuevaSesion').style.display='block';
   cargarSesionesPaciente();
@@ -277,6 +306,54 @@ function cambiarPaciente(){
   document.getElementById('pacActualBox').innerHTML='';
   document.getElementById('cardSesiones').style.display='none';
   document.getElementById('cardNuevaSesion').style.display='none';
+  document.getElementById('formEditarPaciente').style.display='none';
+}
+
+async function abrirEdicionPaciente(){
+  if(!PACIENTE||!PACIENTE.id){toast('Este paciente no tiene id (fue creado antes de este cambio) — no se puede editar todavía','err');return;}
+  var f=document.getElementById('formEditarPaciente');
+  f.style.display='block';
+  f.querySelectorAll('input,textarea,select').forEach(function(el){el.value='';});
+  document.getElementById('epNombre').value=PACIENTE.nombre||'';
+  document.getElementById('epTel').value=PACIENTE.telefono||'';
+  try{
+    var full=await sbGet('pacientes',{select:'*',id:'eq.'+PACIENTE.id});
+    var p=full&&full[0];
+    if(p){
+      document.getElementById('epDni').value=p.dni||'';
+      document.getElementById('epNac').value=p.fecha_nac||'';
+      document.getElementById('epGenero').value=p.genero||'';
+      document.getElementById('epApoderado').value=p.apoderado||'';
+      document.getElementById('epColegio').value=p.colegio||'';
+      document.getElementById('epGrado').value=p.grado||'';
+      document.getElementById('epMotivo').value=p.motivo||'';
+      document.getElementById('epEstado').value=p.estado||'activo';
+    }
+  }catch(e){toast('No se pudieron cargar todos los datos: '+e.message,'err');}
+}
+
+async function guardarEdicionPaciente(){
+  var nombre=document.getElementById('epNombre').value.trim();
+  if(!nombre){toast('El nombre es obligatorio','err');return;}
+  var d={
+    nombre:nombre,
+    dni:document.getElementById('epDni').value.trim(),
+    telefono:document.getElementById('epTel').value.trim(),
+    fecha_nac:document.getElementById('epNac').value||null,
+    genero:document.getElementById('epGenero').value,
+    apoderado:document.getElementById('epApoderado').value.trim(),
+    colegio:document.getElementById('epColegio').value.trim(),
+    grado:document.getElementById('epGrado').value.trim(),
+    motivo:document.getElementById('epMotivo').value.trim(),
+    estado:document.getElementById('epEstado').value
+  };
+  try{
+    await sbPatch('pacientes',d,{id:'eq.'+PACIENTE.id});
+    toast('✅ Datos del paciente actualizados');
+    PACIENTE.nombre=nombre;PACIENTE.telefono=d.telefono;
+    document.getElementById('formEditarPaciente').style.display='none';
+    seleccionarPaciente(PACIENTE);
+  }catch(e){toast('Error al guardar los cambios: '+e.message,'err');}
 }
 
 async function cargarSesionesPaciente(){
