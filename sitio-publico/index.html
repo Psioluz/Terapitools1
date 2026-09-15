@@ -186,8 +186,8 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
   <div class="wrap">
     <div>
       <span class="eyebrow">Centro Terapéutico Integral</span>
-      <h1>Acompañamiento psicológico y terapia de lenguaje con criterio clínico</h1>
-      <p>Evaluación, diagnóstico e intervención personalizada para niños, adolescentes y familias, a cargo de un equipo de psicólogas colegiadas. Cuatro sedes en Lima Norte.</p>
+      <h1 data-cms="hero_titulo">Acompañamiento psicológico y terapia de lenguaje con criterio clínico</h1>
+      <p data-cms="hero_texto">Evaluación, diagnóstico e intervención personalizada para niños, adolescentes y familias, a cargo de un equipo de psicólogas colegiadas. Cinco sedes en Lima Norte.</p>
       <div class="hero-actions">
         <a class="btn btn-primary" href="#contacto">Agenda una evaluación</a>
         <a class="btn btn-outline" href="#servicios">Ver servicios</a>
@@ -230,10 +230,10 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
     <span class="eyebrow">Novedades</span>
     <h2 style="font-size:28px">Talleres, promociones e inauguraciones</h2>
     <p style="color:var(--muted);max-width:520px;margin-top:10px">Esta sección se actualiza junto con nuestras redes sociales — revisa también Facebook e Instagram más abajo.</p>
-    <div class="promo-grid">
-      <div class="promo-card"><div class="promo-top"></div><div class="promo-body"><span class="promo-tag">Promoción</span><h3>Evaluación inicial con descuento</h3><p>Pregunta por nuestras promociones vigentes para nuevas familias en cualquiera de nuestras 4 sedes.</p></div></div>
+    <div class="promo-grid" id="promoGrid">
+      <div class="promo-card"><div class="promo-top"></div><div class="promo-body"><span class="promo-tag">Promoción</span><h3>Evaluación inicial con descuento</h3><p>Pregunta por nuestras promociones vigentes para nuevas familias en cualquiera de nuestras sedes.</p></div></div>
       <div class="promo-card"><div class="promo-top"></div><div class="promo-body"><span class="promo-tag">Taller</span><h3>Taller para padres y cuidadores</h3><p>Espacios formativos sobre manejo conductual y estrategias de comunicación en casa.</p></div></div>
-      <div class="promo-card"><div class="promo-top"></div><div class="promo-body"><span class="promo-tag">Inauguración</span><h3>Nuevas sedes Psicoluz</h3><p>Conoce nuestras sedes en Comas, Óvalo Zapallal, Flecha y Pachacutec.</p></div></div>
+      <div class="promo-card"><div class="promo-top"></div><div class="promo-body"><span class="promo-tag">Inauguración</span><h3>Nuevas sedes Psicoluz</h3><p>Conoce todas nuestras sedes en Lima Norte.</p></div></div>
     </div>
   </div>
 </section>
@@ -242,12 +242,13 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
   <div class="wrap">
     <span class="eyebrow">Dónde estamos</span>
     <h2 style="font-size:28px">Nuestras sedes</h2>
-    <div class="sedes-grid">
+    <div class="sedes-grid" id="sedesGrid">
       <div class="sede-card"><div class="num">01</div><h3>Comas</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
       <div class="sede-card"><div class="num">02</div><h3>Óvalo Zapallal</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
       <div class="sede-card"><div class="num">03</div><h3>Flecha</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
       <div class="sede-card"><div class="num">04</div><h3>Pachacutec</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
     </div>
+    <div class="hint" style="font-size:11px;color:var(--muted);margin-top:8px">Esta lista se carga directo de Supabase — agregar o quitar una sede no requiere tocar esta página.</div>
   </div>
 </section>
 
@@ -256,8 +257,8 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
     <span class="eyebrow">Nosotros</span>
     <h2 style="font-size:28px">Nuestra visión y misión</h2>
     <div class="vm-grid">
-      <div class="vm-card"><h3>Visión</h3><p>Ser el centro terapéutico de referencia en Lima Norte para el desarrollo integral de niños, niñas y adolescentes, reconocido por la calidez humana y el rigor profesional de nuestro equipo.</p></div>
-      <div class="vm-card"><h3>Misión</h3><p>Brindar terapia psicológica y de lenguaje accesible y de calidad, acompañando a cada familia con un plan personalizado que respeta el ritmo y las necesidades de cada niño/a.</p></div>
+      <div class="vm-card"><h3>Visión</h3><p data-cms="vision_texto">Ser el centro terapéutico de referencia en Lima Norte para el desarrollo integral de niños, niñas y adolescentes, reconocido por la calidez humana y el rigor profesional de nuestro equipo.</p></div>
+      <div class="vm-card"><h3>Misión</h3><p data-cms="mision_texto">Brindar terapia psicológica y de lenguaje accesible y de calidad, acompañando a cada familia con un plan personalizado que respeta el ritmo y las necesidades de cada niño/a.</p></div>
     </div>
   </div>
 </section>
@@ -283,15 +284,44 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
 <div class="cta">
   <h2>¿Listo para dar el primer paso?</h2>
   <p>Agenda una evaluación inicial y conversemos sobre el mejor plan terapéutico para tu hijo/a.</p>
-  <a class="btn btn-primary" id="waCtaBtn" href="#" target="_blank">Escríbenos por WhatsApp</a>
+  <a class="btn btn-primary" href="#contacto">Reservar una cita</a>
 </div>
 
 <section id="contacto">
   <div class="wrap center">
     <span class="eyebrow" style="justify-content:center">Contacto</span>
     <h2 style="font-size:28px">Conversemos</h2>
-    <p style="color:var(--muted);max-width:480px;margin:12px auto 26px">Escríbenos por WhatsApp o síguenos en redes para conocer horarios y disponibilidad en cada sede.</p>
-    <a class="btn btn-primary" id="waContactoBtn" href="#" target="_blank">WhatsApp Psicoluz</a>
+    <p style="color:var(--muted);max-width:480px;margin:12px auto 26px">Elige tu sede y cuéntanos qué necesitas — te escribimos por WhatsApp lo antes posible.</p>
+    <form id="formContacto" style="max-width:440px;margin:0 auto;text-align:left" onsubmit="return enviarSolicitud(event)">
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;font-weight:600;color:var(--navy);display:block;margin-bottom:5px">Sede *</label>
+        <select id="fcSede" required style="width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:6px;font-size:14px;font-family:inherit;background:#fff">
+          <option value="">— Elige la sede más cercana —</option>
+        </select>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;font-weight:600;color:var(--navy);display:block;margin-bottom:5px">¿Qué necesitas?</label>
+        <select id="fcTipo" style="width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:6px;font-size:14px;font-family:inherit;background:#fff">
+          <option value="cita">Reservar una cita</option>
+          <option value="contacto">Solo tengo una consulta</option>
+        </select>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;font-weight:600;color:var(--navy);display:block;margin-bottom:5px">Tu nombre *</label>
+        <input id="fcNombre" required style="width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:6px;font-size:14px;font-family:inherit;box-sizing:border-box" placeholder="Nombres y apellidos">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;font-weight:600;color:var(--navy);display:block;margin-bottom:5px">Tu teléfono / WhatsApp *</label>
+        <input id="fcTelefono" required style="width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:6px;font-size:14px;font-family:inherit;box-sizing:border-box" placeholder="9XX XXX XXX">
+      </div>
+      <div style="margin-bottom:18px">
+        <label style="font-size:12px;font-weight:600;color:var(--navy);display:block;margin-bottom:5px">Cuéntanos brevemente</label>
+        <textarea id="fcMotivo" rows="3" style="width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:6px;font-size:14px;font-family:inherit;box-sizing:border-box;resize:vertical" placeholder="Ej. Necesito una evaluación para mi hijo de 5 años"></textarea>
+      </div>
+      <div id="fcError" style="display:none;background:#fdeaea;color:#a13030;padding:9px 12px;border-radius:6px;font-size:12.5px;margin-bottom:12px"></div>
+      <button type="submit" class="btn btn-primary" id="fcBtn" style="width:100%;justify-content:center">Enviar y continuar por WhatsApp</button>
+      <p style="font-size:11.5px;color:var(--muted);margin-top:10px;text-align:center">Se abrirá WhatsApp con tu mensaje listo para enviar a la sede que elegiste.</p>
+    </form>
   </div>
 </section>
 
@@ -325,6 +355,94 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
 <script>
   function toggleNav(){document.getElementById('navlinks').classList.toggle('open');}
   function closeNav(){document.getElementById('navlinks').classList.remove('open');}
+
+  // ===== Supabase (sedes, solicitudes de contacto/cita, publicaciones y
+  // contenido editable) -- mismo proyecto que el resto de las apps de Psicoluz =====
+  var SBU='https://uorxwmgaekeeuxeiikkw.supabase.co';
+  var SBK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
+  var SBH={apikey:SBK,'Authorization':'Bearer '+SBK,'Content-Type':'application/json','Prefer':'return=representation'};
+  function sbGet(t,p){
+    p=p||{};var u=SBU+'/rest/v1/'+t;
+    var qs=Object.keys(p).map(function(k){return k+'='+encodeURIComponent(p[k]);}).join('&');
+    if(qs)u+='?'+qs;
+    return fetch(u,{headers:SBH}).then(function(r){return r.json();});
+  }
+  function sbPost(t,d){
+    return fetch(SBU+'/rest/v1/'+t,{method:'POST',headers:SBH,body:JSON.stringify(d)})
+      .then(function(r){if(!r.ok)return r.text().then(function(t2){throw new Error(t2);});return r.text();})
+      .then(function(txt){return txt?JSON.parse(txt):null;});
+  }
+
+  var SEDES=[]; // {nombre, whatsapp}
+  function sedeWhatsapp(nombre){
+    var s=SEDES.filter(function(x){return x.nombre===nombre;})[0];
+    return (s&&s.whatsapp)||CONFIG.whatsappNumber;
+  }
+  sbGet('sedes',{select:'nombre,whatsapp',activa:'eq.true',order:'nombre.asc'}).then(function(rows){
+    SEDES=rows||[];
+    var sel=document.getElementById('fcSede');
+    SEDES.forEach(function(s){
+      var o=document.createElement('option'); o.value=s.nombre; o.textContent=s.nombre; sel.appendChild(o);
+    });
+    var grid=document.getElementById('sedesGrid');
+    if(SEDES.length){
+      grid.innerHTML=SEDES.map(function(s,i){
+        var n=String(i+1).padStart(2,'0');
+        return '<div class="sede-card"><div class="num">'+n+'</div><h3>'+s.nombre+'</h3>'+
+          '<p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>';
+      }).join('');
+    }
+  }).catch(function(){/* se queda con las sedes escritas de respaldo en el HTML */});
+
+  // ===== Publicaciones destacadas (elegidas a mano, no el timeline automático) =====
+  sbGet('publicaciones',{select:'*',activo:'eq.true',order:'orden.asc'}).then(function(rows){
+    if(!rows||!rows.length)return; // se queda con las 3 tarjetas de respaldo del HTML
+    var grid=document.getElementById('promoGrid');
+    grid.innerHTML=rows.map(function(p){
+      var img=p.imagen_url?('<img src="'+p.imagen_url+'" alt="" style="width:100%;height:140px;object-fit:cover">'):'';
+      var link=p.link_facebook?('<a href="'+p.link_facebook+'" target="_blank" style="font-size:12px;font-weight:600;color:var(--teal)">Ver en Facebook →</a>'):'';
+      return '<div class="promo-card">'+img+'<div class="promo-top"></div><div class="promo-body">'+
+        '<h3>'+(p.titulo||'')+'</h3><p>'+(p.texto||'')+'</p>'+link+'</div></div>';
+    }).join('');
+  }).catch(function(){});
+
+  // ===== Contenido editable (textos) -- solo pisa el texto por defecto si
+  // existe una fila guardada para esa clave desde la intranet =====
+  sbGet('sitio_contenido',{select:'clave,valor,tipo'}).then(function(rows){
+    (rows||[]).forEach(function(r){
+      if(!r.valor)return;
+      var el=document.querySelector('[data-cms="'+r.clave+'"]');
+      if(!el)return;
+      if(r.tipo==='imagen_url')el.src=r.valor; else el.textContent=r.valor;
+    });
+  }).catch(function(){});
+
+  // ===== Formulario de contacto/cita =====
+  function enviarSolicitud(evt){
+    evt.preventDefault();
+    var errEl=document.getElementById('fcError'); errEl.style.display='none';
+    var sede=document.getElementById('fcSede').value;
+    var tipo=document.getElementById('fcTipo').value;
+    var nombre=document.getElementById('fcNombre').value.trim();
+    var telefono=document.getElementById('fcTelefono').value.trim();
+    var motivo=document.getElementById('fcMotivo').value.trim();
+    if(!sede||!nombre||!telefono){
+      errEl.textContent='Completa sede, nombre y teléfono.'; errEl.style.display='block'; return false;
+    }
+    var btn=document.getElementById('fcBtn'); btn.disabled=true; btn.textContent='Enviando…';
+    sbPost('solicitudes_web',{sede:sede,tipo:tipo,nombre:nombre,telefono:telefono,motivo:motivo||null,estado:'pendiente'})
+      .catch(function(){/* si falla el guardado, igual la dejamos ir por WhatsApp */})
+      .then(function(){
+        var msg='Hola Psicoluz ('+sede+'), soy '+nombre+'. '+
+          (tipo==='cita'?'Quisiera reservar una cita. ':'Tengo una consulta. ')+
+          (motivo?motivo:'');
+        var wa='https://wa.me/'+sedeWhatsapp(sede)+'?text='+encodeURIComponent(msg);
+        window.open(wa,'_blank');
+        btn.disabled=false; btn.textContent='Enviar y continuar por WhatsApp';
+        document.getElementById('formContacto').reset();
+      });
+    return false;
+  }
 
   // WhatsApp links
   var waUrl='https://wa.me/'+CONFIG.whatsappNumber+'?text='+encodeURIComponent(CONFIG.whatsappMsg);
