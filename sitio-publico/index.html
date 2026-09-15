@@ -67,7 +67,7 @@
   .hero-stat b{display:block;font-family:'Fredoka',sans-serif;font-size:28px;color:var(--acc)}
   .hero-stat span{font-size:11.5px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.03em}
   .hero-panel{background:#fff;border-radius:26px;padding:30px;box-shadow:0 26px 60px -22px rgba(74,14,46,.25);position:relative;z-index:2}
-  .hero-panel-img{background:linear-gradient(135deg,#ffe0ee,#d7f3ee);border-radius:18px;padding:26px;display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+  .hero-panel-img{background:linear-gradient(135deg,#ffe0ee,#d7f3ee);border-radius:18px;padding:14px;display:flex;align-items:center;justify-content:center;margin-bottom:18px}
   .hero-panel-list{display:flex;flex-direction:column;gap:12px}
   .hero-panel-item{display:flex;align-items:flex-start;gap:10px;font-size:13.5px;font-weight:700;color:var(--dark)}
   .hero-panel-item .dot{width:9px;height:9px;border-radius:50%;margin-top:5px;flex-shrink:0}
@@ -141,8 +141,8 @@
   .social-icons a{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff}
   .social-icons a:hover{background:var(--acc)}
   .foot-bottom{text-align:center;border-top:1px solid rgba(255,255,255,.1);margin-top:36px;padding-top:20px;font-size:11.5px;color:#a0798e}
-  .foot-admin{color:#7a5568;font-size:10.5px;margin-top:10px;cursor:pointer}
-  .foot-admin:hover{color:#c8a0b5}
+  .foot-admin{display:inline-flex;align-items:center;gap:5px;color:#a0798e;font-size:12px;font-weight:700;margin-top:14px;cursor:pointer}
+  .foot-admin:hover{color:#fff}
 
   /* ═══════════════════ INTRANET (superpuesta, oculta por defecto) ═══════════════════ */
   #intranetOverlay{display:none;position:fixed;inset:0;background:#fdf0f7;z-index:9000;overflow-y:auto;font-family:'Nunito',sans-serif}
@@ -258,7 +258,7 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
     </div>
     <div class="hero-panel">
       <div class="hero-panel-img">
-        <img src="assets/logo.png" alt="Psicoluz" style="width:70%">
+        <img src="assets/logo.png" alt="Psicoluz" style="width:92%">
       </div>
       <div class="hero-panel-list">
         <div class="hero-panel-item"><span class="dot" style="background:var(--teal)"></span>Plan terapéutico hecho a su medida</div>
@@ -279,7 +279,7 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
       <div class="serv-card"><div class="ic" style="background:var(--orange)">✨</div><h3>Intervención en TEA / TDAH</h3><p>Programas de intervención temprana centrados en comunicación, autorregulación y autonomía.</p></div>
       <div class="serv-card"><div class="ic" style="background:var(--purple)">👨‍👩‍👧</div><h3>Orientación a padres</h3><p>Acompañamiento a la familia con pautas prácticas para reforzar los avances logrados en terapia.</p></div>
       <div class="serv-card"><div class="ic" style="background:var(--acc)">📋</div><h3>Evaluación psicológica</h3><p>Diagnóstico integral para definir el plan terapéutico más adecuado desde la primera cita.</p></div>
-      <div class="serv-card"><div class="ic" style="background:var(--teal)">🎯</div><h3>Seguimiento de metas</h3><p>Reportes de avance por hitos de desarrollo, no solo asistencia — progreso real y medible.</p></div>
+      <div class="serv-card"><div class="ic" style="background:var(--teal)">🎯</div><h3>Seguimiento de metas</h3><p>Reportes de avance por hitos de desarrollo: progreso real y medible.</p></div>
     </div>
   </div>
 </section>
@@ -288,7 +288,7 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
   <div class="wrap">
     <span class="eyebrow">Novedades</span>
     <h2 style="font-size:28px">Talleres, promociones e inauguraciones</h2>
-    <p style="color:var(--muted);max-width:520px;margin-top:10px">Esta sección se actualiza junto con nuestras redes sociales — revisa también Facebook e Instagram más abajo.</p>
+    <p style="color:var(--muted);max-width:520px;margin-top:10px">Esta sección se actualiza junto con nuestras redes sociales. Revisa también Facebook e Instagram más abajo.</p>
     <div class="promo-grid" id="promoGrid">
       <div class="promo-card"><div class="promo-top"></div><div class="promo-body"><span class="promo-tag">Promoción</span><h3>Evaluación inicial con descuento</h3><p>Pregunta por nuestras promociones vigentes para nuevas familias en cualquiera de nuestras sedes.</p></div></div>
       <div class="promo-card"><div class="promo-top"></div><div class="promo-body"><span class="promo-tag">Taller</span><h3>Taller para padres y cuidadores</h3><p>Espacios formativos sobre manejo conductual y estrategias de comunicación en casa.</p></div></div>
@@ -308,7 +308,6 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
       <div class="sede-card"><div class="num">04</div><h3>Pachacútec</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
       <div class="sede-card"><div class="num">05</div><h3>Rosaluz</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
     </div>
-    <div style="font-size:11px;color:var(--muted);margin-top:8px">Esta lista se carga directo de Supabase — agregar o quitar una sede no requiere tocar esta página.</div>
   </div>
 </section>
 
@@ -347,7 +346,7 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
     <div>
       <span class="eyebrow" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#ffb3d9">Escríbenos directo a tu sede</span>
       <h2>Cada sede tiene su propio WhatsApp</h2>
-      <p>Elige la sede más cercana y te respondemos directo desde ahí — sin intermediarios, sin esperas.</p>
+      <p>Elige la sede más cercana y te respondemos directo desde ahí, sin intermediarios y sin esperas.</p>
       <div class="cta-wa-pills" id="cedesPills">
         <span class="cta-wa-pill">📍 Comas</span>
         <span class="cta-wa-pill">📍 Óvalo Zapallal</span>
@@ -367,12 +366,12 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
   <div class="wrap center">
     <span class="eyebrow" style="justify-content:center">Contacto</span>
     <h2 style="font-size:28px">Conversemos</h2>
-    <p style="color:var(--muted);max-width:480px;margin:12px auto 26px">Elige tu sede y cuéntanos qué necesitas — te escribimos por WhatsApp lo antes posible.</p>
+    <p style="color:var(--muted);max-width:480px;margin:12px auto 26px">Elige tu sede y cuéntanos qué necesitas, te escribimos por WhatsApp lo antes posible.</p>
     <form id="formContacto" style="max-width:440px;margin:0 auto;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:20px;padding:28px" onsubmit="return enviarSolicitud(event)">
       <div style="margin-bottom:12px">
         <label style="font-size:12px;font-weight:700;color:var(--dark);display:block;margin-bottom:5px">Sede *</label>
         <select id="fcSede" required style="width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;background:#fff">
-          <option value="">— Elige la sede más cercana —</option>
+          <option value="">Elige la sede más cercana</option>
         </select>
       </div>
       <div style="margin-bottom:12px">
@@ -426,7 +425,7 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
     </div>
     <div class="foot-bottom">
       © Todos los derechos reservados para Psicoluz V1
-      <div class="foot-admin" onclick="abrirIntranet()">Acceso administrativo</div>
+      <div class="foot-admin" onclick="abrirIntranet()">🔒 Acceso administrativo (personal Psicoluz)</div>
     </div>
   </div>
 </footer>
@@ -633,7 +632,7 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
   // ===== Facebook Page Plugin embed =====
   (function(){
     var holder=document.getElementById('fbFeedHolder');
-    if(!CONFIG.facebookPageUrl){holder.innerHTML='<div class="social-fallback">Configura CONFIG.facebookPageUrl para mostrar las publicaciones.</div>';return;}
+    if(!CONFIG.facebookPageUrl){holder.innerHTML='<div class="social-fallback">Muy pronto verás aquí nuestras publicaciones de Facebook.</div>';return;}
     var fbRoot=document.createElement('div'); fbRoot.id='fb-root'; document.body.appendChild(fbRoot);
     var plugin=document.createElement('div');
     plugin.className='fb-page';
@@ -646,7 +645,7 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
     plugin.setAttribute('data-hide-cover','false');
     plugin.setAttribute('data-show-facepile','true');
     holder.appendChild(plugin);
-    holder.innerHTML+='<div class="social-fallback">¿No carga? Puede que tu navegador bloquee el widget de Facebook. <a href="'+CONFIG.facebookPageUrl+'" target="_blank">Visita la página directamente →</a></div>';
+    holder.innerHTML+='<div class="social-fallback">¿No carga? <a href="'+CONFIG.facebookPageUrl+'" target="_blank">Visita nuestra página de Facebook directamente</a>.</div>';
     var js=document.createElement('script');
     js.async=true; js.defer=true; js.crossOrigin='anonymous';
     js.src='https://connect.facebook.net/es_LA/sdk.js#xfbml=1&version=v19.0';
@@ -657,7 +656,7 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
   (function(){
     var holder=document.getElementById('tiktokFeedHolder');
     if(!CONFIG.tiktokVideoUrls || !CONFIG.tiktokVideoUrls.length){
-      holder.innerHTML='<div class="social-fallback">Aún no hay videos configurados.<br>Agrega links de tus videos en <b>CONFIG.tiktokVideoUrls</b> (arriba del archivo) para mostrarlos aquí, o visita nuestro perfil: <a href="'+CONFIG.tiktokProfileUrl+'" target="_blank">'+CONFIG.tiktokProfileUrl+' →</a></div>';
+      holder.innerHTML='<div class="social-fallback">Muy pronto compartiremos nuestros videos aquí. Mientras tanto, visita nuestro perfil: <a href="'+CONFIG.tiktokProfileUrl+'" target="_blank">'+CONFIG.tiktokProfileUrl+'</a></div>';
       return;
     }
     var list=document.createElement('div'); list.className='tiktok-list';
