@@ -49,6 +49,9 @@
   .reveal.in{opacity:1;transform:translateY(0)}
   @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
 
+  /* ===== Navegación por secciones (solo se ve una a la vez) ===== */
+  #servicios,#talleres,#sedes,#nosotros,#social,#contacto{display:none}
+
   /* ===== DOCK SOCIAL FLOTANTE ===== */
   .social-dock{position:fixed;right:22px;bottom:22px;z-index:600;display:flex;flex-direction:column;gap:10px}
   .social-dock a{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;color:#fff;box-shadow:0 6px 16px rgba(74,14,46,.3);transition:transform .2s var(--ease)}
@@ -60,7 +63,7 @@
   /* ===== HEADER ===== */
   header{position:sticky;top:0;z-index:500;background:rgba(255,250,247,.85);backdrop-filter:blur(10px) saturate(1.4);border-bottom:1px solid var(--line);transition:box-shadow .3s}
   .nav{display:flex;align-items:center;justify-content:space-between;padding:6px 24px;max-width:1200px;margin:0 auto}
-  .brand img{height:80px;width:auto;transition:transform .2s var(--ease)}
+  .brand img{height:52px;width:auto;transition:transform .2s var(--ease)}
   .brand:hover img{transform:scale(1.03)}
   .navlinks{display:flex;gap:26px;align-items:center;font-weight:700;font-size:14px}
   .navlinks a{color:var(--dark);padding:6px 2px;border-bottom:2px solid transparent;position:relative;transition:color .2s,border-color .2s}
@@ -68,7 +71,7 @@
   .navBtns{display:flex;gap:10px;align-items:center}
   .burger{display:none;font-size:22px;background:none;border:none;cursor:pointer;color:var(--dark)}
   @media(max-width:900px){
-    .brand img{height:58px}
+    .brand img{height:40px}
     .navlinks{position:fixed;top:70px;left:0;right:0;background:#fff;flex-direction:column;align-items:flex-start;padding:18px 24px;gap:14px;box-shadow:0 12px 24px rgba(0,0,0,.08);display:none}
     .navlinks.open{display:flex}
     .burger{display:block}
@@ -137,10 +140,11 @@
   /* ===== SOCIAL FEED ===== */
   .social-wrap{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:40px;align-items:start}
   @media(max-width:860px){.social-wrap{grid-template-columns:1fr}}
-  .social-box{background:#fff;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:22px;min-height:400px}
+  .social-box{background:#fff;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:22px;min-height:160px;display:flex;flex-direction:column}
+  .social-box>div:last-child{flex:1;display:flex;flex-direction:column}
   .social-box h3{font-size:15px;font-family:'Fredoka',sans-serif;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:16px;color:var(--dark)}
   .tiktok-list{display:flex;flex-direction:column;gap:16px}
-  .social-fallback{padding:30px 16px;text-align:center;color:var(--muted);font-size:13px}
+  .social-fallback{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:20px 16px;text-align:center;color:var(--muted);font-size:13px}
   .social-fallback a{color:var(--acc);font-weight:700}
 
   /* ===== VISION/MISION ===== */
@@ -177,8 +181,8 @@
   footer{background:#2b0819;color:#d9b8c8;padding:60px 0 22px}
   .foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:34px}
   @media(max-width:760px){.foot-grid{grid-template-columns:1fr 1fr}}
-  .foot-brand{margin-bottom:14px}
-  .foot-brand img{height:60px}
+  .foot-brand{margin-bottom:14px;background:#fff;display:inline-block;padding:8px 14px;border-radius:12px}
+  .foot-brand img{height:40px}
   footer h4{font-family:'Fredoka',sans-serif;color:#fff;font-size:14px;margin-bottom:14px;font-weight:600}
   footer a,footer p{font-size:13px;color:#d9b8c8;display:block;margin-bottom:9px}
   footer a{transition:color .2s}
@@ -304,6 +308,7 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
 <script>
   const CONFIG = {
     facebookPageUrl: 'https://www.facebook.com/psicoluz',      // URL pública de la página de Facebook
+    facebookVerified: false,  // true recién cuando el enlace de arriba sea el real (activa el widget en vivo)
     instagramUrl: 'https://www.instagram.com/psicoluz',        // URL del perfil de Instagram
     tiktokProfileUrl: 'https://www.tiktok.com/@psicoluz',       // URL del perfil de TikTok
     tiktokVideoUrls: [
@@ -410,6 +415,26 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
       <div class="sede-card"><div class="num">05</div><h3>Rosaluz</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
     </div>
   </div>
+  <div class="cta-wa">
+    <div class="blob" style="width:300px;height:300px;background:rgba(255,255,255,.06);top:-80px;left:-60px"></div>
+    <div class="wrap">
+      <div>
+        <span class="eyebrow" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#ffb3d9">Escríbenos directo a tu sede</span>
+        <h2>Cada sede tiene su propio WhatsApp</h2>
+        <p>Elige la sede más cercana y te respondemos directo desde ahí, sin intermediarios y sin esperas.</p>
+        <div class="cta-wa-pills" id="cedesPills">
+          <span class="cta-wa-pill">📍 Comas</span>
+          <span class="cta-wa-pill">📍 Óvalo Zapallal</span>
+          <span class="cta-wa-pill">📍 Flecha</span>
+          <span class="cta-wa-pill">📍 Pachacútec</span>
+          <span class="cta-wa-pill">📍 Rosaluz</span>
+        </div>
+      </div>
+      <div style="text-align:center">
+        <a class="btn btn-primary" href="#contacto" style="font-size:16px;padding:18px 32px">Reservar mi cita ahora →</a>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section id="nosotros" class="bg-alt">
@@ -440,27 +465,6 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
     </div>
   </div>
 </section>
-
-<div class="cta-wa">
-  <div class="blob" style="width:300px;height:300px;background:rgba(255,255,255,.06);top:-80px;left:-60px"></div>
-  <div class="wrap">
-    <div>
-      <span class="eyebrow" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#ffb3d9">Escríbenos directo a tu sede</span>
-      <h2>Cada sede tiene su propio WhatsApp</h2>
-      <p>Elige la sede más cercana y te respondemos directo desde ahí, sin intermediarios y sin esperas.</p>
-      <div class="cta-wa-pills" id="cedesPills">
-        <span class="cta-wa-pill">📍 Comas</span>
-        <span class="cta-wa-pill">📍 Óvalo Zapallal</span>
-        <span class="cta-wa-pill">📍 Flecha</span>
-        <span class="cta-wa-pill">📍 Pachacútec</span>
-        <span class="cta-wa-pill">📍 Rosaluz</span>
-      </div>
-    </div>
-    <div style="text-align:center">
-      <a class="btn btn-primary" href="#contacto" style="font-size:16px;padding:18px 32px">Reservar mi cita ahora →</a>
-    </div>
-  </div>
-</div>
 
 <section id="contacto">
   <div class="blob" style="width:260px;height:260px;background:#fff6e8;bottom:-80px;right:-60px;opacity:.8"></div>
@@ -505,7 +509,7 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
   <div class="wrap">
     <div class="foot-grid">
       <div>
-        <div class="foot-brand"><img src="assets/logo.png" alt="Psicoluz" style="filter:brightness(0) invert(1)"></div>
+        <div class="foot-brand"><img src="assets/logo.png" alt="Psicoluz"></div>
         <p>Centro Terapéutico Integral. Terapia psicológica y de lenguaje para niños neurodivergentes y sus familias en Lima Norte.</p>
         <div class="social-icons">
           <a href="#" id="fbIconLink" target="_blank">FB</a>
@@ -744,7 +748,11 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
   // ===== Facebook Page Plugin embed =====
   (function(){
     var holder=document.getElementById('fbFeedHolder');
-    if(!CONFIG.facebookPageUrl){holder.innerHTML='<div class="social-fallback">Muy pronto verás aquí nuestras publicaciones de Facebook.</div>';return;}
+    if(!CONFIG.facebookPageUrl||!CONFIG.facebookVerified){
+      var link=CONFIG.facebookPageUrl?'<br><a href="'+CONFIG.facebookPageUrl+'" target="_blank">Visítanos en Facebook</a>':'';
+      holder.innerHTML='<div class="social-fallback">Muy pronto verás aquí nuestras publicaciones de Facebook.'+link+'</div>';
+      return;
+    }
     var fbRoot=document.createElement('div'); fbRoot.id='fb-root'; document.body.appendChild(fbRoot);
     var plugin=document.createElement('div');
     plugin.className='fb-page';
@@ -799,17 +807,33 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
     document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
   })();
 
-  // ===== Resaltar el link activo del menú al hacer scroll =====
-  (function(){
-    var links=Array.prototype.slice.call(document.querySelectorAll('.navlinks a'));
-    var secs=links.map(function(a){return document.querySelector(a.getAttribute('href'));}).filter(Boolean);
-    window.addEventListener('scroll',function(){
-      var pos=window.scrollY+120;
-      var current=secs[0];
-      secs.forEach(function(s){if(s.offsetTop<=pos)current=s;});
-      links.forEach(function(a){a.classList.toggle('active',a.getAttribute('href')==='#'+current.id);});
+  // ===== Navegación por secciones: solo se muestra la sección activa =====
+  var SECTION_IDS=['top','servicios','talleres','sedes','nosotros','social','contacto'];
+  function showSection(id){
+    if(SECTION_IDS.indexOf(id)===-1) id='top';
+    SECTION_IDS.forEach(function(s){
+      var el=document.getElementById(s);
+      if(el) el.style.display=(s===id)?'block':'none';
     });
-  })();
+    document.querySelectorAll('.navlinks a').forEach(function(a){
+      a.classList.toggle('active',a.getAttribute('href')==='#'+id);
+    });
+    document.querySelectorAll('#'+id+' .reveal').forEach(function(el){el.classList.add('in');});
+    window.scrollTo(0,0);
+  }
+  function routeFromHash(){
+    var id=(location.hash||'#top').replace('#','');
+    if(id==='intranet'){showSection('top');return;}
+    showSection(id);
+  }
+  document.addEventListener('click',function(e){
+    var a=e.target.closest && e.target.closest('a[href^="#"]');
+    if(!a) return;
+    var id=a.getAttribute('href').slice(1);
+    if(SECTION_IDS.indexOf(id)!==-1) showSection(id);
+  });
+  window.addEventListener('hashchange',routeFromHash);
+  routeFromHash();
 
   // ═══════════════════ INTRANET ═══════════════════
   function abrirIntranet(){
