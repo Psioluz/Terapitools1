@@ -382,7 +382,10 @@ try{
   <div class="card">
     <div class="card-header">
       <div class="card-title">👥 Pacientes</div>
-      <button class="btn btn-primary" onclick="abrirNuevoPaciente()">+ Nuevo Paciente</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-outline btn-sm" id="btnVerInactivos" onclick="toggleVerInactivos()">👁 Ver pacientes inactivos</button>
+        <button class="btn btn-primary" onclick="abrirNuevoPaciente()">+ Nuevo Paciente</button>
+      </div>
     </div>
     <div style="padding:12px;display:flex;gap:8px;flex-wrap:wrap">
       <input class="form-control" id="searchPac" placeholder="Buscar por nombre, DNI, teléfono..." style="max-width:280px" oninput="renderPacientes()">
@@ -391,6 +394,12 @@ try{
       </select>
     </div>
     <div style="padding:0 12px 12px" id="listaPacientes"></div>
+    <div style="padding:0 12px 12px;display:none" id="bloqueInactivos">
+      <div style="border-top:2px dashed var(--border);margin:6px 0 10px;padding-top:14px">
+        <div style="font-size:13px;font-weight:800;color:var(--muted);margin-bottom:8px">🚫 Pacientes inactivos</div>
+        <div id="listaPacientesInactivos"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -771,6 +780,13 @@ try{
           <option value="F">Femenino</option>
           <option value="M">Masculino</option>
           <option value="O">Otro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Estado</label>
+        <select class="form-control" id="p-estado">
+          <option value="activo">✅ Activo</option>
+          <option value="inactivo">🚫 Inactivo</option>
         </select>
       </div>
       <div class="form-group" style="grid-column:1/-1">
@@ -1960,7 +1976,7 @@ function renderPacientes(){
       '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px">'+
       '<span style="font-size:15px;font-weight:800">'+p.nombre+'</span>'+
       (p.dni?'<span class="badge bk" style="font-size:10px">DNI '+p.dni+'</span>':'')+
-      (p.activo===false?'<span class="badge br">Inactivo</span>':'')+
+      (p.estado==='inactivo'?'<span class="badge br">Inactivo</span>':'')+
       '</div>'+
       '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'+
       (p.terapias?p.terapias.split(',').map(function(tn){return '<span class="badge bp" style="font-size:10px">'+tn.trim()+'</span>';}).join(''):terapiasUnicas.map(t=>'<span class="badge" style="font-size:10px;background:'+(t.color||'#e5e7eb')+';color:'+colorTextoContraste(t.color)+'">'+t.nombre+'</span>').join(''))+
@@ -1990,6 +2006,56 @@ function renderPacientes(){
   }).join('');
 }
 
+// ── Pacientes inactivos (ver / reactivar) ──
+let _verInactivos=false;
+async function toggleVerInactivos(){
+  _verInactivos=!_verInactivos;
+  const btn=document.getElementById('btnVerInactivos');
+  const bloque=document.getElementById('bloqueInactivos');
+  if(btn)btn.textContent=_verInactivos?'🙈 Ocultar inactivos':'👁 Ver pacientes inactivos';
+  if(bloque)bloque.style.display=_verInactivos?'block':'none';
+  if(_verInactivos)await cargarPacientesInactivos();
+}
+async function cargarPacientesInactivos(){
+  let rows=[];
+  try{
+    rows=await sbGet('pacientes',{sede:'eq.'+DB.sede,estado:'eq.inactivo',select:'*',order:'nombre.asc'})||[];
+  }catch(e){rows=[];}
+  DB.pacientesInactivos=rows.map(function(p){return{id:p.id||p.nombre,nombre:p.nombre,
+    tel:p.telefono||'',nac:p.fecha_nac||'',dni:p.dni||'',diagnostico:p.diagnostico||'',
+    genero:p.genero||'',apoderado:p.apoderado||'',colegio:p.colegio||'',grado:p.grado||'',
+    motivo:p.motivo||'',terapias:p.terapias||p.terapia||'',estado:p.estado||'inactivo',_sb:p};});
+  renderPacientesInactivos();
+}
+function renderPacientesInactivos(){
+  const el=document.getElementById('listaPacientesInactivos');if(!el)return;
+  const list=DB.pacientesInactivos||[];
+  if(!list.length){el.innerHTML='<div style="color:var(--muted);padding:12px;text-align:center;font-size:13px">No hay pacientes inactivos.</div>';return;}
+  el.innerHTML=list.map(function(p){
+    return '<div class="card" style="padding:12px;margin-bottom:8px;opacity:.8">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'+
+      '<div><span style="font-size:14px;font-weight:800">'+p.nombre+'</span> '+
+      (p.dni?'<span class="badge bk" style="font-size:10px">DNI '+p.dni+'</span>':'')+
+      (p.tel?'<div style="font-size:11px;color:var(--muted);margin-top:2px">📱 '+p.tel+'</div>':'')+
+      '</div>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+      '<button class="btn btn-outline btn-sm" onclick="abrirEditarPaciente(\''+p.id+'\')">✏️ Editar</button>'+
+      '<button class="btn btn-sm" style="background:#dcfce7;color:#166534;font-weight:800" onclick="reactivarPaciente(\''+p.id+'\')">✅ Reactivar</button>'+
+      '</div></div></div>';
+  }).join('');
+}
+async function reactivarPaciente(pacId){
+  const pac=(DB.pacientesInactivos||[]).find(function(p){return p.id===pacId;});
+  if(!pac){showToast('Paciente no encontrado','error');return;}
+  if(!confirm('¿Reactivar a '+pac.nombre+'?'))return;
+  try{
+    await sbPatch('pacientes',{estado:'activo'},{id:'eq.'+((pac._sb&&pac._sb.id)||pacId)});
+    showToast('✅ '+pac.nombre+' reactivado');
+    await cargarPacientesInactivos();
+    await cargarDesdeSB(true);
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+
 let _pacEditId=null;
 function abrirNuevoPaciente(){
   _pacEditId=null;
@@ -1997,12 +2063,14 @@ function abrirNuevoPaciente(){
     var el=document.getElementById(id);if(el)el.value='';
   });
   document.getElementById('p-genero').value='';
+  var elEstado=document.getElementById('p-estado');if(elEstado)elEstado.value='activo';
   var t=document.getElementById('modalPacienteTitulo');if(t)t.textContent='👤 Registrar Paciente';
   var b=document.getElementById('btnGuardarPaciente');if(b)b.textContent='Registrar';
   openModal('modalPaciente');
 }
 function abrirEditarPaciente(pacId){
-  var pac=DB.pacientes.find(function(p){return p.id===pacId;});
+  var pac=(DB.pacientes.find(function(p){return p.id===pacId;}))||
+    (DB.pacientesInactivos||[]).find(function(p){return p.id===pacId;});
   if(!pac){showToast('Paciente no encontrado','error');return;}
   _pacEditId=pacId;
   document.getElementById('p-nombre').value=pac.nombre||'';
@@ -2010,6 +2078,7 @@ function abrirEditarPaciente(pacId){
   document.getElementById('p-dni').value=pac.dni||'';
   document.getElementById('p-tel').value=pac.tel||'';
   document.getElementById('p-genero').value=pac.genero||'';
+  var elEstado=document.getElementById('p-estado');if(elEstado)elEstado.value=pac.estado||'activo';
   document.getElementById('p-apoderado').value=pac.apoderado||'';
   document.getElementById('p-colegio').value=pac.colegio||'';
   document.getElementById('p-grado').value=pac.grado||'';
@@ -2033,15 +2102,18 @@ function guardarPaciente(){
     motivo:document.getElementById('p-motivo').value.trim(),
     activo:true,notas:'',psId:null,terId:null,mod:'sesion',paq:0,sesUsadas:0,saldo:0,adelanto:0,costo:0
   };
+  const estado=document.getElementById('p-estado')?.value||'activo';
   const datosSB={nombre:p.nombre,fecha_nac:p.nac||null,dni:p.dni||'',telefono:p.tel||'',
     genero:p.genero||'',apoderado:p.apoderado||'',colegio:p.colegio||'',grado:p.grado||'',motivo:p.motivo||'',
-    terapia:(document.getElementById('p-terapias')?document.getElementById('p-terapias').value.trim():'')};
+    terapia:(document.getElementById('p-terapias')?document.getElementById('p-terapias').value.trim():''),
+    estado:estado};
   const editando=!!_pacEditId;
   showToast(editando?'⏳ Guardando cambios...':'⏳ Guardando paciente...');
-  const pacExistente=editando?DB.pacientes.find(function(x){return x.id===_pacEditId;}):null;
+  const pacExistente=editando?(DB.pacientes.find(function(x){return x.id===_pacEditId;})||
+    (DB.pacientesInactivos||[]).find(function(x){return x.id===_pacEditId;})):null;
   const promesa=editando
     ? sbPatch('pacientes',datosSB,{id:'eq.'+((pacExistente&&pacExistente._sb&&pacExistente._sb.id)||_pacEditId)})
-    : sbPost('pacientes',Object.assign({diagnostico:'',estado:'activo',sede:DB.sede,registrado_por:DB.usuario||''},datosSB));
+    : sbPost('pacientes',Object.assign({diagnostico:'',sede:DB.sede,registrado_por:DB.usuario||''},datosSB));
   promesa.then(function(){
     ['p-nombre','p-nac','p-dni','p-tel','p-apoderado','p-colegio','p-grado','p-motivo','p-terapias'].forEach(id=>{
       const el=document.getElementById(id);if(el)el.value='';
@@ -2050,6 +2122,7 @@ function guardarPaciente(){
     _pacEditId=null;
     closeModal('modalPaciente');
     showToast(editando?'✅ Cambios guardados: '+p.nombre:'✅ Paciente guardado: '+p.nombre);
+    if(_verInactivos)cargarPacientesInactivos();
     return cargarDesdeSB();
   })
   .catch(function(e){showToast('Error al guardar: '+e.message,'error');console.error('[paciente SB]',e);});
