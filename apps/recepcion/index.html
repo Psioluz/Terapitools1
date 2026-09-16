@@ -2,6 +2,11 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Psicoluz Recepción</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Psicoluz Recepción">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#4a0e2e">
 <style>
 
 *{margin:0;padding:0;box-sizing:border-box}
@@ -183,6 +188,7 @@ tbody td{padding:8px 10px;border-bottom:1px solid var(--border)}
 .page{display:none}.page.active{display:flex;flex-direction:column}
 </style>
 <link rel="icon" href="icon-192.png" type="image/png">
+<link rel="manifest" href="manifest.json">
 <script>try{Neutralino.init();Neutralino.events.on("windowClose",function(){Neutralino.app.exit();});}catch(e){console.log("no neutralino")}</script>
 <script>
 // Controles de ventana (minimizar/cerrar) — de respaldo, por si la barra
@@ -279,6 +285,7 @@ try{
   </div>
   <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,.1)">
     <div style="font-size:11px;color:rgba(255,255,255,.5)" id="userLabel"></div>
+    <button class="pwa-install-btn" id="btnInstalar" onclick="window._instalarPWA&&_instalarPWA()" style="display:none;width:100%;margin-top:8px;padding:10px;background:rgba(233,30,140,.18);color:#fff;border:1.5px solid var(--accent);border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;align-items:center;justify-content:center;gap:6px">📲 Instalar App</button>
     <button class="btn btn-outline btn-sm" style="margin-top:6px;width:100%;justify-content:center" onclick="cerrarSesion()">Cerrar sesión</button>
   </div>
 </div>
@@ -3216,5 +3223,66 @@ try{
   var _ultCorreoRecep=localStorage.getItem('psicoluz_recepcion_last_email');
   if(_ultCorreoRecep&&document.getElementById('lEmail'))document.getElementById('lEmail').value=_ultCorreoRecep;
 }catch(e){}
+</script>
+
+<script>
+// ── PWA: botón instalar (compatible con Android, iOS, Samsung) ──
+(function(){
+  let _deferredPrompt=null;
+  function mostrarBtnInstalarRec(){
+    if(window.matchMedia('(display-mode:standalone)').matches)return;
+    if(navigator.standalone===true)return;
+    if(localStorage.getItem('psicoluz_pwa_instalada')==='1')return;
+    document.querySelectorAll('.pwa-install-btn,[id^="btnInstalar"]').forEach(function(b){b.style.display='flex';});
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',mostrarBtnInstalarRec);}
+  else{mostrarBtnInstalarRec();}
+
+  window.addEventListener('beforeinstallprompt',function(e){
+    e.preventDefault();_deferredPrompt=e;mostrarBtnInstalarRec();
+  });
+  window.addEventListener('appinstalled',function(){
+    _deferredPrompt=null;
+    localStorage.setItem('psicoluz_pwa_instalada','1');
+    document.querySelectorAll('.pwa-install-btn,[id^="btnInstalar"]').forEach(function(b){b.style.display='none';});
+  });
+  window._instalar=window._instalarPWA=function(){
+    if(_deferredPrompt){
+      _deferredPrompt.prompt();
+      _deferredPrompt.userChoice.then(function(result){
+        _deferredPrompt=null;
+        if(result.outcome==='accepted'){
+          localStorage.setItem('psicoluz_pwa_instalada','1');
+          document.querySelectorAll('.pwa-install-btn,[id^="btnInstalar"]').forEach(function(b){b.style.display='none';});
+        }
+      });
+    }else{
+      var ua=navigator.userAgent.toLowerCase();
+      if(/iphone|ipad|ipod/.test(ua)){
+        alert('Para instalar en iPhone/iPad:\n\n1. Toca compartir ↑ en Safari\n2. Toca "Añadir a pantalla de inicio"\n3. Toca "Añadir"');
+      }else if(ua.includes('samsungbrowser')){
+        alert('Para instalar:\n\n1. Toca el menú ☰\n2. "Añadir página a" → "Pantalla de inicio"');
+      }else{
+        alert('Para instalar en Chrome:\n\n1. Toca el menú ⋮ (3 puntos)\n2. Toca "Instalar app" o "Añadir a pantalla de inicio"\n3. Confirma');
+      }
+    }
+  };
+})();
+
+// ══ PWA: manifest y service worker reales ══
+(function(){
+  if(location.protocol.indexOf('http')!==0)return;
+  function fijar(){
+    try{
+      var l=document.querySelector('link[rel="manifest"]');
+      if(!l){l=document.createElement('link');l.rel='manifest';document.head.appendChild(l);}
+      l.href='manifest.json';
+    }catch(e){}
+  }
+  fijar();setTimeout(fijar,1500);setTimeout(fijar,4000);
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});
+  }
+})();
 </script>
 </html>
