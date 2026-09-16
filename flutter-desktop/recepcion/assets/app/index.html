@@ -733,6 +733,11 @@ try{
             </select>
           </div>
         </div>
+        <div class="form-group" id="ag-grp-cuotas" style="max-width:200px;margin-top:10px">
+          <label class="form-label">Número de cuotas</label>
+          <input type="number" class="form-control" id="ag-cuotas" value="1" min="1" max="12" oninput="agActualizarResumen()">
+          <div style="font-size:10.5px;color:var(--muted);margin-top:3px">El costo se divide entre las cuotas. La alerta de cobro aparece 1 sesión antes de que corresponda cada cuota.</div>
+        </div>
         <div id="ag-grp-terapiaRows">
           <div class="form-group" style="max-width:320px">
             <label class="form-label">¿Cuántas veces por semana asistirá? *</label>
@@ -1270,12 +1275,16 @@ document.querySelectorAll('.modal-overlay').forEach(o=>{
   o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');});
 });
 
+const _PAGE_TITULOS={dashboard:'Inicio',agenda:'Agenda',pacientes:'Pacientes',pagos:'Caja / Pagos',
+  asistPersonal:'Asistencia Personal',psicologas:'Psicólogas',terapias:'Terapias',
+  paquetes:'Servicios y Tarifas',reportes:'Reporte del Día',whatsapp:'WhatsApp',alertas:'Alertas',
+  solicitudesWeb:'Solicitudes Web',historial:'Historial Clínico',cumpleanos:'Cumpleaños',chat:'Chat'};
 function showPage(name,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   const pg=document.getElementById('page-'+name);if(pg)pg.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   if(el)el.classList.add('active');
-  document.getElementById('pageTitle').textContent=el?el.textContent.trim():name;
+  document.getElementById('pageTitle').textContent=_PAGE_TITULOS[name]||name;
   document.getElementById('sidebar').classList.remove('open');
   const fn={dashboard:renderDashboard,agenda:renderAgenda,pacientes:renderPacientes,
     pagos:renderPagos,asistPersonal:renderAsistPersonal,psicologas:renderPsicologas,
@@ -1313,7 +1322,7 @@ function renderDashboard(){
           '<div style="font-weight:800;font-size:13px;margin-bottom:3px">'+pac.nombre+'</div>'+
           '<div style="font-size:11px;color:var(--muted);margin-bottom:3px">'+ps.nombre+'</div>'+
           terBadge(ter)+
-          (pac.mod==='paquete'&&pac.paq>0?progresoPacInline(pac):'')+'</div>'+
+          progresoPacInline(pac)+'</div>'+
           '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">'+
           botonesAsistenciaHTML(s)+
           ((s.estado==='asistio'||s.estado==='tardanza')&&!pago?
@@ -1435,13 +1444,13 @@ function renderAgenda(){
         sesList.forEach(s=>{
           const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
           const bc=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':'#7c3aed';
-          const sesUsadas=DB.sesiones.filter(x=>x.pacId===s.pacId&&(x.estado==='asistio'||x.estado==='tardanza'||x.estado==='noasistio')).length;
-          const progTxt=pac.mod==='paquete'&&pac.paq>0?(' '+sesUsadas+'/'+pac.paq):'';
+          const esPaq=s.tipo==='paquete'&&s.totalPaq;
+          const progTxt=esPaq?(' '+s.nroSes+'/'+s.totalPaq):'';
           const titulo=pac.nombre+' · '+ter.nombre+(progTxt?' · Paq'+progTxt:'')+' · '+ps.nombre;
           h+='<div class="ag-chip" style="background:'+bc+'" title="'+titulo+'">'+
             '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;font-weight:800">'+pac.nombre.split(' ')[0]+'</div>'+
             '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9.5px;opacity:.9">'+abrevTerapia(ter.nombre)+'</div>'+
-            (pac.mod==='paquete'&&pac.paq>0?'<div style="font-size:8px;opacity:.8">'+sesUsadas+'/'+pac.paq+'</div>':'')+
+            (esPaq?'<div style="font-size:8px;opacity:.8">'+s.nroSes+'/'+s.totalPaq+'</div>':'')+
             '</div>';
         });
       } else if(hayHorario){
@@ -1494,12 +1503,12 @@ function mostrarResumenCelda(sesList,fecha,hora){
         '</div>'+
         '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">'+ps.nombre+
         ' · '+terBadge(ter)+
-        (s.tipo==='paquete'?' · Paquete '+s.nroEnPaq+'/'+s.totalPaq:'')+'</div>'+
+        (s.tipo==='paquete'?' · Paquete '+s.nroSes+'/'+s.totalPaq:'')+'</div>'+
         (s.costoTotal?'<div style="font-size:12px;color:var(--green)">'+
         (s.tipo==='paquete'?'Paquete S/'+s.costoTotal:'S/'+s.costoTotal)+
         (s.adelanto?' | Adelanto: S/'+s.adelanto:'')+(s.saldo?' | Saldo: S/'+s.saldo:'')+'</div>':'')+
         (pago?'<div style="font-size:11px;color:var(--green);margin-top:2px">✅ Cobrado S/'+pago.monto+' '+pago.metodo+'</div>':'')+
-        (pac.mod==='paquete'&&pac.paq>0?progresoPac(pac):'')+
+        progresoPac(pac)+
         '</div>'+
         '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">'+
         botonesAsistenciaHTML(s)+
@@ -1532,7 +1541,7 @@ function renderDiaSel(){
       const borderC=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':'var(--accent)';
       const pago=DB.pagos.find(p=>p.pacId===s.pacId&&p.fecha===s.fecha&&p.hora===s.hora);
       // Progreso paquete
-      const progHTML=pac.mod==='paquete'&&pac.paq>0?progresoPac(pac):'';
+      const progHTML=progresoPac(pac);
       return '<div class="ses-card" style="border-left-color:'+borderC+'">'+
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">'+
         '<div style="flex:1;min-width:200px">'+
@@ -1542,7 +1551,7 @@ function renderDiaSel(){
         '<span class="badge '+(s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bb')+'" style="font-size:10px">'+s.estado+'</span>'+
         '</div>'+
         '<div style="font-size:12px;color:var(--muted)">'+ps.nombre+' · '+terBadge(ter)+
-        (s.tipo==='paquete'?' · Paquete '+s.nroEnPaq+'/'+s.totalPaq:'')+'</div>'+
+        (s.tipo==='paquete'?' · Paquete '+s.nroSes+'/'+s.totalPaq:'')+'</div>'+
         (s.costoTotal?'<div style="font-size:12px;color:var(--green);margin-top:3px">'+
         (s.tipo==='paquete'?'Paquete S/'+s.costoTotal:'S/'+s.costoTotal)+
         (s.adelanto?' | Adelanto: S/'+s.adelanto:'')+(s.saldo?' | Saldo: S/'+s.saldo:'')+'</div>':'')+
@@ -1560,13 +1569,23 @@ function renderDiaSel(){
     }).join('');
 }
 
+// El progreso de paquete se calcula de las sesiones reales (tipo:'paquete',
+// totalPaq), no de pacientes.paq (campo heredado del esquema viejo que ya
+// no se llena — un paquete ahora vive en programas_paciente/sesiones).
+function _paqInfoPac(pac){
+  const ses=DB.sesiones.filter(s=>s.pacId===pac.nombre&&s.tipo==='paquete'&&s.totalPaq);
+  if(!ses.length)return null;
+  const total=Math.max.apply(null,ses.map(function(s){return s.totalPaq||0;}));
+  const hechas=ses.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio';}).length;
+  return{total:total,hechas:hechas};
+}
 function progresoPac(pac){
-  const sesHechas=DB.sesiones.filter(s=>s.pacId===pac.nombre&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
-  const pct=pac.paq>0?Math.round((sesHechas/pac.paq)*100):0;
+  const info=_paqInfoPac(pac);if(!info)return'';
+  const pct=info.total>0?Math.round((info.hechas/info.total)*100):0;
   const cls=pct>=90?'danger':pct>=70?'warn':'';
   return '<div style="margin-top:8px">'+
     '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px">'+
-    '<span>Progreso paquete</span><span>'+sesHechas+'/'+pac.paq+' ('+pct+'%)</span></div>'+
+    '<span>Progreso paquete</span><span>'+info.hechas+'/'+info.total+' ('+pct+'%)</span></div>'+
     '<div class="prog-bar"><div class="prog-fill '+cls+'" style="width:'+Math.min(100,pct)+'%"></div></div></div>';
 }
 
@@ -1598,6 +1617,7 @@ function abrirModalAgendar(fecha,hora,sesOrig){
   document.getElementById('ag-tipo').value='paquete';
   document.getElementById('ag-adelanto').value='0';
   document.getElementById('ag-costo').value='';
+  const elCuotas=document.getElementById('ag-cuotas');if(elCuotas)elCuotas.value='1';
   document.getElementById('ag-notas').value='';
   document.getElementById('ag-resumen').style.display='none';
   const elProg=document.getElementById('ag-progExist');if(elProg)elProg.innerHTML='<option value="">🆕 Nuevo paquete</option>';
@@ -1690,6 +1710,8 @@ function agOnProgExist(){
   const progId=document.getElementById('ag-progExist')?.value||'';
   const grpPaq=document.getElementById('ag-grp-paq');
   if(grpPaq)grpPaq.style.display=progId?'none':'block';
+  const grpCuotas=document.getElementById('ag-grp-cuotas');
+  if(grpCuotas)grpCuotas.style.display=progId?'none':'block';
   agActualizarResumen();
 }
 
@@ -2035,6 +2057,7 @@ async function guardarPaqueteFlujo(){
   const adelanto=parseFloat(document.getElementById('ag-adelanto').value)||0;
   const fechaInicio=document.getElementById('ag-fechaInicio')?.value||'';
   const notas=document.getElementById('ag-notas').value;
+  const nroCuotas=progId?1:Math.max(1,parseInt(document.getElementById('ag-cuotas')?.value)||1);
 
   const filas=[];
   document.querySelectorAll('#ag-terapiaRows .ag-terapia-row').forEach(function(row){
@@ -2079,7 +2102,7 @@ async function guardarPaqueteFlujo(){
       adelantoAcum=adelanto;saldo=Math.max(0,costoTotal-adelanto);
       const progRows=await sbPost('programas_paciente',{paciente_nombre:pac.nombre,sede:DB.sede,
         paquete_nombre:paq.nombre,tipo:'paquete',nro_sesiones_total:totalSesiones,
-        costo_total:costoTotal,adelanto_acumulado:adelantoAcum,saldo:saldo,
+        costo_total:costoTotal,adelanto_acumulado:adelantoAcum,saldo:saldo,nro_cuotas:nroCuotas,
         fecha_inicio:fechaInicio||today(),estado:'activo',registrado_por:DB.usuario||''});
       progRow=progRows&&progRows[0];
       if(!progRow||!progRow.id)throw new Error('No se pudo crear el paquete');
@@ -2118,19 +2141,29 @@ async function guardarPaqueteFlujo(){
         const ptId=ptRows&&ptRows[0]&&ptRows[0].id;
         c.filaIdxs.forEach(function(i){ptIdPorFila[i]=ptId;});
       }
+      // El "saldo por cobrar" solo debe salir en la agenda/alertas UNA vez por
+      // cuota, no en cada sesión del paquete: se divide el costo entre las
+      // cuotas y se marca la sesión inmediatamente anterior a cada corte.
+      const montoCuota=Math.round((saldo/nroCuotas)*100)/100;
+      const cortes={};
+      for(let k=1;k<=nroCuotas;k++){
+        const corte=Math.max(1,Math.round(totalSesiones*k/nroCuotas)-1);
+        cortes[corte]=true;
+      }
       let nro=yaAsignadas;
       for(const ev of sim.eventos){
         nro++;
         const f=filas[ev.filaIdx];
+        const saldoSesion=cortes[nro]?montoCuota:0;
         const filaSes={fecha:ev.fecha,hora:ev.hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
           psicologa:f.psicologa.nombre,terapia:f.terapia,estado:'programado',tipo:'paquete',
           nro_en_paquete:nro,total_paquete:totalSesiones,costo_total:costoTotal,
-          adelanto:0,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||'',
+          adelanto:0,saldo:saldoSesion,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||'',
           programa_id:progRow.id,programa_terapia_id:ptIdPorFila[ev.filaIdx]};
         const r=await sbPost('sesiones',filaSes);
         DB.sesiones.push({id:(r&&r[0]&&r[0].id)||('tmp-'+ev.fecha+ev.hora+Math.random()),fecha:ev.fecha,hora:ev.hora,
-          pacId:pac.nombre,psId:f.psicologa.nombre,terId:f.terapia,estado:'programado',
-          nroSes:nro,totalPaq:totalSesiones,costo:costoTotal,saldo:saldo});
+          pacId:pac.nombre,psId:f.psicologa.nombre,terId:f.terapia,estado:'programado',tipo:'paquete',
+          nroSes:nro,totalPaq:totalSesiones,costo:costoTotal,costoTotal:costoTotal,saldo:saldoSesion});
       }
       if(!sim.completo){
         showToast('⚠️ Solo se pudieron generar '+sim.eventos.length+' de '+objetivo+' sesión(es). '+
@@ -2359,7 +2392,8 @@ function renderPacientes(){
     const noAs=sesP.filter(s=>s.estado==='noasistio').length;
     const terapiasUnicas=[...new Set(sesP.map(s=>s.terId).filter(Boolean))].map(id=>getTer(id));
     const prox=sesP.filter(s=>s.estado==='programado'&&s.fecha>=today()).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora))[0];
-    const prog=p.mod==='paquete'&&p.paq>0?progresoPac(p):'';
+    const paqInfo=_paqInfoPac(p);
+    const prog=progresoPac(p);
     return '<div class="card" style="padding:14px;margin-bottom:8px">'+
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+
       '<div style="flex:1;min-width:200px">'+
@@ -2370,7 +2404,7 @@ function renderPacientes(){
       '</div>'+
       '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'+
       (p.terapias?p.terapias.split(',').map(function(tn){return '<span class="badge bp" style="font-size:10px">'+tn.trim()+'</span>';}).join(''):terapiasUnicas.map(t=>'<span class="badge" style="font-size:10px;background:'+(t.color||'#e5e7eb')+';color:'+colorTextoContraste(t.color)+'">'+t.nombre+'</span>').join(''))+
-      (p.mod==='paquete'?'<span class="badge bb" style="font-size:10px">Paquete '+p.paq+' ses.</span>':'')+
+      (paqInfo?'<span class="badge bb" style="font-size:10px">Paquete '+paqInfo.total+' ses.</span>':'')+
       '</div>'+
       '<div style="font-size:12px;color:var(--muted)">'+
       (ps.nombre!=='—'?'🩺 '+ps.nombre:'')+
@@ -2826,9 +2860,9 @@ function filtrarPaq(tipo,btn){
 function contarAlertas(){
   let c=0;const hoy=today();
   DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{if(p.saldo>0)c++;});
-  DB.pacientes.filter(p=>p.activo!==false&&p.mod==='paquete'&&p.paq>0).forEach(p=>{
-    const a=DB.sesiones.filter(s=>s.pacId===p.nombre&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
-    if(p.paq-a<=1)c++;
+  DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{
+    const info=_paqInfoPac(p);
+    if(info&&info.total-info.hechas<=1)c++;
   });
   DB.sesiones.filter(s=>s.saldo>0&&s.estado==='programado'&&s.fecha>=hoy).forEach(()=>c++);
   return c;
@@ -2839,11 +2873,11 @@ function renderAlertas(){
   DB.pacientes.filter(p=>p.activo!==false&&p.saldo>0).forEach(p=>{
     h+='<div class="alert al-warn">⚠️ <strong>'+p.nombre+'</strong> — Saldo: S/'+p.saldo+'</div>';
   });
-  DB.pacientes.filter(p=>p.activo!==false&&p.mod==='paquete'&&p.paq>0).forEach(p=>{
-    const a=DB.sesiones.filter(s=>s.pacId===p.nombre&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
-    const rest=p.paq-a;
+  DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{
+    const info=_paqInfoPac(p);if(!info)return;
+    const rest=info.total-info.hechas;
     if(rest<=1&&rest>=0)h+='<div class="alert al-info" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
-      '<span>🔄 <strong>'+p.nombre+'</strong> — '+(rest===0?'Paquete TERMINADO':'Última sesión')+'  ('+a+'/'+p.paq+')</span>'+
+      '<span>🔄 <strong>'+p.nombre+'</strong> — '+(rest===0?'Paquete TERMINADO':'Última sesión')+'  ('+info.hechas+'/'+info.total+')</span>'+
       '<button class="btn btn-primary btn-sm" onclick="renovarPaquete(\''+p.id+'\')">Renovar paquete</button></div>';
   });
   DB.sesiones.filter(s=>s.saldo>0&&s.estado==='programado'&&s.fecha>=today()).forEach(s=>{
@@ -2937,7 +2971,7 @@ function generarReporte(){
           '<div style="font-size:13px;font-weight:700">'+pac.nombre+'</div>'+
           '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">'+
           terBadge(ter,9)+
-          (s.tipo==='paquete'?'<span class="badge bb" style="font-size:9px">Paq '+s.nroEnPaq+'/'+s.totalPaq+'</span>':'')+
+          (s.tipo==='paquete'?'<span class="badge bb" style="font-size:9px">Paq '+s.nroSes+'/'+s.totalPaq+'</span>':'')+
           '</div></div>'+
           '<span class="badge '+bc+'" style="font-size:10px">'+s.estado+'</span>'+
           (pago?'<span class="badge bg" style="font-size:10px">S/'+pago.monto+' '+pago.metodo+'</span>':
@@ -3191,10 +3225,10 @@ function renderAgendaViaDia(fecha){
           '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">'+
           terBadge(ter)+
           badgeEstadoAsistencia(s.estado)+
-          (s.tipo==='paquete'?'<span class="badge bb" style="font-size:10px">Paq '+s.nroEnPaq+'/'+s.totalPaq+'</span>':'')+
+          (s.tipo==='paquete'?'<span class="badge bb" style="font-size:10px">Paq '+s.nroSes+'/'+s.totalPaq+'</span>':'')+
           '</div>'+
           (s.costoTotal?'<div style="font-size:12px;color:var(--green)">'+(s.tipo==='paquete'?'Paq S/'+s.costoTotal:'S/'+s.costoTotal)+(s.saldo>0?' | Saldo S/'+s.saldo:'')+'</div>':'')+
-          (pac.mod==='paquete'&&pac.paq>0?progresoPac(pac):'')+
+          progresoPac(pac)+
           (pago?'<div style="font-size:11px;color:var(--green);margin-top:2px">✅ S/'+pago.monto+' '+pago.metodo+'</div>':'')+
           '</div>'+
           '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'+
@@ -3230,7 +3264,7 @@ async function renderHistorial(){
   const sesPac=DB.sesiones.filter(s=>s.pacId===pac2.nombre).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
   const asist=sesPac.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   const noAs=sesPac.filter(s=>s.estado==='noasistio').length;
-  const prog=pac2.mod==='paquete'&&pac2.paq>0?progresoPac(pac2):'';
+  const prog=progresoPac(pac2);
   if(!el)return;
   el.innerHTML=
     '<div style="background:var(--bg);border-radius:12px;padding:14px;margin-bottom:16px">'+
@@ -3261,8 +3295,8 @@ async function renderHistorial(){
         return '<tr><td>'+fmtF(s.fecha)+'</td><td>'+s.hora+'</td><td>'+psH.nombre.replace('Lic.','').trim()+'</td>'+
           '<td>'+terBadge(terH)+'</td>'+
           '<td><span style="color:'+ec+';font-weight:700">'+s.estado+'</span></td>'+
-          '<td><span class="badge bk" style="font-size:10px">'+(s.tipo==='paquete'?'Paq '+s.nroEnPaq+'/'+s.totalPaq:s.tipo)+'</span></td>'+
-          '<td>'+(pago?'<span style="color:var(--green);font-weight:700">S/'+pago.monto+'</span>':s.costoTotal?'Pend. S/'+s.saldo:'—')+'</td>'+
+          '<td><span class="badge bk" style="font-size:10px">'+(s.tipo==='paquete'?'Paq '+s.nroSes+'/'+s.totalPaq:s.tipo)+'</span></td>'+
+          '<td>'+(pago?'<span style="color:var(--green);font-weight:700">S/'+pago.monto+'</span>':s.saldo>0?'Pend. S/'+s.saldo:'—')+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+(s.notas||'')+'</td>'+
           '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s):'<span style="font-size:11px;color:var(--muted)">—</span>')+'</td></tr>';
       }).join('')+
@@ -3442,11 +3476,11 @@ function compartirReporteWA(){
 
 
 function progresoPacInline(pac){
-  const sesHechas=DB.sesiones.filter(s=>s.pacId===pac.nombre&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
-  const pct=pac.paq>0?Math.round((sesHechas/pac.paq)*100):0;
+  const info=_paqInfoPac(pac);if(!info)return'';
+  const pct=info.total>0?Math.round((info.hechas/info.total)*100):0;
   const cls=pct>=90?'danger':pct>=70?'warn':'';
   return '<div style="margin-top:4px">'+
-    '<div style="font-size:10px;color:var(--muted);margin-bottom:2px">Paquete '+sesHechas+'/'+pac.paq+' ('+pct+'%)</div>'+
+    '<div style="font-size:10px;color:var(--muted);margin-bottom:2px">Paquete '+info.hechas+'/'+info.total+' ('+pct+'%)</div>'+
     '<div class="prog-bar" style="height:5px"><div class="prog-fill '+cls+'" style="width:'+Math.min(100,pct)+'%"></div></div></div>';
 }
 
@@ -3475,7 +3509,7 @@ function renderProximosDias(){
       '<div style="flex:1;min-width:120px">'+
       '<div style="font-weight:700;font-size:12px">'+pac.nombre+'</div>'+
       '<div style="font-size:10px;color:var(--muted)">'+ps.nombre.replace('Lic.','').trim()+' · '+ter.nombre+'</div>'+
-      (pac.mod==='paquete'&&pac.paq>0?progresoPacInline(pac):'')+
+      progresoPacInline(pac)+
       '</div>'+
       (debeSaldo?'<span class="badge bo" style="font-size:9px;white-space:nowrap">💰 Saldo S/'+s.saldo+'</span>':'')+
       '</div>';
@@ -3524,8 +3558,8 @@ async function cargarDesdeSB(silencioso) {
     ]);
     DB.sesiones=(res[0]||[]).map(function(s){return{id:s.id,fecha:s.fecha,hora:normHoraRec(s.hora),
       pacId:s.paciente_nombre,pacNom:s.paciente_nombre,psId:s.psicologa,psNom:s.psicologa,
-      terId:s.terapia,terNom:s.terapia,estado:s.estado,saldo:s.saldo||0,
-      nroSes:s.nro_en_paquete,totalPaq:s.total_paquete,costo:s.costo_total||0,tel:s.paciente_tel||'',_sb:s};});
+      terId:s.terapia,terNom:s.terapia,estado:s.estado,saldo:s.saldo||0,tipo:s.tipo||'sesion',notas:s.notas||'',
+      nroSes:s.nro_en_paquete,totalPaq:s.total_paquete,costo:s.costo_total||0,costoTotal:s.costo_total||0,tel:s.paciente_tel||'',_sb:s};});
     DB.pacientes=(res[1]||[]).map(function(p){return{id:p.id||p.nombre,nombre:p.nombre,
       tel:p.telefono||'',nac:p.fecha_nac||'',dni:p.dni||'',diagnostico:p.diagnostico||'',
       psId:p.psicologa,terId:p.terapia,terapias:p.terapias||p.terapia||'',apoderado:p.apoderado||'',
