@@ -1826,6 +1826,10 @@ function agOnPaq(){
   const paqId=document.getElementById('ag-paqId').value||'';
   const paq=getPaq(paqId);
   document.getElementById('ag-costo').value=paq?paq.costoTotal:'';
+  // El número de cuotas y su monto vienen del catálogo (tarifas_sede) —
+  // no se inventan, cada paquete ya trae definido en cuántas cuotas se cobra.
+  const elCuotas=document.getElementById('ag-cuotas');
+  if(elCuotas)elCuotas.value=paq?(paq.cuotas||1):1;
   agActualizarResumen();
 }
 
@@ -2202,19 +2206,31 @@ async function guardarPaqueteFlujo(){
         c.filaIdxs.forEach(function(i){ptIdPorFila[i]=ptId;});
       }
       // El "saldo por cobrar" solo debe salir en la agenda/alertas UNA vez por
-      // cuota, no en cada sesión del paquete: se divide el costo entre las
-      // cuotas y se marca la sesión inmediatamente anterior a cada corte.
-      const montoCuota=Math.round((saldo/nroCuotas)*100)/100;
+      // cuota, no en cada sesión del paquete. La cuota 1 es el adelanto que
+      // ya se cobró al registrar el paquete (no genera alerta); las demás
+      // cuotas (2..N) se cobran cada "total de sesiones / nro de cuotas"
+      // sesiones — ej. 30 sesiones en 4 cuotas de S/258.75 → se cobra en
+      // las sesiones 7, 14 y 21 (1 sesión antes de cada corte, que es
+      // cuando debe salir la alerta para que la recepcionista cobre a
+      // tiempo). Si el paquete es de una sola cuota, se deja un recordatorio
+      // del saldo restante 1 sesión antes de terminar, por si el adelanto
+      // no cubrió el costo completo.
       const cortes={};
-      for(let k=1;k<=nroCuotas;k++){
-        const corte=Math.max(1,Math.round(totalSesiones*k/nroCuotas)-1);
-        cortes[corte]=true;
+      if(nroCuotas>=2){
+        const montoCuota=Math.round((costoTotal/nroCuotas)*100)/100;
+        const sesionesPorCuota=Math.floor(totalSesiones/nroCuotas);
+        for(let j=1;j<nroCuotas;j++){
+          const corte=Math.max(1,sesionesPorCuota*j-1);
+          cortes[corte]=montoCuota;
+        }
+      }else if(saldo>0){
+        cortes[Math.max(1,totalSesiones-1)]=saldo;
       }
       let nro=yaAsignadas;
       for(const ev of sim.eventos){
         nro++;
         const f=filas[ev.filaIdx];
-        const saldoSesion=cortes[nro]?montoCuota:0;
+        const saldoSesion=cortes[nro]||0;
         const filaSes={fecha:ev.fecha,hora:ev.hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
           psicologa:f.psicologa.nombre,terapia:f.terapia,estado:'programado',tipo:'paquete',
           nro_en_paquete:nro,total_paquete:totalSesiones,costo_total:costoTotal,
