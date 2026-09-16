@@ -140,11 +140,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ag-head.hoy{background:var(--accent)}
 .ag-hora{background:#f8faff;border-top:1px solid var(--border);display:flex;align-items:center;
   justify-content:center;font-size:10px;font-weight:700;color:var(--muted);min-height:46px;padding:0 4px}
-.ag-celda{border-top:1px solid var(--border);border-left:1px solid var(--border);min-height:46px;
+.ag-celda{border-top:1px solid var(--border);border-left:1px solid var(--border);min-height:54px;
   padding:2px;cursor:pointer;transition:background .15s}
 .ag-celda:hover{background:#f0f4ff}
-.ag-chip{border-radius:4px;padding:2px 5px;font-size:9px;font-weight:700;color:#fff;
-  margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.ag-chip{border-radius:4px;padding:3px 5px;font-size:9px;font-weight:700;color:#fff;
+  margin-bottom:2px;overflow:hidden;display:block}
 .ag-mas{color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100%;font-size:16px}
 
 /* ── SES CARD ── */
@@ -631,6 +631,12 @@ try{
     <button class="modal-close" onclick="closeModal('modalAgendar')">✕</button>
   </div>
   <div class="modal-body">
+    <div class="alert al-info" style="margin-bottom:10px;font-size:11.5px">
+      ℹ️ Cada sesión que agendas es de <strong>un paciente + una psicóloga + una terapia</strong>. Si el paciente lleva
+      varias terapias (con la misma o distintas psicólogas, en distintos días/horarios), agenda una sesión por
+      cada combinación eligiendo su propio paquete — el sistema las vincula automáticamente al mismo paciente y
+      lleva el progreso de cada una por separado (lo verás en su ficha).
+    </div>
     <div class="grid g2">
       <div class="form-group">
         <label class="form-label">Paciente *</label>
@@ -1248,6 +1254,7 @@ function renderAgenda(){
   const slots=[...allSlots].sort();
 
   const filtPs=document.getElementById('agPs')?.value||'';
+  const filtPsNom=filtPs?getPs(filtPs).nombre:'';
   const grid=document.getElementById('gridSemanal');if(!grid)return;
   const cols=6;
   grid.style.gridTemplateColumns='58px repeat('+cols+',1fr)';
@@ -1268,12 +1275,12 @@ function renderAgenda(){
       const diaNom=diaFull[dia.d.getDay()];
       // ¿Alguna psicóloga trabaja en este slot este día?
       const psEnSlot=DB.psicologas.filter(ps=>{
-        if(filtPs&&ps.id!==parseInt(filtPs))return false;
+        if(filtPs&&ps.id!==filtPs)return false;
         return horasPs(ps.id,dia.f).includes(slot);
       });
       const hayHorario=psEnSlot.length>0;
       let sesList=DB.sesiones.filter(s=>s.fecha===dia.f&&s.hora===slot);
-      if(filtPs)sesList=sesList.filter(s=>s.psId===parseInt(filtPs));
+      if(filtPsNom)sesList=sesList.filter(s=>s.psId===filtPsNom);
       const bgCelda=dia.f===_agFechaSel?'#eff6ff':dia.f===hoy?'#f0fdf4':'#fff';
       const noBordered=!hayHorario&&!sesList.length;
       h+='<div class="ag-celda" style="background:'+bgCelda+';'+(noBordered?'opacity:.3;pointer-events:none':'')+'" onclick="clickCelda(\''+dia.f+'\',\''+slot+'\')">';
@@ -1285,7 +1292,8 @@ function renderAgenda(){
           const progTxt=pac.mod==='paquete'&&pac.paq>0?(' '+sesUsadas+'/'+pac.paq):'';
           const titulo=pac.nombre+' · '+ter.nombre+(progTxt?' · Paq'+progTxt:'')+' · '+ps.nombre;
           h+='<div class="ag-chip" style="background:'+bc+'" title="'+titulo+'">'+
-            '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+pac.nombre.split(' ')[0]+' <span style="font-size:8px;opacity:.85">'+ter.nombre.split(' ')[0]+'</span></div>'+
+            '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;font-weight:800">'+pac.nombre.split(' ')[0]+'</div>'+
+            '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9.5px;opacity:.9">'+abrevTerapia(ter.nombre)+'</div>'+
             (pac.mod==='paquete'&&pac.paq>0?'<div style="font-size:8px;opacity:.8">'+sesUsadas+'/'+pac.paq+'</div>':'')+
             '</div>';
         });
@@ -1363,7 +1371,7 @@ function renderDiaSel(){
   const fecha=_agFechaSel||today();
   const filtPs=document.getElementById('agPs')?.value||'';
   let ses=DB.sesiones.filter(s=>s.fecha===fecha);
-  if(filtPs)ses=ses.filter(s=>s.psId===parseInt(filtPs));
+  if(filtPs)ses=ses.filter(s=>s.psId===getPs(filtPs).nombre);
   ses.sort((a,b)=>a.hora.localeCompare(b.hora));
   const el=document.getElementById('agendaDetalle');if(!el)return;
   if(!ses.length){
@@ -1406,7 +1414,7 @@ function renderDiaSel(){
 }
 
 function progresoPac(pac){
-  const sesHechas=DB.sesiones.filter(s=>s.pacId===pac.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
+  const sesHechas=DB.sesiones.filter(s=>s.pacId===pac.nombre&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
   const pct=pac.paq>0?Math.round((sesHechas/pac.paq)*100):0;
   const cls=pct>=90?'danger':pct>=70?'warn':'';
   return '<div style="margin-top:8px">'+
@@ -1483,14 +1491,14 @@ function renovarPaquete(pacId){
 }
 
 function agOnPac(){
-  const pac=getPac(parseInt(document.getElementById('ag-pac').value));
+  const pac=getPac(document.getElementById('ag-pac').value);
   if(pac.psId){const el=document.getElementById('ag-ps');if(el){el.value=pac.psId;agOnPs();}}
   if(pac.terId){const el=document.getElementById('ag-ter');if(el)el.value=pac.terId;}
   agActualizarResumen();
 }
 
 function agOnPs(){
-  const psId=parseInt(document.getElementById('ag-ps')?.value)||0;
+  const psId=document.getElementById('ag-ps')?.value||'';
   const fecha=document.getElementById('ag-fecha')?.value||today();
   const el=document.getElementById('ag-hora');if(!el)return;
   const slots=psId?horasPs(psId,fecha):['13:15','14:00','14:45','15:30','16:15','17:00','17:45','18:30','19:15'];
@@ -1509,14 +1517,14 @@ function agOnTipo(){
     const sel=document.getElementById('ag-paqId');
     if(sel){
       sel.innerHTML='<option value="">— Elige el paquete —</option>'+
-        DB.paquetes.filter(p=>p.tipo==='paquete').map(p=>
+        DB.paquetes.filter(p=>p.tipo==='Paquete').map(p=>
           '<option value="'+p.id+'">'+p.nombre+' — S/'+p.costoTotal+'</option>'
         ).join('');
     }
     document.getElementById('ag-costo').value='';
   } else {
-    // Auto-llenar costo del servicio
-    const map={sesion:'consulta',consulta:'consulta',informe:'informe',constancia:'constancia',neuropsico:'neuropsico',adelanto:''};
+    // Auto-llenar costo del servicio (tipos reales en tarifas_sede)
+    const map={sesion:'Sesión',consulta:'Consulta',informe:'Informe',constancia:'Constancia',neuropsico:'Evaluación',adelanto:''};
     const tipoB=map[tipo]||tipo;
     const serv=DB.paquetes.find(p=>p.tipo===tipoB);
     if(serv)document.getElementById('ag-costo').value=serv.costoTotal;
@@ -1525,7 +1533,7 @@ function agOnTipo(){
 }
 
 function agOnPaq(){
-  const paqId=parseInt(document.getElementById('ag-paqId').value)||0;
+  const paqId=document.getElementById('ag-paqId').value||'';
   const paq=getPaq(paqId);
   if(!paq){document.getElementById('ag-costo').value='';agActualizarResumen();return;}
   // Costo total del paquete (NO por sesión)
@@ -1612,7 +1620,7 @@ async function guardarSesion(){
   const costoRaw=parseFloat(document.getElementById('ag-costo').value)||0;
   const adelanto=parseFloat(document.getElementById('ag-adelanto').value)||0;
   const notas=document.getElementById('ag-notas').value;
-  const paqId=parseInt(document.getElementById('ag-paqId')?.value)||0;
+  const paqId=document.getElementById('ag-paqId')?.value||'';
   const paq=paqId?getPaq(paqId):null;
 
   if(!pacId||!psId||!terId||!fecha||!hora){
@@ -1748,7 +1756,7 @@ function renderPacientes(){
   if(!pacs.length){el.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">Sin pacientes.</div>';return;}
   el.innerHTML=pacs.map(p=>{
     const ps=getPs(p.psId);const ter=getTer(p.terId);
-    const sesP=DB.sesiones.filter(s=>s.pacId===p.id);
+    const sesP=DB.sesiones.filter(s=>s.pacId===p.nombre);
     const asist=sesP.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
     const noAs=sesP.filter(s=>s.estado==='noasistio').length;
     const terapiasUnicas=[...new Set(sesP.map(s=>s.terId).filter(Boolean))].map(id=>getTer(id));
@@ -1835,7 +1843,7 @@ function guardarPaciente(){
   };
   const datosSB={nombre:p.nombre,fecha_nac:p.nac||null,dni:p.dni||'',telefono:p.tel||'',
     genero:p.genero||'',apoderado:p.apoderado||'',colegio:p.colegio||'',grado:p.grado||'',motivo:p.motivo||'',
-    terapias:(document.getElementById('p-terapias')?document.getElementById('p-terapias').value.trim():'')};
+    terapia:(document.getElementById('p-terapias')?document.getElementById('p-terapias').value.trim():'')};
   const editando=!!_pacEditId;
   showToast(editando?'⏳ Guardando cambios...':'⏳ Guardando paciente...');
   const pacExistente=editando?DB.pacientes.find(function(x){return x.id===_pacEditId;}):null;
@@ -1964,7 +1972,7 @@ async function renderAsistPersonal(){
   }
   el.innerHTML=DB.psicologas.map(ps=>{
     const reg=lista.find(r=>r.psId===ps.id);
-    const sesHoy=DB.sesiones.filter(s=>s.psId===ps.id&&s.fecha===fecha).length;
+    const sesHoy=DB.sesiones.filter(s=>s.psId===ps.nombre&&s.fecha===fecha).length;
     const borderC=reg?(reg.estado==='presente'?'var(--green)':'var(--red)'):'var(--border)';
     const estado=reg
       ?'<div style="font-size:12px;font-weight:700;color:'+(reg.estado==='presente'?'var(--green)':'var(--red)')+'">'+
@@ -2047,7 +2055,7 @@ function renderPsicologas(){
     el.innerHTML='<div class="alert al-info" style="margin:12px">No hay psicólogas registradas para esta sede. Pide a Administración que agregue una.</div>';return;
   }
   el.innerHTML=DB.psicologas.map(ps=>{
-    const sesHoy=DB.sesiones.filter(s=>s.psId===ps.id&&s.fecha===today()).length;
+    const sesHoy=DB.sesiones.filter(s=>s.psId===ps.nombre&&s.fecha===today()).length;
     const colores={bp:'#ede9fe',bc:'#e0f2fe',bg:'#dcfce7',bo:'#fff7ed',bpk:'#fdf2f8',bb:'#eff6ff'};
     return '<div style="background:'+(colores[ps.color]||'#f8faff')+';border-radius:12px;padding:14px;border:1px solid var(--border)">'+
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'+
@@ -2073,6 +2081,11 @@ function terBadge(t,fontSize){
   fontSize=fontSize||10;
   const color=t&&t.color||'#e5e7eb';
   return '<span class="badge" style="font-size:'+fontSize+'px;background:'+color+';color:'+colorTextoContraste(color)+'">'+(t&&t.nombre||'')+'</span>';
+}
+function abrevTerapia(nombre){
+  nombre=(nombre||'').trim();
+  if(!nombre)return'';
+  return nombre.replace(/^T\.\s*/i,'').split(' ').slice(0,2).join(' ');
 }
 function renderTerapias(){
   const el=document.getElementById('gridTer');if(!el)return;
@@ -2150,7 +2163,7 @@ function contarAlertas(){
   let c=0;const hoy=today();
   DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{if(p.saldo>0)c++;});
   DB.pacientes.filter(p=>p.activo!==false&&p.mod==='paquete'&&p.paq>0).forEach(p=>{
-    const a=DB.sesiones.filter(s=>s.pacId===p.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
+    const a=DB.sesiones.filter(s=>s.pacId===p.nombre&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
     if(p.paq-a<=1)c++;
   });
   DB.sesiones.filter(s=>s.saldo>0&&s.estado==='programado'&&s.fecha>=hoy).forEach(()=>c++);
@@ -2163,7 +2176,7 @@ function renderAlertas(){
     h+='<div class="alert al-warn">⚠️ <strong>'+p.nombre+'</strong> — Saldo: S/'+p.saldo+'</div>';
   });
   DB.pacientes.filter(p=>p.activo!==false&&p.mod==='paquete'&&p.paq>0).forEach(p=>{
-    const a=DB.sesiones.filter(s=>s.pacId===p.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
+    const a=DB.sesiones.filter(s=>s.pacId===p.nombre&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
     const rest=p.paq-a;
     if(rest<=1&&rest>=0)h+='<div class="alert al-info" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
       '<span>🔄 <strong>'+p.nombre+'</strong> — '+(rest===0?'Paquete TERMINADO':'Última sesión')+'  ('+a+'/'+p.paq+')</span>'+
@@ -2469,7 +2482,7 @@ function esFeriadoNoLaborable(fecha){
 }
 
 function renderAgendaViaDia(fecha){
-  const filtPs=parseInt(document.getElementById('agPs')?.value)||0;
+  const filtPs=document.getElementById('agPs')?.value||'';
   const grid=document.getElementById('gridSemanal');if(!grid)return;
   const det=document.getElementById('agendaDetalle');if(det){det.style.display='none';det.innerHTML='';}
   grid.style.gridTemplateColumns='1fr';
@@ -2492,7 +2505,7 @@ function renderAgendaViaDia(fecha){
     '<span style="font-size:14px;font-weight:800">📅 '+fmtF(fecha)+'</span>'+
     '<button class="btn btn-primary btn-sm" onclick="abrirModalAgendar(_agFechaSel,null)">+ Agendar</button></div>';
   psicologas.forEach(function(ps){
-    var sesPsic=DB.sesiones.filter(function(s){return s.fecha===fecha&&s.psId===ps.id;});
+    var sesPsic=DB.sesiones.filter(function(s){return s.fecha===fecha&&s.psId===ps.nombre;});
     sesPsic.sort(function(a,b){return a.hora.localeCompare(b.hora);});
     var asistPsic=sesPsic.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
     h+='<div style="border-bottom:2px solid var(--accent)">'+
@@ -2764,7 +2777,7 @@ function compartirReporteWA(){
 
 
 function progresoPacInline(pac){
-  const sesHechas=DB.sesiones.filter(s=>s.pacId===pac.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
+  const sesHechas=DB.sesiones.filter(s=>s.pacId===pac.nombre&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
   const pct=pac.paq>0?Math.round((sesHechas/pac.paq)*100):0;
   const cls=pct>=90?'danger':pct>=70?'warn':'';
   return '<div style="margin-top:4px">'+
