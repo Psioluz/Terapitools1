@@ -740,9 +740,9 @@ try{
         </div>
         <div class="grid g2" style="margin-top:10px">
           <div class="form-group" id="ag-grp-fechaInicio">
-            <label class="form-label">Fecha de inicio *</label>
+            <label class="form-label" id="ag-lbl-fechaInicio">Fecha de inicio *</label>
             <input type="date" class="form-control" id="ag-fechaInicio">
-            <div style="font-size:10.5px;color:var(--muted);margin-top:3px">La primera sesión de cada día será la próxima fecha con ese día de la semana, a partir de aquí.</div>
+            <div style="font-size:10.5px;color:var(--muted);margin-top:3px" id="ag-help-fechaInicio">La primera sesión de cada día será la próxima fecha con ese día de la semana, a partir de aquí.</div>
           </div>
           <div class="form-group">
             <label class="form-label">¿Qué deseas hacer?</label>
@@ -1774,10 +1774,20 @@ function agOnFecha(){
 
 function agOnModoPaq(){
   const modo=document.getElementById('ag-modoPaq')?.value||'generar';
-  const grpFI=document.getElementById('ag-grp-fechaInicio');
   const grpFilas=document.getElementById('ag-grp-terapiaRows');
-  if(grpFI)grpFI.style.display=modo==='soloPago'?'none':'block';
   if(grpFilas)grpFilas.style.display=modo==='soloPago'?'none':'block';
+  // "Solo registrar paquete y pago" también necesita la fecha — para
+  // regularizar pagos/adelantos que se recibieron en una fecha pasada
+  // (el paciente vino solo a dejar su adelanto, sin agendar todavía).
+  const lbl=document.getElementById('ag-lbl-fechaInicio');
+  const help=document.getElementById('ag-help-fechaInicio');
+  if(modo==='soloPago'){
+    if(lbl)lbl.textContent='Fecha del pago/adelanto *';
+    if(help)help.textContent='La fecha en la que realmente se recibió el pago (para regularizar registros de días anteriores).';
+  }else{
+    if(lbl)lbl.textContent='Fecha de inicio *';
+    if(help)help.textContent='La primera sesión de cada día será la próxima fecha con ese día de la semana, a partir de aquí.';
+  }
 }
 
 function agOnTipo(){
@@ -2150,6 +2160,8 @@ async function guardarPaqueteFlujo(){
       if(combosVistos[k]){showToast('Hay dos filas repetidas con el mismo día, hora y psicóloga','error');return;}
       combosVistos[k]=true;
     }
+  }else if(!fechaInicio){
+    showToast('Indica la fecha en la que se recibió el pago','error');return;
   }
 
   showToast('⏳ Registrando paquete...');
