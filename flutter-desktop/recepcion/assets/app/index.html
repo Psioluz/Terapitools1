@@ -1614,6 +1614,15 @@ function renderDiaSel(){
 // El progreso de paquete se calcula de las sesiones reales (tipo:'paquete',
 // totalPaq), no de pacientes.paq (campo heredado del esquema viejo que ya
 // no se llena — un paquete ahora vive en programas_paciente/sesiones).
+// pacientes.saldo es un caché que no se limpia solo cuando se borran sus
+// pagos/sesiones/paquete (a mano en Supabase o desde otra app) — por eso
+// quedaban alertas "fantasma" de pacientes ya regularizados. El saldo real
+// de la alerta se calcula de sus paquetes activos (programas_paciente),
+// que sí se mantienen al día con cada pago.
+function _saldoRealPac(pac){
+  return(DB.programas||[]).filter(function(pr){return pr.paciente_nombre===pac.nombre&&pr.estado==='activo';})
+    .reduce(function(a,pr){return a+(pr.saldo||0);},0);
+}
 function _paqInfoPac(pac){
   const ses=DB.sesiones.filter(s=>s.pacId===pac.nombre&&s.tipo==='paquete'&&s.totalPaq);
   if(!ses.length)return null;
@@ -2527,7 +2536,7 @@ function renderPacientes(){
       '</div>'+
       prog+
       renderProgramasPac(p.nombre)+
-      (p.saldo>0?'<div class="alert al-warn" style="padding:5px 10px;margin-top:6px;font-size:12px">⚠️ Saldo pendiente: S/'+p.saldo+'</div>':'')+
+      (_saldoRealPac(p)>0?'<div class="alert al-warn" style="padding:5px 10px;margin-top:6px;font-size:12px">⚠️ Saldo pendiente: S/'+_saldoRealPac(p)+'</div>':'')+
       '</div>'+
       '<div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;align-items:flex-start">'+
       (prox?'<span class="badge bc" style="font-size:10px">Próx: '+fmtF(prox.fecha)+' '+prox.hora+'</span>':'')+
@@ -2994,7 +3003,7 @@ function filtrarPaq(tipo,btn){
 // ══════════════════════════════════════════════════
 function contarAlertas(){
   let c=0;const hoy=today();
-  DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{if(p.saldo>0)c++;});
+  DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{if(_saldoRealPac(p)>0)c++;});
   DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{
     const info=_paqInfoPac(p);
     if(info&&info.total-info.hechas<=1)c++;
@@ -3005,8 +3014,9 @@ function contarAlertas(){
 
 function renderAlertas(){
   let h='';
-  DB.pacientes.filter(p=>p.activo!==false&&p.saldo>0).forEach(p=>{
-    h+='<div class="alert al-warn">⚠️ <strong>'+p.nombre+'</strong> — Saldo: S/'+p.saldo+'</div>';
+  DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{
+    const saldoReal=_saldoRealPac(p);
+    if(saldoReal>0)h+='<div class="alert al-warn">⚠️ <strong>'+p.nombre+'</strong> — Saldo: S/'+saldoReal+'</div>';
   });
   DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{
     const info=_paqInfoPac(p);if(!info)return;
@@ -3418,7 +3428,7 @@ async function renderHistorial(){
     '<div class="stat-card sc-green"><div class="stat-value">'+asist+'</div><div class="stat-label">Asistidas</div></div>'+
     '<div class="stat-card sc-red"><div class="stat-value">'+noAs+'</div><div class="stat-label">No Asistió</div></div>'+
     '</div>'+
-    (pac2.saldo>0?'<div class="alert al-warn" style="margin-top:8px">⚠️ Saldo pendiente: S/'+pac2.saldo+'</div>':'')+
+    (_saldoRealPac(pac2)>0?'<div class="alert al-warn" style="margin-top:8px">⚠️ Saldo pendiente: S/'+_saldoRealPac(pac2)+'</div>':'')+
     '</div>'+
     '<div style="font-size:13px;font-weight:800;color:var(--muted);margin-bottom:8px">📋 Registro de Sesiones</div>'+
     (sesPac.length?
