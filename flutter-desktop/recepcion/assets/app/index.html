@@ -689,6 +689,26 @@ try{
           <option value="">— Selecciona el servicio —</option>
         </select>
       </div>
+      <!-- Precio exclusivo: precio negociado para ESTE paciente, no viene
+           del catálogo — el costo se escribe a mano (queda registrado en
+           precio_paciente para auditoría). -->
+      <div class="grid g2" id="ag-grp-exclusivo" style="grid-column:1/-1;display:none;gap:8px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">¿Por sesión o por paquete? *</label>
+          <select class="form-control" id="ag-exclusivoModo" onchange="agOnExclusivoModo()">
+            <option value="sesion">Por sesión</option>
+            <option value="paquete">Por paquete</option>
+          </select>
+        </div>
+        <div class="form-group" id="ag-grp-exclusivoSesiones" style="margin-bottom:0;display:none">
+          <label class="form-label">Número de sesiones del paquete *</label>
+          <input type="number" class="form-control" id="ag-exclusivoSesiones" min="1" value="1" oninput="agActualizarResumen()">
+        </div>
+        <div class="form-group" style="margin-bottom:0;grid-column:1/-1">
+          <label class="form-label">Motivo / autorizado por</label>
+          <input class="form-control" id="ag-exclusivoMotivo" placeholder="Ej. convenio, descuento autorizado por...">
+        </div>
+      </div>
       <div id="ag-grp-fechaHora" style="display:contents">
         <div class="form-group">
           <label class="form-label">Fecha *</label>
@@ -1172,7 +1192,8 @@ function fillSelects(){
   const tiposReales=Array.from(new Set(DB.paquetes.map(p=>p.tipo).filter(function(t){return t&&t!=='Paquete';}))).sort();
   _fillPreservando('ag-tipo','<option value="paquete">📦 Paquete de Sesiones</option>'+
     tiposReales.map(function(t){return'<option value="'+t+'">'+tipoMeta(t).icono+' '+t+'</option>';}).join('')+
-    '<option value="adelanto">💰 Adelanto / Reserva</option>');
+    '<option value="adelanto">💰 Adelanto / Reserva</option>'+
+    '<option value="exclusivo">💎 Precio Exclusivo (paciente)</option>');
 }
 
 // ── Buscador de paciente (autocompletar) ──
@@ -1618,6 +1639,9 @@ function abrirModalAgendar(fecha,hora,sesOrig){
   document.getElementById('ag-adelanto').value='0';
   document.getElementById('ag-costo').value='';
   const elCuotas=document.getElementById('ag-cuotas');if(elCuotas)elCuotas.value='1';
+  const elExMod=document.getElementById('ag-exclusivoModo');if(elExMod)elExMod.value='sesion';
+  const elExSes=document.getElementById('ag-exclusivoSesiones');if(elExSes)elExSes.value='1';
+  const elExMot=document.getElementById('ag-exclusivoMotivo');if(elExMot)elExMot.value='';
   document.getElementById('ag-notas').value='';
   document.getElementById('ag-resumen').style.display='none';
   const elProg=document.getElementById('ag-progExist');if(elProg)elProg.innerHTML='<option value="">🆕 Nuevo paquete</option>';
@@ -1737,25 +1761,39 @@ function agOnModoPaq(){
 
 function agOnTipo(){
   const tipo=document.getElementById('ag-tipo').value;
-  const esPaqueteNuevo=tipo==='paquete'&&!_reprogDe;
+  const esExclusivo=tipo==='exclusivo';
+  const exclusivoModo=document.getElementById('ag-exclusivoModo')?.value||'sesion';
+  const esPaqueteNuevo=(tipo==='paquete'||(esExclusivo&&exclusivoModo==='paquete'))&&!_reprogDe;
   const grpServ=document.getElementById('ag-grp-servicio');
   const grpSimple=document.getElementById('ag-grp-terapiaSimple');
   const grpFH=document.getElementById('ag-grp-fechaHora');
   const grpCostoSimple=document.getElementById('ag-grp-costo');
   const grpBuilder=document.getElementById('ag-grp-paqueteBuilder');
-  if(grpServ)grpServ.style.display=(tipo&&tipo!=='paquete'&&tipo!=='adelanto')?'block':'none';
+  const grpExclusivo=document.getElementById('ag-grp-exclusivo');
+  const grpPaqCatalogo=document.getElementById('ag-grp-paq');
+  const grpExclusivoSes=document.getElementById('ag-grp-exclusivoSesiones');
+  if(grpServ)grpServ.style.display=(tipo&&tipo!=='paquete'&&tipo!=='adelanto'&&!esExclusivo)?'block':'none';
+  if(grpExclusivo)grpExclusivo.style.display=esExclusivo?'grid':'none';
+  if(grpExclusivoSes)grpExclusivoSes.style.display=(esExclusivo&&exclusivoModo==='paquete')?'block':'none';
 
   if(esPaqueteNuevo){
     if(grpSimple)grpSimple.style.display='none';
     if(grpFH)grpFH.style.display='none';
-    if(grpCostoSimple)grpCostoSimple.style.display='none';
+    if(grpCostoSimple)grpCostoSimple.style.display=esExclusivo?'block':'none';
     if(grpBuilder)grpBuilder.style.display='block';
-    const sel=document.getElementById('ag-paqId');
-    if(sel){
-      sel.innerHTML='<option value="">— Elige el paquete —</option>'+
-        DB.paquetes.filter(p=>p.tipo==='Paquete').map(p=>
-          '<option value="'+p.id+'">'+p.nombre+' — S/'+p.costoTotal+'</option>'
-        ).join('');
+    if(esExclusivo){
+      // Precio negociado: no hay paquete de catálogo que elegir, el costo y
+      // el número de sesiones se escriben a mano.
+      if(grpPaqCatalogo)grpPaqCatalogo.style.display='none';
+      document.getElementById('ag-costo').value='';
+    }else{
+      const sel=document.getElementById('ag-paqId');
+      if(sel){
+        sel.innerHTML='<option value="">— Elige el paquete —</option>'+
+          DB.paquetes.filter(p=>p.tipo==='Paquete').map(p=>
+            '<option value="'+p.id+'">'+p.nombre+' — S/'+p.costoTotal+'</option>'
+          ).join('');
+      }
     }
     agOnModoPaq();
     agCargarProgramasActivos();
@@ -1765,7 +1803,7 @@ function agOnTipo(){
     if(grpCostoSimple)grpCostoSimple.style.display='block';
     if(grpBuilder)grpBuilder.style.display='none';
     document.getElementById('ag-costo').value='';
-    if(tipo&&tipo!=='adelanto'&&tipo!=='paquete'){
+    if(tipo&&tipo!=='adelanto'&&tipo!=='paquete'&&!esExclusivo){
       // Servicios reales de tarifas_sede para este tipo (puede haber varios,
       // ej. "Consulta pagada" y "Consultas psicológica" son ambos tipo Consulta)
       const selServ=document.getElementById('ag-servId');
@@ -1778,6 +1816,10 @@ function agOnTipo(){
     }
   }
   agActualizarResumen();
+}
+
+function agOnExclusivoModo(){
+  agOnTipo();
 }
 
 function agOnPaq(){
@@ -1998,7 +2040,9 @@ async function generarSesionesRecurrentes(o){
 // de una sesión puntual (no-paquete, o reprogramar una ya existente).
 function agGuardarDesdeModal(){
   const tipo=document.getElementById('ag-tipo').value;
-  if(tipo==='paquete'&&!_reprogDe){
+  const exclusivoModo=document.getElementById('ag-exclusivoModo')?.value||'sesion';
+  const esPaqueteExclusivo=tipo==='exclusivo'&&exclusivoModo==='paquete';
+  if((tipo==='paquete'||esPaqueteExclusivo)&&!_reprogDe){
     guardarPaqueteFlujo();
   } else {
     guardarSesion();
@@ -2058,6 +2102,7 @@ async function guardarPaqueteFlujo(){
   const fechaInicio=document.getElementById('ag-fechaInicio')?.value||'';
   const notas=document.getElementById('ag-notas').value;
   const nroCuotas=progId?1:Math.max(1,parseInt(document.getElementById('ag-cuotas')?.value)||1);
+  const esExclusivo=document.getElementById('ag-tipo').value==='exclusivo';
 
   const filas=[];
   document.querySelectorAll('#ag-terapiaRows .ag-terapia-row').forEach(function(row){
@@ -2094,6 +2139,21 @@ async function guardarPaqueteFlujo(){
       adelantoAcum=(progRow.adelanto_acumulado||0)+adelanto;
       saldo=Math.max(0,costoTotal-adelantoAcum);
       await sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldo},{id:'eq.'+progRow.id});
+    } else if(esExclusivo){
+      costoTotal=parseFloat(document.getElementById('ag-costo').value)||0;
+      totalSesiones=Math.max(1,parseInt(document.getElementById('ag-exclusivoSesiones')?.value)||1);
+      if(costoTotal<=0){showToast('Indica el costo del paquete exclusivo','error');return;}
+      adelantoAcum=adelanto;saldo=Math.max(0,costoTotal-adelanto);
+      const nombrePaqExcl='Precio exclusivo ('+totalSesiones+' ses.)';
+      const progRows=await sbPost('programas_paciente',{paciente_nombre:pac.nombre,sede:DB.sede,
+        paquete_nombre:nombrePaqExcl,tipo:'paquete',nro_sesiones_total:totalSesiones,
+        costo_total:costoTotal,adelanto_acumulado:adelantoAcum,saldo:saldo,nro_cuotas:nroCuotas,
+        fecha_inicio:fechaInicio||today(),estado:'activo',registrado_por:DB.usuario||''});
+      progRow=progRows&&progRows[0];
+      if(!progRow||!progRow.id)throw new Error('No se pudo crear el paquete');
+      await sbPost('precio_paciente',{paciente_nombre:pac.nombre,dni:pac.dni||'',sede:DB.sede,
+        nombre_servicio:nombrePaqExcl,precio_especial:costoTotal,motivo:document.getElementById('ag-exclusivoMotivo')?.value||'',
+        fecha_aplicacion:fechaInicio||today(),aprobado_por:DB.usuario||''}).catch(function(){});
     } else {
       const paqId=document.getElementById('ag-paqId')?.value||'';
       const paq=paqId?getPaq(paqId):null;
@@ -2352,6 +2412,12 @@ async function guardarSesion(){
       if(tipo==='paquete'&&paq){upd.paquete=String(paq.sesiones||totalPaq);upd.saldo=saldo;}
       promesas.push(sbPatch('pacientes',upd,{id:'eq.'+pac._sb.id}));
     }
+    if(tipo==='exclusivo'){
+      promesas.push(sbPost('precio_paciente',{paciente_nombre:pac.nombre,dni:pac.dni||'',sede:DB.sede,
+        nombre_servicio:'Precio exclusivo — '+ter.nombre,precio_especial:costoRaw,
+        motivo:document.getElementById('ag-exclusivoMotivo')?.value||'',
+        fecha_aplicacion:fecha||today(),aprobado_por:DB.usuario||''}).catch(function(){}));
+    }
     await Promise.all(promesas);
     closeModal('modalAgendar');
     if(sinSesionHoyEfectivo)showToast('✅ Paquete registrado para '+pac.nombre+(adelanto>0?' (con adelanto de S/'+adelanto+')':''));
@@ -2583,19 +2649,16 @@ async function guardarPago(){
       paciente_nombre:pac.nombre,psicologa_nombre:ps.nombre||'',
       sede:DB.sede,registrado_por:DB.usuario||''});
     const promesas=[];
-    // Reducir saldo de la primera sesión pendiente en Supabase
-    const ses=DB.sesiones.filter(s=>(s.pacNom===pac.nombre||s.pacId===pac.nombre)&&s.saldo>0)
-      .sort((a,b)=>((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||'')))[0];
-    if(ses&&ses._sb&&ses._sb.id){
-      promesas.push(sbPatch('sesiones',{saldo:Math.max(0,(ses.saldo||0)-monto)},{id:'eq.'+ses._sb.id}));
-    }
     // Reducir saldo del paciente en Supabase
     if(pac._sb&&pac._sb.id&&(pac.saldo||0)>0){
       promesas.push(sbPatch('pacientes',{saldo:Math.max(0,(pac.saldo||0)-monto)},{id:'eq.'+pac._sb.id}));
     }
     // Si tiene un paquete activo (programas_paciente), abonar también ahí
     // — sin esto, un pago suelto (cuota/adelanto en otro día) no se
-    // reflejaba en el saldo del paquete que se ve en su ficha.
+    // reflejaba en el saldo del paquete que se ve en su ficha. El saldo de
+    // la(s) sesión(es) checkpoint (la que dispara la alerta "por cobrar")
+    // se sincroniza con este mismo valor — nunca se resta por separado —
+    // para que ambos montos coincidan siempre.
     try{
       const progs=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:'eq.'+DB.sede,estado:'eq.activo',select:'*'});
       const prog=(progs||[]).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))[0];
@@ -2603,6 +2666,16 @@ async function guardarPago(){
         const adelantoAcum=(prog.adelanto_acumulado||0)+monto;
         const saldoProg=Math.max(0,(prog.costo_total||0)-adelantoAcum);
         promesas.push(sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldoProg},{id:'eq.'+prog.id}));
+        const sesProg=DB.sesiones.filter(s=>s._sb&&s._sb.programa_id===prog.id&&s.saldo>0);
+        sesProg.forEach(function(s){promesas.push(sbPatch('sesiones',{saldo:saldoProg},{id:'eq.'+s._sb.id}));});
+      }else{
+        // Sin paquete activo: es un pago suelto sobre una sesión individual —
+        // reducir el saldo de la más antigua pendiente.
+        const ses=DB.sesiones.filter(s=>(s.pacNom===pac.nombre||s.pacId===pac.nombre)&&s.saldo>0)
+          .sort((a,b)=>((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||'')))[0];
+        if(ses&&ses._sb&&ses._sb.id){
+          promesas.push(sbPatch('sesiones',{saldo:Math.max(0,(ses.saldo||0)-monto)},{id:'eq.'+ses._sb.id}));
+        }
       }
     }catch(eProg){console.error('[pago->programa]',eProg);}
     await Promise.all(promesas);
