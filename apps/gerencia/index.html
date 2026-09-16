@@ -1431,6 +1431,16 @@ function filtPac(arr){
   var sd=getFiltSede();
   return arr.filter(p=>!sd||(p.sede||p._sede||'')===sd);
 }
+// El progreso real de un paquete se calcula de las sesiones (tipo:'paquete',
+// totalPaq) — pacientes.mod/pacientes.paquete son campos heredados que no
+// reflejan el paquete real (viven en programas_paciente/sesiones).
+function _paqInfoPac(p){
+  var ses=(G.sesiones||[]).filter(function(s){return(s.pacNombre===p.nombre||s.pacId===p.id)&&s.tipo==='paquete'&&s.totalPaq;});
+  if(!ses.length)return null;
+  var total=Math.max.apply(null,ses.map(function(s){return s.totalPaq||0;}));
+  var hechas=ses.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio';}).length;
+  return{total:total,hechas:hechas};
+}
 function filtGas(arr){
   var m=getFiltMes(), sd=getFiltSede();
   return arr.filter(g=>{
@@ -1528,15 +1538,15 @@ function renderCrecimiento(){
 
   // ── RETENCIÓN Y CHURN ─────────────────────────────────────────
   var pacs=filtPac(G.pacientes);
-  var conPaq=pacs.filter(p=>p.mod==='paquete'&&p.paq>0);
+  var conPaq=pacs.filter(p=>_paqInfoPac(p));
   var sesPaqs=pacs.filter(p=>{
-    var sesPac=G.sesiones.filter(s=>s.pacNombre===p.nombre||s.pacId===p.id);
-    var asist=sesPac.filter(s=>s.estado==='asistio'||s.estado==='noasistio').length;
-    return p.paq>0&&asist>=p.paq; // terminó el paquete
+    var info=_paqInfoPac(p);
+    return info&&info.hechas>=info.total; // terminó el paquete
   });
   var renovaron=sesPaqs.filter(p=>{
     // ¿Tiene sesiones DESPUÉS de terminar el paquete?
-    return G.sesiones.filter(s=>(s.pacNombre===p.nombre||s.pacId===p.id)&&s.estado!=='programado').length>p.paq;
+    var info=_paqInfoPac(p);
+    return G.sesiones.filter(s=>(s.pacNombre===p.nombre||s.pacId===p.id)&&s.estado!=='programado').length>info.total;
   });
   var retension=sesPaqs.length>0?pct(renovaron.length,sesPaqs.length):0;
   var churn=100-retension;
@@ -1723,7 +1733,7 @@ function renderFinanzas(){
 
   // KPIs
   var asistPct = ses.length?pct(ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length,ses.length):0;
-  var conPaq   = pacs.filter(p=>p.mod==='paquete'&&p.paq>0).length;
+  var conPaq   = pacs.filter(p=>_paqInfoPac(p)).length;
   var saldoTot = pacs.reduce((a,p)=>a+(p.saldo||0),0);
   var tickProm = ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length>0
     ? Math.round(ingresos/ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length) : 0;
@@ -1798,7 +1808,7 @@ function renderPacientes(){
   });
 
   var saldoTotal=pacs.reduce((a,p)=>a+(p.saldo||0),0);
-  var conPaq=pacs.filter(p=>p.mod==='paquete'&&p.paq>0).length;
+  var conPaq=pacs.filter(p=>_paqInfoPac(p)).length;
 
   setText('pTotal',  pacs.length);
   setText('pActivos',conPaq);
@@ -1828,23 +1838,21 @@ function renderPacientes(){
     <td><strong>${p.nombre}</strong></td>
     <td><span class="badge bt">${p.sede||p._sede||'—'}</span></td>
     <td>${(p.psNombre||'—').replace('Lic.','').trim()}</td>
-    <td><span class="badge bb">${p.paq||0} ses.</span></td>
+    <td><span class="badge bb">${(_paqInfoPac(p)||{}).total||0} ses.</span></td>
     <td><strong style="color:var(--red)">S/${p.saldo}</strong></td></tr>`).join('')
     :'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px">Sin saldos pendientes ✅</td></tr>';
 
   // Paquetes por terminar (≤2 sesiones restantes)
   var porTerminar=pacs.filter(p=>{
-    if(p.mod!=='paquete'||!p.paq)return false;
-    var sesPac=ses.filter(s=>s.pacId===p.id||s.pacNombre===p.nombre);
-    var asist=sesPac.filter(s=>s.estado==='asistio'||s.estado==='noasistio').length;
-    return (p.paq-asist)<=2&&(p.paq-asist)>=0;
+    var info=_paqInfoPac(p);
+    if(!info)return false;
+    return(info.total-info.hechas)<=2&&(info.total-info.hechas)>=0;
   });
   var elPaq=document.getElementById('listPaqTerminar');
   if(elPaq)elPaq.innerHTML=porTerminar.length
     ?porTerminar.map(p=>{
-      var sesPac=ses.filter(s=>s.pacId===p.id||s.pacNombre===p.nombre);
-      var asist=sesPac.filter(s=>s.estado==='asistio'||s.estado==='noasistio').length;
-      var rest=p.paq-asist;
+      var info=_paqInfoPac(p);
+      var rest=info.total-info.hechas;
       return`<div class="alert ${rest===0?'ag':'aw'}" style="display:flex;justify-content:space-between;align-items:center">
         <div><strong>${p.nombre}</strong> · ${p.sede||p._sede||'—'}</div>
         <span class="badge ${rest===0?'bg':'bo'}">${rest===0?'Terminado':''+rest+' ses. restantes'}</span>
@@ -2141,10 +2149,9 @@ function renderAlertas(){
 
   // Paquetes por terminar
   filtPac(G.pacientes).forEach(p=>{
-    var sesPac=filtSes(G.sesiones).filter(s=>s.pacNombre===p.nombre||s.pacId===p.id);
-    var asist=sesPac.filter(s=>s.estado==='asistio'||s.estado==='noasistio').length;
-    if(p.paq>0&&(p.paq-asist)<=1)
-      alertas.push({tipo:'o',icon:'🔄',txt:`<strong>${p.nombre}</strong> — ${p.paq-asist===0?'Paquete terminado':'Última sesión del paquete'} (${asist}/${p.paq})`});
+    var info=_paqInfoPac(p);
+    if(info&&(info.total-info.hechas)<=1)
+      alertas.push({tipo:'o',icon:'🔄',txt:`<strong>${p.nombre}</strong> — ${info.total-info.hechas===0?'Paquete terminado':'Última sesión del paquete'} (${info.hechas}/${info.total})`});
   });
 
   // Honorarios pendientes
