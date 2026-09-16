@@ -715,13 +715,25 @@ try{
         <label class="form-label">Adelanto / Pago inicial (S/)</label>
         <input type="number" class="form-control" id="ag-adelanto" value="0" min="0" oninput="agActualizarResumen()">
       </div>
-      <div class="form-group">
-        <label class="form-label">Fecha *</label>
-        <input type="date" class="form-control" id="ag-fecha" onchange="agOnFecha()">
+      <!-- Solo para paquetes: agendar toda la seguidilla semanal, una sola
+           sesión, o solo registrar el paquete/pago sin sesiones todavía -->
+      <div class="form-group" id="ag-grp-modoPaq" style="grid-column:1/-1;display:none">
+        <label class="form-label">¿Qué deseas hacer?</label>
+        <select class="form-control" id="ag-modoPaq" onchange="agOnModoPaq()">
+          <option value="generar">📅 Agendar desde esta fecha y repetir cada semana (mismo día/hora) hasta completar el paquete</option>
+          <option value="unica">1️⃣ Solo esta sesión (agendaré las demás manualmente, semana a semana)</option>
+          <option value="soloPago">💰 Solo registrar el paquete y el pago (sin agendar sesiones todavía)</option>
+        </select>
       </div>
-      <div class="form-group">
-        <label class="form-label">Hora *</label>
-        <select class="form-control" id="ag-hora"></select>
+      <div id="ag-grp-fechaHora" style="display:contents">
+        <div class="form-group">
+          <label class="form-label">Fecha *</label>
+          <input type="date" class="form-control" id="ag-fecha" onchange="agOnFecha()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hora *</label>
+          <select class="form-control" id="ag-hora"></select>
+        </div>
       </div>
       <div class="form-group" style="grid-column:1/-1">
         <label class="form-label">Notas</label>
@@ -1539,6 +1551,8 @@ function abrirModalAgendar(fecha,hora,sesOrig){
   const elSesAsig=document.getElementById('ag-sesAsignadas');if(elSesAsig)elSesAsig.value='';
   const grpProg=document.getElementById('ag-grp-progExist');if(grpProg)grpProg.style.display='none';
   const grpSes=document.getElementById('ag-grp-sesAsig');if(grpSes)grpSes.style.display='none';
+  const elModoPaq=document.getElementById('ag-modoPaq');if(elModoPaq)elModoPaq.value='generar';
+  agOnModoPaq();
   _agProgramasActivos=[];
 
   const evBox=document.getElementById('ag-evidenciaBox');
@@ -1659,13 +1673,21 @@ function agOnFecha(){
   agOnPs();
 }
 
+function agOnModoPaq(){
+  const modo=document.getElementById('ag-modoPaq')?.value||'generar';
+  const grpFH=document.getElementById('ag-grp-fechaHora');
+  if(grpFH)grpFH.style.display=modo==='soloPago'?'none':'contents';
+}
+
 function agOnTipo(){
   const tipo=document.getElementById('ag-tipo').value;
   const grpPaq=document.getElementById('ag-grp-paq');
   const grpServ=document.getElementById('ag-grp-servicio');
   if(grpPaq)grpPaq.style.display=tipo==='paquete'?'block':'none';
   if(grpServ)grpServ.style.display=(tipo&&tipo!=='paquete'&&tipo!=='adelanto')?'block':'none';
+  const grpModo=document.getElementById('ag-grp-modoPaq');
   if(tipo==='paquete'){
+    if(grpModo)grpModo.style.display='block';
     const sel=document.getElementById('ag-paqId');
     if(sel){
       sel.innerHTML='<option value="">— Elige el paquete —</option>'+
@@ -1676,6 +1698,9 @@ function agOnTipo(){
     document.getElementById('ag-costo').value='';
     agCargarProgramasActivos();
   } else {
+    if(grpModo)grpModo.style.display='none';
+    const elModo=document.getElementById('ag-modoPaq');if(elModo)elModo.value='generar';
+    agOnModoPaq();
     const grpProg=document.getElementById('ag-grp-progExist');if(grpProg)grpProg.style.display='none';
     const grpSes=document.getElementById('ag-grp-sesAsig');if(grpSes)grpSes.style.display='none';
     const grpCosto=document.getElementById('ag-grp-costo');if(grpCosto)grpCosto.style.display='block';
@@ -1790,6 +1815,51 @@ function renderProgramasPac(pacNombre){
   }).join('')+'</div>';
 }
 
+// Genera automáticamente las sesiones siguientes de una terapia dentro de
+// un paquete: mismo día de la semana y misma hora, cada 7 días, hasta
+// completar el total de sesiones asignadas a esa terapia (la primera ya
+// se creó fuera de esta función). Salta feriados no laborables y horarios
+// ya ocupados de esa psicóloga, corriendo la fecha una semana más.
+async function generarSesionesRecurrentes(o){
+  const restantes=o.totalSesiones-1;
+  if(restantes<=0)return;
+  const psNombre=o.ps.nombre;
+  let fecha=new Date(o.fechaInicio+'T12:00:00');
+  let creadas=1,intentos=0;
+  const maxIntentos=restantes*3+8;
+  const saltadas=[];
+  while(creadas<o.totalSesiones&&intentos<maxIntentos){
+    intentos++;
+    fecha.setDate(fecha.getDate()+7);
+    const fStr=fecha.toISOString().split('T')[0];
+    const fer=feriadoDe(fStr);
+    if(fer&&fer.tipo_gestion==='no_laborable'){saltadas.push(fmtF(fStr)+' (feriado)');continue;}
+    if(DB.sesiones.some(function(s){return s.psId===psNombre&&s.fecha===fStr&&s.hora===o.hora;})){
+      saltadas.push(fmtF(fStr)+' (horario ocupado)');continue;
+    }
+    const nroEnPaq=creadas+1;
+    const fila={fecha:fStr,hora:o.hora,paciente_nombre:o.pac.nombre,paciente_tel:o.pac.tel||'',
+      psicologa:psNombre,terapia:o.ter.nombre,estado:'programado',tipo:o.tipo,
+      nro_en_paquete:nroEnPaq,total_paquete:o.totalSesiones,costo_total:o.costoTotal,
+      adelanto:0,saldo:o.saldoInicial,sede:DB.sede,registrado_por:DB.usuario||'',
+      programa_id:o.programaId,programa_terapia_id:o.programaTerapiaId};
+    try{
+      const r=await sbPost('sesiones',fila);
+      const nueva=(r&&r[0])||fila;
+      DB.sesiones.push({id:nueva.id||('tmp-'+fStr+'-'+o.hora),fecha:fStr,hora:o.hora,
+        pacId:o.pac.nombre,psId:psNombre,terId:o.ter.nombre,estado:'programado',
+        nroSes:nroEnPaq,totalPaq:o.totalSesiones,costo:o.costoTotal,saldo:o.saldoInicial,_sb:nueva});
+      creadas++;
+    }catch(e){console.error('[generarSesionesRecurrentes]',e);saltadas.push(fmtF(fStr)+' (error)');}
+  }
+  await sbPatch('programa_terapias',{sesiones_realizadas:creadas},{id:'eq.'+o.programaTerapiaId});
+  if(creadas<o.totalSesiones){
+    showToast('⚠️ Se generaron '+creadas+' de '+o.totalSesiones+' sesiones. Revisa/agenda a mano: '+saltadas.slice(0,4).join(', '),'error');
+  }else if(saltadas.length){
+    showToast('✅ '+creadas+' sesiones generadas (se saltaron '+saltadas.length+' fecha(s): '+saltadas.slice(0,3).join(', ')+')');
+  }
+}
+
 async function guardarSesion(){
   const pacId=document.getElementById('ag-pac').value||'';
   const psId=document.getElementById('ag-ps').value||'';
@@ -1803,16 +1873,20 @@ async function guardarSesion(){
   const paqId=document.getElementById('ag-paqId')?.value||'';
   const paq=paqId?getPaq(paqId):null;
   const progId=document.getElementById('ag-progExist')?.value||'';
+  const modoPaq=tipo==='paquete'?(document.getElementById('ag-modoPaq')?.value||'generar'):'unica';
+  const sinSesionHoy=modoPaq==='soloPago';
 
-  if(!pacId||!psId||!terId||!fecha||!hora){
-    showToast('Completa: paciente, psicóloga, terapia, fecha y hora','error');return;
+  if(!pacId||!psId||!terId||(!sinSesionHoy&&(!fecha||!hora))){
+    showToast('Completa: paciente, psicóloga, terapia'+(sinSesionHoy?'':', fecha y hora'),'error');return;
   }
-  if(DB.sesiones.find(s=>s.psId===getPs(psId).nombre&&s.fecha===fecha&&s.hora===hora)){
-    showToast('Ese horario ya está ocupado para esta psicóloga','error');return;
-  }
-  const fer=feriadoDe(fecha);
-  if(fer&&fer.tipo_gestion==='no_laborable'){
-    showToast('No se puede agendar: '+fecha+' es feriado ('+(fer.descripcion||'')+') y no se trabaja','error');return;
+  if(!sinSesionHoy){
+    if(DB.sesiones.find(s=>s.psId===getPs(psId).nombre&&s.fecha===fecha&&s.hora===hora)){
+      showToast('Ese horario ya está ocupado para esta psicóloga','error');return;
+    }
+    const fer=feriadoDe(fecha);
+    if(fer&&fer.tipo_gestion==='no_laborable'){
+      showToast('No se puede agendar: '+fecha+' es feriado ('+(fer.descripcion||'')+') y no se trabaja','error');return;
+    }
   }
 
   const pac=getPac(pacId);const ps=getPs(psId);const ter=getTer(terId);
@@ -1823,6 +1897,10 @@ async function guardarSesion(){
   if(_esReprog&&(!_evInp||!_evInp.files||!_evInp.files[0])){
     showToast('Adjunta la evidencia del paciente para reprogramar','error');return;
   }
+  // Reprogramar mueve UNA sesión puntual — nunca dispara la generación
+  // semanal automática ni el modo "solo paquete y pago".
+  const modoPaqEfectivo=_esReprog?'unica':modoPaq;
+  const sinSesionHoyEfectivo=_esReprog?false:sinSesionHoy;
 
   showToast('⏳ Agendando...');
   try{
@@ -1866,39 +1944,54 @@ async function guardarSesion(){
       const adelantoAcum=(prog.adelanto_acumulado||0)+adelanto;
       totalPaq=sesAsig;
       saldo=Math.max(0,(prog.costo_total||0)-adelantoAcum);
-      filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
-        psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:tipo,
-        nro_en_paquete:1,total_paquete:totalPaq,costo_total:prog.costo_total,
-        adelanto:adelantoAcum,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',
-        programa_id:prog.id};
       const ptRows=await sbPost('programa_terapias',{programa_id:prog.id,terapia:ter.nombre,
-        psicologa:ps.nombre,sesiones_asignadas:sesAsig,sesiones_realizadas:1});
+        psicologa:ps.nombre,sesiones_asignadas:sesAsig,sesiones_realizadas:sinSesionHoyEfectivo?0:1});
       const ptRow=ptRows&&ptRows[0];
-      if(ptRow&&ptRow.id)filaSesion.programa_terapia_id=ptRow.id;
-      await sbPost('sesiones',filaSesion);
+      const ptId=ptRow&&ptRow.id;
+      if(!sinSesionHoyEfectivo){
+        filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
+          psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:tipo,
+          nro_en_paquete:1,total_paquete:totalPaq,costo_total:prog.costo_total,
+          adelanto:adelantoAcum,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',
+          programa_id:prog.id,programa_terapia_id:ptId};
+        await sbPost('sesiones',filaSesion);
+      }
       await sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldo},{id:'eq.'+prog.id});
+      if(modoPaqEfectivo==='generar'&&ptId){
+        await generarSesionesRecurrentes({pac:pac,ps:ps,ter:ter,fechaInicio:fecha,hora:hora,tipo:tipo,
+          programaId:prog.id,programaTerapiaId:ptId,totalSesiones:totalPaq,
+          costoTotal:prog.costo_total,saldoInicial:saldo});
+      }
     } else {
       const costoTotal=tipo==='paquete'&&paq?paq.costoTotal:costoRaw;
       saldo=Math.max(0,costoTotal-adelanto);
       totalPaq=tipo==='paquete'&&paq?paq.nroSes:1;
-      filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
-        psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:tipo,
-        nro_en_paquete:tipo==='paquete'?1:0,total_paquete:totalPaq,costo_total:costoTotal,
-        adelanto:adelanto,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||''};
+      let progRow=null,ptRow=null;
       if(tipo==='paquete'&&paq){
         const progRows=await sbPost('programas_paciente',{paciente_nombre:pac.nombre,sede:DB.sede,
           paquete_nombre:paq.nombre,tipo:'paquete',nro_sesiones_total:totalPaq,
           costo_total:costoTotal,adelanto_acumulado:adelanto,saldo:saldo,
-          fecha_inicio:fecha,estado:'activo',registrado_por:DB.usuario||''});
-        const progRow=progRows&&progRows[0];
+          fecha_inicio:fecha||today(),estado:'activo',registrado_por:DB.usuario||''});
+        progRow=progRows&&progRows[0];
         if(progRow&&progRow.id){
           const ptRows=await sbPost('programa_terapias',{programa_id:progRow.id,terapia:ter.nombre,
-            psicologa:ps.nombre,sesiones_asignadas:totalPaq,sesiones_realizadas:1});
-          const ptRow=ptRows&&ptRows[0];
-          if(ptRow&&ptRow.id){filaSesion.programa_id=progRow.id;filaSesion.programa_terapia_id=ptRow.id;}
+            psicologa:ps.nombre,sesiones_asignadas:totalPaq,sesiones_realizadas:sinSesionHoyEfectivo?0:1});
+          ptRow=ptRows&&ptRows[0];
         }
       }
-      await sbPost('sesiones',filaSesion);
+      if(!sinSesionHoyEfectivo){
+        filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
+          psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:tipo,
+          nro_en_paquete:tipo==='paquete'?1:0,total_paquete:totalPaq,costo_total:costoTotal,
+          adelanto:adelanto,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||''};
+        if(progRow&&progRow.id){filaSesion.programa_id=progRow.id;if(ptRow&&ptRow.id)filaSesion.programa_terapia_id=ptRow.id;}
+        await sbPost('sesiones',filaSesion);
+      }
+      if(tipo==='paquete'&&paq&&modoPaqEfectivo==='generar'&&ptRow&&ptRow.id){
+        await generarSesionesRecurrentes({pac:pac,ps:ps,ter:ter,fechaInicio:fecha,hora:hora,tipo:tipo,
+          programaId:progRow.id,programaTerapiaId:ptRow.id,totalSesiones:totalPaq,
+          costoTotal:costoTotal,saldoInicial:saldo});
+      }
     }
     // Registrar la reprogramación con su evidencia
     if(_esReprog){
@@ -1920,7 +2013,7 @@ async function guardarSesion(){
     // Adelanto como pago
     if(adelanto>0){
       const n=new Date();
-      promesas.push(sbPost('pagos',{fecha:fecha,hora:String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0'),
+      promesas.push(sbPost('pagos',{fecha:fecha||today(),hora:String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0'),
         monto:adelanto,metodo:'Efectivo',concepto:'Adelanto '+(tipo==='paquete'&&paq?(paq.nombre||'paquete'):'sesión'),
         paciente_nombre:pac.nombre,psicologa_nombre:ps.nombre,terapia_nombre:ter.nombre,
         sede:DB.sede,registrado_por:DB.usuario||''}));
@@ -1933,7 +2026,9 @@ async function guardarSesion(){
     }
     await Promise.all(promesas);
     closeModal('modalAgendar');
-    showToast('✅ Sesión agendada: '+pac.nombre+' — '+hora);
+    if(sinSesionHoyEfectivo)showToast('✅ Paquete registrado para '+pac.nombre+(adelanto>0?' (con adelanto de S/'+adelanto+')':''));
+    else if(modoPaqEfectivo==='generar')showToast('✅ Sesiones generadas para '+pac.nombre+' — desde '+fmtF(fecha)+' '+hora);
+    else showToast('✅ Sesión agendada: '+pac.nombre+' — '+hora);
     await cargarDesdeSB();
     // Un paciente puede llevar varias terapias con distintas psicólogas al
     // mismo tiempo (igual que en el app temporal) — en vez de un formulario
@@ -2142,7 +2237,7 @@ function abrirPago(sesId){
   openModal('modalPago');
 }
 
-function guardarPago(){
+async function guardarPago(){
   const pacId=document.getElementById('pg-pac').value||'';
   const psId=document.getElementById('pg-ps').value||'';
   const fecha=document.getElementById('pg-fecha').value||today();
@@ -2154,10 +2249,10 @@ function guardarPago(){
   const n=new Date();
   const hora=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
   showToast('⏳ Registrando pago...');
-  sbPost('pagos',{fecha:fecha,hora:hora,monto:monto,metodo:metodo,concepto:concepto,
-    paciente_nombre:pac.nombre,psicologa_nombre:ps.nombre||'',
-    sede:DB.sede,registrado_por:DB.usuario||''})
-  .then(function(){
+  try{
+    await sbPost('pagos',{fecha:fecha,hora:hora,monto:monto,metodo:metodo,concepto:concepto,
+      paciente_nombre:pac.nombre,psicologa_nombre:ps.nombre||'',
+      sede:DB.sede,registrado_por:DB.usuario||''});
     const promesas=[];
     // Reducir saldo de la primera sesión pendiente en Supabase
     const ses=DB.sesiones.filter(s=>(s.pacNom===pac.nombre||s.pacId===pac.nombre)&&s.saldo>0)
@@ -2169,14 +2264,23 @@ function guardarPago(){
     if(pac._sb&&pac._sb.id&&(pac.saldo||0)>0){
       promesas.push(sbPatch('pacientes',{saldo:Math.max(0,(pac.saldo||0)-monto)},{id:'eq.'+pac._sb.id}));
     }
-    return Promise.all(promesas);
-  })
-  .then(function(){
+    // Si tiene un paquete activo (programas_paciente), abonar también ahí
+    // — sin esto, un pago suelto (cuota/adelanto en otro día) no se
+    // reflejaba en el saldo del paquete que se ve en su ficha.
+    try{
+      const progs=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:'eq.'+DB.sede,estado:'eq.activo',select:'*'});
+      const prog=(progs||[]).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))[0];
+      if(prog&&prog.id){
+        const adelantoAcum=(prog.adelanto_acumulado||0)+monto;
+        const saldoProg=Math.max(0,(prog.costo_total||0)-adelantoAcum);
+        promesas.push(sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldoProg},{id:'eq.'+prog.id}));
+      }
+    }catch(eProg){console.error('[pago->programa]',eProg);}
+    await Promise.all(promesas);
     closeModal('modalPago');
     showToast('✅ Pago S/'+monto+' ('+metodo+') — '+pac.nombre);
-    return cargarDesdeSB();
-  })
-  .catch(function(e){showToast('Error en pago: '+e.message,'error');console.error('[pago SB]',e);});
+    await cargarDesdeSB();
+  }catch(e){showToast('Error en pago: '+e.message,'error');console.error('[pago SB]',e);}
 }
 
 function renderPagos(){
@@ -2815,7 +2919,7 @@ function renderAgendaViaDia(fecha){
 let _histPacId=null;
 
 async function renderHistorial(){
-  const pacId=parseInt(document.getElementById('histPac')?.value)||0;
+  const pacId=document.getElementById('histPac')?.value||'';
   _histPacId=pacId;
   const el=document.getElementById('histContenido');
   const cardArch=document.getElementById('histArchivosCard');
@@ -2828,7 +2932,7 @@ async function renderHistorial(){
   // ── Renderizar ──
   if(cardArch)cardArch.style.display='block';
   const pac2=getPac(pacId);const ps2=getPs(pac2.psId);const ter2=getTer(pac2.terId);
-  const sesPac=DB.sesiones.filter(s=>s.pacId===pacId).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+  const sesPac=DB.sesiones.filter(s=>s.pacId===pac2.nombre).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
   const asist=sesPac.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   const noAs=sesPac.filter(s=>s.estado==='noasistio').length;
   const prog=pac2.mod==='paquete'&&pac2.paq>0?progresoPac(pac2):'';
@@ -2854,17 +2958,18 @@ async function renderHistorial(){
     '</div>'+
     '<div style="font-size:13px;font-weight:800;color:var(--muted);margin-bottom:8px">📋 Registro de Sesiones</div>'+
     (sesPac.length?
-      '<div style="overflow-x:auto"><table><thead><tr><th>Fecha</th><th>Hora</th><th>Psicóloga</th><th>Terapia</th><th>Estado</th><th>Tipo</th><th>Costo</th><th>Notas</th></tr></thead><tbody>'+
+      '<div style="overflow-x:auto"><table><thead><tr><th>Fecha</th><th>Hora</th><th>Psicóloga</th><th>Terapia</th><th>Estado</th><th>Tipo</th><th>Costo</th><th>Notas</th><th>Acción</th></tr></thead><tbody>'+
       sesPac.map(s=>{
         const psH=getPs(s.psId);const terH=getTer(s.terId);
-        const pago=DB.pagos.find(p=>p.pacId===pacId&&p.fecha===s.fecha&&p.hora===s.hora);
+        const pago=DB.pagos.find(p=>p.pacId===pac2.nombre&&p.fecha===s.fecha&&p.hora===s.hora);
         const ec=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':'var(--orange)';
         return '<tr><td>'+fmtF(s.fecha)+'</td><td>'+s.hora+'</td><td>'+psH.nombre.replace('Lic.','').trim()+'</td>'+
           '<td>'+terBadge(terH)+'</td>'+
           '<td><span style="color:'+ec+';font-weight:700">'+s.estado+'</span></td>'+
           '<td><span class="badge bk" style="font-size:10px">'+(s.tipo==='paquete'?'Paq '+s.nroEnPaq+'/'+s.totalPaq:s.tipo)+'</span></td>'+
           '<td>'+(pago?'<span style="color:var(--green);font-weight:700">S/'+pago.monto+'</span>':s.costoTotal?'Pend. S/'+s.saldo:'—')+'</td>'+
-          '<td style="font-size:11px;color:var(--muted)">'+(s.notas||'')+'</td></tr>';
+          '<td style="font-size:11px;color:var(--muted)">'+(s.notas||'')+'</td>'+
+          '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s):'<span style="font-size:11px;color:var(--muted)">—</span>')+'</td></tr>';
       }).join('')+
       '</tbody></table></div>'
       :'<div style="color:var(--muted);padding:14px;text-align:center">Sin sesiones registradas para este paciente.</div>');
