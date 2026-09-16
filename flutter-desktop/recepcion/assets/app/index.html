@@ -722,20 +722,31 @@ try{
           <div class="form-group" id="ag-grp-fechaInicio">
             <label class="form-label">Fecha de inicio *</label>
             <input type="date" class="form-control" id="ag-fechaInicio">
+            <div style="font-size:10.5px;color:var(--muted);margin-top:3px">La primera sesión de cada día será la próxima fecha con ese día de la semana, a partir de aquí.</div>
           </div>
           <div class="form-group">
             <label class="form-label">¿Qué deseas hacer?</label>
             <select class="form-control" id="ag-modoPaq" onchange="agOnModoPaq()">
               <option value="generar">📅 Agendar y repetir cada semana hasta completar el paquete</option>
-              <option value="unica">1️⃣ Solo la primera sesión de cada terapia</option>
+              <option value="unica">1️⃣ Solo la primera sesión de cada día</option>
               <option value="soloPago">💰 Solo registrar el paquete y el pago (sin agendar todavía)</option>
             </select>
           </div>
         </div>
         <div id="ag-grp-terapiaRows">
-          <label class="form-label" style="margin-top:6px;display:block">Terapias del paquete *</label>
+          <div class="form-group" style="max-width:320px">
+            <label class="form-label">¿Cuántas veces por semana asistirá? *</label>
+            <select class="form-control" id="ag-frecuencia" onchange="agOnFrecuencia()">
+              <option value="1">1 vez por semana</option>
+              <option value="2">2 veces por semana</option>
+              <option value="3">3 veces por semana</option>
+              <option value="4">4 veces por semana</option>
+              <option value="5">5 veces por semana</option>
+              <option value="6">6 veces por semana</option>
+            </select>
+          </div>
+          <label class="form-label" style="margin-top:6px;display:block">Elige el día, terapia, psicóloga y horario para cada asistencia *</label>
           <div id="ag-terapiaRows"></div>
-          <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="agAgregarFilaTerapia()">+ Añadir otra terapia</button>
         </div>
       </div>
 
@@ -1591,8 +1602,8 @@ function abrirModalAgendar(fecha,hora,sesOrig){
   document.getElementById('ag-resumen').style.display='none';
   const elProg=document.getElementById('ag-progExist');if(elProg)elProg.innerHTML='<option value="">🆕 Nuevo paquete</option>';
   const elModoPaq=document.getElementById('ag-modoPaq');if(elModoPaq)elModoPaq.value='generar';
-  const contFilas=document.getElementById('ag-terapiaRows');if(contFilas)contFilas.innerHTML='';
-  agAgregarFilaTerapia();
+  const elFrec=document.getElementById('ag-frecuencia');if(elFrec)elFrec.value='1';
+  agOnFrecuencia();
   _agProgramasActivos=[];
 
   const evBox=document.getElementById('ag-evidenciaBox');
@@ -1765,8 +1776,15 @@ function agOnServ(){
 function _agTerOpts(){
   return '<option value="">— Selecciona —</option>'+DB.terapias.map(t=>'<option value="'+t.id+'">'+t.nombre+'</option>').join('');
 }
-function _agPsOpts(){
-  return '<option value="">— Selecciona —</option>'+DB.psicologas.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join('');
+// Cada fila = un día de asistencia. La cantidad de filas la fija
+// "¿Cuántas veces por semana?"; cada fila elige su propio día, terapia,
+// psicóloga (filtrada a quien trabaje ESE día) y horario (filtrado a
+// esa psicóloga en ese día). Un mismo día no se puede repetir en dos filas.
+function agOnFrecuencia(){
+  const n=parseInt(document.getElementById('ag-frecuencia')?.value)||1;
+  const cont=document.getElementById('ag-terapiaRows');if(!cont)return;
+  cont.innerHTML='';
+  for(let i=0;i<n;i++)agAgregarFilaTerapia();
 }
 function agAgregarFilaTerapia(){
   const cont=document.getElementById('ag-terapiaRows');if(!cont)return;
@@ -1775,39 +1793,54 @@ function agAgregarFilaTerapia(){
   div.style.cssText='border:1.5px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px';
   div.innerHTML=
     '<div class="grid g2" style="gap:8px">'+
+    '<div class="form-group" style="margin-bottom:0"><label class="form-label">Día</label>'+
+    '<select class="form-control ag-row-dia" onchange="agOnRowDia(this)"></select></div>'+
     '<div class="form-group" style="margin-bottom:0"><label class="form-label">Terapia</label>'+
     '<select class="form-control ag-row-ter">'+_agTerOpts()+'</select></div>'+
     '<div class="form-group" style="margin-bottom:0"><label class="form-label">Psicóloga</label>'+
-    '<select class="form-control ag-row-ps" onchange="agOnRowPs(this)">'+_agPsOpts()+'</select></div>'+
-    '<div class="form-group" style="margin-bottom:0"><label class="form-label">Día</label>'+
-    '<select class="form-control ag-row-dia" onchange="agOnRowDia(this)"><option value="">— Elige psicóloga —</option></select></div>'+
-    '<div class="form-group" style="margin-bottom:0"><label class="form-label">Hora</label>'+
+    '<select class="form-control ag-row-ps" onchange="agOnRowPs(this)"><option value="">— Elige un día —</option></select></div>'+
+    '<div class="form-group" style="margin-bottom:0"><label class="form-label">Horario</label>'+
     '<select class="form-control ag-row-hora"><option value="">—</option></select></div>'+
-    '</div>'+
-    '<button type="button" class="btn btn-outline btn-sm" style="margin-top:6px;color:var(--red);border-color:var(--red)" onclick="agQuitarFilaTerapia(this)">🗑 Quitar terapia</button>';
+    '</div>';
   cont.appendChild(div);
+  agRefrescarDiasFilas();
 }
-function agQuitarFilaTerapia(btn){
-  const cont=document.getElementById('ag-terapiaRows');
-  if(cont&&cont.children.length<=1){showToast('Debe quedar al menos una terapia','error');return;}
-  const row=btn.closest('.ag-terapia-row');if(row)row.remove();
+function _agDiaOptsSinRepetir(selActual){
+  const usados=Array.prototype.slice.call(document.querySelectorAll('#ag-terapiaRows .ag-row-dia'))
+    .filter(function(s){return s!==selActual;}).map(function(s){return s.value;}).filter(Boolean);
+  return '<option value="">— Selecciona —</option>'+diaFull.map(function(d){
+    return '<option value="'+d+'"'+(usados.indexOf(d)>-1?' disabled':'')+'>'+d+'</option>';
+  }).join('');
+}
+function agRefrescarDiasFilas(){
+  document.querySelectorAll('#ag-terapiaRows .ag-row-dia').forEach(function(sel){
+    const actual=sel.value;
+    sel.innerHTML=_agDiaOptsSinRepetir(sel);
+    sel.value=actual;
+  });
+}
+function agOnRowDia(selDia){
+  agRefrescarDiasFilas();
+  const row=selDia.closest('.ag-terapia-row');
+  const selPs=row.querySelector('.ag-row-ps');
+  const dia=selDia.value;
+  if(!dia){
+    selPs.innerHTML='<option value="">— Elige un día —</option>';
+  }else{
+    const psDelDia=DB.psicologas.filter(function(p){return diasTrabajaPs(p).indexOf(dia)>-1;});
+    selPs.innerHTML=psDelDia.length?('<option value="">— Selecciona —</option>'+psDelDia.map(function(p){return '<option value="'+p.id+'">'+p.nombre+'</option>';}).join('')):
+      '<option value="">Ninguna psicóloga trabaja este día</option>';
+  }
+  agOnRowPs(selPs);
 }
 function agOnRowPs(selPs){
   const row=selPs.closest('.ag-terapia-row');
-  const ps=getPs(selPs.value);
   const selDia=row.querySelector('.ag-row-dia');
-  const dias=selPs.value?diasTrabajaPs(ps):[];
-  selDia.innerHTML=dias.length?dias.map(d=>'<option value="'+d+'">'+d+'</option>').join(''):'<option value="">— Elige psicóloga —</option>';
-  agOnRowDia(selDia);
-}
-function agOnRowDia(selDia){
-  const row=selDia.closest('.ag-terapia-row');
-  const selPs=row.querySelector('.ag-row-ps');
   const selHora=row.querySelector('.ag-row-hora');
   const ps=getPs(selPs.value);
   const dia=selDia.value;
   const horas=(selPs.value&&dia)?horasPsEnDia(ps,dia):[];
-  selHora.innerHTML=horas.length?horas.map(h=>'<option value="'+h+'">'+h+'</option>').join(''):'<option value="">—</option>';
+  selHora.innerHTML=horas.length?horas.map(function(h){return '<option value="'+h+'">'+h+'</option>';}).join(''):'<option value="">—</option>';
 }
 
 function agActualizarResumen(){
@@ -2013,7 +2046,7 @@ async function guardarPaqueteFlujo(){
   });
   if(modo!=='soloPago'){
     if(!filas.length||filas.some(function(f){return!f.diaNombre||!f.hora;})){
-      showToast('Completa terapia, psicóloga, día y hora en cada fila (o quítala)','error');return;
+      showToast('Completa día, terapia, psicóloga y horario en cada asistencia','error');return;
     }
     if(!fechaInicio){showToast('Indica la fecha de inicio','error');return;}
   }
@@ -2044,20 +2077,38 @@ async function guardarPaqueteFlujo(){
       if(!progRow||!progRow.id)throw new Error('No se pudo crear el paquete');
     }
 
+    // Dos filas (días distintos) pueden compartir la misma terapia+psicóloga
+    // (ej. Lenguaje con la Lic. Ana los lunes Y los jueves) — se consolidan
+    // en un solo programa_terapias, sumando sus sesiones.
+    function _agConsolidarCombos(porFilaSesiones){
+      const combos={};
+      filas.forEach(function(f,i){
+        const key=f.terapia+'|'+f.psicologa.nombre;
+        if(!combos[key])combos[key]={terapia:f.terapia,psicologaNombre:f.psicologa.nombre,sesiones:0,filaIdxs:[]};
+        combos[key].sesiones+=porFilaSesiones?porFilaSesiones[i]:0;
+        combos[key].filaIdxs.push(i);
+      });
+      return combos;
+    }
     if(modo==='soloPago'){
-      for(const f of filas){
-        await sbPost('programa_terapias',{programa_id:progRow.id,terapia:f.terapia,
-          psicologa:f.psicologa.nombre,sesiones_asignadas:0,sesiones_realizadas:0});
+      const combos=_agConsolidarCombos(null);
+      for(const key in combos){
+        const c=combos[key];
+        await sbPost('programa_terapias',{programa_id:progRow.id,terapia:c.terapia,
+          psicologa:c.psicologaNombre,sesiones_asignadas:0,sesiones_realizadas:0});
       }
     } else {
       const restante=Math.max(0,totalSesiones-yaAsignadas);
       const objetivo=modo==='unica'?filas.length:restante;
       const sim=simularCalendarioPaquete(filas,fechaInicio,objetivo);
-      const ptIds=[];
-      for(let i=0;i<filas.length;i++){
-        const ptRows=await sbPost('programa_terapias',{programa_id:progRow.id,terapia:filas[i].terapia,
-          psicologa:filas[i].psicologa.nombre,sesiones_asignadas:sim.porFila[i],sesiones_realizadas:sim.porFila[i]});
-        ptIds.push(ptRows&&ptRows[0]&&ptRows[0].id);
+      const combos=_agConsolidarCombos(sim.porFila);
+      const ptIdPorFila=new Array(filas.length);
+      for(const key in combos){
+        const c=combos[key];
+        const ptRows=await sbPost('programa_terapias',{programa_id:progRow.id,terapia:c.terapia,
+          psicologa:c.psicologaNombre,sesiones_asignadas:c.sesiones,sesiones_realizadas:c.sesiones});
+        const ptId=ptRows&&ptRows[0]&&ptRows[0].id;
+        c.filaIdxs.forEach(function(i){ptIdPorFila[i]=ptId;});
       }
       let nro=yaAsignadas;
       for(const ev of sim.eventos){
@@ -2067,7 +2118,7 @@ async function guardarPaqueteFlujo(){
           psicologa:f.psicologa.nombre,terapia:f.terapia,estado:'programado',tipo:'paquete',
           nro_en_paquete:nro,total_paquete:totalSesiones,costo_total:costoTotal,
           adelanto:0,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||'',
-          programa_id:progRow.id,programa_terapia_id:ptIds[ev.filaIdx]};
+          programa_id:progRow.id,programa_terapia_id:ptIdPorFila[ev.filaIdx]};
         const r=await sbPost('sesiones',filaSes);
         DB.sesiones.push({id:(r&&r[0]&&r[0].id)||('tmp-'+ev.fecha+ev.hora+Math.random()),fecha:ev.fecha,hora:ev.hora,
           pacId:pac.nombre,psId:f.psicologa.nombre,terId:f.terapia,estado:'programado',
@@ -3463,7 +3514,7 @@ async function cargarDesdeSB(silencioso) {
       sbGet('programas_paciente',{sede:'eq.'+DB.sede,estado:'eq.activo',select:'*,programa_terapias(*)'}).catch(function(){return[];}),
       sbGet('feriados',{estado:'eq.activo',select:'*'}).catch(function(){return[];})
     ]);
-    DB.sesiones=(res[0]||[]).map(function(s){return{id:s.id,fecha:s.fecha,hora:s.hora,
+    DB.sesiones=(res[0]||[]).map(function(s){return{id:s.id,fecha:s.fecha,hora:normHoraRec(s.hora),
       pacId:s.paciente_nombre,pacNom:s.paciente_nombre,psId:s.psicologa,psNom:s.psicologa,
       terId:s.terapia,terNom:s.terapia,estado:s.estado,saldo:s.saldo||0,
       nroSes:s.nro_en_paquete,totalPaq:s.total_paquete,costo:s.costo_total||0,tel:s.paciente_tel||'',_sb:s};});
