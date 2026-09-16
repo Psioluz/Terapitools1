@@ -2255,7 +2255,11 @@ function renderClinico(){
   const sesiones=PS.sesiones.filter(s=>s.pacNombre===pacNom||s.pacId===pac.id)
     .sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora));
   const asistCnt=sesiones.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
-  const pct=pac.paq>0?Math.min(100,Math.round((asistCnt/pac.paq)*100)):0;
+  // pac.paq es heredado del esquema viejo y no refleja el paquete real
+  // (vive en programas_paciente/sesiones) — se calcula de las sesiones.
+  const sesPaqCl=sesiones.filter(s=>s.tipo==='paquete'&&s.totalPaq);
+  const paqTotalCl=sesPaqCl.length?Math.max.apply(null,sesPaqCl.map(function(s){return s.totalPaq||0;})):0;
+  const pct=paqTotalCl>0?Math.min(100,Math.round((asistCnt/paqTotalCl)*100)):0;
 
   // Cargar fichas de seguimiento (caché en memoria mientras se actualiza)
   const listKey='fichas_pac_'+PS.sede+'_'+pacNom.replace(/\s/g,'_');
@@ -2320,11 +2324,11 @@ function renderClinico(){
       <div style="font-size:16px;font-weight:800;margin-bottom:6px">${pac.nombre}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${pac.terNombre?`<span class="badge bt">🧠 ${pac.terNombre}</span>`:''}
-        ${pac.paq>0?`<span class="badge bb">📦 ${pac.paq} sesiones</span>`:''}
+        ${paqTotalCl>0?`<span class="badge bb">📦 ${paqTotalCl} sesiones</span>`:''}
         <span class="badge bk">${sesiones.length} registradas · ${asistCnt} asistidas</span>
       </div>
-      ${pac.paq>0?`<div style="margin-top:8px">
-        <div style="font-size:10px;color:var(--muted);margin-bottom:3px">Avance del paquete: ${asistCnt}/${pac.paq} (${pct}%)</div>
+      ${paqTotalCl>0?`<div style="margin-top:8px">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px">Avance del paquete: ${asistCnt}/${paqTotalCl} (${pct}%)</div>
         <div class="prog"><div class="prog-fill" style="width:${pct}%;background:${pct>=90?'var(--red)':pct>=70?'var(--orange)':'var(--green)'}"></div></div>
       </div>`:''}
     </div>
@@ -2723,9 +2727,9 @@ function cardSes(s){
   var hora=normHora(s.hora);
   var bc=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':'var(--acc)';
   var badgeC=s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bt';
-  var prog=PS.pacientes.find(function(p){return(p.id===s.pacId||p.nombre===s.pacNombre)&&p.mod==='paquete'&&p.paq>0;});
+  var esPaq=s.tipo==='paquete'&&s.totalPaq;
   var asistCnt=PS.sesiones.filter(function(x){return(x.pacId===s.pacId||x.pacNombre===s.pacNombre)&&x.estado==='asistio';}).length;
-  var pct=prog?Math.min(100,Math.round((asistCnt/prog.paq)*100)):0;
+  var pct=esPaq?Math.min(100,Math.round((asistCnt/s.totalPaq)*100)):0;
   var n=window._fd.length;
   window._fd.push({pac:s.pacNombre||'',ter:s.terNombre||'',fec:s.fecha||'',hor:s.hora||''});
   return '<div class="ses" style="border-left-color:'+bc+';padding:12px">'
@@ -2737,7 +2741,7 @@ function cardSes(s){
     +'<span class="badge '+badgeC+'" style="font-size:10px">'+s.estado+'</span>'
     +'</div>'
     +(s.terNombre?'<div style="font-size:12px;color:var(--muted)">🧠 '+s.terNombre+'</div>':'')
-    +(prog?'<div style="margin-top:4px;font-size:11px;color:var(--muted)">Paquete: '+asistCnt+'/'+prog.paq+' ('+pct+'%)</div>':'')
+    +(esPaq?'<div style="margin-top:4px;font-size:11px;color:var(--muted)">Paquete: '+asistCnt+'/'+s.totalPaq+' ('+pct+'%)</div>':'')
     +'</div>'
     +'<button onclick="window._openFicha('+n+')" style="padding:10px 14px;background:linear-gradient(135deg,#4a0e2e,#c2185b);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;flex-shrink:0">✍️ Llenar Ficha</button>'
     +'</div>'
@@ -2768,11 +2772,13 @@ function renderPacsPs(){
   el.innerHTML=pacs.map(function(p){
     var sesPac=PS.sesiones.filter(function(s){return s.pacNombre===p.nombre;});
     var asist=sesPac.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
-    var pct=p.mod==='paquete'&&p.paq>0?Math.min(100,Math.round((asist/p.paq)*100)):0;
+    var sesPaqLi=sesPac.filter(function(s){return s.tipo==='paquete'&&s.totalPaq;});
+    var paqTotalLi=sesPaqLi.length?Math.max.apply(null,sesPaqLi.map(function(s){return s.totalPaq||0;})):0;
+    var pct=paqTotalLi>0?Math.min(100,Math.round((asist/paqTotalLi)*100)):0;
     return '<div class="card" style="margin-bottom:8px"><div class="cb">'
       +'<div style="font-size:14px;font-weight:800;margin-bottom:6px">'+p.nombre+'</div>'
       +(p.terNombre?'<div style="font-size:12px;color:var(--muted)">🧠 '+p.terNombre+'</div>':'')
-      +(p.mod==='paquete'?'<div style="margin-top:4px"><div style="font-size:11px;color:var(--muted)">Paquete: '+asist+'/'+p.paq+' ('+pct+'%)</div>'
+      +(paqTotalLi>0?'<div style="margin-top:4px"><div style="font-size:11px;color:var(--muted)">Paquete: '+asist+'/'+paqTotalLi+' ('+pct+'%)</div>'
         +'<div class="prog"><div class="prog-fill" style="width:'+pct+'%"></div></div></div>':'')
       +'<div style="margin-top:8px"><button onclick="goTab(\"tabDocs\")" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer">📁 Documentos</button></div>'
       +'</div></div>';
