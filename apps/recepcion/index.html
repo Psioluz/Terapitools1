@@ -1806,10 +1806,12 @@ function agAgregarFilaTerapia(){
   agRefrescarDiasFilas();
 }
 function _agDiaOptsSinRepetir(selActual){
-  const usados=Array.prototype.slice.call(document.querySelectorAll('#ag-terapiaRows .ag-row-dia'))
-    .filter(function(s){return s!==selActual;}).map(function(s){return s.value;}).filter(Boolean);
-  return '<option value="">— Selecciona —</option>'+diaFull.map(function(d){
-    return '<option value="'+d+'"'+(usados.indexOf(d)>-1?' disabled':'')+'>'+d+'</option>';
+  // Un mismo día SÍ puede repetirse en varias filas (distinta psicóloga/horario,
+  // o incluso hermanos/pacientes que comparten paquete el mismo día). No se
+  // deshabilita ningún día; el único caso inválido (misma psicóloga+hora+día
+  // repetida) se valida al guardar.
+  return '<option value="">— Selecciona —</option>'+diaFull.slice(1).map(function(d){
+    return '<option value="'+d+'">'+d+'</option>';
   }).join('');
 }
 function agRefrescarDiasFilas(){
@@ -2049,6 +2051,12 @@ async function guardarPaqueteFlujo(){
       showToast('Completa día, terapia, psicóloga y horario en cada asistencia','error');return;
     }
     if(!fechaInicio){showToast('Indica la fecha de inicio','error');return;}
+    const combosVistos={};
+    for(const f of filas){
+      const k=f.diaNombre+'|'+f.hora+'|'+f.psicologa.id;
+      if(combosVistos[k]){showToast('Hay dos filas repetidas con el mismo día, hora y psicóloga','error');return;}
+      combosVistos[k]=true;
+    }
   }
 
   showToast('⏳ Registrando paquete...');
