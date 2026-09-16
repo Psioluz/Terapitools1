@@ -483,10 +483,6 @@ try{
     </div>
     <div class="tab-bar" id="tabsPaq">
       <button class="tab-btn active" data-tipo="" onclick="filtrarPaq('',this)">📋 Todo</button>
-      <button class="tab-btn" data-tipo="paquete" onclick="filtrarPaq('paquete',this)">📦 Paquetes</button>
-      <button class="tab-btn" data-tipo="consulta" onclick="filtrarPaq('consulta',this)">🩺 Consulta</button>
-      <button class="tab-btn" data-tipo="informe" onclick="filtrarPaq('informe',this)">📋 Informes</button>
-      <button class="tab-btn" data-tipo="otro" onclick="filtrarPaq('otro',this)">➕ Otros</button>
     </div>
     <div class="grid g3" style="padding:12px" id="gridPaq"></div>
   </div>
@@ -1155,7 +1151,7 @@ function renderDashboard(){
           '<div style="flex:1;min-width:130px">'+
           '<div style="font-weight:800;font-size:13px;margin-bottom:3px">'+pac.nombre+'</div>'+
           '<div style="font-size:11px;color:var(--muted);margin-bottom:3px">'+ps.nombre+'</div>'+
-          '<span class="badge '+ter.color+'" style="font-size:10px">'+ter.nombre+'</span>'+
+          terBadge(ter)+
           (pac.mod==='paquete'&&pac.paq>0?progresoPacInline(pac):'')+'</div>'+
           '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">'+
           botonesAsistenciaHTML(s)+
@@ -1334,7 +1330,7 @@ function mostrarResumenCelda(sesList,fecha,hora){
         '<span class="badge '+(s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bb')+'" style="font-size:10px">'+s.estado+'</span>'+
         '</div>'+
         '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">'+ps.nombre+
-        ' · <span class="badge '+ter.color+'" style="font-size:10px">'+ter.nombre+'</span>'+
+        ' · '+terBadge(ter)+
         (s.tipo==='paquete'?' · Paquete '+s.nroEnPaq+'/'+s.totalPaq:'')+'</div>'+
         (s.costoTotal?'<div style="font-size:12px;color:var(--green)">'+
         (s.tipo==='paquete'?'Paquete S/'+s.costoTotal:'S/'+s.costoTotal)+
@@ -1382,7 +1378,7 @@ function renderDiaSel(){
         '<span class="ses-nombre">'+pac.nombre+'</span>'+
         '<span class="badge '+(s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bb')+'" style="font-size:10px">'+s.estado+'</span>'+
         '</div>'+
-        '<div style="font-size:12px;color:var(--muted)">'+ps.nombre+' · <span class="badge '+ter.color+' " style="font-size:10px">'+ter.nombre+'</span>'+
+        '<div style="font-size:12px;color:var(--muted)">'+ps.nombre+' · '+terBadge(ter)+
         (s.tipo==='paquete'?' · Paquete '+s.nroEnPaq+'/'+s.totalPaq:'')+'</div>'+
         (s.costoTotal?'<div style="font-size:12px;color:var(--green);margin-top:3px">'+
         (s.tipo==='paquete'?'Paquete S/'+s.costoTotal:'S/'+s.costoTotal)+
@@ -1759,7 +1755,7 @@ function renderPacientes(){
       (p.activo===false?'<span class="badge br">Inactivo</span>':'')+
       '</div>'+
       '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'+
-      (p.terapias?p.terapias.split(',').map(function(tn){return '<span class="badge bp" style="font-size:10px">'+tn.trim()+'</span>';}).join(''):terapiasUnicas.map(t=>'<span class="badge '+t.color+'" style="font-size:10px">'+t.nombre+'</span>').join(''))+
+      (p.terapias?p.terapias.split(',').map(function(tn){return '<span class="badge bp" style="font-size:10px">'+tn.trim()+'</span>';}).join(''):terapiasUnicas.map(t=>'<span class="badge" style="font-size:10px;background:'+(t.color||'#e5e7eb')+';color:'+colorTextoContraste(t.color)+'">'+t.nombre+'</span>').join(''))+
       (p.mod==='paquete'?'<span class="badge bb" style="font-size:10px">Paquete '+p.paq+' ses.</span>':'')+
       '</div>'+
       '<div style="font-size:12px;color:var(--muted)">'+
@@ -2058,11 +2054,23 @@ function renderPsicologas(){
 // ══════════════════════════════════════════════════
 //  TERAPIAS
 // ══════════════════════════════════════════════════
+function colorTextoContraste(hex){
+  hex=(hex||'').replace('#','');
+  if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');
+  if(hex.length!==6)return '#1f2937';
+  const r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);
+  return (0.299*r+0.587*g+0.114*b)/255>0.6?'#1f2937':'#ffffff';
+}
+function terBadge(t,fontSize){
+  fontSize=fontSize||10;
+  const color=t&&t.color||'#e5e7eb';
+  return '<span class="badge" style="font-size:'+fontSize+'px;background:'+color+';color:'+colorTextoContraste(color)+'">'+(t&&t.nombre||'')+'</span>';
+}
 function renderTerapias(){
   const el=document.getElementById('gridTer');if(!el)return;
   el.innerHTML=DB.terapias.map(t=>'<div class="card" style="padding:14px">'+
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">'+
-    '<span class="badge '+t.color+'">'+t.nombre+'</span></div>'+
+    '<span class="badge" style="background:'+(t.color||'#e5e7eb')+';color:'+colorTextoContraste(t.color)+'">'+t.nombre+'</span></div>'+
     (t.sede?'<div style="font-size:10px;margin-top:2px"><span class="badge bo">📍 Solo '+t.sede+'</span></div>':'')+
     '<div style="font-size:11px;color:var(--muted);margin-top:4px">'+(t.desc||'')+'</div>'+
     '</div>').join('') ||
@@ -2072,11 +2080,27 @@ function renderTerapias(){
 // ══════════════════════════════════════════════════
 //  PAQUETES / SERVICIOS
 // ══════════════════════════════════════════════════
+const TIPO_META={
+  'Sesión':{icono:'🩺',color:'bc'},'Paquete':{icono:'📦',color:'bp'},
+  'Programa':{icono:'🎯',color:'bg'},'Evaluación':{icono:'🧠',color:'bo'},
+  'Informe':{icono:'📋',color:'bb'},'Constancia':{icono:'📄',color:'bk'},
+  'Certificado':{icono:'📜',color:'bk'},'Consejería':{icono:'👨‍👩‍👧',color:'bpk'},
+  'Consulta':{icono:'🩺',color:'bc'},'Campaña':{icono:'📣',color:'bg'},
+  'Juegos':{icono:'🧩',color:'bo'}
+};
+function tipoMeta(tipo){
+  return TIPO_META[(tipo||'').trim()]||{icono:'➕',color:'bk'};
+}
+function actualizarTabsPaq(){
+  const tabs=document.getElementById('tabsPaq');if(!tabs)return;
+  const tipos=Array.from(new Set(DB.paquetes.map(p=>(p.tipo||'').trim()).filter(Boolean))).sort();
+  tabs.innerHTML='<button class="tab-btn'+(_paqFiltro===''?' active':'')+'" data-tipo="" onclick="filtrarPaq(\'\',this)">📋 Todo</button>'+
+    tipos.map(t=>'<button class="tab-btn'+(_paqFiltro===t?' active':'')+'" data-tipo="'+t+'" onclick="filtrarPaq(\''+t+'\',this)">'+tipoMeta(t).icono+' '+t+'</button>').join('');
+}
 function renderPaquetes(filtro){
   _paqFiltro=filtro||'';
   const lista=_paqFiltro?DB.paquetes.filter(p=>p.tipo===_paqFiltro):DB.paquetes;
-  const iconos={paquete:'📦',consulta:'🩺',informe:'📋',constancia:'📄',neuropsico:'🧠',otro:'➕'};
-  const labels={paquete:'Paquete',consulta:'Consulta',informe:'Informe Evolutivo',constancia:'Constancia',neuropsico:'Neuropsicológica',otro:'Otro'};
+  actualizarTabsPaq();
   const el=document.getElementById('gridPaq');if(!el)return;
   el.innerHTML=lista.map(p=>{
     const pacsAsig=DB.pacientes.filter(pac=>{
@@ -2084,12 +2108,13 @@ function renderPaquetes(filtro){
       return DB.sesiones.some(s=>s.pacId===pac.id&&s.paqId===p.id);
     }).length;
     const sesUsadas=DB.sesiones.filter(s=>s.paqId===p.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
+    const meta=tipoMeta(p.tipo);
     return '<div class="paq-card" style="border-top:4px solid var(--accent)">'+
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'+
     '<div style="flex:1">'+
-    '<div style="font-size:14px;font-weight:800;margin-bottom:5px">'+iconos[p.tipo]+' '+p.nombre+'</div>'+
+    '<div style="font-size:14px;font-weight:800;margin-bottom:5px">'+meta.icono+' '+p.nombre+'</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">'+
-    '<span class="badge '+p.color+'" style="font-size:10px">'+labels[p.tipo]+'</span>'+
+    '<span class="badge '+meta.color+'" style="font-size:10px">'+(p.tipo||'Servicio')+'</span>'+
     (p.nroSes>1?'<span class="badge bb" style="font-size:10px">'+p.nroSes+' ses.</span>':'')+
     (pacsAsig>0?'<span class="badge bg" style="font-size:10px">'+pacsAsig+' paciente'+(pacsAsig!==1?'s':'')+'</span>':'')+
     '</div>'+
@@ -2226,7 +2251,7 @@ function generarReporte(){
           '<div style="flex:1;min-width:140px">'+
           '<div style="font-size:13px;font-weight:700">'+pac.nombre+'</div>'+
           '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">'+
-          '<span class="badge '+ter.color+'" style="font-size:9px">'+ter.nombre+'</span>'+
+          terBadge(ter,9)+
           (s.tipo==='paquete'?'<span class="badge bb" style="font-size:9px">Paq '+s.nroEnPaq+'/'+s.totalPaq+'</span>':'')+
           '</div></div>'+
           '<span class="badge '+bc+'" style="font-size:10px">'+s.estado+'</span>'+
@@ -2479,7 +2504,7 @@ function renderAgendaViaDia(fecha){
           '<div style="flex:1;min-width:160px">'+
           '<div style="font-size:14px;font-weight:800;margin-bottom:4px">'+pac.nombre+'</div>'+
           '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">'+
-          '<span class="badge '+ter.color+'" style="font-size:10px">'+ter.nombre+'</span>'+
+          terBadge(ter)+
           badgeEstadoAsistencia(s.estado)+
           (s.tipo==='paquete'?'<span class="badge bb" style="font-size:10px">Paq '+s.nroEnPaq+'/'+s.totalPaq+'</span>':'')+
           '</div>'+
@@ -2549,7 +2574,7 @@ async function renderHistorial(){
         const pago=DB.pagos.find(p=>p.pacId===pacId&&p.fecha===s.fecha&&p.hora===s.hora);
         const ec=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':'var(--orange)';
         return '<tr><td>'+fmtF(s.fecha)+'</td><td>'+s.hora+'</td><td>'+psH.nombre.replace('Lic.','').trim()+'</td>'+
-          '<td><span class="badge '+terH.color+'" style="font-size:10px">'+terH.nombre+'</span></td>'+
+          '<td>'+terBadge(terH)+'</td>'+
           '<td><span style="color:'+ec+';font-weight:700">'+s.estado+'</span></td>'+
           '<td><span class="badge bk" style="font-size:10px">'+(s.tipo==='paquete'?'Paq '+s.nroEnPaq+'/'+s.totalPaq:s.tipo)+'</span></td>'+
           '<td>'+(pago?'<span style="color:var(--green);font-weight:700">S/'+pago.monto+'</span>':s.costoTotal?'Pend. S/'+s.saldo:'—')+'</td>'+

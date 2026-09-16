@@ -482,7 +482,7 @@ async function loadLookups(){
     sb.from('psicologas').select('nombre,sede,estado').eq('estado','activa').order('nombre'),
     sb.from('terapias').select('nombre,color,sede,activa').order('nombre'),
     sb.from('pacientes').select('id,nombre,dni,telefono,sede,fecha_nac,genero,direccion,colegio,grado,modalidad,apoderado,diagnostico,motivo,estado,terapia,psicologa,paquete'),
-    sb.from('tarifas_sede').select('sede,terapia,nombre_servicio,tipo,costo_total,nro_sesiones').eq('activo', true)
+    sb.from('tarifas_sede').select('sede,nombre_servicio,tipo,costo_total,nro_sesiones').eq('activo', true)
   ]);
   PSICOLOGAS = psi || [];
   TERAPIAS = (ter || []).filter(t=>t.activa !== false);
