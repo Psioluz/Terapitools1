@@ -1080,6 +1080,16 @@ function fmtF(f){if(!f)return'—';const p=String(f).split('-');return p.length=
 function nextId(arr){return arr.length?Math.max(0,...arr.map(x=>x.id||0))+1:1;}
 function getPac(id){return DB.pacientes.find(p=>p.id===id||p.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'—',tel:'',terId:null,mod:'sesion',paq:0};}
 function getPs(id){return DB.psicologas.find(p=>p.id===id||p.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'—',color:'bk'};}
+// Cada psicóloga tiene un color propio (elegido en la ficha, o uno fijo
+// por defecto si nunca lo cambiaron) para diferenciar sus sesiones en la
+// agenda semanal — antes todas se veían del mismo morado.
+const PALETA_PS_AGENDA=['#7c3aed','#059669','#dc2626','#2563eb','#d97706','#db2777','#0891b2','#65a30d','#9333ea','#ea580c','#0d9488','#4f46e5'];
+function colorPsAgenda(ps){
+  if(ps&&ps.colorAgenda)return ps.colorAgenda;
+  const s=String((ps&&(ps.id||ps.nombre))||'');
+  let h=0;for(let i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0;}
+  return PALETA_PS_AGENDA[h%PALETA_PS_AGENDA.length];
+}
 function getTer(id){return DB.terapias.find(t=>t.id===id||t.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'—',color:'bk'};}
 function getPaq(id){return DB.paquetes.find(p=>p.id===id)||null;}
 
@@ -1474,11 +1484,12 @@ function renderAgenda(){
       if(sesList.length){
         sesList.forEach(s=>{
           const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
-          const bc=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':'#7c3aed';
+          const bc=colorPsAgenda(ps);
+          const bordeEstado=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':s.estado==='permiso'?'#f59e0b':'rgba(255,255,255,.6)';
           const esPaq=s.tipo==='paquete'&&s.totalPaq;
           const progTxt=esPaq?(' '+s.nroSes+'/'+s.totalPaq):'';
           const titulo=pac.nombre+' · '+ter.nombre+(progTxt?' · Paq'+progTxt:'')+' · '+ps.nombre;
-          h+='<div class="ag-chip" style="background:'+bc+'" title="'+titulo+'">'+
+          h+='<div class="ag-chip" style="background:'+bc+';border-left:3px solid '+bordeEstado+'" title="'+titulo+'">'+
             '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;font-weight:800">'+pac.nombre.split(' ')[0]+'</div>'+
             '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9.5px;opacity:.9">'+abrevTerapia(ter.nombre)+'</div>'+
             (esPaq?'<div style="font-size:8px;opacity:.8">'+s.nroSes+'/'+s.totalPaq+'</div>':'')+
@@ -2853,15 +2864,28 @@ function renderPsicologas(){
   }
   el.innerHTML=DB.psicologas.map(ps=>{
     const sesHoy=DB.sesiones.filter(s=>s.psId===ps.nombre&&s.fecha===today()).length;
-    const colores={bp:'#ede9fe',bc:'#e0f2fe',bg:'#dcfce7',bo:'#fff7ed',bpk:'#fdf2f8',bb:'#eff6ff'};
-    return '<div style="background:'+(colores[ps.color]||'#f8faff')+';border-radius:12px;padding:14px;border:1px solid var(--border)">'+
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'+
+    return '<div style="background:#f8faff;border-radius:12px;padding:14px;border:1px solid var(--border);border-left:4px solid '+colorPsAgenda(ps)+'">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:8px">'+
       '<div><div style="font-size:15px;font-weight:800;margin-bottom:2px">'+ps.nombre+'</div>'+
       '<div style="font-size:11px;color:var(--muted)">'+ps.esp+' · '+ps.cop+'</div>'+
       '<div style="font-size:11px;color:var(--muted)">⏰ '+(ps.inicio||'13:15')+' - '+(ps.fin||'20:00')+(ps.diaEspecial?' · '+ps.diaEspecial+' desde 08:00':'')+(ps.diaHorarioEsp?' · '+ps.diaHorarioEsp+' '+ps.horaInicioEsp+'-'+ps.horaFinEsp:'')+'</div>'+
       '<div style="font-size:11px;margin-top:3px">Sesiones hoy: <strong>'+sesHoy+'</strong></div></div>'+
+      '<div style="text-align:center;flex-shrink:0">'+
+      '<input type="color" value="'+colorPsAgenda(ps)+'" data-psid="'+ps.id+'" onchange="cambiarColorPs(this)" title="Color de sus sesiones en la agenda" style="width:34px;height:34px;border:none;border-radius:8px;cursor:pointer;background:none;padding:0">'+
+      '<div style="font-size:9px;color:var(--muted);margin-top:2px">Color agenda</div>'+
+      '</div>'+
       '</div></div>';
   }).join('');
+}
+function cambiarColorPs(input){
+  const psId=input.dataset.psid;const color=input.value;
+  const ps=DB.psicologas.find(function(p){return p.id===psId;});if(!ps)return;
+  ps.colorAgenda=color;
+  renderPsicologas();
+  if(typeof renderAgenda==='function')renderAgenda();
+  if(ps._sb&&ps._sb.id){
+    sbPatch('psicologas',{color_agenda:color},{id:'eq.'+ps._sb.id}).catch(function(e){showToast('Error al guardar color: '+e.message,'error');});
+  }
 }
 
 // ══════════════════════════════════════════════════
@@ -3673,6 +3697,7 @@ async function cargarDesdeSB(silencioso) {
       diaHorarioEsp:p.dia_horario_especial||'',
       horaInicioEsp:(p.hora_inicio_especial||'').substring(0,5),
       horaFinEsp:(p.hora_fin_especial||'').substring(0,5),
+      colorAgenda:p.color_agenda||'',
       estado:p.estado||'activa',_sb:p};});
     DB.asistPersonal=res[4]||[];
     DB.terapias=(res[5]||[]).filter(function(t){return terapiaAplicaASede(t.sede,DB.sede);})
