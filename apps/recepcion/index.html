@@ -1258,12 +1258,7 @@ function parseDiasTexto(raw,porDefecto){
 function diasTrabajaPs(ps){
   return parseDiasTexto(ps&&ps.diasTrabajo,diaFull.slice(1,7));
 }
-function horasPsEnDia(ps,diaNombre){
-  if(!ps||!diaNombre)return[];
-  const diasEsp=parseDiasTexto(ps.diaEspecial,[]);
-  const esEsp=diasEsp.indexOf(diaNombre)>-1;
-  const ini=esEsp?'08:00':(ps.inicio||'13:15');
-  const fin=ps.fin||'20:00';
+function _slotsDesde(ini,fin){
   const slots=[];
   let[hh,mm]=ini.split(':').map(Number);
   const[fh,fm]=fin.split(':').map(Number);
@@ -1272,6 +1267,21 @@ function horasPsEnDia(ps,diaNombre){
     mm+=45;if(mm>=60){hh+=Math.floor(mm/60);mm%=60;}
   }
   return slots;
+}
+function horasPsEnDia(ps,diaNombre){
+  if(!ps||!diaNombre)return[];
+  // Día con horario propio (ej. Sábado 08:00-13:15 en vez del horario
+  // general) — distinto de "día completo" (mismo horario pero empieza
+  // 08:00 y termina igual que siempre).
+  const diasHorEsp=parseDiasTexto(ps.diaHorarioEsp,[]);
+  if(diasHorEsp.indexOf(diaNombre)>-1&&ps.horaInicioEsp&&ps.horaFinEsp){
+    return _slotsDesde(ps.horaInicioEsp,ps.horaFinEsp);
+  }
+  const diasEsp=parseDiasTexto(ps.diaEspecial,[]);
+  const esEsp=diasEsp.indexOf(diaNombre)>-1;
+  const ini=esEsp?'08:00':(ps.inicio||'13:15');
+  const fin=ps.fin||'20:00';
+  return _slotsDesde(ini,fin);
 }
 
 function fillHoras(){
@@ -2848,7 +2858,7 @@ function renderPsicologas(){
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'+
       '<div><div style="font-size:15px;font-weight:800;margin-bottom:2px">'+ps.nombre+'</div>'+
       '<div style="font-size:11px;color:var(--muted)">'+ps.esp+' · '+ps.cop+'</div>'+
-      '<div style="font-size:11px;color:var(--muted)">⏰ '+(ps.inicio||'13:15')+' - '+(ps.fin||'20:00')+(ps.diaEspecial?' · '+ps.diaEspecial+' desde 08:00':'')+'</div>'+
+      '<div style="font-size:11px;color:var(--muted)">⏰ '+(ps.inicio||'13:15')+' - '+(ps.fin||'20:00')+(ps.diaEspecial?' · '+ps.diaEspecial+' desde 08:00':'')+(ps.diaHorarioEsp?' · '+ps.diaHorarioEsp+' '+ps.horaInicioEsp+'-'+ps.horaFinEsp:'')+'</div>'+
       '<div style="font-size:11px;margin-top:3px">Sesiones hoy: <strong>'+sesHoy+'</strong></div></div>'+
       '</div></div>';
   }).join('');
@@ -3660,6 +3670,9 @@ async function cargarDesdeSB(silencioso) {
       cpsp:p.cpsp||'',cop:p.cpsp||'',esp:p.especialidad||'',tel:p.telefono||'',nac:p.fecha_nac||'',
       inicio:(p.hora_inicio||'13:15').substring(0,5),fin:(p.hora_fin||'20:00').substring(0,5),
       diaEspecial:p.dia_completo||'',diasTrabajo:p.dias_trabajo||'',
+      diaHorarioEsp:p.dia_horario_especial||'',
+      horaInicioEsp:(p.hora_inicio_especial||'').substring(0,5),
+      horaFinEsp:(p.hora_fin_especial||'').substring(0,5),
       estado:p.estado||'activa',_sb:p};});
     DB.asistPersonal=res[4]||[];
     DB.terapias=(res[5]||[]).filter(function(t){return terapiaAplicaASede(t.sede,DB.sede);})
