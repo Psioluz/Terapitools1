@@ -142,8 +142,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
 
 /* ── AGENDA GRILLA ── */
-.agenda-grid{display:grid;overflow-x:auto;border-radius:10px;border:1px solid var(--border);min-width:400px}
-.ag-head{background:var(--sidebar);color:#fff;padding:8px 4px;text-align:center;font-size:11px;font-weight:800}
+/* La grilla se desplaza dentro de su propia caja (alto acotado) para que
+   la fila de días quede pegada arriba con position:sticky — si el que
+   se desplaza es toda la página, el sticky no tiene de qué "colgarse"
+   y la fila desaparece al bajar. */
+.agenda-scroll-box{max-height:calc(100vh - 300px);min-height:320px;overflow:auto;border-radius:10px;border:1px solid var(--border)}
+.agenda-grid{display:grid;min-width:400px}
+.ag-head{background:var(--sidebar);color:#fff;padding:8px 4px;text-align:center;font-size:11px;font-weight:800;
+  position:sticky;top:0;z-index:2}
 .ag-head.hoy{background:var(--accent)}
 .ag-hora{background:#f8faff;border-top:1px solid var(--border);display:flex;align-items:center;
   justify-content:center;font-size:10px;font-weight:700;color:var(--muted);min-height:46px;padding:0 4px}
@@ -367,7 +373,7 @@ try{
       <button class="btn btn-primary" onclick="abrirModalAgendar()">+ Agendar Sesión</button>
     </div>
     <!-- GRILLA SEMANAL -->
-    <div style="overflow-x:auto;padding:0 0 4px">
+    <div class="agenda-scroll-box">
       <div id="gridSemanal" class="agenda-grid"></div>
     </div>
     <!-- DETALLE DÍA seleccionado -->
