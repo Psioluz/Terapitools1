@@ -3669,9 +3669,9 @@ async function syncHistorialSheet(){
     rows.forEach(function(r){
       const existing=DB.sesiones.find(function(x){return x._sb&&x._sb.id===r.id;});
       if(!existing){
-        DB.sesiones.push({id:r.id,fecha:r.fecha,hora:r.hora,pacId:r.paciente_nombre,pacNom:r.paciente_nombre,
-          psId:r.psicologa,psNom:r.psicologa,terId:r.terapia,terNom:r.terapia,estado:r.estado,
-          saldo:r.saldo||0,nroSes:r.nro_en_paquete,totalPaq:r.total_paquete,costo:r.costo_total||0,_sb:r});
+        DB.sesiones.push({id:r.id,fecha:r.fecha,hora:normHoraRec(r.hora),pacId:r.paciente_nombre,pacNom:r.paciente_nombre,
+          psId:r.psicologa,psNom:r.psicologa,terId:r.terapia,terNom:r.terapia,estado:r.estado,tipo:r.tipo||'sesion',notas:r.notas||'',
+          saldo:r.saldo||0,nroSes:r.nro_en_paquete,totalPaq:r.total_paquete,costo:r.costo_total||0,costoTotal:r.costo_total||0,tel:r.paciente_tel||'',_sb:r});
       }
     });
     renderHistorial();
