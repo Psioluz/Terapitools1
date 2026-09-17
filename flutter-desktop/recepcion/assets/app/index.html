@@ -2271,12 +2271,28 @@ async function guardarPaqueteFlujo(){
       const sim=simularCalendarioPaquete(filas,fechaInicio,objetivo);
       const combos=_agConsolidarCombos(sim.porFila);
       const ptIdPorFila=new Array(filas.length);
+      const ptExistentes=progRow.programa_terapias||[];
       for(const key in combos){
         const c=combos[key];
-        const ptRows=await sbPost('programa_terapias',{programa_id:progRow.id,terapia:c.terapia,
-          psicologa:c.psicologaNombre,sesiones_asignadas:c.sesiones,sesiones_realizadas:c.sesiones});
-        const ptId=ptRows&&ptRows[0]&&ptRows[0].id;
+        // Si el paquete YA tenía esta misma terapia+psicóloga (de un guardado
+        // anterior), sumar ahí en vez de crear una fila duplicada — si no,
+        // el total asignado del paquete termina superando sus sesiones
+        // contratadas (ej. 21/20).
+        const ptPrevio=ptExistentes.find(function(pt){return pt.terapia===c.terapia&&pt.psicologa===c.psicologaNombre;});
+        let ptId;
+        if(ptPrevio){
+          const nuevoAsignadas=(ptPrevio.sesiones_asignadas||0)+c.sesiones;
+          await sbPatch('programa_terapias',{sesiones_asignadas:nuevoAsignadas,sesiones_realizadas:nuevoAsignadas},{id:'eq.'+ptPrevio.id});
+          ptId=ptPrevio.id;
+        }else{
+          const ptRows=await sbPost('programa_terapias',{programa_id:progRow.id,terapia:c.terapia,
+            psicologa:c.psicologaNombre,sesiones_asignadas:c.sesiones,sesiones_realizadas:c.sesiones});
+          ptId=ptRows&&ptRows[0]&&ptRows[0].id;
+        }
         c.filaIdxs.forEach(function(i){ptIdPorFila[i]=ptId;});
+      }
+      if(yaAsignadas+sim.eventos.length>totalSesiones){
+        showToast('⚠️ Este paquete tiene '+totalSesiones+' sesiones contratadas y ahora quedarían '+(yaAsignadas+sim.eventos.length)+' asignadas. Elimina o reprograma una sesión futura para que no se pase del total.','error');
       }
       // El "saldo por cobrar" solo debe salir en la agenda/alertas UNA vez por
       // cuota, no en cada sesión del paquete. La cuota 1 es el adelanto que
