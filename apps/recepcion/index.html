@@ -711,10 +711,10 @@ try{
       </div>
       <div id="ag-grp-fechaHora" style="display:contents">
         <div class="form-group">
-          <label class="form-label">Fecha *</label>
+          <label class="form-label" id="ag-lbl-fecha">Fecha *</label>
           <input type="date" class="form-control" id="ag-fecha" onchange="agOnFecha()">
         </div>
-        <div class="form-group">
+        <div class="form-group" id="ag-grp-hora">
           <label class="form-label">Hora *</label>
           <select class="form-control" id="ag-hora"></select>
         </div>
@@ -1843,6 +1843,18 @@ function agOnTipo(){
     if(grpCostoSimple)grpCostoSimple.style.display='block';
     if(grpBuilder)grpBuilder.style.display='none';
     document.getElementById('ag-costo').value='';
+    // "Adelanto / Reserva": el paciente solo deja un pago para separar su
+    // cupo, sin comprometer un horario todavía — no pide Hora, solo la
+    // fecha en la que se dejó el adelanto (para poder regularizar).
+    const grpHora=document.getElementById('ag-grp-hora');
+    const lblFecha=document.getElementById('ag-lbl-fecha');
+    if(tipo==='adelanto'){
+      if(grpHora)grpHora.style.display='none';
+      if(lblFecha)lblFecha.textContent='Fecha del adelanto *';
+    }else{
+      if(grpHora)grpHora.style.display='block';
+      if(lblFecha)lblFecha.textContent='Fecha *';
+    }
     if(tipo&&tipo!=='adelanto'&&tipo!=='paquete'&&!esExclusivo){
       // Servicios reales de tarifas_sede para este tipo (puede haber varios,
       // ej. "Consulta pagada" y "Consultas psicológica" son ambos tipo Consulta)
@@ -2320,10 +2332,14 @@ async function guardarSesion(){
   const paq=paqId?getPaq(paqId):null;
   const progId=document.getElementById('ag-progExist')?.value||'';
   const modoPaq=tipo==='paquete'?(document.getElementById('ag-modoPaq')?.value||'generar'):'unica';
-  const sinSesionHoy=modoPaq==='soloPago';
+  // "Adelanto/Reserva" solo separa el cupo: se registra el pago sin
+  // comprometer todavía un horario (no pide Hora, la sesión real se agenda
+  // después, aparte, cuando el paciente confirme día y hora).
+  const sinSesionHoy=modoPaq==='soloPago'||tipo==='adelanto';
+  const requiereHora=!sinSesionHoy;
 
-  if(!pacId||!psId||!terId||(!sinSesionHoy&&(!fecha||!hora))){
-    showToast('Completa: paciente, psicóloga, terapia'+(sinSesionHoy?'':', fecha y hora'),'error');return;
+  if(!pacId||!psId||!terId||!fecha||(requiereHora&&!hora)){
+    showToast('Completa: paciente, psicóloga, terapia, fecha'+(requiereHora?' y hora':''),'error');return;
   }
   if(!sinSesionHoy){
     if(DB.sesiones.find(s=>s.psId===getPs(psId).nombre&&s.fecha===fecha&&s.hora===hora)){
