@@ -1484,12 +1484,16 @@ function renderAgenda(){
       if(sesList.length){
         sesList.forEach(s=>{
           const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
-          const bc=colorPsAgenda(ps);
+          // Una sesión "reprogramada" ya no ocupa ese horario de verdad —
+          // se pinta en gris, sin el color de la psicóloga, para
+          // diferenciarla de un cupo realmente activo.
+          const esReprog=s.estado==='reprogramado';
+          const bc=esReprog?'#94a3b8':colorPsAgenda(ps);
           const bordeEstado=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':s.estado==='permiso'?'#f59e0b':'rgba(255,255,255,.6)';
           const esPaq=s.tipo==='paquete'&&s.totalPaq;
           const progTxt=esPaq?(' '+s.nroSes+'/'+s.totalPaq):'';
-          const titulo=pac.nombre+' · '+ter.nombre+(progTxt?' · Paq'+progTxt:'')+' · '+ps.nombre;
-          h+='<div class="ag-chip" style="background:'+bc+';border-left:3px solid '+bordeEstado+'" title="'+titulo+'">'+
+          const titulo=pac.nombre+' · '+ter.nombre+(progTxt?' · Paq'+progTxt:'')+' · '+ps.nombre+(esReprog?' (reprogramado)':'');
+          h+='<div class="ag-chip" style="background:'+bc+';border-left:3px solid '+bordeEstado+(esReprog?';opacity:.55;text-decoration:line-through':'')+'" title="'+titulo+'">'+
             '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;font-weight:800">'+pac.nombre.split(' ')[0]+'</div>'+
             '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9.5px;opacity:.9">'+abrevTerapia(ter.nombre)+'</div>'+
             (esPaq?'<div style="font-size:8px;opacity:.8">'+s.nroSes+'/'+s.totalPaq+'</div>':'')+
@@ -2421,9 +2425,15 @@ async function guardarSesion(){
     const progInfo=(tipo==='paquete')?await obtenerProgramaActivo(pac.nombre,ter.nombre,ps.nombre):null;
     if(progInfo){
       const prog=progInfo.programa,pt=progInfo.terapiaRow;
-      const nroEnPaq=(pt.sesiones_realizadas||0)+1;
+      // El nro_en_paquete/total_paquete deben reflejar el paquete COMPLETO
+      // (todas sus terapias juntas), no solo esta terapia — si no, el
+      // contador que se ve en la agenda/historial ("Paq X/Y") sale mal
+      // (ej. mostraba el sub-total de una sola terapia en vez de las
+      // sesiones totales contratadas).
+      const yaRealizadasPrograma=(prog.programa_terapias||[]).reduce(function(a,t){return a+(t.sesiones_realizadas||0);},0);
+      const nroEnPaq=yaRealizadasPrograma+1;
       const adelantoAcum=(prog.adelanto_acumulado||0)+adelanto;
-      totalPaq=pt.sesiones_asignadas||prog.nro_sesiones_total;
+      totalPaq=prog.nro_sesiones_total;
       const costoTotalP=prog.costo_total||(paq&&paq.costoTotal)||0;
       saldo=Math.max(0,costoTotalP-adelantoAcum);
       filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
@@ -3481,9 +3491,13 @@ async function renderHistorial(){
   const sesPac=DB.sesiones.filter(s=>s.pacId===pac2.nombre).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
   // Si tiene un paquete, las tarjetas de arriba deben reflejar SOLO el
   // paquete (igual que "Progreso paquete") — mezclar una consulta suelta
-  // ahí confunde el conteo real del paquete.
-  const sesPaqHist=sesPac.filter(s=>s.tipo==='paquete');
-  const sesParaStats=sesPaqHist.length?sesPaqHist:sesPac;
+  // ahí confunde el conteo real del paquete. Una sesión "reprogramada"
+  // (movida a otra fecha) no debe sumar como una sesión más: se cuenta
+  // solo una vez, en su fecha nueva.
+  const sesPaqHist=sesPac.filter(s=>s.tipo==='paquete'&&s.estado!=='reprogramado');
+  const sesParaStats=sesPaqHist.length?sesPaqHist:sesPac.filter(s=>s.estado!=='reprogramado');
+  const paqInfoHist=_paqInfoPac(pac2);
+  const totalSesionesCard=paqInfoHist?paqInfoHist.total:sesParaStats.length;
   const asist=sesParaStats.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   const noAs=sesParaStats.filter(s=>s.estado==='noasistio').length;
   const prog=progresoPac(pac2);
@@ -3501,7 +3515,7 @@ async function renderHistorial(){
     (pac2.motivo?'<div style="font-size:12px;font-style:italic;color:var(--muted);margin-top:4px">"'+pac2.motivo+'"</div>':'')+
     prog+
     '<div class="grid g3" style="margin-top:10px">'+
-    '<div class="stat-card sc-cyan"><div class="stat-value">'+sesParaStats.length+'</div><div class="stat-label">Total Sesiones</div></div>'+
+    '<div class="stat-card sc-cyan"><div class="stat-value">'+totalSesionesCard+'</div><div class="stat-label">Total Sesiones</div></div>'+
     '<div class="stat-card sc-green"><div class="stat-value">'+asist+'</div><div class="stat-label">Asistidas</div></div>'+
     '<div class="stat-card sc-red"><div class="stat-value">'+noAs+'</div><div class="stat-label">No Asistió</div></div>'+
     '</div>'+
