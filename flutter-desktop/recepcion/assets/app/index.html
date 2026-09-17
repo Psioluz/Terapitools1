@@ -2410,7 +2410,7 @@ async function guardarSesion(){
 
   showToast('⏳ Agendando...');
   try{
-    let filaSesion,totalPaq,saldo;
+    let filaSesion,totalPaq,saldo,progInfo=null;
     // Un paciente puede llevar varias terapias/psicólogas a la vez DENTRO
     // DEL MISMO paquete (ej. 20 sesiones repartidas en Lenguaje y
     // Ocupacional). Tres casos, en este orden:
@@ -2422,8 +2422,25 @@ async function guardarSesion(){
     //    SIN crear un paquete/cobro nuevo.
     // 3) No hay paquete activo elegido → se crea un paquete nuevo (y esta
     //    terapia queda como la primera dentro de él).
-    const progInfo=(tipo==='paquete')?await obtenerProgramaActivo(pac.nombre,ter.nombre,ps.nombre):null;
-    if(progInfo){
+    if(_esReprog){
+      // Reprogramar solo mueve la sesión a otra fecha/hora — sigue siendo
+      // la MISMA sesión del paquete, no una nueva. No debe sumarse al
+      // conteo de sesiones realizadas (ya se contó cuando se creó la
+      // primera vez) ni inventarse un cobro nuevo: hereda el programa,
+      // el número y el saldo que ya tenía asignados, tal cual estaban en
+      // la sesión original (evita depender de volver a emparejar por
+      // nombre de terapia/psicóloga, que puede fallar si cambian).
+      const progIdOrig=(_reprogDe._sb&&_reprogDe._sb.programa_id)||null;
+      const ptIdOrig=(_reprogDe._sb&&_reprogDe._sb.programa_terapia_id)||null;
+      totalPaq=_reprogDe.totalPaq||1;
+      saldo=_reprogDe.saldo||0;
+      filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
+        psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:tipo,
+        nro_en_paquete:_reprogDe.nroSes||1,total_paquete:totalPaq,costo_total:_reprogDe.costoTotal||0,
+        adelanto:0,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||''};
+      if(progIdOrig){filaSesion.programa_id=progIdOrig;if(ptIdOrig)filaSesion.programa_terapia_id=ptIdOrig;}
+      await sbPost('sesiones',filaSesion);
+    } else if((progInfo=(tipo==='paquete')?await obtenerProgramaActivo(pac.nombre,ter.nombre,ps.nombre):null)){
       const prog=progInfo.programa,pt=progInfo.terapiaRow;
       // El nro_en_paquete/total_paquete deben reflejar el paquete COMPLETO
       // (todas sus terapias juntas), no solo esta terapia — si no, el
@@ -3527,12 +3544,17 @@ async function renderHistorial(){
       sesPac.map(s=>{
         const psH=getPs(s.psId);const terH=getTer(s.terId);
         const pago=DB.pagos.find(p=>p.pacId===pac2.nombre&&p.fecha===s.fecha&&p.hora===s.hora);
-        const ec=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':'var(--orange)';
-        return '<tr><td>'+fmtF(s.fecha)+'</td><td>'+s.hora+'</td><td>'+psH.nombre.replace('Lic.','').trim()+'</td>'+
+        const esReprogFila=s.estado==='reprogramado';
+        const ec=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':esReprogFila?'var(--muted)':'var(--orange)';
+        // Reprogramada: queda solo como registro de que ese cupo se movió
+        // — no cuenta como una sesión más, así que no muestra el
+        // contador "Paq X/Y", y la fila se pinta distinta para
+        // diferenciarla de un cupo activo.
+        return '<tr'+(esReprogFila?' style="background:var(--bg);opacity:.65"':'')+'><td>'+fmtF(s.fecha)+'</td><td>'+s.hora+'</td><td>'+psH.nombre.replace('Lic.','').trim()+'</td>'+
           '<td>'+terBadge(terH)+'</td>'+
           '<td><span style="color:'+ec+';font-weight:700">'+s.estado+'</span></td>'+
-          '<td><span class="badge bk" style="font-size:10px">'+(s.tipo==='paquete'?'Paq '+s.nroSes+'/'+s.totalPaq:s.tipo)+'</span></td>'+
-          '<td>'+(pago?'<span style="color:var(--green);font-weight:700">S/'+pago.monto+'</span>':s.saldo>0?'Pend. S/'+s.saldo:'—')+'</td>'+
+          '<td><span class="badge bk" style="font-size:10px">'+(esReprogFila?'—':s.tipo==='paquete'?'Paq '+s.nroSes+'/'+s.totalPaq:s.tipo)+'</span></td>'+
+          '<td>'+(pago?'<span style="color:var(--green);font-weight:700">S/'+pago.monto+'</span>':(!esReprogFila&&s.saldo>0)?'Pend. S/'+s.saldo:'—')+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+(s.notas||'')+'</td>'+
           '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s):
             (s.estado==='noasistio'||s.estado==='permiso')?'<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':
