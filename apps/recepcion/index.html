@@ -3423,8 +3423,13 @@ async function renderHistorial(){
   if(cardArch)cardArch.style.display='block';
   const pac2=getPac(pacId);const ps2=getPs(pac2.psId);const ter2=getTer(pac2.terId);
   const sesPac=DB.sesiones.filter(s=>s.pacId===pac2.nombre).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
-  const asist=sesPac.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
-  const noAs=sesPac.filter(s=>s.estado==='noasistio').length;
+  // Si tiene un paquete, las tarjetas de arriba deben reflejar SOLO el
+  // paquete (igual que "Progreso paquete") — mezclar una consulta suelta
+  // ahí confunde el conteo real del paquete.
+  const sesPaqHist=sesPac.filter(s=>s.tipo==='paquete');
+  const sesParaStats=sesPaqHist.length?sesPaqHist:sesPac;
+  const asist=sesParaStats.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
+  const noAs=sesParaStats.filter(s=>s.estado==='noasistio').length;
   const prog=progresoPac(pac2);
   if(!el)return;
   el.innerHTML=
@@ -3440,7 +3445,7 @@ async function renderHistorial(){
     (pac2.motivo?'<div style="font-size:12px;font-style:italic;color:var(--muted);margin-top:4px">"'+pac2.motivo+'"</div>':'')+
     prog+
     '<div class="grid g3" style="margin-top:10px">'+
-    '<div class="stat-card sc-cyan"><div class="stat-value">'+sesPac.length+'</div><div class="stat-label">Total Sesiones</div></div>'+
+    '<div class="stat-card sc-cyan"><div class="stat-value">'+sesParaStats.length+'</div><div class="stat-label">Total Sesiones</div></div>'+
     '<div class="stat-card sc-green"><div class="stat-value">'+asist+'</div><div class="stat-label">Asistidas</div></div>'+
     '<div class="stat-card sc-red"><div class="stat-value">'+noAs+'</div><div class="stat-label">No Asistió</div></div>'+
     '</div>'+
@@ -3459,7 +3464,9 @@ async function renderHistorial(){
           '<td><span class="badge bk" style="font-size:10px">'+(s.tipo==='paquete'?'Paq '+s.nroSes+'/'+s.totalPaq:s.tipo)+'</span></td>'+
           '<td>'+(pago?'<span style="color:var(--green);font-weight:700">S/'+pago.monto+'</span>':s.saldo>0?'Pend. S/'+s.saldo:'—')+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+(s.notas||'')+'</td>'+
-          '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s):'<span style="font-size:11px;color:var(--muted)">—</span>')+'</td></tr>';
+          '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s):
+            (s.estado==='noasistio'||s.estado==='permiso')?'<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':
+            '<span style="font-size:11px;color:var(--muted)">—</span>')+'</td></tr>';
       }).join('')+
       '</tbody></table></div>'
       :'<div style="color:var(--muted);padding:14px;text-align:center">Sin sesiones registradas para este paciente.</div>');
