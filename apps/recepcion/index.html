@@ -1620,8 +1620,11 @@ function renderDiaSel(){
 // de la alerta se calcula de sus paquetes activos (programas_paciente),
 // que sí se mantienen al día con cada pago.
 function _saldoRealPac(pac){
-  return(DB.programas||[]).filter(function(pr){return pr.paciente_nombre===pac.nombre&&pr.estado==='activo';})
+  const saldoPaquetes=(DB.programas||[]).filter(function(pr){return pr.paciente_nombre===pac.nombre&&pr.estado==='activo';})
     .reduce(function(a,pr){return a+(pr.saldo||0);},0);
+  // pacientes.saldo es ahora el saldo corriente de sesiones/consultas
+  // sueltas (fuera de paquete) — puede ser negativo (crédito a favor).
+  return saldoPaquetes+(pac.saldo||0);
 }
 function _paqInfoPac(pac){
   const ses=DB.sesiones.filter(s=>s.pacId===pac.nombre&&s.tipo==='paquete'&&s.totalPaq);
@@ -1851,6 +1854,9 @@ function agOnTipo(){
     if(tipo==='adelanto'){
       if(grpHora)grpHora.style.display='none';
       if(lblFecha)lblFecha.textContent='Fecha del adelanto *';
+      // El adelanto es solo un depósito — no tiene costo propio todavía
+      // (eso se define cuando se agende/registre la sesión real).
+      if(grpCostoSimple)grpCostoSimple.style.display='none';
     }else{
       if(grpHora)grpHora.style.display='block';
       if(lblFecha)lblFecha.textContent='Fecha *';
@@ -1989,9 +1995,22 @@ function agActualizarResumen(){
   } else if(tipo==='paquete'&&!_reprogDe&&paq){
     const saldo=Math.max(0,paq.costoTotal-adelanto);
     txt=paq.nombre+' — S/'+paq.costoTotal+' total | Adelanto: S/'+adelanto+' | Saldo: S/'+saldo;
+  } else if(tipo==='adelanto'){
+    const pacId2=document.getElementById('ag-pac')?.value||'';
+    const pac2=pacId2?getPac(pacId2):null;
+    if(pac2){
+      const saldoPrevio=pac2.saldo||0;
+      const saldoNuevo=saldoPrevio-adelanto;
+      txt=(saldoPrevio>0?'Debe actualmente: S/'+saldoPrevio+' | ':saldoPrevio<0?'Crédito a favor actual: S/'+(-saldoPrevio)+' | ':'')+
+        'Adelanto: S/'+adelanto+' | '+(saldoNuevo>0?'Quedará debiendo: S/'+saldoNuevo:'Quedará con crédito a favor: S/'+(-saldoNuevo));
+    }
   } else if(costo>0){
-    const saldo=Math.max(0,costo-adelanto);
-    txt='Total: S/'+costo+(adelanto>0?' | Adelanto: S/'+adelanto+' | Saldo: S/'+saldo:'');
+    const pacId3=document.getElementById('ag-pac')?.value||'';
+    const pac3=pacId3?getPac(pacId3):null;
+    const saldoPrevio3=pac3?(pac3.saldo||0):0;
+    const saldoFinal=saldoPrevio3+costo-adelanto;
+    txt='Total: S/'+costo+(saldoPrevio3?(saldoPrevio3>0?' | Debía: S/'+saldoPrevio3:' | Tenía crédito: S/'+(-saldoPrevio3)):'')+
+      (adelanto>0?' | Pago hoy: S/'+adelanto:'')+' | '+(saldoFinal>0?'Saldo: S/'+saldoFinal:saldoFinal<0?'Crédito a favor: S/'+(-saldoFinal):'Saldo: S/0');
   }
   if(txt){res.style.display='block';resTxt.textContent=txt;}
   else res.style.display='none';
@@ -2309,9 +2328,6 @@ async function guardarPaqueteFlujo(){
         monto:adelanto,metodo:'Efectivo',concepto:'Adelanto '+(progRow.paquete_nombre||'paquete'),
         paciente_nombre:pac.nombre,sede:DB.sede,registrado_por:DB.usuario||''});
     }
-    if(pac._sb&&pac._sb.id){
-      await sbPatch('pacientes',{saldo:saldo},{id:'eq.'+pac._sb.id}).catch(function(){});
-    }
     closeModal('modalAgendar');
     showToast('✅ Paquete registrado para '+pac.nombre);
     await cargarDesdeSB();
@@ -2426,7 +2442,18 @@ async function guardarSesion(){
       }
     } else {
       const costoTotal=tipo==='paquete'&&paq?paq.costoTotal:costoRaw;
-      saldo=Math.max(0,costoTotal-adelanto);
+      // Fuera de paquete (Sesión, Consulta, Adelanto...) se lleva un saldo
+      // corriente por paciente (pacientes.saldo): un adelanto que sobra
+      // queda como crédito y se aplica solo a la siguiente sesión que se
+      // registre, en vez de volver a pedir el pago completo cada vez.
+      // "Adelanto/Reserva" es solo el depósito — no suma un costo todavía.
+      if(tipo==='paquete'){
+        saldo=Math.max(0,costoTotal-adelanto);
+      }else if(tipo==='adelanto'){
+        saldo=(pac.saldo||0)-adelanto;
+      }else{
+        saldo=(pac.saldo||0)+costoTotal-adelanto;
+      }
       totalPaq=tipo==='paquete'&&paq?paq.nroSes:1;
       let progRow=null,ptRow=null;
       if(tipo==='paquete'&&paq){
@@ -2483,7 +2510,10 @@ async function guardarSesion(){
     // Actualizar paciente en Supabase
     if(pac._sb&&pac._sb.id){
       const upd={psicologa:ps.nombre,terapia:ter.nombre};
-      if(tipo==='paquete'&&paq){upd.paquete=String(paq.sesiones||totalPaq);upd.saldo=saldo;}
+      // El saldo de paquete vive en programas_paciente, no aquí — mezclarlo
+      // pisaría el saldo corriente (crédito/deuda) de sesiones sueltas.
+      if(tipo==='paquete'&&paq){upd.paquete=String(paq.sesiones||totalPaq);}
+      else{upd.saldo=saldo;}
       promesas.push(sbPatch('pacientes',upd,{id:'eq.'+pac._sb.id}));
     }
     if(tipo==='exclusivo'){
@@ -2723,9 +2753,11 @@ async function guardarPago(){
       paciente_nombre:pac.nombre,psicologa_nombre:ps.nombre||'',
       sede:DB.sede,registrado_por:DB.usuario||''});
     const promesas=[];
-    // Reducir saldo del paciente en Supabase
-    if(pac._sb&&pac._sb.id&&(pac.saldo||0)>0){
-      promesas.push(sbPatch('pacientes',{saldo:Math.max(0,(pac.saldo||0)-monto)},{id:'eq.'+pac._sb.id}));
+    // Reducir saldo del paciente en Supabase — puede quedar en negativo
+    // (crédito a favor) si el pago supera lo que debía; ese crédito se
+    // aplica solo cuando registre su siguiente sesión suelta.
+    if(pac._sb&&pac._sb.id){
+      promesas.push(sbPatch('pacientes',{saldo:(pac.saldo||0)-monto},{id:'eq.'+pac._sb.id}));
     }
     // Si tiene un paquete activo (programas_paciente), abonar también ahí
     // — sin esto, un pago suelto (cuota/adelanto en otro día) no se
