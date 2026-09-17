@@ -146,7 +146,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
    la fila de días quede pegada arriba con position:sticky — si el que
    se desplaza es toda la página, el sticky no tiene de qué "colgarse"
    y la fila desaparece al bajar. */
-.agenda-scroll-box{max-height:calc(100vh - 300px);min-height:320px;overflow:auto;border-radius:10px;border:1px solid var(--border)}
+.agenda-scroll-box{flex:1;min-height:200px;overflow:auto;border-radius:10px;border:1px solid var(--border)}
 .agenda-grid{display:grid;min-width:400px}
 .ag-head{background:var(--sidebar);color:#fff;padding:8px 4px;text-align:center;font-size:11px;font-weight:800;
   position:sticky;top:0;z-index:2}
@@ -353,9 +353,9 @@ try{
 </div>
 
 <!-- ═══ AGENDA ═══ -->
-<div id="page-agenda" class="page">
-  <div class="card">
-    <div class="card-header" style="flex-wrap:wrap;gap:8px">
+<div id="page-agenda" class="page" style="height:100%">
+  <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0;margin-bottom:0">
+    <div class="card-header" style="flex-wrap:wrap;gap:8px;flex-shrink:0">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <button class="btn btn-outline btn-sm" onclick="navSem(-1)">◀</button>
         <span id="semTit" style="font-size:13px;font-weight:700;min-width:140px;text-align:center"></span>
@@ -377,7 +377,7 @@ try{
       <div id="gridSemanal" class="agenda-grid"></div>
     </div>
     <!-- DETALLE DÍA seleccionado -->
-    <div style="padding:14px" id="agendaDetalle">
+    <div style="padding:14px;max-height:240px;overflow-y:auto;flex-shrink:0" id="agendaDetalle">
       <div style="color:var(--muted);font-size:13px;text-align:center">Haz clic en una celda para ver las sesiones de ese día</div>
     </div>
   </div>
