@@ -3606,6 +3606,40 @@ function exportarPDF(){
   doc.text('TOTAL: S/'+tot.toLocaleString(),W-M-3,y+13,{align:'right'});
   y+=28;
 
+  // ── POR PSICÓLOGA — cuántos pacientes atendió/asistió cada una, antes
+  // del detalle sesión por sesión ──
+  const porPs={};
+  ses.forEach(function(s){
+    const nombrePs=getPs(s.psId).nombre||'—';
+    if(!porPs[nombrePs])porPs[nombrePs]={total:0,asist:0};
+    porPs[nombrePs].total++;
+    if(s.estado==='asistio')porPs[nombrePs].asist++;
+  });
+  const nombresPs=Object.keys(porPs).sort();
+  if(nombresPs.length){
+    if(y>250){doc.addPage();y=20;}
+    doc.setFillColor(26,31,94);doc.rect(M,y,W-M*2,8,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
+    doc.text('Psicóloga',M+3,y+5.5);
+    doc.text('Sesiones',M+120,y+5.5);
+    doc.text('Asistieron',M+155,y+5.5);
+    y+=9;
+    nombresPs.forEach(function(nombrePs,i){
+      if(y>275){doc.addPage();y=20;}
+      const st=porPs[nombrePs];
+      doc.setFillColor(i%2?248:255,i%2?250:255,i%2?255:255);
+      doc.rect(M,y,W-M*2,7,'F');
+      doc.setDrawColor(220);doc.line(M,y+7,W-M,y+7);
+      doc.setTextColor(50,50,50);doc.setFont('helvetica','normal');doc.setFontSize(8);
+      doc.text(nombrePs.substring(0,50),M+3,y+5);
+      doc.text(String(st.total),M+125,y+5);
+      doc.setTextColor(16,185,129);doc.setFont('helvetica','bold');
+      doc.text(String(st.asist),M+160,y+5);
+      y+=7;
+    });
+    y+=8;
+  }
+
   // ── SESIONES ──
   doc.setFillColor(26,31,94);doc.rect(M,y,W-M*2,8,'F');
   doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
