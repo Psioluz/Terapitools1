@@ -2473,6 +2473,15 @@ async function guardarPaqueteFlujo(){
       const cortes={};
       if(nroCuotas>=2){
         const montoBase=montoCuotaCatalogo||Math.round((costoTotal/nroCuotas)*100)/100;
+        // Si la cuota 1 (el adelanto) no se cobró completa al registrar el
+        // paquete — ej. se agendó la sesión sin monto y el pago se hizo
+        // después, aparte, en Caja/Pagos — se marca como pendiente en la
+        // sesión 1 misma. Si no, un pago genérico hecho más tarde no tiene
+        // ningún saldo>0 en el que aplicarse antes de la cuota 2, y termina
+        // saltando directo a esa cuota (marcándola pagada por error)
+        // mientras la cuota 1 real queda sin rastro y sin alerta.
+        const cuota1Pendiente=Math.max(0,Math.round((montoBase-adelanto)*100)/100);
+        if(cuota1Pendiente>0)cortes[1]=cuota1Pendiente;
         const checkpoints=CUOTAS_CHECKPOINTS[totalSesiones];
         if(checkpoints&&checkpoints.length===nroCuotas){
           for(let j=1;j<checkpoints.length;j++){
