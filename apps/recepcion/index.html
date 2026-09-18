@@ -370,7 +370,10 @@ try{
           <option value="">— Todas las psicólogas —</option>
         </select>
       </div>
-      <button class="btn btn-primary" onclick="abrirModalAgendar()">+ Agendar Sesión</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" onclick="exportarAgendaPDF()">📄 PDF Agenda</button>
+        <button class="btn btn-primary" onclick="abrirModalAgendar()">+ Agendar Sesión</button>
+      </div>
     </div>
     <!-- GRILLA SEMANAL -->
     <div class="agenda-scroll-box">
@@ -3698,6 +3701,170 @@ function exportarPDF(){
   showToast('✅ PDF generado con logo');
   }catch(e){
     console.error('[exportarPDF]',e);
+    showToast('❌ Error al generar el PDF: '+e.message,'error');
+  }
+}
+
+function hexToRgbPDF(hex){
+  hex=(hex||'#999999').replace('#','');
+  if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');
+  const num=parseInt(hex,16)||0x999999;
+  return [(num>>16)&255,(num>>8)&255,num&255];
+}
+
+// ══════════════════════════════════════════════════
+//  EXPORTAR AGENDA SEMANAL A PDF (misma semana y colores que la pantalla)
+// ══════════════════════════════════════════════════
+function exportarAgendaPDF(){
+  let jsPDF=null;
+  if(typeof window.jspdf!=='undefined')jsPDF=window.jspdf.jsPDF;
+  else if(typeof window.jsPDF!=='undefined')jsPDF=window.jsPDF;
+  else if(typeof jspdf!=='undefined')jsPDF=jspdf.jsPDF;
+  if(!jsPDF){
+    showToast('Cargando PDF... espera un momento','info');
+    if(!document.getElementById('jspdf-script')){
+      const sc=document.createElement('script');sc.id='jspdf-script';
+      sc.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      sc.onload=()=>setTimeout(exportarAgendaPDF,500);
+      document.head.appendChild(sc);
+    } else {setTimeout(exportarAgendaPDF,1000);}
+    return;
+  }
+  try{
+    const base=new Date();base.setDate(base.getDate()+_semOff*7);
+    const lunes=getLunes(fechaLima(base));
+    const dias=[];
+    for(let i=0;i<6;i++){
+      const d=new Date(lunes+'T12:00:00');d.setDate(d.getDate()+i);
+      dias.push({f:fechaLima(d),d});
+    }
+    const filtPs=document.getElementById('agPs')?.value||'';
+    const filtPsObj=filtPs?getPs(filtPs):null;
+    const filtPsNom=filtPsObj?filtPsObj.nombre:'';
+
+    // Mismos slots horarios que se calculan para pintar la grilla en pantalla
+    const allSlots=new Set();
+    dias.forEach(function(dia){
+      DB.psicologas.forEach(function(ps){
+        if(filtPs&&ps.id!==filtPs)return;
+        horasPs(ps.id,dia.f).forEach(function(s){allSlots.add(s);});
+      });
+    });
+    ['13:15','14:00','14:45','15:30','16:15','17:00','17:45','18:30','19:15'].forEach(function(s){allSlots.add(s);});
+    DB.sesiones.filter(function(s){return dias.some(function(d){return d.f===s.fecha;})&&(!filtPsNom||s.psId===filtPsNom);})
+      .forEach(function(s){if(s.hora)allSlots.add(s.hora);});
+    const slots=[...allSlots].sort();
+
+    // Psicólogas con sesiones esta semana — solo se usan para la leyenda
+    // cuando no se filtró por una psicóloga puntual.
+    const psicoPresentes=[];
+    if(!filtPs){
+      const vistos={};
+      DB.sesiones.filter(function(s){return dias.some(function(d){return d.f===s.fecha;});}).forEach(function(s){
+        const ps=getPs(s.psId);
+        if(ps&&ps.nombre&&!vistos[ps.nombre]){vistos[ps.nombre]=1;psicoPresentes.push(ps);}
+      });
+      psicoPresentes.sort(function(a,b){return a.nombre.localeCompare(b.nombre);});
+    }
+
+    const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    const W=297,M=10;let y=10;
+    const horaW=16;
+    const dayW=(W-M*2-horaW)/6;
+
+    function dibujarCabeceraCols(yy){
+      doc.setFillColor(26,31,94);
+      doc.rect(M,yy,horaW,10,'F');
+      doc.setTextColor(255,255,255);doc.setFontSize(8);doc.setFont('helvetica','bold');
+      doc.text('HORA',M+horaW/2,yy+6,{align:'center'});
+      dias.forEach(function(dia,i){
+        const dx=M+horaW+i*dayW;
+        doc.rect(dx,yy,dayW,10,'F');
+        doc.text(diaES[dia.d.getDay()]+' '+String(dia.d.getDate()).padStart(2,'0')+'/'+String(dia.d.getMonth()+1).padStart(2,'0'),dx+dayW/2,yy+6,{align:'center'});
+      });
+    }
+
+    // ── HEADER ──
+    doc.setFillColor(26,31,94);doc.rect(M,y,W-M*2,16,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
+    doc.text('AGENDA SEMANAL - '+DB.sede+(filtPsNom?' - Lic. '+filtPsNom:''),M+4,y+7);
+    doc.setFontSize(9);doc.setFont('helvetica','normal');
+    const d0=dias[0].d,d5=dias[5].d;
+    doc.text(d0.getDate()+' '+mesES[d0.getMonth()]+' - '+d5.getDate()+' '+mesES[d5.getMonth()]+' de '+d5.getFullYear(),M+4,y+13);
+    y+=20;
+
+    // ── LEYENDA — solo si se exporta "Todas las psicólogas" ──
+    if(!filtPs&&psicoPresentes.length){
+      doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(60,60,60);
+      doc.text('Leyenda:',M,y+3.3);
+      let lx=M+18;
+      psicoPresentes.forEach(function(ps){
+        const rgb=hexToRgbPDF(colorPsAgenda(ps));
+        const nombreCorto='Lic. '+ps.nombre;
+        doc.setFont('helvetica','normal');doc.setFontSize(8);
+        const txtW=doc.getTextWidth(nombreCorto);
+        if(lx+txtW+14>W-M){lx=M+18;y+=6;}
+        doc.setFillColor(...rgb);doc.roundedRect(lx,y-0.7,5,4,1,1,'F');
+        doc.setTextColor(50,50,50);
+        doc.text(nombreCorto,lx+7,y+2.6);
+        lx+=txtW+16;
+      });
+      y+=9;
+    }
+
+    // ── CABECERA DE COLUMNAS ──
+    dibujarCabeceraCols(y);
+    y+=10;
+
+    // ── FILAS POR HORA ──
+    slots.forEach(function(slot){
+      let maxSes=1;
+      dias.forEach(function(dia){
+        let n=DB.sesiones.filter(function(s){return s.fecha===dia.f&&s.hora===slot&&(!filtPsNom||s.psId===filtPsNom);}).length;
+        if(n>maxSes)maxSes=n;
+      });
+      const rowH=Math.max(8,maxSes*7);
+      if(y+rowH>200){
+        doc.addPage('a4','landscape');y=10;
+        dibujarCabeceraCols(y);
+        y+=10;
+      }
+      doc.setFillColor(248,248,250);doc.rect(M,y,horaW,rowH,'F');
+      doc.setDrawColor(220);doc.rect(M,y,horaW,rowH,'S');
+      doc.setTextColor(60,60,60);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+      doc.text(slot,M+horaW/2,y+rowH/2+1,{align:'center'});
+      dias.forEach(function(dia,i){
+        const dx=M+horaW+i*dayW;
+        let sesList=DB.sesiones.filter(function(s){return s.fecha===dia.f&&s.hora===slot;});
+        if(filtPsNom)sesList=sesList.filter(function(s){return s.psId===filtPsNom;});
+        doc.setDrawColor(220);doc.rect(dx,y,dayW,rowH,'S');
+        sesList.forEach(function(s,si){
+          const pac=getPac(s.pacId),ps=getPs(s.psId),ter=getTer(s.terId);
+          const esReprog=s.estado==='reprogramado';
+          const rgb=hexToRgbPDF(esReprog?'#94a3b8':colorPsAgenda(ps));
+          const cy=y+si*7;
+          doc.setFillColor(...rgb);doc.rect(dx+0.4,cy+0.4,dayW-0.8,6.2,'F');
+          doc.setTextColor(0,0,0);doc.setFont('helvetica','bold');doc.setFontSize(6.6);
+          doc.text((pac.nombre||'').substring(0,20),dx+1.5,cy+3);
+          doc.setFont('helvetica','normal');doc.setFontSize(5.8);
+          const esPaq=s.tipo==='paquete'&&s.totalPaq;
+          const subTxt=abrevTerapia(ter.nombre)+(esPaq?' '+s.nroSes+'/'+s.totalPaq:'');
+          doc.text(subTxt.substring(0,26),dx+1.5,cy+5.6);
+        });
+      });
+      y+=rowH;
+    });
+
+    if(!slots.length){
+      doc.setTextColor(100,100,100);doc.setFontSize(10);
+      doc.text('Sin horarios/sesiones para esta semana.',W/2,y+10,{align:'center'});
+    }
+
+    const nombreArchivo='Agenda_Semanal_'+DB.sede+(filtPsNom?'_'+filtPsNom.replace(/\s+/g,'_'):'')+'_'+dias[0].f+'.pdf';
+    doc.save(nombreArchivo);
+    showToast('✅ PDF de agenda generado');
+  }catch(e){
+    console.error('[exportarAgendaPDF]',e);
     showToast('❌ Error al generar el PDF: '+e.message,'error');
   }
 }
