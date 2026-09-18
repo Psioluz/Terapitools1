@@ -1099,6 +1099,13 @@ let _tickTimer=null;
 let _agFechaSel='';
 let _paqFiltro='';
 
+// Texto en mayúscula inicial para el estado de una sesión — ya no existe
+// "tardanza" como estado propio (era un cambio automático al marcar
+// "Asistió" después de la hora programada, y terminaba apareciendo en
+// casi todas las sesiones marcadas realmente a tiempo). Solo quedan
+// estos 5 estados.
+const ESTADO_LABELS={programado:'Programado',asistio:'Asistió',noasistio:'No asistió',permiso:'Permiso',reprogramado:'Reprogramado'};
+function estadoLabel(estado){return ESTADO_LABELS[estado]||(estado?estado.charAt(0).toUpperCase()+estado.slice(1):'');}
 const diaES=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const diaFull=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 const mesES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -1585,7 +1592,7 @@ function mostrarResumenCelda(sesList,fecha,hora){
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">'+
         '<span class="ses-hora">'+s.hora+'</span>'+
         '<span class="ses-nombre">'+pac.nombre+'</span>'+
-        '<span class="badge '+(s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bb')+'" style="font-size:10px">'+s.estado+'</span>'+
+        '<span class="badge '+(s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bb')+'" style="font-size:10px">'+estadoLabel(s.estado)+'</span>'+
         '</div>'+
         '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">'+ps.nombre+
         ' · '+terBadge(ter)+
@@ -1634,7 +1641,7 @@ function renderDiaSel(){
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">'+
         '<span class="ses-hora">'+s.hora+'</span>'+
         '<span class="ses-nombre">'+pac.nombre+'</span>'+
-        '<span class="badge '+(s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bb')+'" style="font-size:10px">'+s.estado+'</span>'+
+        '<span class="badge '+(s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bb')+'" style="font-size:10px">'+estadoLabel(s.estado)+'</span>'+
         '</div>'+
         '<div style="font-size:12px;color:var(--muted)">'+ps.nombre+' · '+terBadge(ter)+
         (s.tipo==='paquete'?' · Paquete '+s.nroSes+'/'+s.totalPaq:'')+'</div>'+
@@ -3518,7 +3525,7 @@ function generarReporte(){
           terBadge(ter,9)+
           (s.tipo==='paquete'?'<span class="badge bb" style="font-size:9px">Paq '+s.nroSes+'/'+s.totalPaq+'</span>':'')+
           '</div></div>'+
-          '<span class="badge '+bc+'" style="font-size:10px">'+s.estado+'</span>'+
+          '<span class="badge '+bc+'" style="font-size:10px">'+estadoLabel(s.estado)+'</span>'+
           (pago?'<span class="badge bg" style="font-size:10px">S/'+pago.monto+' '+pago.metodo+'</span>':
            (s.saldo>0?'<span class="badge bo" style="font-size:10px">Pend S/'+s.saldo+'</span>':''))+
           '</div>';
@@ -3566,7 +3573,7 @@ function exportarPDF(){
   doc.setFontSize(14);doc.setFont('helvetica','bold');
   doc.text('CENTRO TERAPÉUTICO INTEGRAL PSICOLUZ',47+2,y+9);
   doc.setFontSize(10);doc.setFont('helvetica','normal');
-  doc.text('REPORTE DIARIO — Sede: '+DB.sede+' — '+fmtF(fecha),47+2,y+16);
+  doc.text('REPORTE DIARIO - Sede: '+DB.sede+' - '+fmtF(fecha),47+2,y+16);
   doc.text('Elaborado por: '+DB.usuario,47+2,y+22);
   doc.text('Generado: '+new Date().toLocaleString('es-PE'),47+2,y+28);
   y+=38;
@@ -3590,7 +3597,7 @@ function exportarPDF(){
   doc.setFillColor(240,253,244);doc.roundedRect(M,y,W-M*2,22,2,2,'F');
   doc.setDrawColor(16,185,129);doc.roundedRect(M,y,W-M*2,22,2,2,'S');
   doc.setTextColor(22,101,52);doc.setFontSize(10);doc.setFont('helvetica','bold');
-  doc.text('💰 CAJA DEL DÍA',M+3,y+6);
+  doc.text('CAJA DEL DÍA',M+3,y+6);
   doc.setFontSize(9);doc.setFont('helvetica','normal');
   doc.text('Efectivo: S/'+ef.toLocaleString(),M+3,y+13);
   doc.text('Yape/Plin: S/'+yp.toLocaleString(),M+45,y+13);
@@ -3619,9 +3626,9 @@ function exportarPDF(){
     doc.setTextColor(50,50,50);doc.setFont('helvetica','normal');doc.setFontSize(8);
     doc.text(s.hora,M+2,y+5.5);
     doc.text((pac.nombre||'').substring(0,20),M+18,y+5.5);
-    doc.text((ps.nombre||'').replace('Lic.','').trim().substring(0,16),M+72,y+5.5);
+    doc.text((ps.nombre||'').trim().substring(0,20),M+72,y+5.5);
     doc.text((ter.nombre||'').substring(0,16),M+112,y+5.5);
-    doc.setTextColor(...ec);doc.text(s.estado,M+146,y+5.5);
+    doc.setTextColor(...ec);doc.text(estadoLabel(s.estado),M+146,y+5.5);
     doc.setTextColor(...(pg?[16,185,129]:[150,150,150]));
     doc.text(pg?'S/'+pg.monto:'Pend.',M+168,y+5.5);
     y+=8;
@@ -3640,7 +3647,7 @@ function exportarPDF(){
   doc.setTextColor(100);doc.setFontSize(8);
   doc.text('Firma: '+DB.usuario,M,y+5);
   doc.text('Sede: '+DB.sede,M,y+10);
-  doc.text('Psicoluz © '+new Date().getFullYear()+' — Documento confidencial',W/2,y+10,{align:'center'});
+  doc.text('Psicoluz © '+new Date().getFullYear()+' - Documento confidencial',W/2,y+10,{align:'center'});
 
   // Guardar PDF globalmente para enviar por WA
   window._lastPDFDoc=doc;
@@ -3928,7 +3935,7 @@ async function renderHistorial(){
         // diferenciarla de un cupo activo.
         return '<tr'+(esReprogFila?' style="background:var(--bg);opacity:.65"':'')+'><td>'+fmtF(s.fecha)+'</td><td>'+s.hora+'</td><td>'+psH.nombre.replace('Lic.','').trim()+'</td>'+
           '<td>'+terBadge(terH)+'</td>'+
-          '<td><span style="color:'+ec+';font-weight:700">'+s.estado+'</span></td>'+
+          '<td><span style="color:'+ec+';font-weight:700">'+estadoLabel(s.estado)+'</span></td>'+
           '<td><span class="badge bk" style="font-size:10px">'+(esReprogFila?'—':s.tipo==='paquete'?'Paq '+s.nroSes+'/'+s.totalPaq:s.tipo)+'</span></td>'+
           '<td style="white-space:nowrap">'+costoCelda+'</td>'+
           '<td style="white-space:nowrap">'+pagoCelda+'</td>'+
@@ -4286,7 +4293,7 @@ function botonesAsistenciaHTML(s){
     ' <button class="btn btn-sm" style="background:#fef3c7;color:#92400e;font-weight:800" data-sid="'+s.id+'" data-est="permiso" onclick="btnMarcarAs(this)">🟡 Permiso</button>';
 }
 function badgeEstadoAsistencia(estado){
-  var map={asistio:['bg','✅ Asistió'],tardanza:['bo','🕐 Tardanza'],noasistio:['br','❌ No asistió'],permiso:['bb','🟡 Permiso']};
+  var map={asistio:['bg','✅ Asistió'],noasistio:['br','❌ No asistió'],permiso:['bb','🟡 Permiso'],reprogramado:['bk','🔁 Reprogramado']};
   var m=map[estado];
   return m?'<span class="badge '+m[0]+'" style="font-size:10px">'+m[1]+'</span>':'';
 }
@@ -4294,35 +4301,23 @@ async function marcarAs(sesRef,nuevoEst){
   // acepta id (UUID) o índice
   var s=DB.sesiones.find(function(x){return x.id===sesRef;})||DB.sesiones[sesRef];
   if(!s){showToast('Sesión no encontrada','error');return;}
-  // Si se marca "asistió", decidir automáticamente asistio vs tardanza
-  // comparando la hora real contra la hora de inicio programada.
-  if(nuevoEst==='asistio'&&s.fecha&&s.hora){
-    var hNorm=normHoraRec(s.hora);
-    var progMs=new Date(s.fecha+'T'+hNorm+':00').getTime();
-    // Respaldo por si el navegador no puede parsear fecha+hora como Date
-    // (formato inesperado) — comparar hora contra hora en vez de descartar
-    // silenciosamente el chequeo de tardanza.
-    if(isNaN(progMs)){
-      var hoyStr=today();
-      if(s.fecha===hoyStr){
-        var ahoraHM=horaLima();
-        if(ahoraHM>hNorm)nuevoEst='tardanza';
-      }
-    }else if(Date.now()>progMs){
-      nuevoEst='tardanza';
-    }
-  }
+  // Ya no existe "tardanza" como estado — antes se sustituía "asistió" por
+  // "tardanza" automáticamente si se marcaba después de la hora programada,
+  // pero en la práctica la asistencia casi nunca se marca al segundo exacto,
+  // así que terminaba apareciendo en casi todas las sesiones aunque el
+  // paciente sí hubiera llegado a tiempo. "Asistió" ahora siempre queda
+  // como "Asistió".
   s.estado=nuevoEst;
   if(s.tipo==='paquete'){
     var pac=DB.pacientes.find(function(p){return p.id===s.pacId||p.nombre===s.pacId;});
-    if(pac)pac.sesUsadas=DB.sesiones.filter(function(x){return x.pacId===s.pacId&&(x.estado==='asistio'||x.estado==='tardanza'||x.estado==='noasistio'||x.estado==='permiso');}).length;
+    if(pac)pac.sesUsadas=DB.sesiones.filter(function(x){return x.pacId===s.pacId&&(x.estado==='asistio'||x.estado==='noasistio'||x.estado==='permiso');}).length;
   }
   showToast('⏳ Guardando en Supabase...');
   var sbId=(s._sb&&s._sb.id)||((typeof s.id==='string'&&s.id.length>20)?s.id:null);
   if(sbId){
     try{
       await sbPatch('sesiones',{estado:nuevoEst},{id:'eq.'+sbId});
-      var msgs={asistio:'✅ '+(s.pacNom||'Paciente')+' asistió',tardanza:'🕐 '+(s.pacNom||'Paciente')+' — llegó tarde (tardanza)',
+      var msgs={asistio:'✅ '+(s.pacNom||'Paciente')+' asistió',
         noasistio:'⚠️ No asistió — sesión contabilizada',permiso:'🟡 '+(s.pacNom||'Paciente')+' — con permiso'};
       showToast(msgs[nuevoEst]||'✅ Actualizado');
     }catch(e){showToast('Error al guardar: '+e.message,'error');console.error('[marcarAs]',e);}
