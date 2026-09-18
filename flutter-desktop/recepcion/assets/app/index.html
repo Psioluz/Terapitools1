@@ -2447,7 +2447,7 @@ async function guardarSesion(){
       filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
         psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:tipo,
         nro_en_paquete:_reprogDe.nroSes||1,total_paquete:totalPaq,costo_total:_reprogDe.costoTotal||0,
-        adelanto:0,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||''};
+        adelanto:0,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
       if(progIdOrig){filaSesion.programa_id=progIdOrig;if(ptIdOrig)filaSesion.programa_terapia_id=ptIdOrig;}
       await sbPost('sesiones',filaSesion);
     } else if((progInfo=(tipo==='paquete')?await obtenerProgramaActivo(pac.nombre,ter.nombre,ps.nombre):null)){
@@ -2466,7 +2466,7 @@ async function guardarSesion(){
       filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
         psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:tipo,
         nro_en_paquete:nroEnPaq,total_paquete:totalPaq,costo_total:costoTotalP,
-        adelanto:adelantoAcum,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',
+        adelanto:adelantoAcum,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||'',
         programa_id:prog.id,programa_terapia_id:pt.id};
       await sbPost('sesiones',filaSesion);
       const progTerminado=nroEnPaq>=totalPaq;
@@ -2491,7 +2491,7 @@ async function guardarSesion(){
         filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
           psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:tipo,
           nro_en_paquete:1,total_paquete:totalPaq,costo_total:prog.costo_total,
-          adelanto:adelantoAcum,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',
+          adelanto:adelantoAcum,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||'',
           programa_id:prog.id,programa_terapia_id:ptId};
         await sbPost('sesiones',filaSesion);
       }
@@ -2533,7 +2533,7 @@ async function guardarSesion(){
         filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
           psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:tipo,
           nro_en_paquete:tipo==='paquete'?1:0,total_paquete:totalPaq,costo_total:costoTotal,
-          adelanto:adelanto,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||''};
+          adelanto:adelanto,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
         if(progRow&&progRow.id){filaSesion.programa_id=progRow.id;if(ptRow&&ptRow.id)filaSesion.programa_terapia_id=ptRow.id;}
         await sbPost('sesiones',filaSesion);
       }
@@ -3565,9 +3565,23 @@ async function renderHistorial(){
       '<div style="overflow-x:auto"><table><thead><tr><th>Fecha</th><th>Hora</th><th>Psicóloga</th><th>Terapia</th><th>Estado</th><th>Tipo</th><th>Costo</th><th>Notas</th><th>Acción</th></tr></thead><tbody>'+
       sesPac.map(s=>{
         const psH=getPs(s.psId);const terH=getTer(s.terId);
-        const pago=DB.pagos.find(p=>p.pacId===pac2.nombre&&p.fecha===s.fecha&&p.hora===s.hora);
         const esReprogFila=s.estado==='reprogramado';
         const ec=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':esReprogFila?'var(--muted)':'var(--orange)';
+        // El costo/saldo se toma de la propia sesión (lo que ya mantiene al
+        // día toda la lógica de paquetes/cuotas y saldo corriente), no de
+        // buscar un pago con la misma fecha+hora exacta de la sesión — casi
+        // nunca coincidía (un adelanto se registra con la hora en que se
+        // recibe, no la hora de la sesión) y por eso Costo salía casi
+        // siempre vacío aunque el paciente sí hubiera pagado.
+        let costoCelda;
+        if(esReprogFila){costoCelda='—';}
+        else if(s.tipo==='paquete'){
+          costoCelda=s.saldo>0?'<span style="color:var(--orange);font-weight:700">⚠️ Cuota S/'+s.saldo+'</span>':
+            (s.costoTotal>0?'<span style="color:var(--green);font-weight:700">✅ Al día</span>':'—');
+        }else if(!s.costoTotal){costoCelda='—';}
+        else{
+          costoCelda='S/'+s.costoTotal+(s.saldo>0?' <span style="color:var(--orange);font-weight:700">⚠️ Pend. S/'+s.saldo+'</span>':' <span style="color:var(--green)">✅</span>');
+        }
         // Reprogramada: queda solo como registro de que ese cupo se movió
         // — no cuenta como una sesión más, así que no muestra el
         // contador "Paq X/Y", y la fila se pinta distinta para
@@ -3576,7 +3590,7 @@ async function renderHistorial(){
           '<td>'+terBadge(terH)+'</td>'+
           '<td><span style="color:'+ec+';font-weight:700">'+s.estado+'</span></td>'+
           '<td><span class="badge bk" style="font-size:10px">'+(esReprogFila?'—':s.tipo==='paquete'?'Paq '+s.nroSes+'/'+s.totalPaq:s.tipo)+'</span></td>'+
-          '<td>'+(pago?'<span style="color:var(--green);font-weight:700">S/'+pago.monto+'</span>':(!esReprogFila&&s.saldo>0)?'Pend. S/'+s.saldo:'—')+'</td>'+
+          '<td style="white-space:nowrap">'+costoCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+(s.notas||'')+'</td>'+
           '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s):
             (s.estado==='noasistio'||s.estado==='permiso')?'<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':
@@ -3873,7 +3887,7 @@ async function cargarDesdeSB(silencioso) {
       psId:p.psicologa,terId:p.terapia,terapias:p.terapias||p.terapia||'',apoderado:p.apoderado||'',
       colegio:p.colegio||'',grado:p.grado||'',
       paq:parseInt(p.paquete)||12,saldo:p.saldo||0,estado:p.estado||'activo',_sb:p};});
-    DB.pagos=(res[2]||[]).map(function(p){return{id:p.id,fecha:p.fecha,pacId:p.paciente_nombre,
+    DB.pagos=(res[2]||[]).map(function(p){return{id:p.id,fecha:p.fecha,hora:p.hora||'',pacId:p.paciente_nombre,
       concepto:p.concepto||'',monto:p.monto||0,metodo:p.metodo||'efectivo',_sb:p};});
     DB.psicologas=(res[3]||[]).map(function(p){return{id:p.id||p.nombre,nombre:p.nombre,
       cpsp:p.cpsp||'',cop:p.cpsp||'',esp:p.especialidad||'',tel:p.telefono||'',nac:p.fecha_nac||'',
