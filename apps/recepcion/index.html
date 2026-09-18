@@ -147,19 +147,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
    se desplaza es toda la página, el sticky no tiene de qué "colgarse"
    y la fila desaparece al bajar. */
 .agenda-scroll-box{flex:1;min-height:200px;overflow:auto;border-radius:10px;border:1px solid var(--border)}
-.agenda-grid{display:grid;min-width:400px}
-.ag-head{background:var(--sidebar);color:#fff;padding:8px 4px;text-align:center;font-size:11px;font-weight:800;
+.agenda-grid{display:grid;min-width:400px;font-family:'Comic Sans MS','Comic Sans',cursive,sans-serif}
+.ag-head{background:var(--sidebar);color:#fff;padding:8px 4px;text-align:center;font-size:12.5px;font-weight:800;
   position:sticky;top:0;z-index:2}
 .ag-head.hoy{background:var(--accent)}
 .ag-hora{background:#f8faff;border-top:1px solid var(--border);display:flex;align-items:center;
-  justify-content:center;font-size:10px;font-weight:700;color:var(--muted);min-height:46px;padding:0 4px}
+  justify-content:center;font-size:11.5px;font-weight:700;color:var(--muted);min-height:46px;padding:0 4px}
 .ag-celda{border-top:1px solid var(--border);border-left:1px solid var(--border);min-height:54px;
   padding:2px;cursor:pointer;transition:background .15s}
 .ag-celda:hover{background:#f0f4ff}
 .ag-chip{border-radius:4px;padding:3px 5px;font-size:10.5px;font-weight:700;color:#fff;
-  font-family:'Comic Sans MS','Comic Sans',cursive,sans-serif;
   margin-bottom:2px;overflow:hidden;display:block}
-.ag-mas{color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100%;font-size:16px}
+.ag-mas{color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100%;font-size:18px}
 
 /* ── SES CARD ── */
 .ses-card{background:var(--card);border-radius:12px;border:1px solid var(--border);
@@ -3731,6 +3730,33 @@ async function renderHistorial(){
     const pid=s._sb&&s._sb.programa_id;
     if(pid&&!primeraSesionPorPrograma[pid])primeraSesionPorPrograma[pid]=s.id;
   });
+  // Pagos que no quedan ligados a NINGUNA sesión de la tabla (ni por
+  // sesion_id, ni por ser el pago inicial de un paquete cuya primera
+  // sesión ya se muestra aquí) — ej. un "Adelanto/Reserva" suelto, sin
+  // paquete y sin sesión agendada todavía. Antes esto simplemente no
+  // aparecía en ningún lado del Historial; ahora se agrega como su
+  // propia fila de "💰 Pago registrado" en la fecha en que se hizo.
+  const idsSesionMostradas={};
+  sesPac.forEach(function(s){idsSesionMostradas[s.id]=true;});
+  const pagosHuerfanos=(DB.pagos||[]).filter(function(p){
+    if(p.pacId!==pac2.nombre)return false;
+    const sid=p._sb&&p._sb.sesion_id;
+    if(sid)return!idsSesionMostradas[sid];
+    const pid=p._sb&&p._sb.programa_id;
+    if(pid)return!primeraSesionPorPrograma[pid];
+    return true;
+  });
+  const gruposHuerfanos={};
+  pagosHuerfanos.forEach(function(p){
+    const k=p.fecha+'|'+(p.concepto||'');
+    if(!gruposHuerfanos[k])gruposHuerfanos[k]={fecha:p.fecha,concepto:p.concepto||'Pago',pagos:[]};
+    gruposHuerfanos[k].pagos.push(p);
+  });
+  const filasHuerfanas=Object.keys(gruposHuerfanos).map(function(k){
+    const g=gruposHuerfanos[k];
+    return {id:'pago-'+k,fecha:g.fecha,hora:'',esPagoSuelto:true,concepto:g.concepto,pagosGrupo:g.pagos};
+  });
+  const filasTabla=sesPac.concat(filasHuerfanas).sort(function(a,b){return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
   // "Solo el último paquete": con el tiempo la lista de un paciente crece
   // mucho (varios paquetes ya terminados) — este filtro deja ver solo el
   // paquete más reciente en vez de todo el historial acumulado.
@@ -3776,9 +3802,21 @@ async function renderHistorial(){
     (_saldoRealPac(pac2)>0?'<div class="alert al-warn" style="margin-top:8px">⚠️ Saldo pendiente: S/'+_saldoRealPac(pac2)+'</div>':'')+
     '</div>'+
     '<div style="font-size:13px;font-weight:800;color:var(--muted);margin-bottom:8px">📋 Registro de Sesiones</div>'+
-    (sesPac.length?
+    (filasTabla.length?
       '<div style="overflow-x:auto"><table><thead><tr><th>Fecha</th><th>Hora</th><th>Psicóloga</th><th>Terapia</th><th>Estado</th><th>Tipo</th><th>Costo</th><th>Pago realizado</th><th>Notas</th><th>Acción</th></tr></thead><tbody>'+
-      sesPac.map(s=>{
+      filasTabla.map(s=>{
+        if(s.esPagoSuelto){
+          const total=s.pagosGrupo.reduce(function(a,p){return a+(p.monto||0);},0);
+          const metodosTxt=s.pagosGrupo.map(function(p){return '<div>'+p.metodo+' S/'+p.monto+'</div>';}).join('');
+          const notasPagoSuelto=s.pagosGrupo.map(function(p){return p.notas||'';}).filter(Boolean).join(' · ');
+          return '<tr style="background:#f0fdf4"><td>'+fmtF(s.fecha)+'</td><td>—</td><td>—</td><td>—</td>'+
+            '<td><span style="color:var(--green);font-weight:700">Pago registrado</span></td>'+
+            '<td><span class="badge bk" style="font-size:10px">'+s.concepto+'</span></td>'+
+            '<td style="white-space:nowrap"><span style="color:var(--green);font-weight:700">S/'+total+'</span></td>'+
+            '<td style="white-space:nowrap">'+metodosTxt+'</td>'+
+            '<td style="font-size:11px;color:var(--muted)">'+(notasPagoSuelto||'')+'</td>'+
+            '<td><span style="font-size:11px;color:var(--muted)">—</span></td></tr>';
+        }
         const psH=getPs(s.psId);const terH=getTer(s.terId);
         const esReprogFila=s.estado==='reprogramado';
         const ec=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':esReprogFila?'var(--muted)':'var(--orange)';
