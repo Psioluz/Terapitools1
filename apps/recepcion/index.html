@@ -3708,30 +3708,21 @@ async function renderHistorial(){
   if(cardArch)cardArch.style.display='block';
   const pac2=getPac(pacId);const ps2=getPs(pac2.psId);const ter2=getTer(pac2.terId);
   let sesPac=DB.sesiones.filter(s=>s.pacId===pac2.nombre).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
-  // Un pago puede registrarse ANTES de que exista ninguna sesión (ej. modo
-  // "Solo registrar el paquete y el pago") — ese pago no tiene sesion_id
-  // pero sí programa_id, así que se muestra en la sesión más antigua de
-  // ese mismo paquete en vez de quedar sin mostrarse en ningún lado.
-  const primeraSesionPorPrograma={};
-  sesPac.forEach(function(s){
-    const pid=s._sb&&s._sb.programa_id;
-    if(pid&&!primeraSesionPorPrograma[pid])primeraSesionPorPrograma[pid]=s.id;
-  });
-  // Pagos que no quedan ligados a NINGUNA sesión de la tabla (ni por
-  // sesion_id, ni por ser el pago inicial de un paquete cuya primera
-  // sesión ya se muestra aquí) — ej. un "Adelanto/Reserva" suelto, sin
-  // paquete y sin sesión agendada todavía. Antes esto simplemente no
-  // aparecía en ningún lado del Historial; ahora se agrega como su
-  // propia fila de "💰 Pago registrado" en la fecha en que se hizo.
+  // Un pago se muestra DENTRO de una fila de sesión únicamente cuando está
+  // atado a ESA sesión exacta (sesion_id) — nunca por "es del mismo
+  // paquete" ni por fecha, porque eso terminaba mostrando el pago en la
+  // fecha de la sesión en vez de la fecha real en que se cobró (ej. un
+  // adelanto pagado el 29/08 para un paquete cuya primera sesión fue
+  // recién el 03/09 se veía como si el pago hubiera sido el 03/09).
+  // Cualquier pago sin sesion_id (adelantos/"solo pago" sin sesión
+  // todavía, pagos genéricos, etc.) aparece como su propia fila de
+  // "💰 Pago registrado" en SU fecha real.
   const idsSesionMostradas={};
   sesPac.forEach(function(s){idsSesionMostradas[s.id]=true;});
   const pagosHuerfanos=(DB.pagos||[]).filter(function(p){
     if(p.pacId!==pac2.nombre)return false;
     const sid=p._sb&&p._sb.sesion_id;
-    if(sid)return!idsSesionMostradas[sid];
-    const pid=p._sb&&p._sb.programa_id;
-    if(pid)return!primeraSesionPorPrograma[pid];
-    return true;
+    return sid?!idsSesionMostradas[sid]:true;
   });
   const gruposHuerfanos={};
   pagosHuerfanos.forEach(function(p){
@@ -3823,18 +3814,14 @@ async function renderHistorial(){
           costoCelda='S/'+s.costoTotal+(s.saldo>0?' <span style="color:var(--orange);font-weight:700">⚠️ Pend. S/'+s.saldo+'</span>':' <span style="color:var(--green)">✅</span>');
         }
         // El pago REAL (monto y método con el que se cobró) se ata a esta
-        // sesión por su "sesion_id" (columna nueva en "pagos", exacta —
-        // cada pago se guarda ya ligado a la sesión/cuota que lo generó).
-        // Pagos antiguos, de antes de tener esa columna, no traen
-        // sesion_id — para esos se cae al viejo criterio de "misma fecha"
-        // SOLO cuando el pago tampoco tiene sesion_id (si lo tiene, es de
-        // otra sesión y no debe mostrarse aquí aunque coincida la fecha).
+        // sesión SOLO por su "sesion_id" exacto — nunca por "es del mismo
+        // paquete" ni por coincidir la fecha, porque eso mostraba el pago
+        // en la fecha de la sesión en vez de la fecha real en que se
+        // cobró. Un pago sin sesion_id aparece en su propia fila más abajo
+        // (ver pagosHuerfanos), con su fecha real.
         const pagosDia=esReprogFila?[]:(DB.pagos||[]).filter(function(p){
           const pSesId=p._sb&&p._sb.sesion_id;
-          if(pSesId)return s._sb&&pSesId===s._sb.id;
-          const pProgId=p._sb&&p._sb.programa_id;
-          if(pProgId)return s._sb&&primeraSesionPorPrograma[pProgId]===s.id;
-          return p.pacId===s.pacId&&p.fecha===s.fecha;
+          return pSesId&&s._sb&&pSesId===s._sb.id;
         });
         // Un pago puede haberse dividido en varios métodos (parte efectivo,
         // parte Yape, etc.) — se listan uno por línea, con su propio monto.
