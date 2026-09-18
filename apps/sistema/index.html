@@ -1337,7 +1337,7 @@ async function exportarBackup(){
   const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;a.download='psicoluz-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  a.href=url;a.download='psicoluz-backup-'+new Date(Date.now()-5*3600000).toISOString().slice(0,10)+'.json';
   document.body.appendChild(a);a.click();a.remove();
   URL.revokeObjectURL(url);
   status.textContent='✅ Backup descargado ('+new Date().toLocaleTimeString('es-PE')+')';

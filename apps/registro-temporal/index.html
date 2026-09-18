@@ -409,6 +409,12 @@ const SUPABASE_URL = 'https://uorxwmgaekeeuxeiikkw.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// Perú usa GMT-5 todo el año (sin horario de verano) — se resta 5h al
+// instante UTC y se leen los componentes UTC del resultado, para que la
+// fecha no dependa de la zona horaria del equipo/navegador ni quede
+// adelantada un día por Date#toISOString (que da la fecha en UTC).
+function fechaLima(d){const l=new Date((d instanceof Date?d:new Date()).getTime()-5*3600000);return l.getUTCFullYear()+'-'+String(l.getUTCMonth()+1).padStart(2,'0')+'-'+String(l.getUTCDate()).padStart(2,'0');}
+
 let SESIONES = [];
 let PSICOLOGAS = [];
 let TERAPIAS = [];
@@ -839,7 +845,7 @@ function openSessionForm(){
   document.getElementById('s-nuevo-programa-wrap').innerHTML = '';
   document.getElementById('s-nuevo-programa-wrap').style.display = 'none';
   document.getElementById('s-info-programa').style.display = 'none';
-  document.getElementById('s-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('s-fecha').value = fechaLima();
   document.getElementById('s-costo-suelto').value = '0';
   document.getElementById('s-saldo-display').textContent = 'S/ 0.00';
   const sede = selectedSede || SEDES[0];
@@ -1021,7 +1027,7 @@ async function saveNuevoPrograma(evt){
   const registradoPor = document.getElementById('np-registrado-por').value.trim();
   btn.disabled = true; btn.textContent = 'Guardando…';
   try{
-    await crearProgramasYPrimeraSesion(programas, npPacienteNombre, selectedSede, registradoPor, new Date().toISOString().slice(0,10));
+    await crearProgramasYPrimeraSesion(programas, npPacienteNombre, selectedSede, registradoPor, fechaLima());
     closeNuevoProgramaModal();
     showStatus('Programa agregado correctamente.', 'ok');
     await loadSesiones();
@@ -1115,7 +1121,7 @@ async function saveReprog(evt){
   const por = document.getElementById('r-por').value.trim();
   try{
     const {error: errRep} = await sb.from('reprogramaciones').insert({
-      fecha_reprog: new Date().toISOString().slice(0,10),
+      fecha_reprog: fechaLima(),
       paciente_nombre: s.paciente_nombre, psicologa_nombre: s.psicologa,
       fecha_original: s.fecha, hora_original: s.hora,
       fecha_nueva: nuevaFecha, hora_nueva: nuevaHora,
@@ -1158,7 +1164,7 @@ async function savePatient(evt){
 
   const sede = selectedSede;
   const registradoPor = document.getElementById('pf-registrado-por').value.trim();
-  const hoy = new Date().toISOString().slice(0,10);
+  const hoy = fechaLima();
 
   const todasTerapias = [];
   const todosPaquetes = [];
@@ -1300,7 +1306,7 @@ async function saveEditPatient(evt){
     if(error) throw error;
 
     if(nuevosProgramas.length > 0){
-      await crearProgramasYPrimeraSesion(nuevosProgramas, payload.nombre, selectedSede, registradoPor, new Date().toISOString().slice(0,10));
+      await crearProgramasYPrimeraSesion(nuevosProgramas, payload.nombre, selectedSede, registradoPor, fechaLima());
       await loadSesiones();
     }
 
