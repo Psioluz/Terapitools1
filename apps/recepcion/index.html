@@ -3831,7 +3831,7 @@ function exportarPDF(){
       if(y+headerH+rowH>190){doc.addPage();y=20;}
       doc.setFillColor(107,33,77);doc.roundedRect(M,y,W-M*2,headerH,2,2,'F');
       doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont('helvetica','bold');
-      doc.text('Lic. '+nombrePs,M+4,y+7.5);
+      doc.text(nombrePs,M+4,y+7.5);
       doc.setFontSize(8);doc.setFont('helvetica','normal');
       doc.text(grp.sesiones.length+' sesiones  |  '+grp.asist+' asistieron',W-M-4,y+7.5,{align:'right'});
       y+=headerH+1;
@@ -3963,13 +3963,23 @@ function exportarAgendaPDF(){
     const dayW=(W-M*2-horaW)/6;
 
     function dibujarCabeceraCols(yy){
+      // OJO: doc.setTextColor(...) también cambia el color de "relleno"
+      // interno de jsPDF (usa el mismo operador PDF que setFillColor) — si
+      // se intercala texto entre un rect y el siguiente, el siguiente rect
+      // hereda sin querer el blanco del texto anterior y sale invisible
+      // (fue justo el bug: la fila de días salía en blanco sobre blanco).
+      // Por eso aquí se pintan TODOS los rects primero y recién después
+      // se cambia a color de texto y se escribe todo.
       doc.setFillColor(26,31,94);
       doc.rect(M,yy,horaW,10,'F');
+      dias.forEach(function(dia,i){
+        const dx=M+horaW+i*dayW;
+        doc.rect(dx,yy,dayW,10,'F');
+      });
       doc.setTextColor(255,255,255);doc.setFontSize(8);doc.setFont('helvetica','bold');
       doc.text('HORA',M+horaW/2,yy+6,{align:'center'});
       dias.forEach(function(dia,i){
         const dx=M+horaW+i*dayW;
-        doc.rect(dx,yy,dayW,10,'F');
         doc.text(diaES[dia.d.getDay()]+' '+String(dia.d.getDate()).padStart(2,'0')+'/'+String(dia.d.getMonth()+1).padStart(2,'0'),dx+dayW/2,yy+6,{align:'center'});
       });
     }
@@ -3977,7 +3987,7 @@ function exportarAgendaPDF(){
     // ── HEADER ──
     doc.setFillColor(26,31,94);doc.rect(M,y,W-M*2,16,'F');
     doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
-    doc.text('AGENDA SEMANAL - '+DB.sede+(filtPsNom?' - Lic. '+filtPsNom:''),M+4,y+7);
+    doc.text('AGENDA SEMANAL - '+DB.sede+(filtPsNom?' - '+filtPsNom:''),M+4,y+7);
     doc.setFontSize(9);doc.setFont('helvetica','normal');
     const d0=dias[0].d,d5=dias[5].d;
     doc.text(d0.getDate()+' '+mesES[d0.getMonth()]+' - '+d5.getDate()+' '+mesES[d5.getMonth()]+' de '+d5.getFullYear(),M+4,y+13);
@@ -3990,7 +4000,7 @@ function exportarAgendaPDF(){
       let lx=M+18;
       psicoPresentes.forEach(function(ps){
         const rgb=hexToRgbPDF(colorPsAgenda(ps));
-        const nombreCorto='Lic. '+ps.nombre;
+        const nombreCorto=ps.nombre;
         doc.setFont('helvetica','normal');doc.setFontSize(8);
         const txtW=doc.getTextWidth(nombreCorto);
         if(lx+txtW+14>W-M){lx=M+18;y+=6;}
@@ -4075,7 +4085,7 @@ function exportarAgendaPDF(){
       if(y2+18>282){doc.addPage('a4','portrait');y2=14;}
       doc.setFillColor(107,33,77);doc.roundedRect(M2,y2,W2-M2*2,8,1.5,1.5,'F');
       doc.setTextColor(255,255,255);doc.setFontSize(9.5);doc.setFont('helvetica','bold');
-      doc.text('Lic. '+ps.nombre,M2+3,y2+5.5);
+      doc.text(ps.nombre,M2+3,y2+5.5);
       y2+=10;
 
       let zebra=false;
