@@ -787,7 +787,13 @@ try{
 
       <div class="form-group">
         <label class="form-label">Adelanto / Pago inicial (S/)</label>
-        <input type="number" class="form-control" id="ag-adelanto" value="0" min="0" oninput="agActualizarResumen()">
+        <input type="number" class="form-control" id="ag-adelanto" value="0" min="0" oninput="agAdelantoManual()">
+      </div>
+      <div class="form-group" style="grid-column:1/-1" id="ag-grp-metodos">
+        <label class="form-label">Método(s) de pago</label>
+        <div id="ag-metodos-rows"></div>
+        <button type="button" class="btn btn-outline" style="margin-top:4px;font-size:11px;padding:4px 10px" onclick="agAgregarMetodo()">+ Añadir otro método de pago</button>
+        <div style="font-size:10.5px;color:var(--muted);margin-top:3px">Si el pago se dividió (ej. una parte en efectivo y otra por Yape), añade una fila por cada método con su monto.</div>
       </div>
       <div class="form-group" style="grid-column:1/-1">
         <label class="form-label">Notas</label>
@@ -920,6 +926,10 @@ try{
       <div class="form-group" style="grid-column:1/-1">
         <label class="form-label">Concepto</label>
         <input class="form-control" id="pg-concepto" placeholder="Ej: Paquete 8 sesiones, Sesión, etc.">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Notas</label>
+        <input class="form-control" id="pg-notas" placeholder="Observaciones sobre este pago...">
       </div>
     </div>
   </div>
@@ -1684,6 +1694,7 @@ function abrirModalAgendar(fecha,hora,sesOrig){
   const elPacList=document.getElementById('ag-pac-list');if(elPacList){elPacList.style.display='none';elPacList.innerHTML='';}
   document.getElementById('ag-tipo').value='paquete';
   document.getElementById('ag-adelanto').value='0';
+  agInicializarMetodos('');
   document.getElementById('ag-costo').value='';
   const elCuotas=document.getElementById('ag-cuotas');if(elCuotas)elCuotas.value='1';
   const elExMod=document.getElementById('ag-exclusivoModo');if(elExMod)elExMod.value='sesion';
@@ -1983,6 +1994,88 @@ function agOnRowPs(selPs){
   const dia=selDia.value;
   const horas=(selPs.value&&dia)?horasPsEnDia(ps,dia):[];
   selHora.innerHTML=horas.length?horas.map(function(h){return '<option value="'+h+'">'+h+'</option>';}).join(''):'<option value="">—</option>';
+}
+
+// ── Método(s) de pago del adelanto/pago (soporta pago dividido: parte
+// efectivo + parte Yape/transferencia, cada uno con su propio monto) ──
+const AG_METODOS_OPTS='<option value="Efectivo">💵 Efectivo</option>'+
+  '<option value="Yape">📱 Yape</option><option value="Plin">📱 Plin</option>'+
+  '<option value="Transferencia">🏦 Transferencia</option><option value="Tarjeta">💳 Tarjeta</option>';
+function _agFilaMetodoHTML(metodo,monto){
+  const selectHTML=('<select class="form-control ag-met-tipo" style="flex:1" onchange="agSincronizarMetodos()">'+AG_METODOS_OPTS+'</select>')
+    .replace('<option value="'+metodo+'">','<option value="'+metodo+'" selected>');
+  return '<div class="ag-met-row" style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'+
+    selectHTML+
+    '<input type="number" class="form-control ag-met-monto" style="flex:1" min="0" placeholder="Monto" value="'+(monto||'')+'" oninput="agSincronizarMetodos()">'+
+    '<button type="button" class="btn btn-outline btn-sm ag-met-quitar" onclick="agQuitarMetodo(this)" style="padding:4px 8px">✕</button>'+
+    '</div>';
+}
+function agInicializarMetodos(montoInicial){
+  const cont=document.getElementById('ag-metodos-rows');if(!cont)return;
+  cont.innerHTML=_agFilaMetodoHTML('Efectivo',montoInicial||'');
+  _agActualizarBotonesQuitar();
+}
+function agAgregarMetodo(){
+  const cont=document.getElementById('ag-metodos-rows');if(!cont)return;
+  cont.insertAdjacentHTML('beforeend',_agFilaMetodoHTML('Efectivo',''));
+  _agActualizarBotonesQuitar();
+  agSincronizarMetodos();
+}
+function agQuitarMetodo(btn){
+  const cont=document.getElementById('ag-metodos-rows');if(!cont)return;
+  const row=btn.closest('.ag-met-row');
+  if(cont.querySelectorAll('.ag-met-row').length<=1)return;
+  row.remove();
+  _agActualizarBotonesQuitar();
+  agSincronizarMetodos();
+}
+function _agActualizarBotonesQuitar(){
+  const rows=document.querySelectorAll('#ag-metodos-rows .ag-met-row');
+  rows.forEach(function(row){
+    const btn=row.querySelector('.ag-met-quitar');
+    if(btn)btn.style.display=rows.length>1?'inline-block':'none';
+  });
+}
+// El total pagado (#ag-adelanto) se recalcula a partir de la suma de los
+// métodos cuando hay más de una fila (pago dividido) — así ambos campos
+// nunca se desincronizan.
+function agSincronizarMetodos(){
+  const rows=document.querySelectorAll('#ag-metodos-rows .ag-met-row');
+  if(rows.length>1){
+    let total=0;
+    rows.forEach(function(row){total+=parseFloat(row.querySelector('.ag-met-monto').value)||0;});
+    const elAdel=document.getElementById('ag-adelanto');
+    if(elAdel)elAdel.value=total?String(total):'';
+  }
+  agActualizarResumen();
+}
+// Si el usuario edita directamente "Adelanto / Pago inicial" (caso normal,
+// un solo método), reflejarlo en la única fila de método existente.
+function agAdelantoManual(){
+  const rows=document.querySelectorAll('#ag-metodos-rows .ag-met-row');
+  if(rows.length===1){
+    const monto=document.getElementById('ag-adelanto').value;
+    rows[0].querySelector('.ag-met-monto').value=monto;
+  }
+  agActualizarResumen();
+}
+function agObtenerMetodosPago(){
+  const out=[];
+  document.querySelectorAll('#ag-metodos-rows .ag-met-row').forEach(function(row){
+    const metodo=row.querySelector('.ag-met-tipo').value;
+    const monto=parseFloat(row.querySelector('.ag-met-monto').value)||0;
+    if(monto>0)out.push({metodo:metodo,monto:monto});
+  });
+  return out;
+}
+// Filas listas para crear en "pagos" (una fila por método) — si por algún
+// motivo las filas de método no cuadran con el monto total pagado, cae a
+// un solo pago en Efectivo por el total, para no perder el registro.
+function agFilasPagoParaGuardar(montoTotal){
+  const filas=agObtenerMetodosPago();
+  const suma=filas.reduce(function(a,f){return a+f.monto;},0);
+  if(filas.length&&Math.abs(suma-montoTotal)<0.01)return filas;
+  return montoTotal>0?[{metodo:'Efectivo',monto:montoTotal}]:[];
 }
 
 function agActualizarResumen(){
@@ -2362,9 +2455,13 @@ async function guardarPaqueteFlujo(){
 
     if(adelanto>0){
       const n=new Date();
-      await sbPost('pagos',{fecha:fechaInicio||today(),hora:String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0'),
-        monto:adelanto,metodo:'Efectivo',concepto:'Adelanto '+(progRow.paquete_nombre||'paquete'),
-        paciente_nombre:pac.nombre,sede:DB.sede,registrado_por:DB.usuario||''});
+      const horaPago=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+      const filasPago=agFilasPagoParaGuardar(adelanto);
+      for(const fp of filasPago){
+        await sbPost('pagos',{fecha:fechaInicio||today(),hora:horaPago,
+          monto:fp.monto,metodo:fp.metodo,concepto:'Adelanto '+(progRow.paquete_nombre||'paquete'),
+          paciente_nombre:pac.nombre,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''});
+      }
     }
     closeModal('modalAgendar');
     showToast('✅ Paquete registrado para '+pac.nombre);
@@ -2563,10 +2660,14 @@ async function guardarSesion(){
     // Adelanto como pago
     if(adelanto>0){
       const n=new Date();
-      promesas.push(sbPost('pagos',{fecha:fecha||today(),hora:String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0'),
-        monto:adelanto,metodo:'Efectivo',concepto:'Adelanto '+(tipo==='paquete'&&paq?(paq.nombre||'paquete'):'sesión'),
-        paciente_nombre:pac.nombre,psicologa_nombre:ps.nombre,terapia_nombre:ter.nombre,
-        sede:DB.sede,registrado_por:DB.usuario||''}));
+      const horaPago=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+      const filasPago=agFilasPagoParaGuardar(adelanto);
+      filasPago.forEach(function(fp){
+        promesas.push(sbPost('pagos',{fecha:fecha||today(),hora:horaPago,
+          monto:fp.monto,metodo:fp.metodo,concepto:'Adelanto '+(tipo==='paquete'&&paq?(paq.nombre||'paquete'):'sesión'),
+          paciente_nombre:pac.nombre,psicologa_nombre:ps.nombre,terapia_nombre:ter.nombre,
+          sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''}));
+      });
     }
     // Actualizar paciente en Supabase
     if(pac._sb&&pac._sb.id){
@@ -2793,6 +2894,7 @@ function abrirPago(sesId){
   document.getElementById('pg-fecha').value=ses.fecha;
   document.getElementById('pg-monto').value=ses.saldo||ses.costoTotal||0;
   document.getElementById('pg-concepto').value=(ses.tipo==='paquete'?'Paquete '+ses.totalPaq+' ses.':'Sesión')+' — '+getPac(ses.pacId).nombre;
+  const elPgNotas=document.getElementById('pg-notas');if(elPgNotas)elPgNotas.value='';
   document.getElementById('modalPagoTit').textContent='💰 Cobrar — '+getPac(ses.pacId).nombre;
   openModal('modalPago');
 }
@@ -2804,13 +2906,14 @@ async function guardarPago(){
   const monto=parseFloat(document.getElementById('pg-monto').value)||0;
   const metodo=document.getElementById('pg-metodo').value;
   const concepto=document.getElementById('pg-concepto').value||'Pago';
+  const notas=document.getElementById('pg-notas')?.value||'';
   if(!pacId||monto<=0){showToast('Paciente y monto son obligatorios','error');return;}
   const pac=getPac(pacId);const ps=getPs(psId);
   const n=new Date();
   const hora=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
   showToast('⏳ Registrando pago...');
   try{
-    await sbPost('pagos',{fecha:fecha,hora:hora,monto:monto,metodo:metodo,concepto:concepto,
+    await sbPost('pagos',{fecha:fecha,hora:hora,monto:monto,metodo:metodo,concepto:concepto,notas:notas,
       paciente_nombre:pac.nombre,psicologa_nombre:ps.nombre||'',
       sede:DB.sede,registrado_por:DB.usuario||''});
     const promesas=[];
@@ -3562,7 +3665,7 @@ async function renderHistorial(){
     '</div>'+
     '<div style="font-size:13px;font-weight:800;color:var(--muted);margin-bottom:8px">📋 Registro de Sesiones</div>'+
     (sesPac.length?
-      '<div style="overflow-x:auto"><table><thead><tr><th>Fecha</th><th>Hora</th><th>Psicóloga</th><th>Terapia</th><th>Estado</th><th>Tipo</th><th>Costo</th><th>Notas</th><th>Acción</th></tr></thead><tbody>'+
+      '<div style="overflow-x:auto"><table><thead><tr><th>Fecha</th><th>Hora</th><th>Psicóloga</th><th>Terapia</th><th>Estado</th><th>Tipo</th><th>Costo</th><th>Pago realizado</th><th>Notas</th><th>Acción</th></tr></thead><tbody>'+
       sesPac.map(s=>{
         const psH=getPs(s.psId);const terH=getTer(s.terId);
         const esReprogFila=s.estado==='reprogramado';
@@ -3582,6 +3685,21 @@ async function renderHistorial(){
         else{
           costoCelda='S/'+s.costoTotal+(s.saldo>0?' <span style="color:var(--orange);font-weight:700">⚠️ Pend. S/'+s.saldo+'</span>':' <span style="color:var(--green)">✅</span>');
         }
+        // El pago REAL (monto y método con el que se cobró) se toma de la
+        // tabla "pagos" del mismo día — coincidir por fecha únicamente (no
+        // por hora exacta, que casi nunca coincide con la de la sesión).
+        // Un pago puede haberse dividido en varios métodos (efectivo +
+        // Yape, etc.), por eso puede haber más de una fila ese día.
+        const pagosDia=esReprogFila?[]:(DB.pagos||[]).filter(function(p){return p.pacId===s.pacId&&p.fecha===s.fecha;});
+        let pagoCelda='—';
+        let notasPago='';
+        if(pagosDia.length){
+          const totalPagoDia=pagosDia.reduce(function(a,p){return a+(p.monto||0);},0);
+          pagoCelda='<div style="font-weight:700;color:var(--green)">S/'+totalPagoDia+'</div>'+
+            pagosDia.map(function(p){return '<span class="badge bk" style="font-size:9.5px">'+p.metodo+' S/'+p.monto+'</span>';}).join(' ');
+          notasPago=pagosDia.map(function(p){return p.notas||'';}).filter(Boolean).join(' · ');
+        }
+        const notasCelda=[s.notas||'',notasPago?'💳 '+notasPago:''].filter(Boolean).join('<br>');
         // Reprogramada: queda solo como registro de que ese cupo se movió
         // — no cuenta como una sesión más, así que no muestra el
         // contador "Paq X/Y", y la fila se pinta distinta para
@@ -3591,7 +3709,8 @@ async function renderHistorial(){
           '<td><span style="color:'+ec+';font-weight:700">'+s.estado+'</span></td>'+
           '<td><span class="badge bk" style="font-size:10px">'+(esReprogFila?'—':s.tipo==='paquete'?'Paq '+s.nroSes+'/'+s.totalPaq:s.tipo)+'</span></td>'+
           '<td style="white-space:nowrap">'+costoCelda+'</td>'+
-          '<td style="font-size:11px;color:var(--muted)">'+(s.notas||'')+'</td>'+
+          '<td style="white-space:nowrap">'+pagoCelda+'</td>'+
+          '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
           '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s):
             (s.estado==='noasistio'||s.estado==='permiso')?'<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':
             '<span style="font-size:11px;color:var(--muted)">—</span>')+'</td></tr>';
@@ -3693,10 +3812,17 @@ async function subirPDF(){
 // 45 días (la ventana que carga cargarDesdeSB por defecto) — se trae
 // completo directo de Supabase, sin esperar a que lo pidan aparte.
 async function cargarHistorialCompletoPac(pacNombre){
-  const [rows,progs]=await Promise.all([
+  const [rows,progs,pagosPac]=await Promise.all([
     sbGet('sesiones',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*',order:'fecha.desc',limit:'500'}),
-    sbGet('programas_paciente',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*'}).catch(function(){return[];})
+    sbGet('programas_paciente',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*'}).catch(function(){return[];}),
+    sbGet('pagos',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*',order:'fecha.desc',limit:'500'}).catch(function(){return[];})
   ]);
+  (pagosPac||[]).forEach(function(p){
+    if(!(DB.pagos||[]).some(function(x){return x.id===p.id;})){
+      (DB.pagos=DB.pagos||[]).push({id:p.id,fecha:p.fecha,hora:p.hora||'',pacId:p.paciente_nombre,
+        concepto:p.concepto||'',monto:p.monto||0,metodo:p.metodo||'efectivo',notas:p.notas||'',_sb:p});
+    }
+  });
   rows.forEach(function(r){
     const existing=DB.sesiones.find(function(x){return x._sb&&x._sb.id===r.id;});
     if(!existing){
@@ -3887,8 +4013,11 @@ async function cargarDesdeSB(silencioso) {
       psId:p.psicologa,terId:p.terapia,terapias:p.terapias||p.terapia||'',apoderado:p.apoderado||'',
       colegio:p.colegio||'',grado:p.grado||'',
       paq:parseInt(p.paquete)||12,saldo:p.saldo||0,estado:p.estado||'activo',_sb:p};});
-    DB.pagos=(res[2]||[]).map(function(p){return{id:p.id,fecha:p.fecha,hora:p.hora||'',pacId:p.paciente_nombre,
-      concepto:p.concepto||'',monto:p.monto||0,metodo:p.metodo||'efectivo',_sb:p};});
+    const pagosVentana=(res[2]||[]).map(function(p){return{id:p.id,fecha:p.fecha,hora:p.hora||'',pacId:p.paciente_nombre,
+      concepto:p.concepto||'',monto:p.monto||0,metodo:p.metodo||'efectivo',notas:p.notas||'',_sb:p};});
+    const idsPagosVentana=new Set(pagosVentana.map(function(p){return p.id;}));
+    const pagosHistoricosPreservados=(DB.pagos||[]).filter(function(p){return p.fecha<desde&&!idsPagosVentana.has(p.id);});
+    DB.pagos=pagosHistoricosPreservados.concat(pagosVentana);
     DB.psicologas=(res[3]||[]).map(function(p){return{id:p.id||p.nombre,nombre:p.nombre,
       cpsp:p.cpsp||'',cop:p.cpsp||'',esp:p.especialidad||'',tel:p.telefono||'',nac:p.fecha_nac||'',
       inicio:(p.hora_inicio||'13:15').substring(0,5),fin:(p.hora_fin||'20:00').substring(0,5),
