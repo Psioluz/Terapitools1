@@ -1812,14 +1812,20 @@ async function agCargarProgramasActivos(){
     todosActivos=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:'eq.'+DB.sede,estado:'eq.activo',select:'*,programa_terapias(*)'})||[];
   }catch(e){todosActivos=[];}
   // Un paquete que ya asignó todas sus sesiones contratadas no debe poder
-  // elegirse para seguir metiéndole sesiones/pagos encima — eso fue lo que
-  // dejó paquetes de "2 sesiones" con 4 sesiones y el doble cobrado. Si
-  // por algún motivo quedó en estado "activo" pese a estar completo (no
-  // se marcó a tiempo), se corrige aquí de una vez.
+  // elegirse para seguir metiéndole sesiones/pagos NUEVOS encima — eso fue
+  // lo que dejó paquetes de "2 sesiones" con 4 sesiones y el doble
+  // cobrado. Pero "asignadas" se llena de una sola vez al generar todo el
+  // calendario (modo "generar"), mucho antes de que esas sesiones se
+  // atiendan de verdad — si igual tiene sesiones en estado "Programado"
+  // (aún no realizadas), el paquete sigue activo y debe seguir apareciendo
+  // aquí, aunque sea solo para poder cambiarles el horario/terapia/
+  // psicóloga (nunca para agregarle sesiones nuevas, eso ya lo bloquea
+  // guardarPaqueteFlujo aparte).
   _agProgramasActivos=[];
   todosActivos.forEach(function(p){
     const asignadas=(p.programa_terapias||[]).reduce(function(a,t){return a+(t.sesiones_asignadas||0);},0);
-    if(asignadas>=(p.nro_sesiones_total||0)){
+    const tienePendientes=DB.sesiones.some(function(s){return s._sb&&s._sb.programa_id===p.id&&s.estado==='programado';});
+    if(asignadas>=(p.nro_sesiones_total||0)&&!tienePendientes){
       sbPatch('programas_paciente',{estado:'completado'},{id:'eq.'+p.id}).catch(function(){});
     }else{
       _agProgramasActivos.push(p);
@@ -1831,7 +1837,10 @@ async function agCargarProgramasActivos(){
       _agProgramasActivos.map(function(p){
         const asignadas=(p.programa_terapias||[]).reduce(function(a,t){return a+(t.sesiones_asignadas||0);},0);
         const libres=Math.max(0,(p.nro_sesiones_total||0)-asignadas);
-        return '<option value="'+p.id+'">'+(p.paquete_nombre||'Paquete')+' — '+libres+' de '+p.nro_sesiones_total+' sesiones sin asignar</option>';
+        const pendientes=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===p.id&&s.estado==='programado';}).length;
+        const detalle=libres>0?(libres+' de '+p.nro_sesiones_total+' sesiones sin asignar'):
+          (pendientes+' de '+p.nro_sesiones_total+' pendiente(s) — sin cupo para agregar más');
+        return '<option value="'+p.id+'">'+(p.paquete_nombre||'Paquete')+' — '+detalle+'</option>';
       }).join('');
   }
   if(grp)grp.style.display=_agProgramasActivos.length?'block':'none';
@@ -2339,13 +2348,25 @@ async function reemplazarPendientesPaquete(){
   if(!filas.length||filas.some(function(f){return!f.diaNombre||!f.hora;})){
     showToast('Completa día, terapia, psicóloga y horario en cada asistencia','error');return;
   }
+  const combosVistos={};
+  for(const f of filas){
+    const k=f.diaNombre+'|'+f.hora+'|'+f.psicologa.id;
+    if(combosVistos[k]){showToast('Hay dos filas repetidas con el mismo día, hora y psicóloga','error');return;}
+    combosVistos[k]=true;
+  }
 
-  const pendientes=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===progRow.id&&s.estado==='programado';});
+  // Ordenadas por nro_en_paquete para poder reasignar el nuevo horario a
+  // ESE mismo número de sesión (nunca recontar desde cero): una sesión
+  // "reprogramada" deja su fila vieja en la base con el mismo nro que su
+  // reemplazo pendiente, así que contar "no programadas" para recalcular
+  // el número siguiente terminaría duplicando/saltando números.
+  const pendientes=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===progRow.id&&s.estado==='programado';})
+    .sort(function(a,b){return(a.nroSes||0)-(b.nroSes||0);});
   if(!pendientes.length){
     showToast('Este paquete no tiene sesiones pendientes por cambiar — todas ya se realizaron o no se han agendado','error');return;
   }
   const totalSesiones=progRow.nro_sesiones_total||0;
-  const countRealizado=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===progRow.id&&s.estado!=='programado';}).length;
+  const nrosPendientes=pendientes.map(function(s){return s.nroSes;});
   const cantidadAReemplazar=pendientes.length;
 
   if(!confirm('Se van a borrar y reprogramar '+cantidadAReemplazar+' sesión(es) pendiente(s) de '+pac.nombre+' con el nuevo horario.\n\nLo ya asistido, no asistido, con permiso o reprogramado NO se toca, y el costo/cuotas del paquete no cambian.\n\n¿Continuar?')){
@@ -2363,24 +2384,36 @@ async function reemplazarPendientesPaquete(){
 
     // Restar del programa_terapias de origen únicamente las sesiones
     // pendientes que se están quitando — lo ya realizado en ese combo
-    // terapia+psicóloga se queda intacto.
+    // terapia+psicóloga se queda intacto. Se mantiene un mapa en memoria
+    // del valor "vigente" de cada fila (ptAsignadasActual) porque más
+    // abajo, si la nueva combinación reutiliza la MISMA terapia+psicóloga,
+    // hay que sumarle al valor YA restado aquí — no al original leído de
+    // progRow, o el descuento de esta resta quedaría pisado/duplicado.
+    const ptExistentes=progRow.programa_terapias||[];
+    const ptAsignadasActual={};
+    ptExistentes.forEach(function(pt){ptAsignadasActual[pt.id]=pt.sesiones_asignadas||0;});
     const quitarPorPt={};
     pendientes.forEach(function(s){
       const ptId=s._sb.programa_terapia_id;
       if(ptId)quitarPorPt[ptId]=(quitarPorPt[ptId]||0)+1;
     });
-    const ptExistentes=progRow.programa_terapias||[];
     for(const ptId in quitarPorPt){
-      const pt=ptExistentes.find(function(x){return x.id===ptId;});
-      if(pt){
-        const nuevoAsignadas=Math.max(0,(pt.sesiones_asignadas||0)-quitarPorPt[ptId]);
-        await sbPatch('programa_terapias',{sesiones_asignadas:nuevoAsignadas,sesiones_realizadas:nuevoAsignadas},{id:'eq.'+ptId});
-      }
+      const nuevoAsignadas=Math.max(0,(ptAsignadasActual[ptId]||0)-quitarPorPt[ptId]);
+      ptAsignadasActual[ptId]=nuevoAsignadas;
+      await sbPatch('programa_terapias',{sesiones_asignadas:nuevoAsignadas,sesiones_realizadas:nuevoAsignadas},{id:'eq.'+ptId});
     }
 
     // Borrar solo las sesiones pendientes (estado='programado') de este
     // paquete — nunca las ya realizadas.
     await sbDelete('sesiones',{programa_id:'eq.'+progRow.id,estado:'eq.programado'});
+    // simularCalendarioPaquete() marca como "ocupado" cualquier horario que
+    // ya exista en DB.sesiones (en memoria) — si no se quitan aquí las
+    // pendientes recién borradas, un horario que se quiere REUTILIZAR
+    // (mismo día/hora, solo cambia terapia o psicóloga) aparecería como ya
+    // ocupado por la sesión que se está reemplazando.
+    const pendientesIds={};
+    pendientes.forEach(function(s){pendientesIds[s.id]=true;});
+    DB.sesiones=DB.sesiones.filter(function(s){return!pendientesIds[s.id];});
 
     // Generar el nuevo calendario para exactamente la misma cantidad de
     // sesiones que se quitaron, con el nuevo horario/terapia/psicóloga.
@@ -2393,16 +2426,19 @@ async function reemplazarPendientesPaquete(){
       combos[key].sesiones+=sim.porFila[i];
       combos[key].filaIdxs.push(i);
     });
+    const ptIdPorCombo={};
+    ptExistentes.forEach(function(pt){ptIdPorCombo[pt.terapia+'|'+pt.psicologa]=pt.id;});
     const ptIdPorFila=new Array(filas.length);
     for(const key in combos){
       const c=combos[key];
       if(!c.sesiones)continue;
-      const ptPrevio=ptExistentes.find(function(pt){return pt.terapia===c.terapia&&pt.psicologa===c.psicologaNombre;});
+      const ptIdPrevio=ptIdPorCombo[key];
       let ptId;
-      if(ptPrevio){
-        const nuevoAsignadas=(ptPrevio.sesiones_asignadas||0)+c.sesiones;
-        await sbPatch('programa_terapias',{sesiones_asignadas:nuevoAsignadas,sesiones_realizadas:nuevoAsignadas},{id:'eq.'+ptPrevio.id});
-        ptId=ptPrevio.id;
+      if(ptIdPrevio){
+        const nuevoAsignadas=(ptAsignadasActual[ptIdPrevio]||0)+c.sesiones;
+        ptAsignadasActual[ptIdPrevio]=nuevoAsignadas;
+        await sbPatch('programa_terapias',{sesiones_asignadas:nuevoAsignadas,sesiones_realizadas:nuevoAsignadas},{id:'eq.'+ptIdPrevio});
+        ptId=ptIdPrevio;
       }else{
         const ptRows=await sbPost('programa_terapias',{programa_id:progRow.id,terapia:c.terapia,
           psicologa:c.psicologaNombre,sesiones_asignadas:c.sesiones,sesiones_realizadas:c.sesiones});
@@ -2411,10 +2447,14 @@ async function reemplazarPendientesPaquete(){
       c.filaIdxs.forEach(function(i){ptIdPorFila[i]=ptId;});
     }
 
-    let nro=countRealizado;
-    for(const ev of sim.eventos){
-      nro++;
+    // Cada evento generado toma EXACTAMENTE el nro_en_paquete de la sesión
+    // pendiente que está reemplazando (en orden), no un número recalculado
+    // — así el checkpoint de cuota (saldoPorNro) sigue cayendo donde debía
+    // y no se pisa con nros ya usados por sesiones reprogramadas.
+    for(let idx=0;idx<sim.eventos.length;idx++){
+      const ev=sim.eventos[idx];
       const f=filas[ev.filaIdx];
+      const nro=nrosPendientes[idx];
       const saldoSesion=saldoPorNro[nro]||0;
       const filaSes={fecha:ev.fecha,hora:ev.hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
         psicologa:f.psicologa.nombre,terapia:f.terapia,estado:'programado',tipo:'paquete',
