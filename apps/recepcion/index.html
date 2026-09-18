@@ -3606,69 +3606,74 @@ function exportarPDF(){
   doc.text('TOTAL: S/'+tot.toLocaleString(),W-M-3,y+13,{align:'right'});
   y+=28;
 
-  // ── POR PSICÓLOGA — cuántos pacientes atendió/asistió cada una, antes
-  // del detalle sesión por sesión ──
+  // ── DETALLE POR PSICÓLOGA — tarjeta agrupada, igual estilo que la vista
+  // en pantalla del Reporte del Día (nombre + contadores arriba, sesiones
+  // con hora, paciente, terapia, paquete y estado como chips debajo) ──
   const porPs={};
   ses.forEach(function(s){
     const nombrePs=getPs(s.psId).nombre||'—';
-    if(!porPs[nombrePs])porPs[nombrePs]={total:0,asist:0};
-    porPs[nombrePs].total++;
+    if(!porPs[nombrePs])porPs[nombrePs]={sesiones:[],asist:0};
+    porPs[nombrePs].sesiones.push(s);
     if(s.estado==='asistio')porPs[nombrePs].asist++;
   });
   const nombresPs=Object.keys(porPs).sort();
-  if(nombresPs.length){
-    if(y>250){doc.addPage();y=20;}
-    doc.setFillColor(26,31,94);doc.rect(M,y,W-M*2,8,'F');
-    doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
-    doc.text('Psicóloga',M+3,y+5.5);
-    doc.text('Sesiones',M+120,y+5.5);
-    doc.text('Asistieron',M+155,y+5.5);
-    y+=9;
-    nombresPs.forEach(function(nombrePs,i){
-      if(y>275){doc.addPage();y=20;}
-      const st=porPs[nombrePs];
-      doc.setFillColor(i%2?248:255,i%2?250:255,i%2?255:255);
-      doc.rect(M,y,W-M*2,7,'F');
-      doc.setDrawColor(220);doc.line(M,y+7,W-M,y+7);
-      doc.setTextColor(50,50,50);doc.setFont('helvetica','normal');doc.setFontSize(8);
-      doc.text(nombrePs.substring(0,50),M+3,y+5);
-      doc.text(String(st.total),M+125,y+5);
-      doc.setTextColor(16,185,129);doc.setFont('helvetica','bold');
-      doc.text(String(st.asist),M+160,y+5);
-      y+=7;
-    });
-    y+=8;
+  function colorTerapiaPDF(nombreTer){
+    const t=(nombreTer||'').toLowerCase();
+    if(t.indexOf('lenguaje')>-1)return [219,39,119];
+    if(t.indexOf('cognitiva')>-1)return [37,99,235];
+    if(t.indexOf('psicol')>-1)return [124,58,237];
+    return [100,116,139];
   }
-
-  // ── SESIONES ──
-  doc.setFillColor(26,31,94);doc.rect(M,y,W-M*2,8,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
-  ['Hora','Paciente','Psicóloga','Terapia','Estado','Pago'].forEach((h,i)=>{
-    const xs=[M+2,M+18,M+72,M+112,M+146,M+168];
-    doc.text(h,xs[i],y+5.5);
-  });
-  y+=9;
-
-  ses.sort((a,b)=>a.hora.localeCompare(b.hora)).forEach((s,i)=>{
-    if(y>275){doc.addPage();y=20;}
-    const pac=getPac(s.pacId),ps=getPs(s.psId),ter=getTer(s.terId);
-    const pg=pags.find(p=>p.pacId===s.pacId&&p.fecha===s.fecha);
-    doc.setFillColor(i%2?248:255,i%2?250:255,i%2?255:255);
-    doc.rect(M,y,W-M*2,8,'F');
-    doc.setDrawColor(220);doc.line(M,y+8,W-M,y+8);
-    const ec=s.estado==='asistio'?[16,185,129]:s.estado==='noasistio'?[239,68,68]:[245,158,11];
-    doc.setTextColor(50,50,50);doc.setFont('helvetica','normal');doc.setFontSize(8);
-    doc.text(s.hora,M+2,y+5.5);
-    doc.text((pac.nombre||'').substring(0,20),M+18,y+5.5);
-    doc.text((ps.nombre||'').trim().substring(0,20),M+72,y+5.5);
-    doc.text((ter.nombre||'').substring(0,16),M+112,y+5.5);
-    doc.setTextColor(...ec);doc.text(estadoLabel(s.estado),M+146,y+5.5);
-    doc.setTextColor(...(pg?[16,185,129]:[150,150,150]));
-    doc.text(pg?'S/'+pg.monto:'Pend.',M+168,y+5.5);
-    y+=8;
-  });
-
-  if(!ses.length){
+  function colorEstadoPDF(estado){
+    return estado==='asistio'?[16,185,129]:estado==='noasistio'?[239,68,68]:
+      estado==='permiso'?[59,130,246]:estado==='reprogramado'?[100,116,139]:[245,158,11];
+  }
+  if(nombresPs.length){
+    const rowH=8,headerH=12;
+    nombresPs.forEach(function(nombrePs){
+      const grp=porPs[nombrePs];
+      if(y+headerH+rowH>280){doc.addPage();y=20;}
+      doc.setFillColor(107,33,77);doc.roundedRect(M,y,W-M*2,headerH,2,2,'F');
+      doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont('helvetica','bold');
+      doc.text('Lic. '+nombrePs,M+4,y+7.5);
+      doc.setFontSize(8);doc.setFont('helvetica','normal');
+      doc.text(grp.sesiones.length+' sesiones  |  '+grp.asist+' asistieron',W-M-4,y+7.5,{align:'right'});
+      y+=headerH+1;
+      grp.sesiones.sort((a,b)=>a.hora.localeCompare(b.hora)).forEach(function(s,i){
+        if(y>272){doc.addPage();y=20;}
+        const pac=getPac(s.pacId),ter=getTer(s.terId);
+        const pg=pags.find(p=>p.pacId===s.pacId&&p.fecha===s.fecha);
+        doc.setFillColor(i%2?248:255,i%2?250:255,i%2?255:255);
+        doc.rect(M,y,W-M*2,rowH,'F');
+        doc.setDrawColor(230);doc.line(M,y+rowH,W-M,y+rowH);
+        doc.setTextColor(219,39,119);doc.setFont('helvetica','bold');doc.setFontSize(8);
+        doc.text(s.hora,M+3,y+5.5);
+        doc.setTextColor(30,30,30);doc.setFont('helvetica','bold');doc.setFontSize(8);
+        doc.text((pac.nombre||'').substring(0,26),M+16,y+5.5);
+        const tc=colorTerapiaPDF(ter.nombre);
+        doc.setFillColor(...tc);doc.roundedRect(M+74,y+1.3,32,5,1,1,'F');
+        doc.setTextColor(255,255,255);doc.setFont('helvetica','normal');doc.setFontSize(6.3);
+        doc.text((ter.nombre||'').substring(0,20),M+76,y+5);
+        if(s.tipo==='paquete'){
+          const paqTxt='Paq '+s.nroSes+'/'+s.totalPaq;
+          doc.setFillColor(224,231,255);doc.roundedRect(M+108,y+1.3,22,5,1,1,'F');
+          doc.setTextColor(67,56,202);doc.setFont('helvetica','normal');doc.setFontSize(6.3);
+          doc.text(paqTxt.substring(0,14),M+110,y+5);
+        }
+        const ec=colorEstadoPDF(s.estado);
+        const estTxt=estadoLabel(s.estado);
+        doc.setFillColor(Math.min(255,ec[0]+70),Math.min(255,ec[1]+70),Math.min(255,ec[2]+70));
+        doc.roundedRect(M+132,y+1.3,26,5,1,1,'F');
+        doc.setTextColor(...ec);doc.setFont('helvetica','bold');doc.setFontSize(6.3);
+        doc.text(estTxt,M+134,y+5);
+        doc.setTextColor(...(pg?[16,185,129]:[180,180,180]));
+        doc.setFont('helvetica','bold');doc.setFontSize(7);
+        doc.text(pg?'S/'+pg.monto:'—',W-M-2,y+5.5,{align:'right'});
+        y+=rowH;
+      });
+      y+=6;
+    });
+  } else {
     doc.setTextColor(100,100,100);doc.setFontSize(10);
     doc.text('Sin sesiones registradas para esta fecha.',W/2,y+10,{align:'center'});
     y+=20;
@@ -4149,37 +4154,30 @@ function splitCSVLine(line){
 //  COMPARTIR REPORTE POR WHATSAPP
 // ══════════════════════════════════════════════════
 function compartirReporteWA(){
-  // Primero generar el PDF, luego abrirlo para descargar y abrir WA con resumen
-  const nombrePrevio=window._lastPDFNombre;
+  // El window.open debe ejecutarse de forma síncrona, dentro del mismo
+  // click del usuario, o el navegador lo bloquea como pop-up no confiable
+  // (por eso antes, dentro de un setTimeout, WhatsApp nunca se abría).
+  const fecha=document.getElementById('rptFecha')?.value||today();
+  const ses=DB.sesiones.filter(s=>s.fecha===fecha);
+  const pags=DB.pagos.filter(p=>p.fecha===fecha);
+  const asist=ses.filter(s=>s.estado==='asistio').length;
+  const noAs=ses.filter(s=>s.estado==='noasistio').length;
+  const tot=pags.reduce((a,p)=>a+p.monto,0);
+  let msg='📊 *REPORTE PSICOLUZ - '+DB.sede+'*\n';
+  msg+='📅 '+fmtF(fecha)+'\n\n';
+  msg+='📋 Sesiones: '+ses.length+' | ✅ Asistieron: '+asist+' | ❌ No: '+noAs+'\n';
+  msg+='💰 Caja Total: S/'+tot.toLocaleString()+'\n';
+  if(ses.length){
+    msg+='\n*Detalle:*\n';
+    ses.sort((a,b)=>a.hora.localeCompare(b.hora)).forEach(s=>{
+      const pac=getPac(s.pacId);const ps=getPs(s.psId);
+      const ico=s.estado==='asistio'?'✅':s.estado==='noasistio'?'❌':'⏳';
+      msg+=ico+' '+s.hora+' '+pac.nombre+' ('+ps.nombre.replace('Lic.','').trim()+')\n';
+    });
+  }
+  msg+='\n_(Descarga el PDF por separado y adjúntalo al mensaje)_';
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
   exportarPDF();
-  setTimeout(()=>{
-    // Si exportarPDF() falló (ver su propio toast de error), no se generó un
-    // PDF nuevo — no seguir armando el mensaje de WhatsApp para no decir
-    // "PDF descargado" cuando en realidad no se descargó nada.
-    if(window._lastPDFNombre===nombrePrevio)return;
-    const fecha=document.getElementById('rptFecha')?.value||today();
-    const ses=DB.sesiones.filter(s=>s.fecha===fecha);
-    const pags=DB.pagos.filter(p=>p.fecha===fecha);
-    const asist=ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
-    const noAs=ses.filter(s=>s.estado==='noasistio').length;
-    const tot=pags.reduce((a,p)=>a+p.monto,0);
-    // Mensaje de texto con instrucción para adjuntar el PDF
-    let msg='📊 *REPORTE PSICOLUZ — '+DB.sede+'*\n';
-    msg+='📅 '+fmtF(fecha)+'\n\n';
-    msg+='📋 Sesiones: '+ses.length+' | ✅ Asistieron: '+asist+' | ❌ No: '+noAs+'\n';
-    msg+='💰 Caja Total: S/'+tot.toLocaleString()+'\n';
-    if(ses.length){
-      msg+='\n*Detalle:*\n';
-      ses.sort((a,b)=>a.hora.localeCompare(b.hora)).forEach(s=>{
-        const pac=getPac(s.pacId);const ps=getPs(s.psId);
-        const ico=s.estado==='asistio'?'✅':s.estado==='noasistio'?'❌':'⏳';
-        msg+=ico+' '+s.hora+' '+pac.nombre+' ('+ps.nombre.replace('Lic.','').trim()+')\n';
-      });
-    }
-    msg+='\n_(PDF descargado — adjuntar al mensaje)_';
-    window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
-    showToast('PDF descargado — adjúntalo en WhatsApp ✅');
-  },1200);
 }
 
 
