@@ -899,7 +899,8 @@ try{
     <div class="grid g2">
       <div class="form-group" style="grid-column:1/-1">
         <label class="form-label">Paciente</label>
-        <select class="form-control" id="pg-pac"></select>
+        <select class="form-control" id="pg-pac" onchange="pgOnPaciente()"></select>
+        <div id="pg-deuda-info" style="display:none;margin-top:6px;font-size:11.5px;padding:8px 10px;border-radius:8px"></div>
       </div>
       <div class="form-group">
         <label class="form-label">Psicóloga</label>
@@ -2965,6 +2966,7 @@ function abrirPago(sesId){
   document.getElementById('pg-monto').value=ses.saldo||ses.costoTotal||0;
   document.getElementById('pg-concepto').value=(ses.tipo==='paquete'?'Paquete '+ses.totalPaq+' ses.':'Sesión')+' — '+getPac(ses.pacId).nombre;
   const elPgNotas=document.getElementById('pg-notas');if(elPgNotas)elPgNotas.value='';
+  const elDeudaInfo=document.getElementById('pg-deuda-info');if(elDeudaInfo)elDeudaInfo.style.display='none';
   document.getElementById('modalPagoTit').textContent='💰 Cobrar — '+getPac(ses.pacId).nombre;
   openModal('modalPago');
 }
@@ -2978,8 +2980,59 @@ function abrirModalPagoGenerico(){
   document.getElementById('pg-monto').value='';
   document.getElementById('pg-concepto').value='';
   const elPgNotas=document.getElementById('pg-notas');if(elPgNotas)elPgNotas.value='';
+  const elDeudaInfo=document.getElementById('pg-deuda-info');if(elDeudaInfo)elDeudaInfo.style.display='none';
   document.getElementById('modalPagoTit').textContent='💰 Registrar Pago';
   openModal('modalPago');
+}
+// Al elegir un paciente en "+ Registrar Pago" (genérico, no desde una fila
+// puntual): busca si tiene un paquete activo con una cuota pendiente, o si
+// arrastra deuda de sesiones sueltas, y precompleta Concepto/Monto con esa
+// info — así la recepcionista no tiene que ir a mirar el Historial aparte
+// ni escribir el concepto a mano cada vez.
+function pgOnPaciente(){
+  if(_pagoSesionId)return;
+  const pacId=document.getElementById('pg-pac')?.value||'';
+  const info=document.getElementById('pg-deuda-info');
+  const elMonto=document.getElementById('pg-monto');
+  const elConcepto=document.getElementById('pg-concepto');
+  if(!info||!elMonto||!elConcepto)return;
+  if(!pacId){info.style.display='none';return;}
+  const pac=getPac(pacId);
+  const prog=(DB.programas||[]).filter(function(p){return p.paciente_nombre===pac.nombre;})
+    .sort(function(a,b){return(b.created_at||'').localeCompare(a.created_at||'');})[0];
+  if(prog){
+    const cuotaPend=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===prog.id&&s.saldo>0;})
+      .sort(function(a,b){return(a.fecha+a.hora).localeCompare(b.fecha+b.hora);})[0];
+    info.style.display='block';
+    if(cuotaPend){
+      info.style.background='#fff7ed';info.style.color='#9a3412';
+      info.innerHTML='📦 Paquete activo: <b>'+(prog.paquete_nombre||'Paquete')+'</b> — Cuota pendiente: <b>S/'+cuotaPend.saldo+'</b> (sesión del '+fmtF(cuotaPend.fecha)+')';
+      elConcepto.value='Cuota '+(prog.paquete_nombre||'paquete');
+      elMonto.value=cuotaPend.saldo;
+    }else{
+      info.style.background='#f0fdf4';info.style.color='#166534';
+      info.innerHTML='📦 Paquete activo: <b>'+(prog.paquete_nombre||'Paquete')+'</b> — sin cuota pendiente por ahora.';
+      elConcepto.value='Adelanto '+(prog.paquete_nombre||'paquete');
+      elMonto.value='';
+    }
+    return;
+  }
+  const deudaSuelta=pac.saldo||0;
+  info.style.display='block';
+  if(deudaSuelta>0){
+    info.style.background='#fff7ed';info.style.color='#9a3412';
+    info.innerHTML='⚠️ Debe actualmente: <b>S/'+deudaSuelta+'</b> (sesiones sueltas, sin paquete)';
+    elConcepto.value='Pago sesión — '+pac.nombre;
+    elMonto.value=deudaSuelta;
+  }else if(deudaSuelta<0){
+    info.style.background='#eff6ff';info.style.color='#1e40af';
+    info.innerHTML='💙 Tiene un crédito a favor de S/'+(-deudaSuelta)+'.';
+    elConcepto.value='';elMonto.value='';
+  }else{
+    info.style.background='#f0fdf4';info.style.color='#166534';
+    info.innerHTML='✅ Sin deuda pendiente registrada. Si es un adelanto, indica el concepto.';
+    elConcepto.value='';elMonto.value='';
+  }
 }
 
 async function guardarPago(){
