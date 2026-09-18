@@ -2319,7 +2319,7 @@ async function guardarPaqueteFlujo(){
   const adelanto=parseFloat(document.getElementById('ag-adelanto').value)||0;
   const fechaInicio=document.getElementById('ag-fechaInicio')?.value||'';
   const notas=document.getElementById('ag-notas').value;
-  const nroCuotas=progId?1:Math.max(1,parseInt(document.getElementById('ag-cuotas')?.value)||1);
+  let nroCuotas=Math.max(1,parseInt(document.getElementById('ag-cuotas')?.value)||1);
   const esExclusivo=document.getElementById('ag-tipo').value==='exclusivo';
 
   const filas=[];
@@ -2355,6 +2355,12 @@ async function guardarPaqueteFlujo(){
       if(!progRow){showToast('Ese paquete ya no está disponible, cierra y vuelve a abrir el modal','error');return;}
       costoTotal=progRow.costo_total||0;
       totalSesiones=progRow.nro_sesiones_total||0;
+      // El paquete ya tiene sus propias cuotas definidas desde que se
+      // registró — usar SIEMPRE ese valor al continuar (agregar otra
+      // terapia/sesiones), nunca forzar 1, porque eso rompía el cálculo
+      // de las cuotas 2+ (todo el saldo restante terminaba amontonado en
+      // una sola sesión en vez de repartirse en las cuotas ya pactadas).
+      nroCuotas=Math.max(1,parseInt(progRow.nro_cuotas)||1);
       yaAsignadas=(progRow.programa_terapias||[]).reduce(function(a,t){return a+(t.sesiones_asignadas||0);},0);
       // No se puede seguir metiendo sesiones ni pagos a un paquete que ya
       // asignó todas sus sesiones contratadas — hay que cerrarlo (o ya
@@ -3730,24 +3736,33 @@ async function renderHistorial(){
   if(cardArch)cardArch.style.display='block';
   const pac2=getPac(pacId);const ps2=getPs(pac2.psId);const ter2=getTer(pac2.terId);
   let sesPac=DB.sesiones.filter(s=>s.pacId===pac2.nombre).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
-  // Un pago se muestra DENTRO de una fila de sesión únicamente cuando está
-  // atado a ESA sesión exacta (sesion_id) — nunca por "es del mismo
-  // paquete" ni por fecha, porque eso terminaba mostrando el pago en la
-  // fecha de la sesión en vez de la fecha real en que se cobró (ej. un
-  // adelanto pagado el 29/08 para un paquete cuya primera sesión fue
-  // recién el 03/09 se veía como si el pago hubiera sido el 03/09).
-  // Cualquier pago sin sesion_id (adelantos/"solo pago" sin sesión
-  // todavía, pagos genéricos, etc.) aparece como su propia fila de
-  // "💰 Pago registrado" en SU fecha real.
-  const idsSesionMostradas={};
-  sesPac.forEach(function(s){idsSesionMostradas[s.id]=true;});
-  const pagosHuerfanos=(DB.pagos||[]).filter(function(p){
-    if(p.pacId!==pac2.nombre)return false;
-    const sid=p._sb&&p._sb.sesion_id;
-    return sid?!idsSesionMostradas[sid]:true;
-  });
+  // "Solo el último paquete": con el tiempo la lista de un paciente crece
+  // mucho (varios paquetes ya terminados) — este filtro deja ver solo el
+  // paquete más reciente en vez de todo el historial acumulado.
+  const filtroHist=document.getElementById('histFiltro')?.value||'todo';
+  let ultimoProgIdFiltro=null;
+  if(filtroHist==='ultimo'){
+    const progsPac=(DB.programas||[]).filter(function(p){return p.paciente_nombre===pac2.nombre;})
+      .sort(function(a,b){return(b.created_at||'').localeCompare(a.created_at||'');});
+    ultimoProgIdFiltro=progsPac.length?progsPac[0].id:null;
+    if(ultimoProgIdFiltro){
+      sesPac=sesPac.filter(function(s){return s._sb&&s._sb.programa_id===ultimoProgIdFiltro;});
+    }
+  }
+  // Cada pago aparece como su propia fila de "💰 Pago registrado", en SU
+  // fecha real — nunca dentro de la fila de una sesión. Aunque un pago
+  // tenga sesion_id (sirve para la contabilidad interna: a qué sesión/
+  // cuota corresponde), la fecha en que se cobró puede ser distinta a la
+  // fecha de esa sesión (ej. un adelanto pagado el 29/08 para una sesión
+  // agendada recién el 03/09, o una cuota pagada días antes de la sesión
+  // a la que corresponde) — mostrarlo dentro de la fila de la sesión
+  // hacía parecer que el pago había sido ese día, cuando no era así.
+  let pagosDelPaciente=(DB.pagos||[]).filter(function(p){return p.pacId===pac2.nombre;});
+  if(filtroHist==='ultimo'&&ultimoProgIdFiltro){
+    pagosDelPaciente=pagosDelPaciente.filter(function(p){return(p._sb&&p._sb.programa_id)===ultimoProgIdFiltro;});
+  }
   const gruposHuerfanos={};
-  pagosHuerfanos.forEach(function(p){
+  pagosDelPaciente.forEach(function(p){
     const k=p.fecha+'|'+(p.concepto||'');
     if(!gruposHuerfanos[k])gruposHuerfanos[k]={fecha:p.fecha,concepto:p.concepto||'Pago',pagos:[]};
     gruposHuerfanos[k].pagos.push(p);
@@ -3757,18 +3772,6 @@ async function renderHistorial(){
     return {id:'pago-'+k,fecha:g.fecha,hora:'',esPagoSuelto:true,concepto:g.concepto,pagosGrupo:g.pagos};
   });
   const filasTabla=sesPac.concat(filasHuerfanas).sort(function(a,b){return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
-  // "Solo el último paquete": con el tiempo la lista de un paciente crece
-  // mucho (varios paquetes ya terminados) — este filtro deja ver solo el
-  // paquete más reciente en vez de todo el historial acumulado.
-  const filtroHist=document.getElementById('histFiltro')?.value||'todo';
-  if(filtroHist==='ultimo'){
-    const progsPac=(DB.programas||[]).filter(function(p){return p.paciente_nombre===pac2.nombre;})
-      .sort(function(a,b){return(b.created_at||'').localeCompare(a.created_at||'');});
-    const ultimoProgId=progsPac.length?progsPac[0].id:null;
-    if(ultimoProgId){
-      sesPac=sesPac.filter(function(s){return s._sb&&s._sb.programa_id===ultimoProgId;});
-    }
-  }
   // Si tiene un paquete, las tarjetas de arriba deben reflejar SOLO el
   // paquete (igual que "Progreso paquete") — mezclar una consulta suelta
   // ahí confunde el conteo real del paquete. Una sesión "reprogramada"
@@ -3835,24 +3838,13 @@ async function renderHistorial(){
         else{
           costoCelda='S/'+s.costoTotal+(s.saldo>0?' <span style="color:var(--orange);font-weight:700">⚠️ Pend. S/'+s.saldo+'</span>':' <span style="color:var(--green)">✅</span>');
         }
-        // El pago REAL (monto y método con el que se cobró) se ata a esta
-        // sesión SOLO por su "sesion_id" exacto — nunca por "es del mismo
-        // paquete" ni por coincidir la fecha, porque eso mostraba el pago
-        // en la fecha de la sesión en vez de la fecha real en que se
-        // cobró. Un pago sin sesion_id aparece en su propia fila más abajo
-        // (ver pagosHuerfanos), con su fecha real.
-        const pagosDia=esReprogFila?[]:(DB.pagos||[]).filter(function(p){
-          const pSesId=p._sb&&p._sb.sesion_id;
-          return pSesId&&s._sb&&pSesId===s._sb.id;
-        });
-        // Un pago puede haberse dividido en varios métodos (parte efectivo,
-        // parte Yape, etc.) — se listan uno por línea, con su propio monto.
-        let pagoCelda='—';
-        let notasPago='';
-        if(pagosDia.length){
-          pagoCelda=pagosDia.map(function(p){return '<div>'+p.metodo+' S/'+p.monto+'</div>';}).join('');
-          notasPago=pagosDia.map(function(p){return p.notas||'';}).filter(Boolean).join(' · ');
-        }
+        // El pago nunca se muestra dentro de la fila de una sesión — sale
+        // como su propia fila de "💰 Pago registrado" en su fecha real
+        // (ver pagosDelPaciente/gruposHuerfanos), para no dar a entender
+        // que el pago ocurrió el mismo día que la sesión cuando puede no
+        // ser así.
+        const pagoCelda='—';
+        const notasPago='';
         const notasCelda=[s.notas||'',notasPago?'💳 '+notasPago:''].filter(Boolean).join('<br>');
         // Reprogramada: queda solo como registro de que ese cupo se movió
         // — no cuenta como una sesión más, así que no muestra el
