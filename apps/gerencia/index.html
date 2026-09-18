@@ -296,9 +296,10 @@ select.fsel{
   </div>
   <script>
     (function(){
-      var h=new Date().getHours();
+      var _nl=new Date(Date.now()-5*3600000);
+      var h=_nl.getUTCHours();
       var s=h<12?'✨ ¡Buenos días,':'🌸 ¡Buenas tardes,';
-      var dia=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][new Date().getDay()];
+      var dia=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][_nl.getUTCDay()];
       var frases=['Detrás de cada gran organización, hay una gran líder 👑',
                   'Tu visión impulsa a todo el equipo hacia adelante 🚀',
                   'Cada decisión tuya construye el futuro de Psicoluz 🌟',
@@ -812,7 +813,7 @@ let _gerNombre='Gerente';
 //  BIENVENIDA PERSONALIZADA GERENCIA
 // ══════════════════════════════════════════════════════════
 function mostrarBienvenida(nombre){
-  var h=new Date().getHours();
+  var h=new Date(_limaMs()).getUTCHours();
   var saludo=h<12?'¡Buenos días':h<19?'¡Buenas tardes':'¡Buenas noches';
   var nom=(nombre||_gerNombre||'').replace(/^(lic\.?|sr\.?|sra\.?)\s*/i,'').trim().split(' ')[0]||'Gerente';
   var frases=[
@@ -862,8 +863,16 @@ let G = {
 };
 
 // ── UTILS ────────────────────────────────────────────────────────────────────
-function today(){ return (function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})(); }
-function mesActual(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+// Perú usa GMT-5 todo el año (sin horario de verano) — se calcula restando
+// 5h al instante UTC y leyendo los componentes UTC del resultado, para que
+// la fecha/hora no dependa de cómo esté configurado el equipo/navegador ni
+// de Date#toISOString (que da la fecha en UTC: pasado las 7pm hora de Lima
+// ya es "mañana" en UTC).
+function _limaMs(d){return(d instanceof Date?d:new Date()).getTime()-5*3600000;}
+function fechaLima(d){var l=new Date(_limaMs(d));return l.getUTCFullYear()+'-'+String(l.getUTCMonth()+1).padStart(2,'0')+'-'+String(l.getUTCDate()).padStart(2,'0');}
+function horaLima(d){var l=new Date(_limaMs(d));return String(l.getUTCHours()).padStart(2,'0')+':'+String(l.getUTCMinutes()).padStart(2,'0');}
+function today(){ return fechaLima(); }
+function mesActual(){ var l=new Date(_limaMs()); return l.getUTCFullYear()+'-'+String(l.getUTCMonth()+1).padStart(2,'0'); }
 function fmtF(f){ if(!f)return'—'; var p=String(f).split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f; }
 function fmtM(ym){ if(!ym||!ym.includes('-'))return ym||'—'; var p=ym.split('-'); return MESES[parseInt(p[1])-1]+' '+p[0]; }
 function s2(v){ return String(v||0).padStart(2,'0'); }
@@ -1042,7 +1051,7 @@ function _diasTrabajoANum(txt){
       }
 
       if(action==='enviarChat'){
-        var d=new Date(),h=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+        var h=horaLima();
         return _sbP('chat_sede',{sede:sede,nombre:bd.nombre||'',tipo:bd.tipo||'psicologa',
           mensaje:bd.msg||bd.texto||bd.mensaje||'',hora:h}).then(function(){return _jr({status:'ok'});});
       }
@@ -1080,7 +1089,7 @@ function _diasTrabajoANum(txt){
       }
 
       if(action==='getSeguimientoFichas'){
-        var fechaHoy=qp.fecha||new Date(Date.now()-5*3600000).toISOString().split('T')[0];
+        var fechaHoy=qp.fecha||fechaLima();
         return Promise.all([
           _sb('sesiones',{'sede':'eq.'+sede,'fecha':'eq.'+fechaHoy,'estado':'neq.programado','select':'*'}),
           _sb('fichas_seguimiento',{'sede':'eq.'+sede,'fecha':'eq.'+fechaHoy,'select':'*'})
@@ -1150,7 +1159,7 @@ function _diasTrabajoANum(txt){
 
       if(action==='guardarObjetivo'){
         return _sbP('fichas_seguimiento',{
-          fecha:qp.fecha||new Date(Date.now()-5*3600000).toISOString().split('T')[0],
+          fecha:qp.fecha||fechaLima(),
           paciente_nombre:qp.pac||'',terapia:'',
           psicologa_nombre:(function(){try{return PS.nombre||'';}catch(e){return '';}})(),
           sede:qp.sede||sede,objetivo:qp.objetivo||'',
@@ -1298,9 +1307,9 @@ function initApp(){
 
   // Ticker
   setInterval(()=>{
-    var n=new Date();
-    var r=document.getElementById('relojG'); if(r)r.textContent=s2(n.getHours())+':'+s2(n.getMinutes());
-    var f=document.getElementById('fechaG'); if(f)f.textContent=DIAS[n.getDay()]+' '+n.getDate()+' '+MESES[n.getMonth()];
+    var n=new Date(_limaMs());
+    var r=document.getElementById('relojG'); if(r)r.textContent=s2(n.getUTCHours())+':'+s2(n.getUTCMinutes());
+    var f=document.getElementById('fechaG'); if(f)f.textContent=DIAS[n.getUTCDay()]+' '+n.getUTCDate()+' '+MESES[n.getUTCMonth()];
   },1000);
 
   // Poblar meses en el filtro
@@ -1373,7 +1382,7 @@ async function sincronizar(mostrar){
     G.ts=new Date();
     poblarFiltroMes();
     var el=document.getElementById('syncStatus');
-    if(el)el.textContent='✅ '+s2(G.ts.getHours())+':'+s2(G.ts.getMinutes());
+    if(el)el.textContent='✅ '+horaLima(G.ts);
     if(mostrar)toast('✅ Datos actualizados','ok');
     renderTodo();
   }catch(err){
@@ -2168,7 +2177,7 @@ function renderAlertas(){
 
   // Sin sesiones esta semana
   var semAnt=new Date(); semAnt.setDate(semAnt.getDate()-7);
-  var semAntStr=semAnt.toISOString().split('T')[0];
+  var semAntStr=fechaLima(semAnt);
   var sesEsta=filtSes(G.sesiones).filter(s=>s.fecha>=semAntStr&&s.fecha<=hoy);
   if(sesEsta.length===0&&G.sesiones.length>0)
     alertas.push({tipo:'i',icon:'📅',txt:'Sin sesiones registradas en los últimos 7 días'});
@@ -3062,7 +3071,7 @@ async function renderAsistHist(){
   var el=document.getElementById('asistHistContent');if(!el)return;
   el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)">⏳ Cargando...</div>';
   try{
-    var desde=new Date(Date.now()-30*86400000).toISOString().split('T')[0];
+    var desde=fechaLima(new Date(Date.now()-30*86400000));
     var rows=await accGet('asistencia_personal',{select:'*',fecha:'gte.'+desde,order:'fecha.desc',limit:'400'});
     if(!rows||!rows.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)">Sin registros de asistencia en los últimos 30 días</div>';return;}
     var porFecha={};

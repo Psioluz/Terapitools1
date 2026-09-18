@@ -1104,7 +1104,7 @@ async function renderChat(){
 async function enviarMsgAdmin(){
   var inp=document.getElementById('chatInputAdmin');if(!inp||!inp.value.trim())return;
   var msg=inp.value.trim();inp.value='';
-  var h=new Date();var hora=String(h.getHours()).padStart(2,'0')+':'+String(h.getMinutes()).padStart(2,'0');
+  var h=new Date(Date.now()-5*3600000);var hora=String(h.getUTCHours()).padStart(2,'0')+':'+String(h.getUTCMinutes()).padStart(2,'0');
   try{await sbPost('chat_sede',{sede:D.sede,nombre:ADM.nombre,tipo:'administradora',mensaje:msg,hora:hora});renderChat();}catch(e){toast('Error: '+e.message,'error');}
 }
 

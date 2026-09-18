@@ -1094,7 +1094,17 @@ const diaFull=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sába
 const mesES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
 // ── UTILS ──
-function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+// Perú usa GMT-5 todo el año (no tiene horario de verano) — se calcula
+// restando 5 horas al instante UTC y leyendo los componentes UTC del
+// resultado, en vez de usar la zona horaria del equipo/navegador (que
+// puede estar mal configurada) o Date#toISOString (que siempre da la
+// fecha en UTC: pasado las 7pm hora de Lima ya es "mañana" en UTC, y
+// eso hacía que sesiones, pagos y el calendario semanal se registraran
+// con la fecha equivocada durante la tarde/noche).
+function _limaMs(d){return(d instanceof Date?d:new Date()).getTime()-5*3600000;}
+function fechaLima(d){const l=new Date(_limaMs(d));return l.getUTCFullYear()+'-'+String(l.getUTCMonth()+1).padStart(2,'0')+'-'+String(l.getUTCDate()).padStart(2,'0');}
+function horaLima(d){const l=new Date(_limaMs(d));return String(l.getUTCHours()).padStart(2,'0')+':'+String(l.getUTCMinutes()).padStart(2,'0');}
+function today(){return fechaLima();}
 function fmtF(f){if(!f)return'—';const p=String(f).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f;}
 function nextId(arr){return arr.length?Math.max(0,...arr.map(x=>x.id||0))+1:1;}
 function getPac(id){return DB.pacientes.find(p=>p.id===id||p.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'—',tel:'',terId:null,mod:'sesion',paq:0};}
@@ -1154,8 +1164,8 @@ function cerrarSesion(){
 
 // ── TICK ──
 function tick(){
-  const n=new Date();
-  const t=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');
+  const nl=new Date(_limaMs());
+  const t=String(nl.getUTCHours()).padStart(2,'0')+':'+String(nl.getUTCMinutes()).padStart(2,'0')+':'+String(nl.getUTCSeconds()).padStart(2,'0');
   const elR=document.getElementById('relojTop');if(elR)elR.textContent=t;
   const elA=document.getElementById('relojAsist');if(elA)elA.textContent=t;
   const elF=document.getElementById('fechaTop');
@@ -1422,7 +1432,7 @@ function renderAsistPersonalDash(){
 function getLunes(f){
   const d=new Date(f+'T12:00:00');
   d.setDate(d.getDate()-((d.getDay()+6)%7));
-  return d.toISOString().split('T')[0];
+  return fechaLima(d);
 }
 function navSem(dir){_semOff+=dir;renderAgenda();}
 function irHoy(){_semOff=0;_agFechaSel=today();renderAgenda();}
@@ -1443,11 +1453,11 @@ function renderAgenda(){
     return;
   }
   const base=new Date();base.setDate(base.getDate()+_semOff*7);
-  const lunes=getLunes(base.toISOString().split('T')[0]);
+  const lunes=getLunes(fechaLima(base));
   const dias=[];
   for(let i=0;i<6;i++){
     const d=new Date(lunes+'T12:00:00');d.setDate(d.getDate()+i);
-    dias.push({f:d.toISOString().split('T')[0],d});
+    dias.push({f:fechaLima(d),d});
   }
   const d0=dias[0].d,d5=dias[5].d;
   const st=document.getElementById('semTit');
@@ -2191,7 +2201,7 @@ async function generarSesionesRecurrentes(o){
   while(creadas<o.totalSesiones&&intentos<maxIntentos){
     intentos++;
     fecha.setDate(fecha.getDate()+7);
-    const fStr=fecha.toISOString().split('T')[0];
+    const fStr=fechaLima(fecha);
     const fer=feriadoDe(fStr);
     if(fer&&fer.tipo_gestion==='no_laborable'){saltadas.push(fmtF(fStr)+' (feriado)');continue;}
     if(DB.sesiones.some(function(s){return s.psId===psNombre&&s.fecha===fStr&&s.hora===o.hora;})){
@@ -2258,7 +2268,7 @@ function simularCalendarioPaquete(filas,fechaInicioStr,totalSesiones){
     let minIdx=-1,minTime=Infinity;
     for(let i=0;i<cursors.length;i++){if(cursors[i].getTime()<minTime){minTime=cursors[i].getTime();minIdx=i;}}
     const f=filas[minIdx],d=cursors[minIdx];
-    const fStr=d.toISOString().split('T')[0];
+    const fStr=fechaLima(d);
     const key=f.psicologa.nombre+'|'+fStr+'|'+f.hora;
     const fer=feriadoDe(fStr);
     if(fer&&fer.tipo_gestion==='no_laborable'){
@@ -2465,7 +2475,7 @@ async function guardarPaqueteFlujo(){
 
     if(adelanto>0){
       const n=new Date();
-      const horaPago=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+      const horaPago=horaLima(n);
       const filasPago=agFilasPagoParaGuardar(adelanto);
       for(const fp of filasPago){
         const pagoRow={fecha:fechaInicio||today(),hora:horaPago,
@@ -2674,7 +2684,7 @@ async function guardarSesion(){
     // Adelanto como pago
     if(adelanto>0){
       const n=new Date();
-      const horaPago=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+      const horaPago=horaLima(n);
       const filasPago=agFilasPagoParaGuardar(adelanto);
       filasPago.forEach(function(fp){
         const pagoRow={fecha:fecha||today(),hora:horaPago,
@@ -2940,7 +2950,7 @@ async function guardarPago(){
   if(!pacId||monto<=0){showToast('Paciente y monto son obligatorios','error');return;}
   const pac=getPac(pacId);const ps=getPs(psId);
   const n=new Date();
-  const hora=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+  const hora=horaLima(n);
   // Si "Cobrar" se abrió desde una fila puntual, sabemos EXACTAMENTE qué
   // sesión/cuota se está pagando — evita adivinar por fecha o, peor,
   // aplicar el pago a todas las cuotas pendientes del paquete a la vez.
@@ -3121,7 +3131,7 @@ async function marcarP(btn){
     showToast('Ya fue registrada para esta fecha','error');return;
   }
   const n=new Date();
-  const hora=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+  const hora=horaLima(n);
   showToast('⏳ Guardando...');
   try{
     const rows=await sbPost('asistencia_personal',{fecha:fecha,sede:DB.sede,psicologa:ps.nombre,entrada:hora,estado:estado,registrado_por:DB.usuario||''});
@@ -3996,7 +4006,7 @@ function renderProximosDias(){
   const dias=[];
   for(let i=1;i<=4;i++){
     const d=new Date();d.setDate(d.getDate()+i);
-    dias.push(d.toISOString().split('T')[0]);
+    dias.push(fechaLima(d));
   }
   const ses=DB.sesiones.filter(s=>dias.includes(s.fecha)&&s.estado==='programado').sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
   if(!ses.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px;text-align:center">Sin sesiones programadas en los próximos días.</div>';return;}
@@ -4050,7 +4060,7 @@ async function cargarDesdeSB(silencioso) {
   if (!DB.sede) return;
   try {
     var hoy = today();
-    var desde = (function(){var d=new Date(Date.now()-45*86400000);return d.toISOString().split('T')[0];})();
+    var desde = fechaLima(new Date(Date.now()-45*86400000));
     var res = await Promise.all([
       sbGet('sesiones',{sede:'eq.'+DB.sede,fecha:'gte.'+desde,select:'*',order:'fecha.asc,hora.asc',limit:'1500'}),
       sbGet('pacientes',{sede:'eq.'+DB.sede,estado:'eq.activo',select:'*',order:'nombre.asc'}),
@@ -4143,8 +4153,7 @@ async function marcarAs(sesRef,nuevoEst){
     if(isNaN(progMs)){
       var hoyStr=today();
       if(s.fecha===hoyStr){
-        var ahora=new Date();
-        var ahoraHM=String(ahora.getHours()).padStart(2,'0')+':'+String(ahora.getMinutes()).padStart(2,'0');
+        var ahoraHM=horaLima();
         if(ahoraHM>hNorm)nuevoEst='tardanza';
       }
     }else if(Date.now()>progMs){
@@ -4176,8 +4185,8 @@ function normHoraRec(h){
   return m?m[1].padStart(2,'0')+':'+m[2]:'00:00';
 }
 function renderCumpleanos(){
-  var hoy=new Date(Date.now()-5*3600000);
-  function dias(fn){if(!fn)return null;var p=fn.split('-');if(p.length<3)return null;var c=new Date(hoy.getFullYear(),parseInt(p[1])-1,parseInt(p[2]));if(c<hoy)c.setFullYear(hoy.getFullYear()+1);var d=Math.round((c-hoy)/86400000);return d<=30?d:null;}
+  var hoy=new Date(_limaMs());
+  function dias(fn){if(!fn)return null;var p=fn.split('-');if(p.length<3)return null;var c=new Date(Date.UTC(hoy.getUTCFullYear(),parseInt(p[1])-1,parseInt(p[2])));if(c<hoy)c.setUTCFullYear(hoy.getUTCFullYear()+1);var d=Math.round((c-hoy)/86400000);return d<=30?d:null;}
   function mkCards(items){return items.length?'<div style="display:flex;flex-direction:column;gap:8px">'+items.map(function(x){return'<div style="display:flex;align-items:center;gap:10px;padding:10px;background:#fce7f3;border-radius:10px;border-left:3px solid var(--accent)"><span style="font-size:22px">'+(x.d===0?'🎂':x.d<=3?'🎉':'🎁')+'</span><div><b>'+x.n+'</b><div style="font-size:11px;color:var(--muted)">'+(x.d===0?'¡Hoy!':x.d===1?'Mañana':'En '+x.d+' días')+'</div></div></div>';}).join('')+'</div>':'<p style="color:var(--muted);padding:12px;text-align:center">Sin cumpleaños próximos</p>';}
   var cp=(DB.pacientes||[]).map(function(p){var d=dias(p.nac);return d!==null?{n:p.nombre,d:d}:null;}).filter(Boolean).sort(function(a,b){return a.d-b.d;});
   var cs=(DB.psicologas||[]).map(function(p){var d=dias(p.nac);return d!==null?{n:p.nombre,d:d}:null;}).filter(Boolean).sort(function(a,b){return a.d-b.d;});
@@ -4223,7 +4232,7 @@ async function enviarMensajeChatRec(){
   var inp=document.getElementById('chatInputRec');if(!inp)return;
   var texto=(inp.value||'').trim();if(!texto)return;
   inp.value='';
-  var n=new Date(),hora=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+  var n=new Date(),hora=horaLima(n);
   try{
     await sbPost('chat_sede',{sede:DB.sede,nombre:DB.usuario||'Recepción',tipo:'recepcion',mensaje:texto,hora:hora});
     await cargarMensajesChatRec();
@@ -4346,7 +4355,7 @@ async function enviarMensajeChatRec(){
     }catch(e){}
     try{
       if(window.PS&&PS.nombre){
-        var hoyL=(function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
+        var hoyL=fechaLima();
         var q2=NTF_URL+'/rest/v1/sesiones?select=id,hora,paciente_nombre&fecha=eq.'+hoyL+'&psicologa=eq.'+encodeURIComponent(PS.nombre)+'&order=hora.asc';
         var r2=await fetch(q2,{headers:NTF_H});
         if(r2.ok){
@@ -4366,7 +4375,7 @@ async function enviarMensajeChatRec(){
     try{
       if(window.DB&&DB.sede&&DB.sesiones){
         var ahora=new Date();
-        var hoyR=(function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})(ahora);
+        var hoyR=fechaLima(ahora);
         DB.sesiones.forEach(function(s){
           if(s.fecha!==hoyR||s.estado!=='programado'||s._notif10)return;
           var hm=String(s.hora||'').split(':');
