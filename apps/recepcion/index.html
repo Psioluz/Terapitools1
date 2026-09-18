@@ -585,10 +585,14 @@ try{
     <div class="card-header">
       <div class="card-title">📚 Historial Clínico</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <select class="form-control" id="histPac" style="width:200px" onchange="renderHistorial()">
+        <select class="form-control" id="histPac" style="width:200px" onchange="onCambioHistPac()">
           <option value="">— Selecciona paciente —</option>
         </select>
-        <button class="btn btn-success btn-sm" onclick="syncHistorialSheet()">📚 Cargar historial completo</button>
+        <select class="form-control" id="histFiltro" style="width:190px" onchange="renderHistorial()">
+          <option value="todo">Ver todo el historial</option>
+          <option value="ultimo">Solo el último paquete</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="onCambioHistPac()" title="Volver a traer el historial completo de este paciente">🔄 Actualizar</button>
       </div>
     </div>
     <div id="histContenido" style="padding:14px">
@@ -3511,7 +3515,19 @@ async function renderHistorial(){
   // ── Renderizar ──
   if(cardArch)cardArch.style.display='block';
   const pac2=getPac(pacId);const ps2=getPs(pac2.psId);const ter2=getTer(pac2.terId);
-  const sesPac=DB.sesiones.filter(s=>s.pacId===pac2.nombre).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+  let sesPac=DB.sesiones.filter(s=>s.pacId===pac2.nombre).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+  // "Solo el último paquete": con el tiempo la lista de un paciente crece
+  // mucho (varios paquetes ya terminados) — este filtro deja ver solo el
+  // paquete más reciente en vez de todo el historial acumulado.
+  const filtroHist=document.getElementById('histFiltro')?.value||'todo';
+  if(filtroHist==='ultimo'){
+    const progsPac=(DB.programas||[]).filter(function(p){return p.paciente_nombre===pac2.nombre;})
+      .sort(function(a,b){return(b.created_at||'').localeCompare(a.created_at||'');});
+    const ultimoProgId=progsPac.length?progsPac[0].id:null;
+    if(ultimoProgId){
+      sesPac=sesPac.filter(function(s){return s._sb&&s._sb.programa_id===ultimoProgId;});
+    }
+  }
   // Si tiene un paquete, las tarjetas de arriba deben reflejar SOLO el
   // paquete (igual que "Progreso paquete") — mezclar una consulta suelta
   // ahí confunde el conteo real del paquete. Una sesión "reprogramada"
@@ -3659,24 +3675,43 @@ async function subirPDF(){
   }catch(e){showToast('Error al subir: '+e.message,'error');console.error('[docs]',e);}
 }
 
-async function syncHistorialSheet(){
+// El historial de un paciente puede tener sesiones fuera de los últimos
+// 45 días (la ventana que carga cargarDesdeSB por defecto) — se trae
+// completo directo de Supabase, sin esperar a que lo pidan aparte.
+async function cargarHistorialCompletoPac(pacNombre){
+  const [rows,progs]=await Promise.all([
+    sbGet('sesiones',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*',order:'fecha.desc',limit:'500'}),
+    sbGet('programas_paciente',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*'}).catch(function(){return[];})
+  ]);
+  rows.forEach(function(r){
+    const existing=DB.sesiones.find(function(x){return x._sb&&x._sb.id===r.id;});
+    if(!existing){
+      DB.sesiones.push({id:r.id,fecha:r.fecha,hora:normHoraRec(r.hora),pacId:r.paciente_nombre,pacNom:r.paciente_nombre,
+        psId:r.psicologa,psNom:r.psicologa,terId:r.terapia,terNom:r.terapia,estado:r.estado,tipo:r.tipo||'sesion',notas:r.notas||'',
+        saldo:r.saldo||0,nroSes:r.nro_en_paquete,totalPaq:r.total_paquete,costo:r.costo_total||0,costoTotal:r.costo_total||0,tel:r.paciente_tel||'',_sb:r});
+    }else{
+      // Ya estaba en memoria (dentro de la ventana normal) — igual se
+      // completan tipo/notas si faltaban de una carga vieja.
+      if(existing.tipo===undefined)existing.tipo=r.tipo||'sesion';
+      if(existing.notas===undefined)existing.notas=r.notas||'';
+    }
+  });
+  // También hace falta el paquete YA TERMINADO de este paciente (DB.programas
+  // solo trae los activos) para poder filtrar "solo el último paquete".
+  (progs||[]).forEach(function(p){
+    if(!(DB.programas||[]).some(function(x){return x.id===p.id;}))(DB.programas=DB.programas||[]).push(p);
+  });
+  return rows.length;
+}
+async function onCambioHistPac(){
   const pacSel=document.getElementById('histPac')?.value||'';
-  if(!pacSel){showToast('Selecciona un paciente','error');return;}
+  renderHistorial();
+  if(!pacSel)return;
   const pac=getPac(pacSel);
-  showToast('⏳ Cargando historial completo...');
   try{
-    const rows=await sbGet('sesiones',{paciente_nombre:'eq.'+pac.nombre,sede:'eq.'+DB.sede,select:'*',order:'fecha.desc',limit:'500'});
-    rows.forEach(function(r){
-      const existing=DB.sesiones.find(function(x){return x._sb&&x._sb.id===r.id;});
-      if(!existing){
-        DB.sesiones.push({id:r.id,fecha:r.fecha,hora:normHoraRec(r.hora),pacId:r.paciente_nombre,pacNom:r.paciente_nombre,
-          psId:r.psicologa,psNom:r.psicologa,terId:r.terapia,terNom:r.terapia,estado:r.estado,tipo:r.tipo||'sesion',notas:r.notas||'',
-          saldo:r.saldo||0,nroSes:r.nro_en_paquete,totalPaq:r.total_paquete,costo:r.costo_total||0,costoTotal:r.costo_total||0,tel:r.paciente_tel||'',_sb:r});
-      }
-    });
+    await cargarHistorialCompletoPac(pac.nombre);
     renderHistorial();
-    showToast('✅ '+rows.length+' sesiones del historial cargadas');
-  }catch(e){showToast('Error: '+e.message,'error');console.error('[historial]',e);}
+  }catch(e){showToast('Error al cargar historial: '+e.message,'error');console.error('[historial]',e);}
 }
 
 function normDateStr(f){
