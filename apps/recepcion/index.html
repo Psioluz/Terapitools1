@@ -4050,6 +4050,56 @@ function exportarAgendaPDF(){
       doc.text('Sin horarios/sesiones para esta semana.',W/2,y+10,{align:'center'});
     }
 
+    // ── DISPONIBILIDAD — hoja(s) aparte, vertical, por psicóloga: qué días
+    // y horarios de SU horario laboral quedaron sin ningún paciente
+    // agendado esta semana (para saber dónde se puede meter más gente) ──
+    const psicoParaDisp=filtPsObj?[filtPsObj]:DB.psicologas.slice().sort(function(a,b){return a.nombre.localeCompare(b.nombre);});
+    const W2=210,M2=14;
+    doc.addPage('a4','portrait');
+    let y2=14;
+    doc.setFillColor(26,31,94);doc.rect(M2,y2,W2-M2*2,14,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(12);doc.setFont('helvetica','bold');
+    doc.text('DISPONIBILIDAD DE LA SEMANA (horarios sin agendar)',M2+4,y2+9);
+    y2+=20;
+
+    psicoParaDisp.forEach(function(ps){
+      const librePorDia=dias.map(function(dia){
+        const diaSlots=horasPs(ps.id,dia.f);
+        const libres=diaSlots.filter(function(slot){
+          return !DB.sesiones.some(function(s){return s.fecha===dia.f&&s.hora===slot&&s.psId===ps.nombre;});
+        });
+        return {dia:dia,libres:libres,trabaja:diaSlots.length>0};
+      });
+      if(!librePorDia.some(function(x){return x.trabaja;}))return; // no trabaja ningún día de esta semana
+
+      if(y2+18>282){doc.addPage('a4','portrait');y2=14;}
+      doc.setFillColor(107,33,77);doc.roundedRect(M2,y2,W2-M2*2,8,1.5,1.5,'F');
+      doc.setTextColor(255,255,255);doc.setFontSize(9.5);doc.setFont('helvetica','bold');
+      doc.text('Lic. '+ps.nombre,M2+3,y2+5.5);
+      y2+=10;
+
+      let zebra=false;
+      librePorDia.forEach(function(x){
+        if(!x.trabaja)return;
+        const etiquetaDia=diaES[x.dia.d.getDay()]+' '+String(x.dia.d.getDate()).padStart(2,'0')+'/'+String(x.dia.d.getMonth()+1).padStart(2,'0');
+        const txt=x.libres.length?x.libres.join('   ·   '):'— Sin horarios libres (agenda completa) —';
+        doc.setFont(x.libres.length?'helvetica':'helvetica','normal');doc.setFontSize(7.5);
+        const lineas=doc.splitTextToSize(txt,W2-M2*2-44);
+        const rowH=Math.max(6,lineas.length*4+2);
+        if(y2+rowH>282){doc.addPage('a4','portrait');y2=14;}
+        doc.setFillColor(zebra?248:255,zebra?250:255,zebra?255:255);
+        doc.rect(M2,y2,W2-M2*2,rowH,'F');
+        doc.setTextColor(30,30,30);doc.setFont('helvetica','bold');doc.setFontSize(8);
+        doc.text(etiquetaDia,M2+3,y2+4.5);
+        doc.setTextColor(x.libres.length?5:160,x.libres.length?120:160,x.libres.length?60:160);
+        doc.setFont('helvetica',x.libres.length?'normal':'italic');doc.setFontSize(7.5);
+        doc.text(lineas,M2+42,y2+4.5);
+        y2+=rowH;
+        zebra=!zebra;
+      });
+      y2+=6;
+    });
+
     const nombreArchivo='Agenda_Semanal_'+DB.sede+(filtPsNom?'_'+filtPsNom.replace(/\s+/g,'_'):'')+'_'+dias[0].f+'.pdf';
     doc.save(nombreArchivo);
     showToast('✅ PDF de agenda generado');
