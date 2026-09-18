@@ -156,7 +156,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ag-celda{border-top:1px solid var(--border);border-left:1px solid var(--border);min-height:54px;
   padding:2px;cursor:pointer;transition:background .15s}
 .ag-celda:hover{background:#f0f4ff}
-.ag-chip{border-radius:4px;padding:3px 5px;font-size:9px;font-weight:700;color:#fff;
+.ag-chip{border-radius:4px;padding:3px 5px;font-size:10.5px;font-weight:700;color:#fff;
+  font-family:'Comic Sans MS','Comic Sans',cursive,sans-serif;
   margin-bottom:2px;overflow:hidden;display:block}
 .ag-mas{color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100%;font-size:16px}
 
@@ -1119,6 +1120,19 @@ function colorPsAgenda(ps){
   let h=0;for(let i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0;}
   return PALETA_PS_AGENDA[h%PALETA_PS_AGENDA.length];
 }
+// El color de fondo de cada chip puede ser cualquiera (incluye colores
+// claros elegidos a mano en Psicólogas) — el texto blanco fijo se perdía
+// en esos casos. Se calcula blanco o gris oscuro según qué tanto
+// contraste da cada uno (luminancia relativa aproximada).
+function _contrastText(hex){
+  hex=String(hex||'').replace('#','');
+  if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');
+  if(hex.length!==6)return'#fff';
+  const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);
+  if(isNaN(r)||isNaN(g)||isNaN(b))return'#fff';
+  const lum=(0.299*r+0.587*g+0.114*b)/255;
+  return lum>0.6?'#1e293b':'#fff';
+}
 function getTer(id){return DB.terapias.find(t=>t.id===id||t.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'—',color:'bk'};}
 function getPaq(id){return DB.paquetes.find(p=>p.id===id)||null;}
 
@@ -1518,14 +1532,15 @@ function renderAgenda(){
           // diferenciarla de un cupo realmente activo.
           const esReprog=s.estado==='reprogramado';
           const bc=esReprog?'#94a3b8':colorPsAgenda(ps);
-          const bordeEstado=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':s.estado==='permiso'?'#f59e0b':'rgba(255,255,255,.6)';
+          const tc=_contrastText(bc);
+          const bordeEstado=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':s.estado==='permiso'?'#f59e0b':(tc==='#fff'?'rgba(255,255,255,.6)':'rgba(30,41,59,.5)');
           const esPaq=s.tipo==='paquete'&&s.totalPaq;
           const progTxt=esPaq?(' '+s.nroSes+'/'+s.totalPaq):'';
           const titulo=pac.nombre+' · '+ter.nombre+(progTxt?' · Paq'+progTxt:'')+' · '+ps.nombre+(esReprog?' (reprogramado)':'');
-          h+='<div class="ag-chip" style="background:'+bc+';border-left:3px solid '+bordeEstado+(esReprog?';opacity:.55;text-decoration:line-through':'')+'" title="'+titulo+'">'+
-            '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;font-weight:800">'+pac.nombre.split(' ')[0]+'</div>'+
-            '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9.5px;opacity:.9">'+abrevTerapia(ter.nombre)+'</div>'+
-            (esPaq?'<div style="font-size:8px;opacity:.8">'+s.nroSes+'/'+s.totalPaq+'</div>':'')+
+          h+='<div class="ag-chip" style="background:'+bc+';color:'+tc+';border-left:3px solid '+bordeEstado+(esReprog?';opacity:.55;text-decoration:line-through':'')+'" title="'+titulo+'">'+
+            '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:800">'+pac.nombre.split(' ')[0]+'</div>'+
+            '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;opacity:.9">'+abrevTerapia(ter.nombre)+'</div>'+
+            (esPaq?'<div style="font-size:9.5px;opacity:.85">'+s.nroSes+'/'+s.totalPaq+'</div>':'')+
             '</div>';
         });
       } else if(hayHorario){
@@ -1803,8 +1818,15 @@ async function agCargarProgramasActivos(){
 
 function agOnProgExist(){
   const progId=document.getElementById('ag-progExist')?.value||'';
+  const tipo=document.getElementById('ag-tipo')?.value;
+  const exclusivoModo=document.getElementById('ag-exclusivoModo')?.value||'sesion';
+  const esExclusivo=tipo==='exclusivo'&&exclusivoModo==='paquete';
   const grpPaq=document.getElementById('ag-grp-paq');
-  if(grpPaq)grpPaq.style.display=progId?'none':'block';
+  // El selector de paquetes del catálogo (con precios ya establecidos) no
+  // aplica para "Precio exclusivo" — ahí el costo/sesiones se escriben a
+  // mano, así que nunca debe reaparecer aunque no haya un paquete activo
+  // elegido en "ag-progExist".
+  if(grpPaq)grpPaq.style.display=(!progId&&!esExclusivo)?'block':'none';
   const grpCuotas=document.getElementById('ag-grp-cuotas');
   if(grpCuotas)grpCuotas.style.display=progId?'none':'block';
   agActualizarResumen();
@@ -2480,7 +2502,13 @@ async function guardarPaqueteFlujo(){
       for(const fp of filasPago){
         const pagoRow={fecha:fechaInicio||today(),hora:horaPago,
           monto:fp.monto,metodo:fp.metodo,concepto:'Adelanto '+(progRow.paquete_nombre||'paquete'),
-          paciente_nombre:pac.nombre,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
+          paciente_nombre:pac.nombre,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||'',
+          programa_id:progRow.id};
+        // "Solo registrar el paquete y el pago" (modo=soloPago) no crea
+        // ninguna sesión todavía — ahí no hay sesion_id que asignar, pero
+        // el pago SIGUE atado al paquete (programa_id) para que el
+        // Historial lo pueda mostrar en cuanto exista al menos una sesión
+        // de ese paquete, en vez de quedar huérfano y nunca visible.
         if(primeraSesionId)pagoRow.sesion_id=primeraSesionId;
         await sbPost('pagos',pagoRow);
       }
@@ -2692,6 +2720,7 @@ async function guardarSesion(){
           paciente_nombre:pac.nombre,psicologa_nombre:ps.nombre,terapia_nombre:ter.nombre,
           sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
         if(sesionIdCreada)pagoRow.sesion_id=sesionIdCreada;
+        if(filaSesion&&filaSesion.programa_id)pagoRow.programa_id=filaSesion.programa_id;
         promesas.push(sbPost('pagos',pagoRow));
       });
     }
@@ -2961,7 +2990,8 @@ async function guardarPago(){
       paciente_nombre:pac.nombre,psicologa_nombre:ps.nombre||'',
       sede:DB.sede,registrado_por:DB.usuario||''};
     if(sesPagada&&sesPagada._sb&&sesPagada._sb.id)pagoRow.sesion_id=sesPagada._sb.id;
-    await sbPost('pagos',pagoRow);
+    const pagoInsertado=await sbPost('pagos',pagoRow);
+    const pagoId=pagoInsertado&&pagoInsertado[0]&&pagoInsertado[0].id;
     const promesas=[];
     // Reducir saldo del paciente en Supabase — puede quedar en negativo
     // (crédito a favor) si el pago supera lo que debía; ese crédito se
@@ -3002,6 +3032,10 @@ async function guardarPago(){
           const adelantoAcum=(prog.adelanto_acumulado||0)+monto;
           const saldoProg=Math.max(0,(prog.costo_total||0)-adelantoAcum);
           promesas.push(sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldoProg},{id:'eq.'+prog.id}));
+          // Atar el pago a este paquete (aunque no haya una sesión puntual
+          // elegida) para que el Historial lo pueda mostrar apenas exista
+          // una sesión de ese paquete, en vez de quedar sin vincular.
+          if(pagoId)promesas.push(sbPatch('pagos',{programa_id:prog.id},{id:'eq.'+pagoId}));
           const checkpointPendiente=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===prog.id&&s.saldo>0;})
             .sort(function(a,b){return((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||''));})[0];
           if(checkpointPendiente&&checkpointPendiente._sb&&checkpointPendiente._sb.id){
@@ -3688,6 +3722,15 @@ async function renderHistorial(){
   if(cardArch)cardArch.style.display='block';
   const pac2=getPac(pacId);const ps2=getPs(pac2.psId);const ter2=getTer(pac2.terId);
   let sesPac=DB.sesiones.filter(s=>s.pacId===pac2.nombre).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+  // Un pago puede registrarse ANTES de que exista ninguna sesión (ej. modo
+  // "Solo registrar el paquete y el pago") — ese pago no tiene sesion_id
+  // pero sí programa_id, así que se muestra en la sesión más antigua de
+  // ese mismo paquete en vez de quedar sin mostrarse en ningún lado.
+  const primeraSesionPorPrograma={};
+  sesPac.forEach(function(s){
+    const pid=s._sb&&s._sb.programa_id;
+    if(pid&&!primeraSesionPorPrograma[pid])primeraSesionPorPrograma[pid]=s.id;
+  });
   // "Solo el último paquete": con el tiempo la lista de un paciente crece
   // mucho (varios paquetes ya terminados) — este filtro deja ver solo el
   // paquete más reciente en vez de todo el historial acumulado.
@@ -3764,6 +3807,8 @@ async function renderHistorial(){
         const pagosDia=esReprogFila?[]:(DB.pagos||[]).filter(function(p){
           const pSesId=p._sb&&p._sb.sesion_id;
           if(pSesId)return s._sb&&pSesId===s._sb.id;
+          const pProgId=p._sb&&p._sb.programa_id;
+          if(pProgId)return s._sb&&primeraSesionPorPrograma[pProgId]===s.id;
           return p.pacId===s.pacId&&p.fecha===s.fecha;
         });
         // Un pago puede haberse dividido en varios métodos (parte efectivo,
