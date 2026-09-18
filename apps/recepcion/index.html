@@ -763,6 +763,7 @@ try{
               <option value="generar">📅 Agendar y repetir cada semana hasta completar el paquete</option>
               <option value="unica">1️⃣ Solo la primera sesión de cada día</option>
               <option value="soloPago">💰 Solo registrar el paquete y el pago (sin agendar todavía)</option>
+              <option value="reemplazarPendientes" id="ag-opt-reemplazar">🔀 Cambiar terapia/horario/psicóloga de las sesiones pendientes</option>
             </select>
           </div>
         </div>
@@ -788,7 +789,7 @@ try{
         </div>
       </div>
 
-      <div class="form-group">
+      <div class="form-group" id="ag-grp-adelanto">
         <label class="form-label">Adelanto / Pago inicial (S/)</label>
         <input type="number" class="form-control" id="ag-adelanto" value="0" min="0" oninput="agAdelantoManual()">
       </div>
@@ -1850,6 +1851,15 @@ function agOnProgExist(){
   if(grpPaq)grpPaq.style.display=(!progId&&!esExclusivo)?'block':'none';
   const grpCuotas=document.getElementById('ag-grp-cuotas');
   if(grpCuotas)grpCuotas.style.display=progId?'none':'block';
+  // "Cambiar terapia/horario/psicóloga de las sesiones pendientes" solo
+  // tiene sentido si ya existe un paquete activo con sesiones por delante
+  // — un paquete nuevo todavía no tiene nada pendiente que reemplazar.
+  const optReemplazar=document.getElementById('ag-opt-reemplazar');
+  if(optReemplazar){
+    optReemplazar.disabled=!progId;
+    const modoSel=document.getElementById('ag-modoPaq');
+    if(!progId&&modoSel&&modoSel.value==='reemplazarPendientes'){modoSel.value='generar';agOnModoPaq();}
+  }
   agActualizarResumen();
 }
 
@@ -1867,8 +1877,16 @@ function agOnFecha(){
 
 function agOnModoPaq(){
   const modo=document.getElementById('ag-modoPaq')?.value||'generar';
+  const esReemplazo=modo==='reemplazarPendientes';
   const grpFilas=document.getElementById('ag-grp-terapiaRows');
   if(grpFilas)grpFilas.style.display=modo==='soloPago'?'none':'block';
+  // "Cambiar terapia/horario/psicóloga de las sesiones pendientes" no
+  // registra ningún pago — el costo y las cuotas del paquete no cambian,
+  // solo se reprograman las sesiones que aún no se realizaron.
+  const grpAdelanto=document.getElementById('ag-grp-adelanto');
+  if(grpAdelanto)grpAdelanto.style.display=esReemplazo?'none':'block';
+  const grpMetodos=document.getElementById('ag-grp-metodos');
+  if(grpMetodos)grpMetodos.style.display=esReemplazo?'none':'block';
   // "Solo registrar paquete y pago" también necesita la fecha — para
   // regularizar pagos/adelantos que se recibieron en una fecha pasada
   // (el paciente vino solo a dejar su adelanto, sin agendar todavía).
@@ -1877,6 +1895,9 @@ function agOnModoPaq(){
   if(modo==='soloPago'){
     if(lbl)lbl.textContent='Fecha del pago/adelanto *';
     if(help)help.textContent='La fecha en la que realmente se recibió el pago (para regularizar registros de días anteriores).';
+  }else if(esReemplazo){
+    if(lbl)lbl.textContent='Nuevos horarios desde *';
+    if(help)help.textContent='Se reemplazan SOLO las sesiones aún no realizadas (estado "Programado") de este paquete, a partir de esta fecha. Lo ya asistido, no asistido, con permiso o reprogramado no se toca, y el costo/cuotas del paquete siguen igual.';
   }else{
     if(lbl)lbl.textContent='Fecha de inicio *';
     if(help)help.textContent='La primera sesión de cada día será la próxima fecha con ese día de la semana, a partir de aquí.';
@@ -2280,11 +2301,138 @@ function agGuardarDesdeModal(){
   const tipo=document.getElementById('ag-tipo').value;
   const exclusivoModo=document.getElementById('ag-exclusivoModo')?.value||'sesion';
   const esPaqueteExclusivo=tipo==='exclusivo'&&exclusivoModo==='paquete';
+  const modoPaq=document.getElementById('ag-modoPaq')?.value||'generar';
   if((tipo==='paquete'||esPaqueteExclusivo)&&!_reprogDe){
-    guardarPaqueteFlujo();
+    if(modoPaq==='reemplazarPendientes'){reemplazarPendientesPaquete();}
+    else{guardarPaqueteFlujo();}
   } else {
     guardarSesion();
   }
+}
+
+// Cambia terapia/horario/psicóloga de las sesiones AÚN NO REALIZADAS
+// (estado 'programado') de un paquete activo, sin tocar lo ya asistido,
+// no asistido, con permiso o reprogramado, y sin alterar el costo total
+// ni las cuotas ya pactadas del paquete — solo se reprograma el resto.
+async function reemplazarPendientesPaquete(){
+  const pacId=document.getElementById('ag-pac').value||'';
+  if(!pacId){showToast('Selecciona un paciente','error');return;}
+  const pac=getPac(pacId);
+  const progId=document.getElementById('ag-progExist')?.value||'';
+  if(!progId){showToast('Selecciona el paquete activo cuyas sesiones pendientes quieres cambiar','error');return;}
+  const progRow=_agProgramasActivos.find(function(p){return p.id===progId;});
+  if(!progRow){showToast('Ese paquete ya no está disponible, cierra y vuelve a abrir el modal','error');return;}
+  const fechaDesde=document.getElementById('ag-fechaInicio')?.value||'';
+  if(!fechaDesde){showToast('Indica la fecha desde la que aplican los nuevos horarios','error');return;}
+  const notas=document.getElementById('ag-notas').value;
+
+  const filas=[];
+  document.querySelectorAll('#ag-terapiaRows .ag-terapia-row').forEach(function(row){
+    const terId=row.querySelector('.ag-row-ter').value;
+    const psId=row.querySelector('.ag-row-ps').value;
+    const dia=row.querySelector('.ag-row-dia').value;
+    const hora=row.querySelector('.ag-row-hora').value;
+    if(terId&&psId){
+      filas.push({terapia:getTer(terId).nombre,psicologa:getPs(psId),diaNombre:dia||'',hora:hora||''});
+    }
+  });
+  if(!filas.length||filas.some(function(f){return!f.diaNombre||!f.hora;})){
+    showToast('Completa día, terapia, psicóloga y horario en cada asistencia','error');return;
+  }
+
+  const pendientes=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===progRow.id&&s.estado==='programado';});
+  if(!pendientes.length){
+    showToast('Este paquete no tiene sesiones pendientes por cambiar — todas ya se realizaron o no se han agendado','error');return;
+  }
+  const totalSesiones=progRow.nro_sesiones_total||0;
+  const countRealizado=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===progRow.id&&s.estado!=='programado';}).length;
+  const cantidadAReemplazar=pendientes.length;
+
+  if(!confirm('Se van a borrar y reprogramar '+cantidadAReemplazar+' sesión(es) pendiente(s) de '+pac.nombre+' con el nuevo horario.\n\nLo ya asistido, no asistido, con permiso o reprogramado NO se toca, y el costo/cuotas del paquete no cambian.\n\n¿Continuar?')){
+    return;
+  }
+
+  showToast('⏳ Reprogramando sesiones pendientes...');
+  try{
+    // Guardar el saldo (cuota) que tenía cada sesión pendiente, por número
+    // de sesión, para no perder el cobro pactado al recrearlas con el
+    // nuevo horario — el checkpoint de cuota sigue cayendo en la misma
+    // sesión N del paquete, solo cambia día/hora/terapia/psicóloga.
+    const saldoPorNro={};
+    pendientes.forEach(function(s){saldoPorNro[s.nroSes]=s.saldo||0;});
+
+    // Restar del programa_terapias de origen únicamente las sesiones
+    // pendientes que se están quitando — lo ya realizado en ese combo
+    // terapia+psicóloga se queda intacto.
+    const quitarPorPt={};
+    pendientes.forEach(function(s){
+      const ptId=s._sb.programa_terapia_id;
+      if(ptId)quitarPorPt[ptId]=(quitarPorPt[ptId]||0)+1;
+    });
+    const ptExistentes=progRow.programa_terapias||[];
+    for(const ptId in quitarPorPt){
+      const pt=ptExistentes.find(function(x){return x.id===ptId;});
+      if(pt){
+        const nuevoAsignadas=Math.max(0,(pt.sesiones_asignadas||0)-quitarPorPt[ptId]);
+        await sbPatch('programa_terapias',{sesiones_asignadas:nuevoAsignadas,sesiones_realizadas:nuevoAsignadas},{id:'eq.'+ptId});
+      }
+    }
+
+    // Borrar solo las sesiones pendientes (estado='programado') de este
+    // paquete — nunca las ya realizadas.
+    await sbDelete('sesiones',{programa_id:'eq.'+progRow.id,estado:'eq.programado'});
+
+    // Generar el nuevo calendario para exactamente la misma cantidad de
+    // sesiones que se quitaron, con el nuevo horario/terapia/psicóloga.
+    const sim=simularCalendarioPaquete(filas,fechaDesde,cantidadAReemplazar);
+
+    const combos={};
+    filas.forEach(function(f,i){
+      const key=f.terapia+'|'+f.psicologa.nombre;
+      if(!combos[key])combos[key]={terapia:f.terapia,psicologaNombre:f.psicologa.nombre,sesiones:0,filaIdxs:[]};
+      combos[key].sesiones+=sim.porFila[i];
+      combos[key].filaIdxs.push(i);
+    });
+    const ptIdPorFila=new Array(filas.length);
+    for(const key in combos){
+      const c=combos[key];
+      if(!c.sesiones)continue;
+      const ptPrevio=ptExistentes.find(function(pt){return pt.terapia===c.terapia&&pt.psicologa===c.psicologaNombre;});
+      let ptId;
+      if(ptPrevio){
+        const nuevoAsignadas=(ptPrevio.sesiones_asignadas||0)+c.sesiones;
+        await sbPatch('programa_terapias',{sesiones_asignadas:nuevoAsignadas,sesiones_realizadas:nuevoAsignadas},{id:'eq.'+ptPrevio.id});
+        ptId=ptPrevio.id;
+      }else{
+        const ptRows=await sbPost('programa_terapias',{programa_id:progRow.id,terapia:c.terapia,
+          psicologa:c.psicologaNombre,sesiones_asignadas:c.sesiones,sesiones_realizadas:c.sesiones});
+        ptId=ptRows&&ptRows[0]&&ptRows[0].id;
+      }
+      c.filaIdxs.forEach(function(i){ptIdPorFila[i]=ptId;});
+    }
+
+    let nro=countRealizado;
+    for(const ev of sim.eventos){
+      nro++;
+      const f=filas[ev.filaIdx];
+      const saldoSesion=saldoPorNro[nro]||0;
+      const filaSes={fecha:ev.fecha,hora:ev.hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
+        psicologa:f.psicologa.nombre,terapia:f.terapia,estado:'programado',tipo:'paquete',
+        nro_en_paquete:nro,total_paquete:totalSesiones,costo_total:progRow.costo_total,
+        adelanto:0,saldo:saldoSesion,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||'',
+        programa_id:progRow.id,programa_terapia_id:ptIdPorFila[ev.filaIdx]};
+      await sbPost('sesiones',filaSes);
+    }
+
+    if(!sim.completo){
+      showToast('⚠️ Solo se pudieron reprogramar '+sim.eventos.length+' de '+cantidadAReemplazar+' sesión(es). '+
+        (sim.saltadas.length?'Revisa: '+sim.saltadas.slice(0,3).join(', '):'Agenda el resto manualmente.'),'error');
+    }else{
+      showToast('✅ '+sim.eventos.length+' sesión(es) pendiente(s) reprogramada(s) para '+pac.nombre);
+    }
+    closeModal('modalAgendar');
+    await cargarDesdeSB();
+  }catch(e){showToast('Error al reprogramar las sesiones pendientes: '+e.message,'error');console.error('[reemplazarPendientesPaquete]',e);}
 }
 
 // Arma, para cada fila de terapia, sus fechas semanales (mismo día/hora)
