@@ -3545,6 +3545,7 @@ function exportarPDF(){
     } else {setTimeout(exportarPDF,1000);}
     return;
   }
+  try{
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=210,M=14;let y=10;
   const fecha=document.getElementById('rptFecha')?.value||today();
@@ -3621,7 +3622,7 @@ function exportarPDF(){
     doc.text((ps.nombre||'').replace('Lic.','').trim().substring(0,16),M+72,y+5.5);
     doc.text((ter.nombre||'').substring(0,16),M+112,y+5.5);
     doc.setTextColor(...ec);doc.text(s.estado,M+146,y+5.5);
-    doc.setTextColor(pg?[16,185,129]:[150,150,150]);
+    doc.setTextColor(...(pg?[16,185,129]:[150,150,150]));
     doc.text(pg?'S/'+pg.monto:'Pend.',M+168,y+5.5);
     y+=8;
   });
@@ -3646,6 +3647,10 @@ function exportarPDF(){
   window._lastPDFNombre='Reporte_Psicoluz_'+DB.sede+'_'+fecha+'.pdf';
   doc.save(window._lastPDFNombre);
   showToast('✅ PDF generado con logo');
+  }catch(e){
+    console.error('[exportarPDF]',e);
+    showToast('❌ Error al generar el PDF: '+e.message,'error');
+  }
 }
 
 // ══════════════════════════════════════════════════
@@ -4104,8 +4109,13 @@ function splitCSVLine(line){
 // ══════════════════════════════════════════════════
 function compartirReporteWA(){
   // Primero generar el PDF, luego abrirlo para descargar y abrir WA con resumen
+  const nombrePrevio=window._lastPDFNombre;
   exportarPDF();
   setTimeout(()=>{
+    // Si exportarPDF() falló (ver su propio toast de error), no se generó un
+    // PDF nuevo — no seguir armando el mensaje de WhatsApp para no decir
+    // "PDF descargado" cuando en realidad no se descargó nada.
+    if(window._lastPDFNombre===nombrePrevio)return;
     const fecha=document.getElementById('rptFecha')?.value||today();
     const ses=DB.sesiones.filter(s=>s.fecha===fecha);
     const pags=DB.pagos.filter(p=>p.fecha===fecha);
