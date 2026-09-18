@@ -1786,9 +1786,24 @@ async function agCargarProgramasActivos(){
     return;
   }
   const pac=getPac(pacId);
+  let todosActivos=[];
   try{
-    _agProgramasActivos=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:'eq.'+DB.sede,estado:'eq.activo',select:'*,programa_terapias(*)'})||[];
-  }catch(e){_agProgramasActivos=[];}
+    todosActivos=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:'eq.'+DB.sede,estado:'eq.activo',select:'*,programa_terapias(*)'})||[];
+  }catch(e){todosActivos=[];}
+  // Un paquete que ya asignó todas sus sesiones contratadas no debe poder
+  // elegirse para seguir metiéndole sesiones/pagos encima — eso fue lo que
+  // dejó paquetes de "2 sesiones" con 4 sesiones y el doble cobrado. Si
+  // por algún motivo quedó en estado "activo" pese a estar completo (no
+  // se marcó a tiempo), se corrige aquí de una vez.
+  _agProgramasActivos=[];
+  todosActivos.forEach(function(p){
+    const asignadas=(p.programa_terapias||[]).reduce(function(a,t){return a+(t.sesiones_asignadas||0);},0);
+    if(asignadas>=(p.nro_sesiones_total||0)){
+      sbPatch('programas_paciente',{estado:'completado'},{id:'eq.'+p.id}).catch(function(){});
+    }else{
+      _agProgramasActivos.push(p);
+    }
+  });
   const sel=document.getElementById('ag-progExist');
   if(sel){
     sel.innerHTML='<option value="">🆕 Nuevo paquete</option>'+
@@ -2341,6 +2356,13 @@ async function guardarPaqueteFlujo(){
       costoTotal=progRow.costo_total||0;
       totalSesiones=progRow.nro_sesiones_total||0;
       yaAsignadas=(progRow.programa_terapias||[]).reduce(function(a,t){return a+(t.sesiones_asignadas||0);},0);
+      // No se puede seguir metiendo sesiones ni pagos a un paquete que ya
+      // asignó todas sus sesiones contratadas — hay que cerrarlo (o ya
+      // está cerrado) antes de registrar uno nuevo.
+      if(yaAsignadas>=totalSesiones){
+        showToast('❌ Este paquete ya completó sus '+totalSesiones+' sesiones contratadas. Registra un paquete nuevo en vez de seguir usando este.','error');
+        return;
+      }
       adelantoAcum=(progRow.adelanto_acumulado||0)+adelanto;
       saldo=Math.max(0,costoTotal-adelantoAcum);
       await sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldo},{id:'eq.'+progRow.id});
