@@ -3822,10 +3822,17 @@ async function cargarDesdeSB(silencioso) {
       sbGet('programas_paciente',{sede:'eq.'+DB.sede,estado:'eq.activo',select:'*,programa_terapias(*)'}).catch(function(){return[];}),
       sbGet('feriados',{estado:'eq.activo',select:'*'}).catch(function(){return[];})
     ]);
-    DB.sesiones=(res[0]||[]).map(function(s){return{id:s.id,fecha:s.fecha,hora:normHoraRec(s.hora),
+    const sesionesVentana=(res[0]||[]).map(function(s){return{id:s.id,fecha:s.fecha,hora:normHoraRec(s.hora),
       pacId:s.paciente_nombre,pacNom:s.paciente_nombre,psId:s.psicologa,psNom:s.psicologa,
       terId:s.terapia,terNom:s.terapia,estado:s.estado,saldo:s.saldo||0,tipo:s.tipo||'sesion',notas:s.notas||'',
       nroSes:s.nro_en_paquete,totalPaq:s.total_paquete,costo:s.costo_total||0,costoTotal:s.costo_total||0,tel:s.paciente_tel||'',_sb:s};});
+    // La carga normal solo trae los últimos 45 días — "Cargar historial
+    // completo" trae sesiones más antiguas de un paciente puntual y las
+    // agrega en memoria. Sin esto, el refresco automático de cada 30s
+    // reemplazaba DB.sesiones entero y las volvía a perder.
+    const idsVentana=new Set(sesionesVentana.map(function(s){return s.id;}));
+    const historicasPreservadas=(DB.sesiones||[]).filter(function(s){return s.fecha<desde&&!idsVentana.has(s.id);});
+    DB.sesiones=historicasPreservadas.concat(sesionesVentana);
     DB.pacientes=(res[1]||[]).map(function(p){return{id:p.id||p.nombre,nombre:p.nombre,
       tel:p.telefono||'',nac:p.fecha_nac||'',dni:p.dni||'',diagnostico:p.diagnostico||'',
       psId:p.psicologa,terId:p.terapia,terapias:p.terapias||p.terapia||'',apoderado:p.apoderado||'',
