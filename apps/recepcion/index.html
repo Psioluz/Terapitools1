@@ -2465,9 +2465,9 @@ async function guardarPaqueteFlujo(){
       // El "saldo por cobrar" solo debe salir en la agenda/alertas UNA vez por
       // cuota, no en cada sesión del paquete. La cuota 1 es el adelanto que
       // ya se cobró al registrar el paquete (no genera alerta). Las demás
-      // cuotas se cobran en la sesión exacta que ya está fijada por tamaño
+      // cuotas se cobran EN la sesión exacta que ya está fijada por tamaño
       // de paquete (igual en todas las sedes, solo cambian los montos según
-      // el costo de cada sede) — la alerta sale 1 sesión antes de esa fecha.
+      // el costo de cada sede) — el cobro es en esa sesión, no antes.
       // Si el tamaño de paquete no está en la tabla, se reparte uniforme.
       const CUOTAS_CHECKPOINTS={8:[1],12:[1,3],16:[1,4,9],20:[1,5,12],30:[1,7,16,24]};
       const cortes={};
@@ -2485,19 +2485,19 @@ async function guardarPaqueteFlujo(){
         const checkpoints=CUOTAS_CHECKPOINTS[totalSesiones];
         if(checkpoints&&checkpoints.length===nroCuotas){
           for(let j=1;j<checkpoints.length;j++){
-            const alertSession=Math.max(1,checkpoints[j]-1);
+            const sesionCobro=checkpoints[j];
             const esUltima=j===checkpoints.length-1;
-            cortes[alertSession]=esUltima?Math.round((costoTotal-montoBase*(nroCuotas-1))*100)/100:montoBase;
+            cortes[sesionCobro]=esUltima?Math.round((costoTotal-montoBase*(nroCuotas-1))*100)/100:montoBase;
           }
         }else{
           const sesionesPorCuota=Math.floor(totalSesiones/nroCuotas);
           for(let j=1;j<nroCuotas;j++){
-            const corte=Math.max(1,sesionesPorCuota*j-1);
+            const corte=Math.max(1,sesionesPorCuota*j);
             cortes[corte]=montoBase;
           }
         }
       }else if(saldo>0){
-        cortes[Math.max(1,totalSesiones-1)]=saldo;
+        cortes[totalSesiones]=saldo;
       }
       let nro=yaAsignadas;
       for(const ev of sim.eventos){
