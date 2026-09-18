@@ -129,6 +129,7 @@ try{
       <div class="nav-item active" onclick="showPage('inicio',this)">📊 Inicio</div>
       <div class="nav-item" onclick="showPage('visor',this)">🔍 Visor por Sede</div>
       <div class="nav-item" onclick="showPage('tablas',this)">🗄️ Tablas de Supabase</div>
+      <div class="nav-item" onclick="showPage('vaciar',this)">🧼 Vaciar Paciente</div>
       <div class="nav-item" onclick="showPage('cuentas',this)">👤 Cuentas y Accesos</div>
       <div class="nav-item" onclick="showPage('sedes',this)">🏥 Sedes</div>
       <div class="nav-item" onclick="showPage('storage',this)">📦 Storage</div>
@@ -220,6 +221,27 @@ try{
         <div class="card">
           <div class="ch"><div class="ct" id="tblTitulo">—</div><span class="hint" id="tblCount"></span></div>
           <div class="cb" style="overflow:auto"><div id="tblGrid">Selecciona una tabla.</div></div>
+        </div>
+      </div>
+
+      <!-- VACIAR PACIENTE -->
+      <div class="page" id="pg-vaciar">
+        <div class="card">
+          <div class="ch"><div class="ct">🧼 Vaciar Paciente</div></div>
+          <div class="cb">
+            <div class="hint" style="margin-bottom:10px">
+              Borra TODO lo registrado de un paciente (sesiones, paquetes, terapias del paquete, pagos y precios
+              exclusivos) — la fila del paciente en la tabla "pacientes" NUNCA se toca. Úsalo para limpiar datos
+              de prueba o corregir un registro mal hecho desde cero.
+            </div>
+            <div style="position:relative;max-width:420px">
+              <input class="fsel" id="vaciarBusq" placeholder="Escribe el nombre del paciente…" style="width:100%" oninput="vaciarBuscarPac()" autocomplete="off">
+              <div id="vaciarLista" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:8px;max-height:220px;overflow:auto;z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.12)"></div>
+            </div>
+            <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="vaciarRevisar()">🔍 Revisar qué se borraría</button>
+            <div id="vaciarPreview" style="margin-top:12px"></div>
+            <button class="btn btn-danger" id="vaciarBtnBorrar" style="display:none;margin-top:10px" onclick="vaciarConfirmar()">🗑️ Borrar todo lo registrado (menos la ficha)</button>
+          </div>
         </div>
       </div>
 
@@ -1140,6 +1162,96 @@ async function tblEliminarFila(tabla,idx){
     tblCargar();
     if(['psicologas','recepcionistas','usuarios_gerencia'].includes(tabla))cargarCuentas();
   }catch(e){toast('Error: '+e.message,'error');}
+}
+
+// ── VACIAR PACIENTE ── borra sesiones/paquetes/terapias-del-paquete/pagos/
+// precios exclusivos de un paciente, dejando intacta su fila en "pacientes"
+// — el mismo procedimiento que se hace a mano al limpiar datos de prueba o
+// un registro mal hecho, pero desde la interfaz en vez de SQL directo.
+let _vaciarPac=null;
+let _vaciarDatos=null;
+async function vaciarBuscarPac(){
+  const q=(document.getElementById('vaciarBusq').value||'').trim();
+  _vaciarPac=null;_vaciarDatos=null;
+  document.getElementById('vaciarPreview').innerHTML='';
+  document.getElementById('vaciarBtnBorrar').style.display='none';
+  const list=document.getElementById('vaciarLista');
+  if(q.length<2){list.style.display='none';list.innerHTML='';return;}
+  try{
+    const {data}=await sbGet('pacientes',{select:'id,nombre,sede',nombre:'ilike.*'+q+'*',limit:'8',order:'nombre.asc'});
+    if(!data||!data.length){list.style.display='none';list.innerHTML='';return;}
+    list.innerHTML=data.map(function(p){
+      const nombreEsc=String(p.nombre).replace(/'/g,"\\'");
+      return '<div onclick="vaciarElegirPac(\''+nombreEsc+'\')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border)" '+
+        'onmouseover="this.style.background=\'#f4f6fb\'" onmouseout="this.style.background=\'\'">'+p.nombre+
+        ' <span class="hint">· '+(p.sede||'—')+'</span></div>';
+    }).join('');
+    list.style.display='block';
+  }catch(e){}
+}
+function vaciarElegirPac(nombre){
+  _vaciarPac=nombre;
+  document.getElementById('vaciarBusq').value=nombre;
+  document.getElementById('vaciarLista').style.display='none';
+  document.getElementById('vaciarPreview').innerHTML='';
+  document.getElementById('vaciarBtnBorrar').style.display='none';
+}
+async function vaciarRevisar(){
+  if(!_vaciarPac){toast('Busca y elige un paciente de la lista primero','error');return;}
+  const nombre=_vaciarPac;
+  const prevEl=document.getElementById('vaciarPreview');
+  prevEl.innerHTML='⏳ Revisando…';
+  try{
+    const [ses,progs,pagos,precios]=await Promise.all([
+      sbGet('sesiones',{select:'id',paciente_nombre:'eq.'+nombre,limit:'2000'}),
+      sbGet('programas_paciente',{select:'id,paquete_nombre,estado',paciente_nombre:'eq.'+nombre,limit:'200'}),
+      sbGet('pagos',{select:'id',paciente_nombre:'eq.'+nombre,limit:'2000'}),
+      sbGet('precio_paciente',{select:'id',paciente_nombre:'eq.'+nombre,limit:'200'})
+    ]);
+    let progTer=[];
+    const progIds=(progs.data||[]).map(function(p){return p.id;});
+    if(progIds.length){
+      const pt=await sbGet('programa_terapias',{select:'id',programa_id:'in.('+progIds.join(',')+')',limit:'500'});
+      progTer=pt.data||[];
+    }
+    _vaciarDatos={ses:ses.data||[],progs:progs.data||[],pagos:pagos.data||[],precios:precios.data||[],progTer:progTer};
+    const total=_vaciarDatos.ses.length+_vaciarDatos.progs.length+_vaciarDatos.pagos.length+_vaciarDatos.precios.length;
+    if(!total){
+      prevEl.innerHTML='<div class="hint">Este paciente no tiene nada registrado aparte de su ficha — no hay nada que borrar.</div>';
+      document.getElementById('vaciarBtnBorrar').style.display='none';
+      return;
+    }
+    prevEl.innerHTML='<div class="hint" style="margin-bottom:8px">Se eliminará esto de <b>'+nombre+'</b> — su ficha en "pacientes" NO se toca:</div>'+
+      '<ul style="margin:0;padding-left:18px">'+
+      '<li>'+_vaciarDatos.ses.length+' sesión(es)</li>'+
+      '<li>'+_vaciarDatos.progs.length+' paquete(s) registrado(s)</li>'+
+      '<li>'+_vaciarDatos.progTer.length+' fila(s) de terapias por paquete</li>'+
+      '<li>'+_vaciarDatos.pagos.length+' pago(s)</li>'+
+      '<li>'+_vaciarDatos.precios.length+' precio(s) exclusivo(s)</li>'+
+      '</ul>';
+    document.getElementById('vaciarBtnBorrar').style.display='inline-block';
+  }catch(e){prevEl.innerHTML='<div style="color:#dc2626">Error: '+e.message+'</div>';}
+}
+async function vaciarConfirmar(){
+  if(!_vaciarPac||!_vaciarDatos)return;
+  const nombre=_vaciarPac;
+  if(!confirm('¿Seguro que quieres borrar TODO lo registrado de "'+nombre+'" (sesiones, paquetes, pagos, precios exclusivos)?\n\nEsto NO se puede deshacer. La ficha del paciente se mantiene.'))return;
+  const escrito=prompt('Para confirmar, escribe exactamente el nombre del paciente:\n"'+nombre+'"');
+  if(escrito!==nombre){toast('El nombre no coincide — cancelado, no se borró nada','error');return;}
+  try{
+    if(_vaciarDatos.progTer.length){
+      const ids=_vaciarDatos.progTer.map(function(x){return x.id;});
+      await sbDelete('programa_terapias',{id:'in.('+ids.join(',')+')'});
+    }
+    if(_vaciarDatos.ses.length)await sbDelete('sesiones',{paciente_nombre:'eq.'+nombre});
+    if(_vaciarDatos.pagos.length)await sbDelete('pagos',{paciente_nombre:'eq.'+nombre});
+    if(_vaciarDatos.precios.length)await sbDelete('precio_paciente',{paciente_nombre:'eq.'+nombre});
+    if(_vaciarDatos.progs.length)await sbDelete('programas_paciente',{paciente_nombre:'eq.'+nombre});
+    toast('✅ Se borró todo lo registrado de '+nombre+' (se mantuvo su ficha)');
+    document.getElementById('vaciarPreview').innerHTML='<div class="hint">✅ Listo — no queda nada registrado de este paciente, salvo su ficha.</div>';
+    document.getElementById('vaciarBtnBorrar').style.display='none';
+    _vaciarDatos=null;_vaciarPac=null;
+  }catch(e){toast('Error al borrar: '+e.message,'error');}
 }
 
 // ── CUENTAS ──
