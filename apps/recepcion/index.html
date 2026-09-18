@@ -3558,8 +3558,10 @@ function exportarPDF(){
   const fecha=document.getElementById('rptFecha')?.value||today();
   const ses=DB.sesiones.filter(s=>s.fecha===fecha);
   const pags=DB.pagos.filter(p=>p.fecha===fecha);
-  const asist=ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
+  const asist=ses.filter(s=>s.estado==='asistio').length;
   const noAs=ses.filter(s=>s.estado==='noasistio').length;
+  const permi=ses.filter(s=>s.estado==='permiso').length;
+  const repro=ses.filter(s=>s.estado==='reprogramado').length;
   const pend=ses.filter(s=>s.estado==='programado').length;
   const ef=pags.filter(p=>p.metodo==='Efectivo').reduce((a,p)=>a+p.monto,0);
   const yp=pags.filter(p=>p.metodo==='Yape'||p.metodo==='Plin').reduce((a,p)=>a+p.monto,0);
@@ -3578,17 +3580,18 @@ function exportarPDF(){
   doc.text('Generado: '+new Date().toLocaleString('es-PE'),47+2,y+28);
   y+=38;
 
-  // ── RESUMEN ESTADÍSTICO ──
-  const colores=[[26,31,94],[16,185,129],[239,68,68],[245,158,11]];
-  const stats=[['Total',ses.length],['Asistieron',asist],['No asistieron',noAs],['Pendientes',pend]];
-  const bw=(W-M*2-6)/4;
+  // ── RESUMEN ESTADÍSTICO — las 6 cifras deben sumar el Total exacto
+  // (antes faltaban Permiso y Reprogramado, y el total no cuadraba) ──
+  const colores=[[26,31,94],[16,185,129],[239,68,68],[59,130,246],[100,116,139],[245,158,11]];
+  const stats=[['Total',ses.length],['Asistieron',asist],['No asistieron',noAs],['Permiso',permi],['Reprogramado',repro],['Pendientes',pend]];
+  const bw=(W-M*2-10)/6;
   stats.forEach(([lbl,val],i)=>{
     const bx=M+i*(bw+2);
     doc.setFillColor(...colores[i]);doc.roundedRect(bx,y,bw,18,2,2,'F');
     doc.setTextColor(255,255,255);
-    doc.setFontSize(16);doc.setFont('helvetica','bold');
+    doc.setFontSize(14);doc.setFont('helvetica','bold');
     doc.text(String(val),bx+bw/2,y+10,{align:'center'});
-    doc.setFontSize(7);doc.setFont('helvetica','normal');
+    doc.setFontSize(5.5);doc.setFont('helvetica','normal');
     doc.text(lbl.toUpperCase(),bx+bw/2,y+16,{align:'center'});
   });
   y+=24;
