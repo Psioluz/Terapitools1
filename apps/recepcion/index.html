@@ -1003,6 +1003,35 @@ try{
 </div>
 </div>
 
+<!-- MODAL PERMISO -->
+<div class="modal-overlay" id="modalPermiso">
+<div class="modal">
+  <div class="modal-header">
+    <div class="modal-title">🟡 Registrar Permiso</div>
+    <button class="modal-close" onclick="closeModal('modalPermiso')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div id="permiso-info" style="background:#fffbeb;border-radius:10px;padding:10px;margin-bottom:14px;font-size:12.5px;color:#92400e"></div>
+    <div style="background:#eff6ff;border-radius:10px;padding:10px;margin-bottom:14px;font-size:12px;color:#1e40af">
+      Esta sesión no se pierde: se corre al final, en el mismo día de la semana, hora y terapia que ya lleva el paciente.
+    </div>
+    <div class="form-group">
+      <label class="form-label">📎 Evidencia del paciente (obligatoria)</label>
+      <input type="file" class="form-control" id="permiso-evidencia" accept="application/pdf,image/jpeg,image/png">
+      <div style="font-size:10px;color:var(--muted);margin-top:4px">Captura del mensaje, certificado médico, etc. (PDF o imagen, máx. 10MB)</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nota (opcional)</label>
+      <input class="form-control" id="permiso-nota" placeholder="Motivo del permiso...">
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modalPermiso')">Cancelar</button>
+    <button class="btn btn-primary" onclick="confirmarPermiso()">✅ Confirmar Permiso</button>
+  </div>
+</div>
+</div>
+
 </div>
 
 
@@ -1752,6 +1781,76 @@ function reprogramar(sesId){
   if(ses._sb&&ses._sb.id)sbPatch('sesiones',{estado:'reprogramado'},{id:'eq.'+ses._sb.id}).catch(function(e){console.error('[reprog]',e);});
   abrirModalAgendar(null,null,ses);
   showToast('Selecciona nueva fecha/hora y adjunta la evidencia del paciente');
+}
+
+// ══ PERMISO ══
+// A diferencia de Reprogramar (el usuario elige la nueva fecha/hora a mano),
+// Permiso reubica la sesión SOLA: la corre al final, respetando el mismo
+// día de la semana/hora/terapia/psicóloga que el paciente ya lleva. Igual
+// que Reprogramar, exige evidencia (foto/sustento) y admite una nota.
+let _permisoSesId=null;
+function abrirModalPermiso(sesId){
+  const s=DB.sesiones.find(x=>x.id===sesId);if(!s)return;
+  _permisoSesId=sesId;
+  const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
+  const info=document.getElementById('permiso-info');
+  if(info)info.innerHTML='<b>'+pac.nombre+'</b> — '+terBadge(ter)+' con '+ps.nombre.replace('Lic.','').trim()+
+    '<br>Sesión original: '+fmtF(s.fecha)+' '+s.hora+(s.tipo==='paquete'?' (Paq '+s.nroSes+'/'+s.totalPaq+')':'');
+  const evInp=document.getElementById('permiso-evidencia');if(evInp)evInp.value='';
+  const notaInp=document.getElementById('permiso-nota');if(notaInp)notaInp.value='';
+  openModal('modalPermiso');
+}
+function _fechaMasDias(fecha,n){const d=new Date(fecha+'T12:00:00');d.setDate(d.getDate()+n);return fechaLima(d);}
+async function confirmarPermiso(){
+  const s=DB.sesiones.find(x=>x.id===_permisoSesId);
+  if(!s){showToast('Sesión no encontrada','error');closeModal('modalPermiso');return;}
+  const evInp=document.getElementById('permiso-evidencia');
+  const file=evInp&&evInp.files&&evInp.files[0];
+  if(!file){showToast('Adjunta la evidencia del paciente para registrar el permiso','error');return;}
+  if(file.size>10*1024*1024){showToast('Evidencia supera 10MB','error');return;}
+  const nota=(document.getElementById('permiso-nota')?.value||'').trim();
+  const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
+  const progId=(s._sb&&s._sb.programa_id)||null;
+  const ptId=(s._sb&&s._sb.programa_terapia_id)||null;
+  // La siguiente fecha sigue la secuencia real: mismo día de la semana que
+  // esta terapia ya usa, colocada DESPUÉS de la última sesión que exista
+  // para ese día (no simplemente +7 sobre esta, por si ya hay sesiones más
+  // adelante agendadas) y saltando si el horario ya está ocupado.
+  const diaObjetivo=new Date(s.fecha+'T12:00:00').getDay();
+  let base=s.fecha;
+  DB.sesiones.forEach(function(x){
+    if(x.id!==s.id&&x.pacId===s.pacId&&x.terId===s.terId&&x.psId===s.psId&&
+       new Date(x.fecha+'T12:00:00').getDay()===diaObjetivo&&x.fecha>base)base=x.fecha;
+  });
+  let nuevaFecha=_fechaMasDias(base,7);
+  let intentos=0;
+  while(intentos<12&&DB.sesiones.some(function(x){return x.psId===s.psId&&x.fecha===nuevaFecha&&x.hora===s.hora;})){
+    nuevaFecha=_fechaMasDias(nuevaFecha,7);intentos++;
+  }
+  showToast('⏳ Guardando permiso...');
+  try{
+    const sedeC=(DB.sede||'General').replace(/\s+/g,'_');
+    const pacC=(pac.nombre||'paciente').replace(/[^a-zA-Z0-9]/g,'_');
+    const extEv=file.name.split('.').pop();
+    const urlEv=await sbUpload('evidencias',sedeC+'/'+pacC+'/permiso_'+Date.now()+'.'+extEv,file,file.type||'application/pdf');
+    const sbId=(s._sb&&s._sb.id)||s.id;
+    await sbPatch('sesiones',{estado:'permiso'},{id:'eq.'+sbId});
+    const filaSes={fecha:nuevaFecha,hora:s.hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
+      psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:s.tipo,
+      nro_en_paquete:s.nroSes||1,total_paquete:s.totalPaq||1,costo_total:s.costoTotal||0,
+      adelanto:0,saldo:s.saldo||0,sede:DB.sede,registrado_por:DB.usuario||'',notas:s.notas||''};
+    if(progId){filaSes.programa_id=progId;if(ptId)filaSes.programa_terapia_id=ptId;}
+    await sbPost('sesiones',filaSes);
+    await sbPost('reprogramaciones',{fecha_reprog:today(),paciente_nombre:pac.nombre,
+      psicologa_nombre:ps.nombre,fecha_original:s.fecha,hora_original:s.hora,
+      fecha_nueva:nuevaFecha,hora_nueva:s.hora,sede:DB.sede,reprogramado_por:DB.usuario||'',
+      url_evidencia:urlEv,tipo:'permiso',nota:nota});
+    s.estado='permiso';
+    closeModal('modalPermiso');
+    showToast('✅ Permiso registrado — nueva sesión el '+fmtF(nuevaFecha));
+    await cargarDesdeSB();
+    const a=document.querySelector('.page.active');if(a&&typeof showPage==='function')showPage(a.id.replace('page-',''));
+  }catch(e){showToast('Error al registrar permiso: '+e.message,'error');console.error('[confirmarPermiso]',e);}
 }
 
 // ══════════════════════════════════════════════════
@@ -3154,7 +3253,8 @@ async function guardarSesion(){
         urlEv=await sbUpload('evidencias',sedeC+'/'+pacC+'/reprog_'+Date.now()+'.'+extEv,fEv,fEv.type||'application/pdf');
         await sbPost('reprogramaciones',{fecha_reprog:today(),paciente_nombre:pac.nombre,
           psicologa_nombre:ps.nombre,fecha_original:_reprogDe.fecha||'',hora_original:_reprogDe.hora||'',
-          fecha_nueva:fecha,hora_nueva:hora,sede:DB.sede,reprogramado_por:DB.usuario||'',url_evidencia:urlEv});
+          fecha_nueva:fecha,hora_nueva:hora,sede:DB.sede,reprogramado_por:DB.usuario||'',url_evidencia:urlEv,
+          tipo:'reprogramacion',nota:(document.getElementById('ag-notas')?.value||'').trim()});
       }catch(eEv){showToast('Sesión creada, pero la evidencia falló: '+eEv.message,'error');console.error('[evidencia]',eEv);}
       _reprogDe=null;
     }
@@ -4638,15 +4738,26 @@ async function renderHistorial(){
         // ser así.
         const pagoCelda='—';
         const notasPago='';
-        const notasCelda=[s.notas||'',notasPago?'💳 '+notasPago:''].filter(Boolean).join('<br>');
-        // Reprogramada: queda solo como registro de que ese cupo se movió
-        // — no cuenta como una sesión más, así que no muestra el
-        // contador "Paq X/Y", y la fila se pinta distinta para
-        // diferenciarla de un cupo activo.
+        // Si esta fila es donde ocurrió un permiso o una reprogramación, se
+        // le pega aquí mismo (en SU fecha real) la evidencia y la nota que
+        // se adjuntaron al registrarlo — buscando por paciente+fecha+hora
+        // original en lo que se trajo de la tabla reprogramaciones.
+        const evReg=(s.estado==='permiso'||esReprogFila)?(DB.reprogramaciones||[]).find(function(r){
+          return r.paciente_nombre===s.pacId&&r.fecha_original===s.fecha&&(r.hora_original||'').slice(0,5)===s.hora;
+        }):null;
+        const evCelda=evReg?[
+          evReg.nota?'📝 '+evReg.nota:'',
+          evReg.url_evidencia?'<a href="'+evReg.url_evidencia+'" target="_blank">📎 Ver evidencia</a>':''
+        ].filter(Boolean).join('<br>'):'';
+        const notasCelda=[s.notas||'',notasPago?'💳 '+notasPago:'',evCelda].filter(Boolean).join('<br>');
+        // Reprogramada o con permiso: queda solo como registro de que ese
+        // cupo se movió — no cuenta como una sesión más, así que no muestra
+        // el contador "Paq X/Y", y la fila reprogramada se pinta distinta
+        // para diferenciarla de un cupo activo.
         return '<tr'+(esReprogFila?' style="background:var(--bg);opacity:.65"':'')+'><td>'+fmtF(s.fecha)+'</td><td>'+s.hora+'</td><td>'+psH.nombre.replace('Lic.','').trim()+'</td>'+
           '<td>'+terBadge(terH)+'</td>'+
           '<td><span style="color:'+ec+';font-weight:700">'+estadoLabel(s.estado)+'</span></td>'+
-          '<td><span class="badge bk" style="font-size:10px">'+(esReprogFila?'—':s.tipo==='paquete'?'Paq '+s.nroSes+'/'+s.totalPaq:s.tipo)+'</span></td>'+
+          '<td><span class="badge bk" style="font-size:10px">'+((esReprogFila||s.estado==='permiso')?'—':s.tipo==='paquete'?'Paq '+s.nroSes+'/'+s.totalPaq:s.tipo)+'</span></td>'+
           '<td style="white-space:nowrap">'+costoCelda+'</td>'+
           '<td style="white-space:nowrap">'+pagoCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
@@ -4751,11 +4862,13 @@ async function subirPDF(){
 // 45 días (la ventana que carga cargarDesdeSB por defecto) — se trae
 // completo directo de Supabase, sin esperar a que lo pidan aparte.
 async function cargarHistorialCompletoPac(pacNombre){
-  const [rows,progs,pagosPac]=await Promise.all([
+  const [rows,progs,pagosPac,reprogsPac]=await Promise.all([
     sbGet('sesiones',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*',order:'fecha.desc',limit:'500'}),
     sbGet('programas_paciente',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*'}).catch(function(){return[];}),
-    sbGet('pagos',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*',order:'fecha.desc',limit:'500'}).catch(function(){return[];})
+    sbGet('pagos',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*',order:'fecha.desc',limit:'500'}).catch(function(){return[];}),
+    sbGet('reprogramaciones',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*'}).catch(function(){return[];})
   ]);
+  DB.reprogramaciones=reprogsPac||[];
   (pagosPac||[]).forEach(function(p){
     if(!(DB.pagos||[]).some(function(x){return x.id===p.id;})){
       (DB.pagos=DB.pagos||[]).push({id:p.id,fecha:p.fecha,hora:p.hora||'',pacId:p.paciente_nombre,
@@ -5002,9 +5115,14 @@ function syncPacientes(){cargarDesdeSB();}
 // desactualizadas por separado como pasaba antes.
 function botonesAsistenciaHTML(s){
   if(s.estado!=='programado')return '';
+  // Permiso y Reprogramar van juntos al costado de Asistió/No Asistió — ambos
+  // exigen evidencia (foto/sustento) y mueven la sesión: Permiso la reubica
+  // sola, siguiendo la misma secuencia de día/hora/terapia; Reprogramar deja
+  // elegir la fecha/hora nueva a mano.
   return '<button class="btn btn-success btn-sm" data-sid="'+s.id+'" data-est="asistio" onclick="btnMarcarAs(this)">✅ Asistió</button>'+
     ' <button class="btn btn-danger btn-sm" data-sid="'+s.id+'" data-est="noasistio" onclick="btnMarcarAs(this)">❌ No Asistió</button>'+
-    ' <button class="btn btn-sm" style="background:#fef3c7;color:#92400e;font-weight:800" data-sid="'+s.id+'" data-est="permiso" onclick="btnMarcarAs(this)">🟡 Permiso</button>';
+    ' <button class="btn btn-sm" style="background:#fef3c7;color:#92400e;font-weight:800" onclick="abrirModalPermiso(\''+s.id+'\')">🟡 Permiso</button>'+
+    ' <button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>';
 }
 function badgeEstadoAsistencia(estado){
   var map={asistio:['bg','✅ Asistió'],noasistio:['br','❌ No asistió'],permiso:['bb','🟡 Permiso'],reprogramado:['bk','🔁 Reprogramado']};
