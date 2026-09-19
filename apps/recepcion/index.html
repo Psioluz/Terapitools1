@@ -746,6 +746,11 @@ try{
           </select>
         </div>
         <div class="form-group" id="ag-grp-paq">
+          <label class="form-label">Categoría</label>
+          <select class="form-control" id="ag-paqCategoria" onchange="agOnPaqCategoria()" style="margin-bottom:8px">
+            <option value="ninos">🧒 Niños</option>
+            <option value="adultos">🧑 Adultos</option>
+          </select>
           <label class="form-label">Seleccionar Paquete</label>
           <select class="form-control" id="ag-paqId" onchange="agOnPaq()">
             <option value="">— Selecciona el paquete —</option>
@@ -1740,6 +1745,7 @@ function abrirModalAgendar(fecha,hora,sesOrig){
   document.getElementById('ag-notas').value='';
   document.getElementById('ag-resumen').style.display='none';
   const elProg=document.getElementById('ag-progExist');if(elProg)elProg.innerHTML='<option value="">🆕 Nuevo paquete</option>';
+  const elPaqCat=document.getElementById('ag-paqCategoria');if(elPaqCat)elPaqCat.value='ninos';
   const elModoPaq=document.getElementById('ag-modoPaq');if(elModoPaq)elModoPaq.value='generar';
   const elFrec=document.getElementById('ag-frecuencia');if(elFrec)elFrec.value='1';
   agOnFrecuencia();
@@ -2000,6 +2006,22 @@ function agCargarFilasDesdeProgPendiente(){
   }
 }
 
+// Llena "Seleccionar Paquete" solo con los paquetes de catálogo de la
+// categoría elegida (Niños/Adultos) — así nunca se mezclan precios de
+// una categoría con la otra al armar un paquete nuevo.
+function agPoblarPaqCatalogo(){
+  const sel=document.getElementById('ag-paqId');if(!sel)return;
+  const categoria=document.getElementById('ag-paqCategoria')?.value||'ninos';
+  sel.innerHTML='<option value="">— Elige el paquete —</option>'+
+    DB.paquetes.filter(function(p){return p.tipo==='Paquete'&&(p.categoria||'ninos')===categoria;}).map(function(p){
+      return '<option value="'+p.id+'">'+p.nombre+' — S/'+p.costoTotal+'</option>';
+    }).join('');
+  agOnPaq();
+}
+function agOnPaqCategoria(){
+  agPoblarPaqCatalogo();
+}
+
 function agOnTipo(){
   const tipo=document.getElementById('ag-tipo').value;
   const esExclusivo=tipo==='exclusivo';
@@ -2028,13 +2050,7 @@ function agOnTipo(){
       if(grpPaqCatalogo)grpPaqCatalogo.style.display='none';
       document.getElementById('ag-costo').value='';
     }else{
-      const sel=document.getElementById('ag-paqId');
-      if(sel){
-        sel.innerHTML='<option value="">— Elige el paquete —</option>'+
-          DB.paquetes.filter(p=>p.tipo==='Paquete').map(p=>
-            '<option value="'+p.id+'">'+p.nombre+' — S/'+p.costoTotal+'</option>'
-          ).join('');
-      }
+      agPoblarPaqCatalogo();
     }
     agOnModoPaq();
     agCargarProgramasActivos();
@@ -4874,7 +4890,8 @@ async function cargarDesdeSB(silencioso) {
       terId:t.nombre_servicio,terNom:t.nombre_servicio,
       nroSes:t.nro_sesiones||12,sesiones:t.nro_sesiones||12,
       costoTotal:t.costo_total||0,precio:t.costo_total||0,
-      cuotas:t.cantidad_cuotas||1,montoCuota:t.monto_cuota||((t.costo_total||0)/(t.cantidad_cuotas||1)),_sb:t};});
+      cuotas:t.cantidad_cuotas||1,montoCuota:t.monto_cuota||((t.costo_total||0)/(t.cantidad_cuotas||1)),
+      categoria:t.categoria||'ninos',_sb:t};});
     DB.programas=res[7]||[];
     DB.feriados=res[8]||[];
     if(typeof fillSelects==='function')fillSelects();
