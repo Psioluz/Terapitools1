@@ -2246,16 +2246,18 @@ function _agActualizarBotonesQuitar(){
   });
 }
 // El total pagado (#ag-adelanto) se recalcula a partir de la suma de los
-// métodos cuando hay más de una fila (pago dividido) — así ambos campos
-// nunca se desincronizan.
+// métodos SIEMPRE, incluso con una sola fila — antes solo se hacía con 2+
+// filas (pago dividido), así que si alguien escribía el monto directo en
+// la fila de método (en vez del campo "Adelanto" de arriba) con un solo
+// método, #ag-adelanto se quedaba en 0/vacío. El pago sí se guardaba bien
+// (se lee de las filas de método), pero el cálculo de la cuota 1 usa
+// #ag-adelanto — por eso una cuota ya cobrada seguía saliendo pendiente.
 function agSincronizarMetodos(){
   const rows=document.querySelectorAll('#ag-metodos-rows .ag-met-row');
-  if(rows.length>1){
-    let total=0;
-    rows.forEach(function(row){total+=parseFloat(row.querySelector('.ag-met-monto').value)||0;});
-    const elAdel=document.getElementById('ag-adelanto');
-    if(elAdel)elAdel.value=total?String(total):'';
-  }
+  let total=0;
+  rows.forEach(function(row){total+=parseFloat(row.querySelector('.ag-met-monto').value)||0;});
+  const elAdel=document.getElementById('ag-adelanto');
+  if(elAdel)elAdel.value=total?String(total):'';
   agActualizarResumen();
 }
 // Si el usuario edita directamente "Adelanto / Pago inicial" (caso normal,
