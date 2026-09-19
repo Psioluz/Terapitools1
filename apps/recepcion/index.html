@@ -745,12 +745,14 @@ try{
             <option value="">🆕 Nuevo paquete</option>
           </select>
         </div>
-        <div class="form-group" id="ag-grp-paq">
+        <div class="form-group" id="ag-grp-categoria">
           <label class="form-label">Categoría</label>
-          <select class="form-control" id="ag-paqCategoria" onchange="agOnPaqCategoria()" style="margin-bottom:8px">
+          <select class="form-control" id="ag-paqCategoria" onchange="agOnPaqCategoria()">
             <option value="ninos">🧒 Niños</option>
             <option value="adultos">🧑 Adultos</option>
           </select>
+        </div>
+        <div class="form-group" id="ag-grp-paq">
           <label class="form-label">Seleccionar Paquete</label>
           <select class="form-control" id="ag-paqId" onchange="agOnPaq()">
             <option value="">— Selecciona el paquete —</option>
@@ -1866,6 +1868,11 @@ function agOnProgExist(){
   // mano, así que nunca debe reaparecer aunque no haya un paquete activo
   // elegido en "ag-progExist".
   if(grpPaq)grpPaq.style.display=(!progId&&!esExclusivo)?'block':'none';
+  // "Categoría" (Niños/Adultos) solo aplica al REGISTRAR un paquete nuevo
+  // — un paquete ya activo (progId elegido) ya quedó fijado con su
+  // categoría desde que se creó, no tiene sentido volver a preguntarla.
+  const grpCategoria=document.getElementById('ag-grp-categoria');
+  if(grpCategoria)grpCategoria.style.display=progId?'none':'block';
   const grpCuotas=document.getElementById('ag-grp-cuotas');
   if(grpCuotas)grpCuotas.style.display=progId?'none':'block';
   // "Cambiar terapia/horario/psicóloga de las sesiones pendientes" solo
@@ -2758,7 +2765,8 @@ async function guardarPaqueteFlujo(){
       const progRows=await sbPost('programas_paciente',{paciente_nombre:pac.nombre,sede:DB.sede,
         paquete_nombre:nombrePaqExcl,tipo:'paquete',nro_sesiones_total:totalSesiones,
         costo_total:costoTotal,adelanto_acumulado:adelantoAcum,saldo:saldo,nro_cuotas:nroCuotas,
-        fecha_inicio:fechaInicio||today(),estado:'activo',registrado_por:DB.usuario||''});
+        fecha_inicio:fechaInicio||today(),estado:'activo',registrado_por:DB.usuario||'',
+        categoria:document.getElementById('ag-paqCategoria')?.value||'ninos'});
       progRow=progRows&&progRows[0];
       if(!progRow||!progRow.id)throw new Error('No se pudo crear el paquete');
       await sbPost('precio_paciente',{paciente_nombre:pac.nombre,dni:pac.dni||'',sede:DB.sede,
@@ -2774,7 +2782,8 @@ async function guardarPaqueteFlujo(){
       const progRows=await sbPost('programas_paciente',{paciente_nombre:pac.nombre,sede:DB.sede,
         paquete_nombre:paq.nombre,tipo:'paquete',nro_sesiones_total:totalSesiones,
         costo_total:costoTotal,adelanto_acumulado:adelantoAcum,saldo:saldo,nro_cuotas:nroCuotas,
-        fecha_inicio:fechaInicio||today(),estado:'activo',registrado_por:DB.usuario||''});
+        fecha_inicio:fechaInicio||today(),estado:'activo',registrado_por:DB.usuario||'',
+        categoria:paq.categoria||'ninos'});
       progRow=progRows&&progRows[0];
       if(!progRow||!progRow.id)throw new Error('No se pudo crear el paquete');
     }
@@ -3069,7 +3078,8 @@ async function guardarSesion(){
         const progRows=await sbPost('programas_paciente',{paciente_nombre:pac.nombre,sede:DB.sede,
           paquete_nombre:paq.nombre,tipo:'paquete',nro_sesiones_total:totalPaq,
           costo_total:costoTotal,adelanto_acumulado:adelanto,saldo:saldo,
-          fecha_inicio:fecha||today(),estado:'activo',registrado_por:DB.usuario||''});
+          fecha_inicio:fecha||today(),estado:'activo',registrado_por:DB.usuario||'',
+          categoria:paq.categoria||'ninos'});
         progRow=progRows&&progRows[0];
         if(progRow&&progRow.id){
           const ptRows=await sbPost('programa_terapias',{programa_id:progRow.id,terapia:ter.nombre,
