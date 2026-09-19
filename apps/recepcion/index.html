@@ -1914,8 +1914,8 @@ function agOnModoPaq(){
     if(lbl)lbl.textContent='Fecha del pago/adelanto *';
     if(help)help.textContent='La fecha en la que realmente se recibió el pago (para regularizar registros de días anteriores).';
   }else if(esReemplazo){
-    if(lbl)lbl.textContent='Buscar los nuevos horarios a partir de *';
-    if(help)help.textContent='⚠️ Para NO saltarte ninguna semana, deja esta fecha en HOY (o el día siguiente a la última sesión real). Si pones una fecha más adelante, el sistema empuja ahí la búsqueda del próximo día de la semana de cada fila y puede saltarse sesiones intermedias que debían continuar de inmediato. No afecta lo ya asistido, no asistido, con permiso o reprogramado, ni el costo/cuotas del paquete.';
+    if(lbl)lbl.textContent='Buscar la(s) nueva(s) sesión(es) a partir de *';
+    if(help)help.textContent='Solo aplica a lo que agregues o quites: las asistencias que dejes tal cual NO se tocan ni cambian de fecha. Deja esta fecha en HOY salvo que quieras que lo nuevo empiece más adelante.';
     // Se resetea a HOY cada vez que se entra a este modo — así nunca
     // queda pegada una fecha futura de un uso anterior del modal que
     // empuje el horario más adelante de lo que la receptionista espera.
@@ -1994,8 +1994,9 @@ function agCargarFilasDesdeProgPendiente(){
 
   if(preview){
     preview.style.display='block';
-    preview.innerHTML='🔀 Reemplazará <b>'+pendientes.length+' sesión(es) pendiente(s)</b> (N.º '+
-      pendientes[0].nroSes+'–'+pendientes[pendientes.length-1].nroSes+' de '+(progRow.nro_sesiones_total||'?')+').';
+    preview.innerHTML='📋 <b>'+pendientes.length+' sesión(es) pendiente(s)</b> (N.º '+
+      pendientes[0].nroSes+'–'+pendientes[pendientes.length-1].nroSes+' de '+(progRow.nro_sesiones_total||'?')+
+      '). Lo que no edites abajo se mantiene igual; solo se ajusta lo que agregues o quites con ✕.';
   }
 }
 
@@ -2460,46 +2461,86 @@ async function reemplazarPendientesPaquete(){
     combosVistos[k]=true;
   }
 
-  // Ordenadas por nro_en_paquete para poder reasignar el nuevo horario a
-  // ESE mismo número de sesión (nunca recontar desde cero): una sesión
+  // Ordenadas por nro_en_paquete — el nro de cada sesión pendiente se
+  // conserva siempre tal cual (nunca se recalcula), porque una sesión
   // "reprogramada" deja su fila vieja en la base con el mismo nro que su
-  // reemplazo pendiente, así que contar "no programadas" para recalcular
-  // el número siguiente terminaría duplicando/saltando números.
+  // reemplazo pendiente, y recontar "no programadas" duplicaría/saltaría
+  // números.
   const pendientes=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===progRow.id&&s.estado==='programado';})
     .sort(function(a,b){return(a.nroSes||0)-(b.nroSes||0);});
   if(!pendientes.length){
     showToast('Este paquete no tiene sesiones pendientes por cambiar — todas ya se realizaron o no se han agendado','error');return;
   }
   const totalSesiones=progRow.nro_sesiones_total||0;
-  const nrosPendientes=pendientes.map(function(s){return s.nroSes;});
-  const cantidadAReemplazar=pendientes.length;
 
-  if(!confirm('Se van a borrar y reprogramar '+cantidadAReemplazar+' sesión(es) pendiente(s) de '+pac.nombre+' con el nuevo horario.\n\nLo ya asistido, no asistido, con permiso o reprogramado NO se toca, y el costo/cuotas del paquete no cambian.\n\n¿Continuar?')){
+  // ── DIFF: comparar el horario ACTUAL (agrupando las pendientes por
+  // día de semana+hora+terapia+psicóloga) contra lo que quedó armado en
+  // el formulario. Una asistencia que sigue IGUAL no se toca para nada
+  // (se queda con su fecha real, sin regenerar); una que se quitó libera
+  // sus sesiones; una que es nueva ocupa esas sesiones liberadas. Así
+  // "quitar" borra TODAS sus próximas ocurrencias (nunca deja alguna a
+  // medias) y "agregar" nunca desordena lo que no se tocó.
+  function claveCombo(dia,hora,ter,ps){return dia+'|'+hora+'|'+ter+'|'+ps;}
+  const gruposActuales={};
+  pendientes.forEach(function(s){
+    const diaNom=diaFull[new Date(s.fecha+'T12:00:00').getDay()];
+    const key=claveCombo(diaNom,s.hora,s.terId,s.psId);
+    (gruposActuales[key]=gruposActuales[key]||[]).push(s);
+  });
+  const combosForm=filas.map(function(f){return{key:claveCombo(f.diaNombre,f.hora,f.terapia,f.psicologa.nombre),fila:f};});
+  const keysForm={};combosForm.forEach(function(c){keysForm[c.key]=true;});
+
+  const sesionesALiberar=[]; // sesiones cuyo combo ya no está en el formulario
+  Object.keys(gruposActuales).forEach(function(key){
+    if(!keysForm[key])sesionesALiberar.push.apply(sesionesALiberar,gruposActuales[key]);
+  });
+  const combosNuevos=combosForm.filter(function(c){return!gruposActuales[c.key];}).map(function(c){return c.fila;});
+
+  if(!sesionesALiberar.length&&!combosNuevos.length){
+    showToast('No hay ningún cambio que aplicar — es el mismo horario que ya tenía.','info');return;
+  }
+  // Se agregó una asistencia nueva sin quitar ninguna — como el paquete no
+  // puede tener más sesiones de las contratadas, no hay de dónde "sacar"
+  // esa sesión nueva sin tocar el resto. En vez de bloquear (el caso más
+  // común es justo este: sumar un día más), se reparte TODO el pendiente
+  // de nuevo entre todas las asistencias vigentes — al partir de HOY, las
+  // que no cambiaron caen prácticamente en la misma fecha que ya tenían.
+  let reflowCompleto=false;
+  if(combosNuevos.length&&!sesionesALiberar.length){
+    reflowCompleto=true;
+    sesionesALiberar.push.apply(sesionesALiberar,pendientes);
+  }
+
+  const cantidadALiberar=sesionesALiberar.length;
+  const msgConfirm=reflowCompleto?
+    ('Se van a reprogramar las '+cantidadALiberar+' sesión(es) pendiente(s) de '+pac.nombre+' repartiéndolas entre TODAS las asistencias vigentes (las que no cambiaste deberían caer en fecha similar, al partir de hoy). Lo ya asistido, no asistido, con permiso o reprogramado NO se toca, y el costo/cuotas del paquete no cambian.\n\n¿Continuar?'):
+    ('Se van a liberar y reprogramar '+cantidadALiberar+' sesión(es) pendiente(s) de '+pac.nombre+' con el nuevo horario.\n\nLas asistencias que NO cambiaste se quedan exactamente igual (misma fecha). Lo ya asistido, no asistido, con permiso o reprogramado NO se toca, y el costo/cuotas del paquete no cambian.\n\n¿Continuar?');
+  if(!confirm(msgConfirm)){
     return;
   }
 
   _reemplazoPendientesEnCurso=true;
   showToast('⏳ Reprogramando sesiones pendientes...');
   try{
-    // Guardar el saldo (cuota) que tenía cada sesión pendiente, por número
-    // de sesión, para no perder el cobro pactado al recrearlas con el
+    // Guardar el saldo (cuota) de cada sesión que se libera, por número
+    // de sesión, para no perder el cobro pactado al recrearla con el
     // nuevo horario — el checkpoint de cuota sigue cayendo en la misma
     // sesión N del paquete, solo cambia día/hora/terapia/psicóloga.
     const saldoPorNro={};
-    pendientes.forEach(function(s){saldoPorNro[s.nroSes]=s.saldo||0;});
+    sesionesALiberar.forEach(function(s){saldoPorNro[s.nroSes]=s.saldo||0;});
+    const nrosLiberados=sesionesALiberar.map(function(s){return s.nroSes;}).sort(function(a,b){return a-b;});
 
-    // Restar del programa_terapias de origen únicamente las sesiones
-    // pendientes que se están quitando — lo ya realizado en ese combo
-    // terapia+psicóloga se queda intacto. Se mantiene un mapa en memoria
-    // del valor "vigente" de cada fila (ptAsignadasActual) porque más
-    // abajo, si la nueva combinación reutiliza la MISMA terapia+psicóloga,
-    // hay que sumarle al valor YA restado aquí — no al original leído de
-    // progRow, o el descuento de esta resta quedaría pisado/duplicado.
+    // Restar del programa_terapias de origen únicamente las sesiones que
+    // se liberan — lo que se mantiene igual, y lo ya realizado, se queda
+    // intacto. Se mantiene un mapa en memoria del valor "vigente" de cada
+    // fila (ptAsignadasActual) porque más abajo, si la nueva combinación
+    // reutiliza la MISMA terapia+psicóloga, hay que sumarle al valor YA
+    // restado aquí — no al original leído de progRow.
     const ptExistentes=progRow.programa_terapias||[];
     const ptAsignadasActual={};
     ptExistentes.forEach(function(pt){ptAsignadasActual[pt.id]=pt.sesiones_asignadas||0;});
     const quitarPorPt={};
-    pendientes.forEach(function(s){
+    sesionesALiberar.forEach(function(s){
       const ptId=s._sb.programa_terapia_id;
       if(ptId)quitarPorPt[ptId]=(quitarPorPt[ptId]||0)+1;
     });
@@ -2509,21 +2550,27 @@ async function reemplazarPendientesPaquete(){
       await sbPatch('programa_terapias',{sesiones_asignadas:nuevoAsignadas,sesiones_realizadas:nuevoAsignadas},{id:'eq.'+ptId});
     }
 
-    // Borrar solo las sesiones pendientes (estado='programado') de este
-    // paquete — nunca las ya realizadas.
-    await sbDelete('sesiones',{programa_id:'eq.'+progRow.id,estado:'eq.programado'});
+    // Borrar SOLO las sesiones que se liberan — las que no cambiaron
+    // (mismo día+hora+terapia+psicóloga) nunca se tocan.
+    const idsALiberar=sesionesALiberar.map(function(s){return s._sb.id;}).filter(Boolean);
+    for(const sbId of idsALiberar){
+      await sbDelete('sesiones',{id:'eq.'+sbId});
+    }
     // simularCalendarioPaquete() marca como "ocupado" cualquier horario que
-    // ya exista en DB.sesiones (en memoria) — si no se quitan aquí las
-    // pendientes recién borradas, un horario que se quiere REUTILIZAR
-    // (mismo día/hora, solo cambia terapia o psicóloga) aparecería como ya
-    // ocupado por la sesión que se está reemplazando.
-    const pendientesIds={};
-    pendientes.forEach(function(s){pendientesIds[s.id]=true;});
-    DB.sesiones=DB.sesiones.filter(function(s){return!pendientesIds[s.id];});
+    // ya exista en DB.sesiones (en memoria): esto es justo lo que hace que
+    // las asistencias SIN cambios (que se dejan en la base) bloqueen su
+    // propio horario y el round-robin caiga naturalmente en la siguiente
+    // fecha libre — pero hay que quitar del array en memoria las que
+    // recién se borraron, para no marcarlas ocupadas a sí mismas.
+    const liberadasIds={};
+    sesionesALiberar.forEach(function(s){liberadasIds[s.id]=true;});
+    DB.sesiones=DB.sesiones.filter(function(s){return!liberadasIds[s.id];});
 
-    // Generar el nuevo calendario para exactamente la misma cantidad de
-    // sesiones que se quitaron, con el nuevo horario/terapia/psicóloga.
-    const sim=simularCalendarioPaquete(filas,fechaDesde,cantidadAReemplazar);
+    // Generar SOLO las sesiones necesarias para llenar lo liberado,
+    // repartidas entre TODAS las filas del formulario (las que ya
+    // existían y absorben más, y/o las nuevas) — nunca se regenera lo
+    // que ya estaba correcto.
+    const sim=simularCalendarioPaquete(filas,fechaDesde,cantidadALiberar);
 
     const combos={};
     filas.forEach(function(f,i){
@@ -2553,14 +2600,13 @@ async function reemplazarPendientesPaquete(){
       c.filaIdxs.forEach(function(i){ptIdPorFila[i]=ptId;});
     }
 
-    // Cada evento generado toma EXACTAMENTE el nro_en_paquete de la sesión
-    // pendiente que está reemplazando (en orden), no un número recalculado
-    // — así el checkpoint de cuota (saldoPorNro) sigue cayendo donde debía
-    // y no se pisa con nros ya usados por sesiones reprogramadas.
+    // Cada evento generado toma EXACTAMENTE el nro_en_paquete de una de
+    // las sesiones liberadas (en orden), no un número recalculado — así
+    // el checkpoint de cuota (saldoPorNro) sigue cayendo donde debía.
     for(let idx=0;idx<sim.eventos.length;idx++){
       const ev=sim.eventos[idx];
       const f=filas[ev.filaIdx];
-      const nro=nrosPendientes[idx];
+      const nro=nrosLiberados[idx];
       const saldoSesion=saldoPorNro[nro]||0;
       const filaSes={fecha:ev.fecha,hora:ev.hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
         psicologa:f.psicologa.nombre,terapia:f.terapia,estado:'programado',tipo:'paquete',
@@ -2571,10 +2617,10 @@ async function reemplazarPendientesPaquete(){
     }
 
     if(!sim.completo){
-      showToast('⚠️ Solo se pudieron reprogramar '+sim.eventos.length+' de '+cantidadAReemplazar+' sesión(es). '+
+      showToast('⚠️ Solo se pudieron reprogramar '+sim.eventos.length+' de '+cantidadALiberar+' sesión(es). '+
         (sim.saltadas.length?'Revisa: '+sim.saltadas.slice(0,3).join(', '):'Agenda el resto manualmente.'),'error');
     }else{
-      showToast('✅ '+sim.eventos.length+' sesión(es) pendiente(s) reprogramada(s) para '+pac.nombre);
+      showToast('✅ '+sim.eventos.length+' sesión(es) reprogramada(s) para '+pac.nombre+' — el resto de su horario se mantuvo igual');
     }
     closeModal('modalAgendar');
     await cargarDesdeSB();
