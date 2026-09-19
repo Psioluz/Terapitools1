@@ -3457,22 +3457,41 @@ async function guardarPago(){
     const pagoInsertado=await sbPost('pagos',pagoRow);
     const pagoId=pagoInsertado&&pagoInsertado[0]&&pagoInsertado[0].id;
     const promesas=[];
-    // Reducir saldo del paciente en Supabase — puede quedar en negativo
-    // (crédito a favor) si el pago supera lo que debía; ese crédito se
-    // aplica solo cuando registre su siguiente sesión suelta.
-    if(pac._sb&&pac._sb.id){
-      promesas.push(sbPatch('pacientes',{saldo:(pac.saldo||0)-monto},{id:'eq.'+pac._sb.id}));
+    // Aplica `montoDisponible` en cascada sobre las cuotas-checkpoint
+    // pendientes de un paquete (de la más antigua a la más nueva) — si el
+    // pago supera lo que debía esa cuota, el excedente pasa a la
+    // siguiente en vez de perderse del seguimiento por sesión (antes solo
+    // se restaba de la cuota más antigua y el resto del pago desaparecía
+    // de ahí, aunque el total del paquete sí quedara bien contado).
+    function aplicarCascadaCheckpoints(programaId,montoDisponible){
+      const pendientes=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===programaId&&s.saldo>0;})
+        .sort(function(a,b){return((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||''));});
+      let restante=montoDisponible;
+      pendientes.forEach(function(s){
+        if(restante<=0||!s._sb||!s._sb.id)return;
+        const aplicado=Math.min(restante,s.saldo||0);
+        const nuevoSaldo=Math.round(((s.saldo||0)-aplicado)*100)/100;
+        promesas.push(sbPatch('sesiones',{saldo:nuevoSaldo},{id:'eq.'+s._sb.id}));
+        restante=Math.round((restante-aplicado)*100)/100;
+      });
     }
+    // pacientes.saldo es SOLO el saldo corriente de sesiones/consultas
+    // SUELTAS (fuera de paquete) — la deuda de un paquete vive aparte, en
+    // programas_paciente.saldo + el checkpoint de cada sesión. Si el pago
+    // se aplica a un paquete, pacientes.saldo NO debe tocarse (antes SÍ
+    // se restaba siempre, así que la misma plata se descontaba dos veces:
+    // de programas_paciente Y de pacientes.saldo, dejando este último
+    // negativo — un "crédito" que no existía de verdad y que, sumado al
+    // saldo del paquete en el Historial, mostraba menos deuda de la real).
+    let pagoAtadoAPaquete=false;
     if(sesPagada&&sesPagada._sb&&sesPagada._sb.id){
-      // Se sabe exactamente qué sesión/cuota se pagó: reducir SOLO su
-      // propio saldo. Las demás cuotas del mismo paquete ya tienen su
-      // monto fijo asignado al registrar el paquete y no deben tocarse
-      // (antes esto pisaba TODAS las cuotas pendientes con el mismo saldo
-      // "restante del paquete", dejando cuotas futuras en S/0 sin haberse
-      // pagado, o mostrando "Al día" cuando en realidad debían).
-      promesas.push(sbPatch('sesiones',{saldo:Math.max(0,(sesPagada.saldo||0)-monto)},{id:'eq.'+sesPagada._sb.id}));
       const progIdPagada=sesPagada._sb.programa_id;
       if(progIdPagada){
+        pagoAtadoAPaquete=true;
+        // Se sabe exactamente qué sesión/cuota se pagó, pero si el monto
+        // pagado supera esa cuota puntual, el resto debe seguir cayendo
+        // en cascada sobre las demás cuotas pendientes del MISMO paquete.
+        aplicarCascadaCheckpoints(progIdPagada,monto);
         try{
           const progRows=await sbGet('programas_paciente',{id:'eq.'+progIdPagada,select:'*'});
           const progPagado=progRows&&progRows[0];
@@ -3482,17 +3501,21 @@ async function guardarPago(){
             promesas.push(sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldoProgNuevo},{id:'eq.'+progPagado.id}));
           }
         }catch(eProg){console.error('[pago->programa]',eProg);}
+      }else{
+        // Sesión puntual suelta (no paquete): reduce solo su propio saldo.
+        promesas.push(sbPatch('sesiones',{saldo:Math.max(0,(sesPagada.saldo||0)-monto)},{id:'eq.'+sesPagada._sb.id}));
       }
     } else {
       // Pago genérico, sin sesión puntual asociada (registrado desde
       // "+ Registrar Pago"): se aplica al paquete activo más reciente si
-      // existe (abonando solo a la cuota-checkpoint pendiente MÁS ANTIGUA,
-      // nunca a todas), o si no tiene paquete, a su sesión suelta pendiente
-      // más antigua.
+      // existe (en cascada sobre sus cuotas-checkpoint pendientes, de la
+      // más antigua a la más nueva), o si no tiene paquete, a su sesión
+      // suelta pendiente más antigua.
       try{
         const progs=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:'eq.'+DB.sede,estado:'eq.activo',select:'*'});
         const prog=(progs||[]).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))[0];
         if(prog&&prog.id){
+          pagoAtadoAPaquete=true;
           const adelantoAcum=(prog.adelanto_acumulado||0)+monto;
           const saldoProg=Math.max(0,(prog.costo_total||0)-adelantoAcum);
           promesas.push(sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldoProg},{id:'eq.'+prog.id}));
@@ -3500,11 +3523,7 @@ async function guardarPago(){
           // elegida) para que el Historial lo pueda mostrar apenas exista
           // una sesión de ese paquete, en vez de quedar sin vincular.
           if(pagoId)promesas.push(sbPatch('pagos',{programa_id:prog.id},{id:'eq.'+pagoId}));
-          const checkpointPendiente=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===prog.id&&s.saldo>0;})
-            .sort(function(a,b){return((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||''));})[0];
-          if(checkpointPendiente&&checkpointPendiente._sb&&checkpointPendiente._sb.id){
-            promesas.push(sbPatch('sesiones',{saldo:Math.max(0,(checkpointPendiente.saldo||0)-monto)},{id:'eq.'+checkpointPendiente._sb.id}));
-          }
+          aplicarCascadaCheckpoints(prog.id,monto);
         }else{
           const ses=DB.sesiones.filter(s=>(s.pacNom===pac.nombre||s.pacId===pac.nombre)&&s.saldo>0)
             .sort((a,b)=>((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||'')))[0];
@@ -3513,6 +3532,13 @@ async function guardarPago(){
           }
         }
       }catch(eProg){console.error('[pago->programa]',eProg);}
+    }
+    // Reducir saldo del paciente en Supabase — SOLO si el pago no se ató a
+    // un paquete (arriba). Puede quedar en negativo (crédito a favor) si
+    // el pago suelto supera lo que debía; ese crédito se aplica solo
+    // cuando registre su siguiente sesión suelta.
+    if(!pagoAtadoAPaquete&&pac._sb&&pac._sb.id){
+      promesas.push(sbPatch('pacientes',{saldo:(pac.saldo||0)-monto},{id:'eq.'+pac._sb.id}));
     }
     await Promise.all(promesas);
     _pagoSesionId=null;
