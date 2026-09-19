@@ -1690,6 +1690,37 @@ function _saldoRealPac(pac){
   // sueltas (fuera de paquete) — puede ser negativo (crédito a favor).
   return saldoPaquetes+(pac.saldo||0);
 }
+// Estado del saldo de un paciente para pintar la alerta del color correcto:
+// null = sin nada que avisar (saldo en 0); 'credito' = a favor (verde);
+// 'vencido' = ya debía haberse cobrado (rojo); 'pendiente' = debe,
+// pero la próxima cuota todavía no llega a su fecha (amarillo/naranja).
+function _estadoSaldoPac(pac){
+  const saldo=Math.round(_saldoRealPac(pac)*100)/100;
+  if(saldo===0)return null;
+  if(saldo<0)return{tipo:'credito',saldo:saldo};
+  const hoy=today();
+  const progsActivos=(DB.programas||[]).filter(function(pr){return pr.paciente_nombre===pac.nombre&&pr.estado==='activo';});
+  const progIds={};progsActivos.forEach(function(pr){progIds[pr.id]=true;});
+  const checkpointsPendientes=DB.sesiones.filter(function(s){
+    return (s.saldo||0)>0&&s._sb&&s._sb.programa_id&&progIds[s._sb.programa_id];
+  });
+  // Un saldo suelto (fuera de paquete, pac.saldo>0) no tiene una fecha
+  // futura asociada — ya se considera vencido en cuanto existe. Una
+  // cuota de paquete solo se considera vencida si su sesión-checkpoint
+  // ya pasó de fecha.
+  const hayVencida=(pac.saldo||0)>0||checkpointsPendientes.some(function(s){return s.fecha<=hoy;});
+  return{tipo:hayVencida?'vencido':'pendiente',saldo:saldo};
+}
+// HTML de la alerta de saldo, ya coloreada según el estado real — mismo
+// criterio en toda la app (tarjeta de paciente, dashboard de alertas e
+// Historial Clínico) para no mostrar cosas distintas en cada pantalla.
+function _saldoAlertaHTML(pac,extraStyle){
+  const st=_estadoSaldoPac(pac);if(!st)return'';
+  const style=extraStyle||'';
+  if(st.tipo==='credito')return '<div class="alert al-ok" style="'+style+'">✅ Saldo a favor: S/'+Math.abs(st.saldo)+'</div>';
+  if(st.tipo==='vencido')return '<div class="alert al-danger" style="'+style+'">🔴 Cuota vencida — Saldo pendiente: S/'+st.saldo+'</div>';
+  return '<div class="alert al-warn" style="'+style+'">⚠️ Saldo pendiente: S/'+st.saldo+' (aún no vence)</div>';
+}
 function _paqInfoPac(pac){
   const ses=DB.sesiones.filter(s=>s.pacId===pac.nombre&&s.tipo==='paquete'&&s.totalPaq);
   if(!ses.length)return null;
@@ -3211,7 +3242,7 @@ function renderPacientes(){
       '</div>'+
       prog+
       renderProgramasPac(p.nombre)+
-      (_saldoRealPac(p)>0?'<div class="alert al-warn" style="padding:5px 10px;margin-top:6px;font-size:12px">⚠️ Saldo pendiente: S/'+_saldoRealPac(p)+'</div>':'')+
+      _saldoAlertaHTML(p,'padding:5px 10px;margin-top:6px;font-size:12px')+
       '</div>'+
       '<div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;align-items:flex-start">'+
       (prox?'<span class="badge bc" style="font-size:10px">Próx: '+fmtF(prox.fecha)+' '+prox.hora+'</span>':'')+
@@ -3808,7 +3839,10 @@ function filtrarPaq(tipo,btn){
 // ══════════════════════════════════════════════════
 function contarAlertas(){
   let c=0;const hoy=today();
-  DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{if(_saldoRealPac(p)>0)c++;});
+  // Solo cuenta como alerta la deuda ya VENCIDA — un saldo a favor no es
+  // una alerta, y una cuota que todavía no llega a su fecha tampoco
+  // debería generar ruido en la lista de pendientes por cobrar.
+  DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{const st=_estadoSaldoPac(p);if(st&&st.tipo==='vencido')c++;});
   DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{
     const info=_paqInfoPac(p);
     if(info&&info.total-info.hechas<=1)c++;
@@ -3819,9 +3853,12 @@ function contarAlertas(){
 
 function renderAlertas(){
   let h='';
+  // Aquí solo aparece la deuda ya VENCIDA (en rojo) — el saldo a favor y
+  // las cuotas que todavía no llegan a su fecha se ven en la ficha del
+  // paciente/Historial, pero no ensucian esta lista de "hay que cobrar ya".
   DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{
-    const saldoReal=_saldoRealPac(p);
-    if(saldoReal>0)h+='<div class="alert al-warn">⚠️ <strong>'+p.nombre+'</strong> — Saldo: S/'+saldoReal+'</div>';
+    const st=_estadoSaldoPac(p);
+    if(st&&st.tipo==='vencido')h+='<div class="alert al-danger">🔴 <strong>'+p.nombre+'</strong> — Cuota vencida: S/'+st.saldo+'</div>';
   });
   DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{
     const info=_paqInfoPac(p);if(!info)return;
@@ -4551,7 +4588,7 @@ async function renderHistorial(){
     '<div class="stat-card sc-green"><div class="stat-value">'+asist+'</div><div class="stat-label">Asistidas</div></div>'+
     '<div class="stat-card sc-red"><div class="stat-value">'+noAs+'</div><div class="stat-label">No Asistió</div></div>'+
     '</div>'+
-    (_saldoRealPac(pac2)>0?'<div class="alert al-warn" style="margin-top:8px">⚠️ Saldo pendiente: S/'+_saldoRealPac(pac2)+'</div>':'')+
+    _saldoAlertaHTML(pac2,'margin-top:8px')+
     '</div>'+
     '<div style="font-size:13px;font-weight:800;color:var(--muted);margin-bottom:8px">📋 Registro de Sesiones</div>'+
     (filasTabla.length?
