@@ -2882,29 +2882,36 @@ async function guardarPaqueteFlujo(){
       const cortes={};
       if(nroCuotas>=2){
         const montoBase=montoCuotaCatalogo||Math.round((costoTotal/nroCuotas)*100)/100;
-        // Si la cuota 1 (el adelanto) no se cobró completa al registrar el
-        // paquete — ej. se agendó la sesión sin monto y el pago se hizo
-        // después, aparte, en Caja/Pagos — se marca como pendiente en la
-        // sesión 1 misma. Si no, un pago genérico hecho más tarde no tiene
-        // ningún saldo>0 en el que aplicarse antes de la cuota 2, y termina
-        // saltando directo a esa cuota (marcándola pagada por error)
-        // mientras la cuota 1 real queda sin rastro y sin alerta.
-        const cuota1Pendiente=Math.max(0,Math.round((montoBase-adelanto)*100)/100);
-        if(cuota1Pendiente>0)cortes[1]=cuota1Pendiente;
         const checkpoints=CUOTAS_CHECKPOINTS[totalSesiones];
+        // Lista de (sesión de cobro, monto de esa cuota) en orden — con las
+        // posiciones fijas de la tabla, o repartidas uniforme si el tamaño
+        // de paquete no está en ella.
+        let posiciones;
         if(checkpoints&&checkpoints.length===nroCuotas){
-          for(let j=1;j<checkpoints.length;j++){
-            const sesionCobro=checkpoints[j];
+          posiciones=checkpoints.map(function(sesionCobro,j){
             const esUltima=j===checkpoints.length-1;
-            cortes[sesionCobro]=esUltima?Math.round((costoTotal-montoBase*(nroCuotas-1))*100)/100:montoBase;
-          }
+            const monto=esUltima?Math.round((costoTotal-montoBase*(nroCuotas-1))*100)/100:montoBase;
+            return{sesion:sesionCobro,monto:monto};
+          });
         }else{
           const sesionesPorCuota=Math.floor(totalSesiones/nroCuotas);
+          posiciones=[{sesion:1,monto:montoBase}];
           for(let j=1;j<nroCuotas;j++){
-            const corte=Math.max(1,sesionesPorCuota*j);
-            cortes[corte]=montoBase;
+            posiciones.push({sesion:Math.max(1,sesionesPorCuota*j),monto:montoBase});
           }
         }
+        // El adelanto pagado AL REGISTRAR el paquete se aplica en cascada
+        // sobre estas cuotas en orden — si cubre más que la cuota 1, el
+        // excedente pasa a la cuota 2, y así — en vez de dejar TODAS las
+        // cuotas 2+ con su monto completo pendiente aunque ya se hayan
+        // cobrado por adelantado en un solo pago (ej. "pagó 2 de las 3
+        // cuotas de una vez" quedaba mostrando las 3 como pendientes).
+        let restante=adelanto;
+        posiciones.forEach(function(p){
+          const pendiente=Math.max(0,Math.round((p.monto-restante)*100)/100);
+          if(pendiente>0)cortes[p.sesion]=pendiente;
+          restante=Math.max(0,Math.round((restante-p.monto)*100)/100);
+        });
       }else if(saldo>0){
         cortes[totalSesiones]=saldo;
       }
