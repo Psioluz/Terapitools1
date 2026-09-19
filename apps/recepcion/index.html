@@ -1914,8 +1914,12 @@ function agOnModoPaq(){
     if(lbl)lbl.textContent='Fecha del pago/adelanto *';
     if(help)help.textContent='La fecha en la que realmente se recibió el pago (para regularizar registros de días anteriores).';
   }else if(esReemplazo){
-    if(lbl)lbl.textContent='Nuevos horarios desde *';
-    if(help)help.textContent='Se reemplazan SOLO las sesiones aún no realizadas (estado "Programado") de este paquete, a partir de esta fecha. Lo ya asistido, no asistido, con permiso o reprogramado no se toca, y el costo/cuotas del paquete siguen igual.';
+    if(lbl)lbl.textContent='Buscar los nuevos horarios a partir de *';
+    if(help)help.textContent='⚠️ Para NO saltarte ninguna semana, deja esta fecha en HOY (o el día siguiente a la última sesión real). Si pones una fecha más adelante, el sistema empuja ahí la búsqueda del próximo día de la semana de cada fila y puede saltarse sesiones intermedias que debían continuar de inmediato. No afecta lo ya asistido, no asistido, con permiso o reprogramado, ni el costo/cuotas del paquete.';
+    // Se resetea a HOY cada vez que se entra a este modo — así nunca
+    // queda pegada una fecha futura de un uso anterior del modal que
+    // empuje el horario más adelante de lo que la receptionista espera.
+    const elFI=document.getElementById('ag-fechaInicio');if(elFI)elFI.value=today();
   }else{
     if(lbl)lbl.textContent='Fecha de inicio *';
     if(help)help.textContent='La primera sesión de cada día será la próxima fecha con ese día de la semana, a partir de aquí.';
