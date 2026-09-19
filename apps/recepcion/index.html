@@ -1834,7 +1834,12 @@ async function confirmarPermiso(){
     const extEv=file.name.split('.').pop();
     const urlEv=await sbUpload('evidencias',sedeC+'/'+pacC+'/permiso_'+Date.now()+'.'+extEv,file,file.type||'application/pdf');
     const sbId=(s._sb&&s._sb.id)||s.id;
-    await sbPatch('sesiones',{estado:'permiso'},{id:'eq.'+sbId});
+    // La sesión original queda con saldo 0: el checkpoint de cuota (si esta
+    // sesión tenía uno) se MUEVE a la sesión nueva, no se duplica — si no
+    // se limpia aquí, la fila del permiso (con fecha ya pasada) sigue
+    // contando como "cuota vencida" para siempre, aunque la deuda real ya
+    // se haya reubicado a la sesión que sí va a ocurrir.
+    await sbPatch('sesiones',{estado:'permiso',saldo:0},{id:'eq.'+sbId});
     const filaSes={fecha:nuevaFecha,hora:s.hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
       psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:s.tipo,
       nro_en_paquete:s.nroSes||1,total_paquete:s.totalPaq||1,costo_total:s.costoTotal||0,
@@ -1845,7 +1850,7 @@ async function confirmarPermiso(){
       psicologa_nombre:ps.nombre,fecha_original:s.fecha,hora_original:s.hora,
       fecha_nueva:nuevaFecha,hora_nueva:s.hora,sede:DB.sede,reprogramado_por:DB.usuario||'',
       url_evidencia:urlEv,tipo:'permiso',nota:nota});
-    s.estado='permiso';
+    s.estado='permiso';s.saldo=0;
     closeModal('modalPermiso');
     showToast('✅ Permiso registrado — nueva sesión el '+fmtF(nuevaFecha));
     await cargarDesdeSB();
@@ -3145,6 +3150,14 @@ async function guardarSesion(){
         adelanto:0,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
       if(progIdOrig){filaSesion.programa_id=progIdOrig;if(ptIdOrig)filaSesion.programa_terapia_id=ptIdOrig;}
       {const rSes=await sbPost('sesiones',filaSesion);sesionIdCreada=(rSes&&rSes[0]&&rSes[0].id)||null;}
+      // El saldo (cuota-checkpoint) ya se heredó en la sesión nueva de
+      // arriba — hay que limpiarlo en la sesión original para que no quede
+      // duplicado ni siga contando como "cuota vencida" en una fecha que
+      // ya pasó (la sesión original solo se marca aquí, en cuanto la
+      // reprogramación se concreta de verdad, para no perder el checkpoint
+      // si el usuario cancela el modal antes de llegar hasta aquí).
+      if(_reprogDe._sb&&_reprogDe._sb.id)await sbPatch('sesiones',{saldo:0},{id:'eq.'+_reprogDe._sb.id});
+      _reprogDe.saldo=0;
     } else if((progInfo=(tipo==='paquete')?await obtenerProgramaActivo(pac.nombre,ter.nombre,ps.nombre):null)){
       const prog=progInfo.programa,pt=progInfo.terapiaRow;
       // El nro_en_paquete/total_paquete deben reflejar el paquete COMPLETO
