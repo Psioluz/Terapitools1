@@ -657,7 +657,7 @@ try{
 <div class="modal modal-lg">
   <div class="modal-header">
     <div class="modal-title">📅 Agendar Sesión</div>
-    <button class="modal-close" onclick="closeModal('modalAgendar')">✕</button>
+    <button class="modal-close" onclick="cancelarModalAgendar()">✕</button>
   </div>
   <div class="modal-body">
     <div class="alert al-info" style="margin-bottom:10px;font-size:11.5px">
@@ -824,7 +824,7 @@ try{
     </div>
   </div>
   <div class="modal-footer">
-    <button class="btn btn-outline" onclick="closeModal('modalAgendar')">Cancelar</button>
+    <button class="btn btn-outline" onclick="cancelarModalAgendar()">Cancelar</button>
     <button class="btn btn-primary" onclick="agGuardarDesdeModal()">✅ Guardar Sesión</button>
   </div>
 </div>
@@ -1777,10 +1777,23 @@ let _pagoSesionId=null;
 function reprogramar(sesId){
   const ses=DB.sesiones.find(s=>s.id===sesId);if(!ses)return;
   _reprogDe=ses;
+  // El cambio a "reprogramado" solo se guarda en Supabase cuando la
+  // reprogramación se CONFIRMA de verdad (ver guardarSesion, rama
+  // _esReprog) — marcarlo aquí mismo, apenas se abre el modal, dejaba la
+  // sesión huérfana (estado reprogramado sin ninguna sesión de reemplazo)
+  // si el usuario cerraba el modal sin completarlo. En memoria sí se marca
+  // de una vez, solo para que la fila oculte sus botones mientras se elige
+  // la fecha nueva.
   ses.estado='reprogramado';
-  if(ses._sb&&ses._sb.id)sbPatch('sesiones',{estado:'reprogramado'},{id:'eq.'+ses._sb.id}).catch(function(e){console.error('[reprog]',e);});
   abrirModalAgendar(null,null,ses);
   showToast('Selecciona nueva fecha/hora y adjunta la evidencia del paciente');
+}
+// Si se cancela el modal a medio camino de una reprogramación, la sesión
+// original vuelve a su estado real (nunca se llegó a guardar nada en
+// Supabase, así que solo hay que deshacer la marca en memoria).
+function cancelarModalAgendar(){
+  if(_reprogDe){_reprogDe.estado='programado';_reprogDe=null;}
+  closeModal('modalAgendar');
 }
 
 // ══ PERMISO ══
@@ -1840,9 +1853,30 @@ async function confirmarPermiso(){
     // contando como "cuota vencida" para siempre, aunque la deuda real ya
     // se haya reubicado a la sesión que sí va a ocurrir.
     await sbPatch('sesiones',{estado:'permiso',saldo:0},{id:'eq.'+sbId});
+    // El permiso no debe "robarse" el puesto que ocupaba en la secuencia:
+    // todas las sesiones del paquete con número mayor bajan un puesto, y la
+    // sesión de reposición se anexa AL FINAL (con el número que queda
+    // libre) en vez de quedarse con el mismo número de la original. Así,
+    // si mañana vuelven a dar permiso sobre lo que ahora es el nuevo
+    // "puesto 5", el mismo mecanismo se repite y todo sigue corriendo en
+    // cadena sin dejar huecos ni saltos en la numeración visible.
+    const nroOriginal=s.nroSes||0;
+    const totalPaq=s.totalPaq||0;
+    let nroNuevaSesion=nroOriginal||1;
+    if(progId&&nroOriginal&&totalPaq){
+      const posteriores=DB.sesiones.filter(function(x){
+        return x._sb&&x._sb.programa_id===progId&&(x.nroSes||0)>nroOriginal;
+      }).sort(function(a,b){return (a.nroSes||0)-(b.nroSes||0);});
+      for(const x of posteriores){
+        const nuevoNro=(x.nroSes||0)-1;
+        await sbPatch('sesiones',{nro_en_paquete:nuevoNro},{id:'eq.'+x._sb.id});
+        x.nroSes=nuevoNro;
+      }
+      nroNuevaSesion=totalPaq;
+    }
     const filaSes={fecha:nuevaFecha,hora:s.hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
       psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:s.tipo,
-      nro_en_paquete:s.nroSes||1,total_paquete:s.totalPaq||1,costo_total:s.costoTotal||0,
+      nro_en_paquete:nroNuevaSesion,total_paquete:totalPaq||1,costo_total:s.costoTotal||0,
       adelanto:0,saldo:s.saldo||0,sede:DB.sede,registrado_por:DB.usuario||'',notas:s.notas||''};
     if(progId){filaSes.programa_id=progId;if(ptId)filaSes.programa_terapia_id=ptId;}
     await sbPost('sesiones',filaSes);
@@ -3150,13 +3184,14 @@ async function guardarSesion(){
         adelanto:0,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
       if(progIdOrig){filaSesion.programa_id=progIdOrig;if(ptIdOrig)filaSesion.programa_terapia_id=ptIdOrig;}
       {const rSes=await sbPost('sesiones',filaSesion);sesionIdCreada=(rSes&&rSes[0]&&rSes[0].id)||null;}
-      // El saldo (cuota-checkpoint) ya se heredó en la sesión nueva de
-      // arriba — hay que limpiarlo en la sesión original para que no quede
-      // duplicado ni siga contando como "cuota vencida" en una fecha que
-      // ya pasó (la sesión original solo se marca aquí, en cuanto la
-      // reprogramación se concreta de verdad, para no perder el checkpoint
-      // si el usuario cancela el modal antes de llegar hasta aquí).
-      if(_reprogDe._sb&&_reprogDe._sb.id)await sbPatch('sesiones',{saldo:0},{id:'eq.'+_reprogDe._sb.id});
+      // La sesión original recién se marca "reprogramado" AQUÍ, cuando la
+      // reprogramación se concreta de verdad (no al abrir el modal) — así,
+      // si se cancela a medio camino, la sesión nunca queda huérfana en
+      // Supabase. El saldo (cuota-checkpoint) ya se heredó en la sesión
+      // nueva de arriba, así que aquí se limpia para que no quede
+      // duplicado ni siga contando como "cuota vencida" en una fecha ya
+      // pasada.
+      if(_reprogDe._sb&&_reprogDe._sb.id)await sbPatch('sesiones',{estado:'reprogramado',saldo:0},{id:'eq.'+_reprogDe._sb.id});
       _reprogDe.saldo=0;
     } else if((progInfo=(tipo==='paquete')?await obtenerProgramaActivo(pac.nombre,ter.nombre,ps.nombre):null)){
       const prog=progInfo.programa,pt=progInfo.terapiaRow;
@@ -4775,7 +4810,7 @@ async function renderHistorial(){
           '<td style="white-space:nowrap">'+pagoCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
           '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s):
-            (s.estado==='noasistio'||s.estado==='permiso')?'<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':
+            s.estado==='noasistio'?'<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':
             '<span style="font-size:11px;color:var(--muted)">—</span>')+'</td></tr>';
       }).join('')+
       '</tbody></table></div>'
