@@ -886,7 +886,14 @@ function renderEditableGrid(containerId,rows,tabla){
         (READONLY_COLS.includes(c)?' 🔒':'')+(hint?' <span style="opacity:.55">ⓘ</span>':'')+'</th>';
     }).join('')+'<th>Acciones</th></tr></thead><tbody>';
   rows.forEach((r,i)=>{
-    h+='<tr data-row="'+i+'" data-tabla="'+tabla+'">'+cols.map(function(c){
+    // El id real se guarda en la propia fila del DOM (no solo en _tblRows)
+    // porque "Tablas" y "Cuentas" comparten el mismo _tblRows[tabla] — si
+    // las dos secciones cargaron esa tabla en momentos distintos (con
+    // distinto orden), el índice visual podía ya no coincidir con el
+    // índice del array en memoria, y se guardaba/parchaba una fila
+    // distinta a la que se veía en pantalla (parecía que "no pasaba nada"
+    // porque la fila visible nunca cambiaba).
+    h+='<tr data-row="'+i+'" data-tabla="'+tabla+'"'+(r&&r.id!==undefined?' data-id="'+String(r.id).replace(/"/g,'&quot;')+'"':'')+'>'+cols.map(function(c){
       let v=r[c];
       if(READONLY_COLS.includes(c)){
         let sv=(v===null||v===undefined)?'':String(v);if(sv.length>40)sv=sv.slice(0,40)+'…';
@@ -895,8 +902,8 @@ function renderEditableGrid(containerId,rows,tabla){
       return '<td onfocusin="this.closest(\'tr\').classList.add(\'dirty\')" oninput="this.closest(\'tr\').classList.add(\'dirty\')" onchange="this.closest(\'tr\').classList.add(\'dirty\')">'+celdaInput(tabla,c,v)+'</td>';
     }).join('')+
     '<td style="white-space:nowrap">'+
-    '<button class="btn btn-primary btn-sm" onclick="tblGuardarFilaInline(\''+tabla+'\','+i+')">💾</button> '+
-    '<button class="btn btn-danger btn-sm" onclick="tblEliminarFila(\''+tabla+'\','+i+')">🗑️</button></td></tr>';
+    '<button class="btn btn-primary btn-sm" onclick="tblGuardarFilaInline(\''+tabla+'\','+i+',this)">💾</button> '+
+    '<button class="btn btn-danger btn-sm" onclick="tblEliminarFila(\''+tabla+'\','+i+',this)">🗑️</button></td></tr>';
   });
   h+='</tbody></table></div>';
   el.innerHTML=h;
@@ -931,15 +938,27 @@ function leerFilaForm(tr,row){
   });
   return data;
 }
-async function tblGuardarFilaInline(tabla,idx){
-  const row=(_tblRows[tabla]||[])[idx];if(!row)return;
-  if(row.id===undefined){toast('Esta fila no tiene columna id — no se puede editar así','error');return;}
-  const tr=document.querySelector('tr[data-row="'+idx+'"][data-tabla="'+tabla+'"]');
+async function tblGuardarFilaInline(tabla,idx,btn){
+  // El id real se lee SIEMPRE de la propia fila del DOM (data-id), nunca
+  // de _tblRows[tabla][idx] — "Tablas" y "Cuentas" pueden tener cargada la
+  // MISMA tabla al mismo tiempo, cada una con su propio orden, y como
+  // ambas comparten el mismo _tblRows[tabla], el índice podía apuntar a
+  // una fila distinta a la que se ve en pantalla. Tomar "this" del botón
+  // que se apretó (en vez de buscar por selector en todo el documento)
+  // también evita agarrar por error una fila de la OTRA sección si las
+  // dos tienen la misma tabla renderizada a la vez.
+  const tr=btn?btn.closest('tr'):document.querySelector('tr[data-row="'+idx+'"][data-tabla="'+tabla+'"]');
   if(!tr){toast('No se encontró la fila en pantalla','error');return;}
+  const idReal=tr.dataset.id;
+  if(idReal===undefined){toast('Esta fila no tiene columna id — no se puede editar así','error');return;}
   let data;
-  try{data=leerFilaForm(tr,row);}catch(e){toast(e.message,'error');return;}
+  try{data=leerFilaForm(tr,null);}catch(e){toast(e.message,'error');return;}
   try{
-    await sbPatch(tabla,data,{id:'eq.'+row.id});
+    const res=await sbPatch(tabla,data,{id:'eq.'+idReal});
+    // sbPatch no lanza error si el filtro no encontró ninguna fila (la API
+    // igual responde 200 con un array vacío) — sin este chequeo, eso se
+    // veía como "✅ actualizado" aunque en la base no cambió nada.
+    if(!res||!res.length){toast('⚠️ No se encontró esa fila en la base (puede que ya no exista) — nada se guardó','error');return;}
     toast('✅ Fila actualizada');
     tr.classList.remove('dirty');
     // Si quedan otras filas sin guardar en pantalla, no recargamos la tabla
@@ -958,12 +977,12 @@ async function tblActualizarTodo(tabla,contenedorId){
   toast('⏳ Guardando '+filas.length+' fila(s)...');
   let ok=0,err=0;
   for(const tr of filas){
-    const idx=parseInt(tr.dataset.row,10);
-    const row=(_tblRows[tabla]||[])[idx];
-    if(!row||row.id===undefined){err++;continue;}
+    const idReal=tr.dataset.id;
+    if(idReal===undefined){err++;continue;}
     try{
-      const data=leerFilaForm(tr,row);
-      await sbPatch(tabla,data,{id:'eq.'+row.id});
+      const data=leerFilaForm(tr,null);
+      const res=await sbPatch(tabla,data,{id:'eq.'+idReal});
+      if(!res||!res.length){err++;continue;}
       ok++;
     }catch(e){err++;}
   }
@@ -1152,12 +1171,16 @@ async function guardarModalFila(){
     if(['psicologas','recepcionistas','usuarios_gerencia'].includes(_modalCtx.tabla))cargarCuentas();
   }catch(e){toast('Error: '+e.message,'error');}
 }
-async function tblEliminarFila(tabla,idx){
-  const row=(_tblRows[tabla]||[])[idx];if(!row)return;
-  if(row.id===undefined){toast('Esta fila no tiene columna id — no se puede eliminar así','error');return;}
+async function tblEliminarFila(tabla,idx,btn){
+  // Mismo motivo que en tblGuardarFilaInline: el id se toma de la fila del
+  // DOM (data-id) vía el botón que se apretó, nunca de _tblRows[idx] — así
+  // nunca se puede borrar por error una fila distinta a la que se ve.
+  const tr=btn?btn.closest('tr'):document.querySelector('tr[data-row="'+idx+'"][data-tabla="'+tabla+'"]');
+  const idReal=tr?tr.dataset.id:((_tblRows[tabla]||[])[idx]||{}).id;
+  if(idReal===undefined){toast('Esta fila no tiene columna id — no se puede eliminar así','error');return;}
   if(!confirm('¿Eliminar esta fila de "'+tabla+'"? No se puede deshacer.'))return;
   try{
-    await sbDelete(tabla,{id:'eq.'+row.id});
+    await sbDelete(tabla,{id:'eq.'+idReal});
     toast('✅ Fila eliminada');
     tblCargar();
     if(['psicologas','recepcionistas','usuarios_gerencia'].includes(tabla))cargarCuentas();
