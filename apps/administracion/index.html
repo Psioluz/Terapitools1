@@ -356,6 +356,7 @@ try{
   <label class='flabel'>Sede</label><select class='finput' id='tfSede'></select>
   <label class='flabel'>Nombre del servicio</label><input class='finput' id='tfNombre' placeholder='Ej: Paquete 12 sesiones'>
   <label class='flabel'>Tipo</label><select class='finput' id='tfTipo'><option value='paquete'>Paquete</option><option value='consulta'>Consulta</option><option value='informe'>Informe</option><option value='constancia'>Constancia</option><option value='neuropsico'>Neuropsicológica</option><option value='otro'>Otro</option></select>
+  <label class='flabel'>Categoría</label><select class='finput' id='tfCategoria'><option value='ninos'>🧒 Niños</option><option value='adultos'>🧑 Adultos</option></select>
   <label class='flabel'>N° de sesiones</label><input type='number' class='finput' id='tfNro' value='12'>
   <label class='flabel'>Precio del paquete (S/)</label><input type='number' class='finput' id='tfTotal' oninput='calcCuotaTarifa()'>
   <label class='flabel'>Número de cuotas</label><input type='number' class='finput' id='tfCuotas' value='1' min='1' oninput='calcCuotaTarifa()'>
@@ -1204,6 +1205,7 @@ function abrirModalTarifa(){
   ['tfId','tfNombre','tfTotal'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('tfNro').value='12';
   document.getElementById('tfCuotas').value='1';
+  document.getElementById('tfCategoria').value='ninos';
   // Si hay una sede activa (no "Todas las sedes"), la preselecciona
   document.getElementById('tfSede').value=D.sede||'Comas';
   calcCuotaTarifa();
@@ -1215,6 +1217,7 @@ function editarTarifa(id){
   document.getElementById('tfSede').value=t.sede||D.sede||'Comas';
   document.getElementById('tfNombre').value=t.nombre_servicio||'';
   document.getElementById('tfTipo').value=t.tipo||'paquete';
+  document.getElementById('tfCategoria').value=t.categoria||'ninos';
   document.getElementById('tfNro').value=t.nro_sesiones||12;
   document.getElementById('tfTotal').value=t.costo_total||0;
   document.getElementById('tfCuotas').value=t.cantidad_cuotas||1;
@@ -1234,6 +1237,7 @@ async function guardarTarifa(){
   var total=parseFloat(document.getElementById('tfTotal').value)||0;
   var cuotas=parseInt(document.getElementById('tfCuotas').value)||1;
   var fila={nombre_servicio:nombre,tipo:document.getElementById('tfTipo').value,sede:document.getElementById('tfSede').value,
+    categoria:document.getElementById('tfCategoria')?document.getElementById('tfCategoria').value:'ninos',
     nro_sesiones:parseInt(document.getElementById('tfNro').value)||1,
     costo_total:total,
     cantidad_cuotas:cuotas,
