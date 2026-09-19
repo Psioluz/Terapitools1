@@ -4763,16 +4763,26 @@ async function cargarHistorialCompletoPac(pacNombre){
     }
   });
   rows.forEach(function(r){
-    const existing=DB.sesiones.find(function(x){return x._sb&&x._sb.id===r.id;});
+    // Comparar por id "pelado" (no solo x._sb.id): una sesión recién creada
+    // en el mismo registro de paquete queda en memoria como copia optimista
+    // SIN _sb (para pintarla de inmediato) — si aquí solo se buscaba por
+    // x._sb.id, esa copia optimista nunca calzaba con la fila real que
+    // llega de Supabase y se terminaba agregando dos veces (una desfasada,
+    // "programado", y otra con el estado real).
+    const existing=DB.sesiones.find(function(x){return x.id===r.id;});
     if(!existing){
       DB.sesiones.push({id:r.id,fecha:r.fecha,hora:normHoraRec(r.hora),pacId:r.paciente_nombre,pacNom:r.paciente_nombre,
         psId:r.psicologa,psNom:r.psicologa,terId:r.terapia,terNom:r.terapia,estado:r.estado,tipo:r.tipo||'sesion',notas:r.notas||'',
         saldo:r.saldo||0,nroSes:r.nro_en_paquete,totalPaq:r.total_paquete,costo:r.costo_total||0,costoTotal:r.costo_total||0,tel:r.paciente_tel||'',_sb:r});
     }else{
-      // Ya estaba en memoria (dentro de la ventana normal) — igual se
-      // completan tipo/notas si faltaban de una carga vieja.
-      if(existing.tipo===undefined)existing.tipo=r.tipo||'sesion';
-      if(existing.notas===undefined)existing.notas=r.notas||'';
+      // Ya estaba en memoria — refrescar con los datos reales por si era
+      // la copia optimista desactualizada (sin _sb) de un registro reciente.
+      existing.fecha=r.fecha;existing.hora=normHoraRec(r.hora);existing.estado=r.estado;
+      existing.tipo=r.tipo||'sesion';existing.notas=r.notas||'';existing.saldo=r.saldo||0;
+      existing.nroSes=r.nro_en_paquete;existing.totalPaq=r.total_paquete;
+      existing.costo=r.costo_total||0;existing.costoTotal=r.costo_total||0;
+      existing.psId=r.psicologa;existing.psNom=r.psicologa;existing.terId=r.terapia;existing.terNom=r.terapia;
+      existing._sb=r;
     }
   });
   // También hace falta el paquete YA TERMINADO de este paciente (DB.programas
