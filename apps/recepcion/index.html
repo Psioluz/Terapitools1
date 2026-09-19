@@ -1989,11 +1989,9 @@ function agCargarFilasDesdeProgPendiente(){
   });
 
   if(preview){
-    const fechas=pendientes.map(function(s){return fmtF(s.fecha)+' '+s.hora;}).join('  ·  ');
     preview.style.display='block';
-    preview.innerHTML='🔀 Esto <b>reemplazará '+pendientes.length+' sesión(es) pendiente(s)</b> de este paquete '+
-      '(sesión N.º '+pendientes[0].nroSes+' a la N.º '+pendientes[pendientes.length-1].nroSes+' de '+(progRow.nro_sesiones_total||'?')+'):<br>'+fechas+
-      '<br><br>Edita las filas de abajo con el nuevo horario, usa <b>✕</b> para quitar una asistencia o <b>+ Añadir otra asistencia</b> para sumar una nueva.';
+    preview.innerHTML='🔀 Reemplazará <b>'+pendientes.length+' sesión(es) pendiente(s)</b> (N.º '+
+      pendientes[0].nroSes+'–'+pendientes[pendientes.length-1].nroSes+' de '+(progRow.nro_sesiones_total||'?')+').';
   }
 }
 
@@ -2420,7 +2418,13 @@ function agGuardarDesdeModal(){
 // (estado 'programado') de un paquete activo, sin tocar lo ya asistido,
 // no asistido, con permiso o reprogramado, y sin alterar el costo total
 // ni las cuotas ya pactadas del paquete — solo se reprograma el resto.
+let _reemplazoPendientesEnCurso=false;
 async function reemplazarPendientesPaquete(){
+  // Candado contra doble clic en "Guardar": sin esto, dos llamadas casi
+  // simultáneas leen las mismas sesiones pendientes ANTES de que la
+  // primera alcance a borrarlas, y las dos terminan creando su propio
+  // juego de sesiones nuevas con los mismos números de sesión duplicados.
+  if(_reemplazoPendientesEnCurso){showToast('Ya se está procesando, espera un momento...','info');return;}
   const pacId=document.getElementById('ag-pac').value||'';
   if(!pacId){showToast('Selecciona un paciente','error');return;}
   const pac=getPac(pacId);
@@ -2470,6 +2474,7 @@ async function reemplazarPendientesPaquete(){
     return;
   }
 
+  _reemplazoPendientesEnCurso=true;
   showToast('⏳ Reprogramando sesiones pendientes...');
   try{
     // Guardar el saldo (cuota) que tenía cada sesión pendiente, por número
@@ -2570,6 +2575,7 @@ async function reemplazarPendientesPaquete(){
     closeModal('modalAgendar');
     await cargarDesdeSB();
   }catch(e){showToast('Error al reprogramar las sesiones pendientes: '+e.message,'error');console.error('[reemplazarPendientesPaquete]',e);}
+  finally{_reemplazoPendientesEnCurso=false;}
 }
 
 // Arma, para cada fila de terapia, sus fechas semanales (mismo día/hora)
