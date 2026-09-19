@@ -773,7 +773,7 @@ try{
           <div style="font-size:10.5px;color:var(--muted);margin-top:3px">El costo se divide entre las cuotas. La alerta de cobro aparece 1 sesión antes de que corresponda cada cuota.</div>
         </div>
         <div id="ag-grp-terapiaRows">
-          <div class="form-group" style="max-width:320px">
+          <div class="form-group" id="ag-grp-frecuencia" style="max-width:320px">
             <label class="form-label">¿Cuántas veces por semana asistirá? *</label>
             <select class="form-control" id="ag-frecuencia" onchange="agOnFrecuencia()">
               <option value="1">1 vez por semana</option>
@@ -785,7 +785,9 @@ try{
             </select>
           </div>
           <label class="form-label" style="margin-top:6px;display:block">Elige el día, terapia, psicóloga y horario para cada asistencia *</label>
+          <div id="ag-reemplazoPreview" style="display:none;background:#fff7ed;border:1.5px dashed #fdba74;border-radius:10px;padding:10px;margin-bottom:8px;font-size:11.5px;color:#9a3412;line-height:1.5"></div>
           <div id="ag-terapiaRows"></div>
+          <button type="button" class="btn btn-outline" style="margin-top:2px;font-size:11px;padding:4px 10px" onclick="agAgregarFilaTerapia()">+ Añadir otra asistencia</button>
         </div>
       </div>
 
@@ -1867,7 +1869,14 @@ function agOnProgExist(){
   if(optReemplazar){
     optReemplazar.disabled=!progId;
     const modoSel=document.getElementById('ag-modoPaq');
-    if(!progId&&modoSel&&modoSel.value==='reemplazarPendientes'){modoSel.value='generar';agOnModoPaq();}
+    if(!progId&&modoSel&&modoSel.value==='reemplazarPendientes'){
+      modoSel.value='generar';agOnModoPaq();
+    }else if(progId&&modoSel&&modoSel.value==='reemplazarPendientes'){
+      // Si ya se estaba en modo "Cambiar pendientes" y se cambia de
+      // paquete, recargar las filas con el horario actual de ESTE otro
+      // paquete (no dejar precargado lo del paquete anterior).
+      agCargarFilasDesdeProgPendiente();
+    }
   }
   agActualizarResumen();
 }
@@ -1910,6 +1919,81 @@ function agOnModoPaq(){
   }else{
     if(lbl)lbl.textContent='Fecha de inicio *';
     if(help)help.textContent='La primera sesión de cada día será la próxima fecha con ese día de la semana, a partir de aquí.';
+  }
+  // En "Cambiar pendientes" se edita a mano (botones + / ✕), no por
+  // cantidad de veces por semana — el selector de frecuencia regenera
+  // TODAS las filas en blanco y borraría lo que ya se precargó.
+  const grpFrecuencia=document.getElementById('ag-grp-frecuencia');
+  if(grpFrecuencia)grpFrecuencia.style.display=esReemplazo?'none':'block';
+  if(esReemplazo){
+    agCargarFilasDesdeProgPendiente();
+  }else{
+    const preview=document.getElementById('ag-reemplazoPreview');
+    if(preview){preview.style.display='none';preview.innerHTML='';}
+  }
+}
+
+// Al elegir "Cambiar terapia/horario/psicóloga de las sesiones
+// pendientes", precarga las filas con el horario semanal ACTUAL del
+// paquete (agrupando las sesiones pendientes por día+hora+terapia+
+// psicóloga, ya que se repiten cada semana) para que se vea y se edite
+// como una modificación de lo ya armado, en vez de partir de cero — y
+// muestra abajo, con fechas reales, exactamente qué sesiones se van a
+// reemplazar.
+function agCargarFilasDesdeProgPendiente(){
+  const cont=document.getElementById('ag-terapiaRows');if(!cont)return;
+  const preview=document.getElementById('ag-reemplazoPreview');
+  const progId=document.getElementById('ag-progExist')?.value||'';
+  const progRow=_agProgramasActivos.find(function(p){return p.id===progId;});
+  if(!progRow){
+    if(preview){preview.style.display='none';preview.innerHTML='';}
+    cont.innerHTML='';agAgregarFilaTerapia();
+    return;
+  }
+  const pendientes=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===progRow.id&&s.estado==='programado';})
+    .sort(function(a,b){return(a.nroSes||0)-(b.nroSes||0);});
+  if(!pendientes.length){
+    if(preview){
+      preview.style.display='block';
+      preview.innerHTML='⚠️ Este paquete no tiene ninguna sesión pendiente por cambiar — ya se realizaron todas o no se ha agendado ninguna.';
+    }
+    cont.innerHTML='';agAgregarFilaTerapia();
+    return;
+  }
+  // Agrupar por combinación única (día de semana + hora + terapia +
+  // psicóloga) para mostrar el patrón semanal actual, una fila por
+  // asistencia — no una fila por cada fecha suelta.
+  const combosVistos={};
+  const filasPre=[];
+  pendientes.forEach(function(s){
+    const diaNom=diaFull[new Date(s.fecha+'T12:00:00').getDay()];
+    const key=diaNom+'|'+s.hora+'|'+s.terId+'|'+s.psId;
+    if(combosVistos[key])return;
+    combosVistos[key]=true;
+    filasPre.push({diaNom:diaNom,hora:s.hora,terId:getTer(s.terId).id,psId:getPs(s.psId).id});
+  });
+  cont.innerHTML='';
+  filasPre.forEach(function(f){
+    agAgregarFilaTerapia();
+    const row=cont.lastElementChild;
+    const selDia=row.querySelector('.ag-row-dia');
+    selDia.value=f.diaNom;
+    agOnRowDia(selDia);
+    const selPs=row.querySelector('.ag-row-ps');
+    selPs.value=f.psId;
+    agOnRowPs(selPs);
+    const selHora=row.querySelector('.ag-row-hora');
+    selHora.value=f.hora;
+    const selTer=row.querySelector('.ag-row-ter');
+    selTer.value=f.terId;
+  });
+
+  if(preview){
+    const fechas=pendientes.map(function(s){return fmtF(s.fecha)+' '+s.hora;}).join('  ·  ');
+    preview.style.display='block';
+    preview.innerHTML='🔀 Esto <b>reemplazará '+pendientes.length+' sesión(es) pendiente(s)</b> de este paquete '+
+      '(sesión N.º '+pendientes[0].nroSes+' a la N.º '+pendientes[pendientes.length-1].nroSes+' de '+(progRow.nro_sesiones_total||'?')+'):<br>'+fechas+
+      '<br><br>Edita las filas de abajo con el nuevo horario, usa <b>✕</b> para quitar una asistencia o <b>+ Añadir otra asistencia</b> para sumar una nueva.';
   }
 }
 
@@ -2027,8 +2111,10 @@ function agAgregarFilaTerapia(){
   const cont=document.getElementById('ag-terapiaRows');if(!cont)return;
   const div=document.createElement('div');
   div.className='ag-terapia-row';
-  div.style.cssText='border:1.5px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px';
+  div.style.cssText='border:1.5px solid var(--border);border-radius:10px;padding:10px 30px 10px 10px;margin-bottom:8px;position:relative';
   div.innerHTML=
+    '<button type="button" class="ag-row-quitar" onclick="agQuitarFilaTerapia(this)" title="Quitar esta asistencia" '+
+    'style="position:absolute;top:6px;right:6px;width:20px;height:20px;border:none;border-radius:50%;background:var(--red);color:#fff;font-size:12px;font-weight:800;cursor:pointer;line-height:1">✕</button>'+
     '<div class="grid g2" style="gap:8px">'+
     '<div class="form-group" style="margin-bottom:0"><label class="form-label">Día</label>'+
     '<select class="form-control ag-row-dia" onchange="agOnRowDia(this)"></select></div>'+
@@ -2040,6 +2126,17 @@ function agAgregarFilaTerapia(){
     '<select class="form-control ag-row-hora"><option value="">—</option></select></div>'+
     '</div>';
   cont.appendChild(div);
+  agRefrescarDiasFilas();
+}
+// Quita SOLO esa asistencia (fila) — así se puede "editar" el horario ya
+// armado (agregar una nueva terapia, quitar una que ya no corresponde)
+// sin tener que rehacer todo desde "¿Cuántas veces por semana?", que
+// borraba y regeneraba TODAS las filas en blanco.
+function agQuitarFilaTerapia(btn){
+  const cont=document.getElementById('ag-terapiaRows');if(!cont)return;
+  if(cont.children.length<=1){showToast('Debe quedar al menos una asistencia','error');return;}
+  const row=btn.closest('.ag-terapia-row');
+  if(row)row.remove();
   agRefrescarDiasFilas();
 }
 function _agDiaOptsSinRepetir(selActual){
