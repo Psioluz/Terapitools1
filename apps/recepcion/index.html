@@ -1003,6 +1003,27 @@ try{
 </div>
 </div>
 
+<!-- MODAL TARDANZA PERSONAL -->
+<div class="modal-overlay" id="modalTardanza">
+<div class="modal">
+  <div class="modal-header">
+    <div class="modal-title">⏰ Registrar Tardanza</div>
+    <button class="modal-close" onclick="cancelarTardanza()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div id="tardanza-info" style="background:#fff7ed;border-radius:10px;padding:10px;margin-bottom:14px;font-size:12.5px;color:#9a3412"></div>
+    <div class="form-group">
+      <label class="form-label">Motivo de la tardanza *</label>
+      <input class="form-control" id="tardanza-motivo" placeholder="Ej: tráfico, cita médica, etc.">
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="cancelarTardanza()">Cancelar</button>
+    <button class="btn btn-primary" onclick="confirmarTardanza()">✅ Registrar</button>
+  </div>
+</div>
+</div>
+
 <!-- MODAL PERMISO -->
 <div class="modal-overlay" id="modalPermiso">
 <div class="modal">
@@ -3770,7 +3791,7 @@ function _asistFromSB(){
     const ps=DB.psicologas.find(function(p){return p.nombre===nom;});
     return {id:a.id,psId:ps?ps.id:nom,fecha:a.fecha,horaLlegada:a.entrada||'',nombre:nom,
       cargo:'Psicóloga',sede:a.sede||DB.sede,estado:a.estado||'presente',
-      registradoPor:a.registrado_por||''};
+      registradoPor:a.registrado_por||'',motivoTardanza:a.motivo_tardanza||''};
   }).filter(function(r){return r.sede===DB.sede;});
 }
 
@@ -3796,7 +3817,8 @@ async function renderAsistPersonal(){
     const borderC=reg?(reg.estado==='presente'?'var(--green)':'var(--red)'):'var(--border)';
     const estado=reg
       ?'<div style="font-size:12px;font-weight:700;color:'+(reg.estado==='presente'?'var(--green)':'var(--red)')+'">'+
-        (reg.estado==='presente'?'✅ Llegó a las '+reg.horaLlegada:'❌ Ausente — '+reg.horaLlegada)+'</div>'
+        (reg.estado==='presente'?'✅ Llegó a las '+reg.horaLlegada:'❌ Ausente — '+reg.horaLlegada)+'</div>'+
+        (reg.motivoTardanza?'<div style="font-size:11px;color:var(--orange);margin-top:2px">⏰ Tardanza: '+reg.motivoTardanza+'</div>':'')
       :'<div style="font-size:12px;color:var(--muted)">⏳ Sin registrar</div>';
     const btns=reg
       ?'<button class="btn btn-outline btn-sm" data-pid="'+ps.id+'" data-fecha="'+fecha+'" onclick="desmarcarP(this)">↩️ Desmarcar</button>'
@@ -3825,12 +3847,13 @@ async function renderAsistPersonal(){
         '<td>'+r.nombre+'</td><td>'+r.cargo+'</td>'+
         '<td><span style="color:'+(r.estado==='presente'?'var(--green)':'var(--red)')+'">'+
         (r.estado==='presente'?'✅ Presente':'❌ Ausente')+'</span></td>'+
-        '<td>'+r.horaLlegada+'</td><td>'+r.registradoPor+'</td></tr>').join('')
+        '<td>'+r.horaLlegada+(r.motivoTardanza?'<br><span style="font-size:10px;color:var(--orange)">⏰ '+r.motivoTardanza+'</span>':'')+'</td><td>'+r.registradoPor+'</td></tr>').join('')
       :'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:12px">Sin registros históricos.</td></tr>';
   }
   renderAsistPersonalDash();
 }
 
+let _tardanzaPend=null;
 async function marcarP(btn){
   const _pidRaw=btn.dataset.pid;
   const psId=isNaN(parseInt(_pidRaw))||String(parseInt(_pidRaw))!==_pidRaw?_pidRaw:parseInt(_pidRaw);
@@ -3842,12 +3865,35 @@ async function marcarP(btn){
   }
   const n=new Date();
   const hora=horaLima(n);
+  // Si llega presente después de su horario de entrada, se pide el motivo
+  // antes de guardar — el motivo se muestra luego en el Reporte del Día.
+  const horaInicio=(ps.inicio||'').substring(0,5);
+  if(estado==='presente'&&horaInicio&&hora>horaInicio){
+    _tardanzaPend={psId:psId,fecha:fecha,estado:estado,hora:hora,ps:ps};
+    const info=document.getElementById('tardanza-info');
+    if(info)info.innerHTML='<b>'+ps.nombre+'</b> — entrada '+hora+' (horario: '+horaInicio+')';
+    const motInp=document.getElementById('tardanza-motivo');if(motInp)motInp.value='';
+    openModal('modalTardanza');
+    return;
+  }
+  await _guardarAsistPersonal(ps,fecha,estado,hora,'');
+}
+function cancelarTardanza(){_tardanzaPend=null;closeModal('modalTardanza');}
+async function confirmarTardanza(){
+  if(!_tardanzaPend)return;
+  const motivo=(document.getElementById('tardanza-motivo')?.value||'').trim();
+  if(!motivo){showToast('Indica el motivo de la tardanza','error');return;}
+  const p=_tardanzaPend;_tardanzaPend=null;
+  closeModal('modalTardanza');
+  await _guardarAsistPersonal(p.ps,p.fecha,p.estado,p.hora,motivo);
+}
+async function _guardarAsistPersonal(ps,fecha,estado,hora,motivoTardanza){
   showToast('⏳ Guardando...');
   try{
-    const rows=await sbPost('asistencia_personal',{fecha:fecha,sede:DB.sede,psicologa:ps.nombre,entrada:hora,estado:estado,registrado_por:DB.usuario||''});
+    const rows=await sbPost('asistencia_personal',{fecha:fecha,sede:DB.sede,psicologa:ps.nombre,entrada:hora,estado:estado,registrado_por:DB.usuario||'',motivo_tardanza:motivoTardanza||null});
     if(rows&&rows[0]){DB.asistPersonal=(DB.asistPersonal||[]).concat([rows[0]]);}
     renderAsistPersonal();
-    showToast(estado==='presente'?'✅ '+ps.nombre+' marcada presente':'❌ '+ps.nombre+' ausente');
+    showToast(estado==='presente'?(motivoTardanza?'⏰ '+ps.nombre+' llegó tarde — motivo registrado':'✅ '+ps.nombre+' marcada presente'):'❌ '+ps.nombre+' ausente');
   }catch(e){showToast('Error al guardar: '+e.message,'error');console.error('[asistencia SB]',e);}
 }
 
@@ -4200,6 +4246,32 @@ function exportarPDF(){
   doc.setFont('helvetica','bold');doc.setFontSize(11);
   doc.text('TOTAL: S/'+tot.toLocaleString(),W-M-3,y+13,{align:'right'});
   y+=28;
+
+  // ── ASISTENCIA DEL PERSONAL (hora de entrada y motivo si llegó tarde) ──
+  const asistDia=_asistFromSB().filter(r=>r.fecha===fecha);
+  if(asistDia.length){
+    if(y+10+asistDia.length*7>190){doc.addPage();y=20;}
+    doc.setFillColor(240,249,255);doc.roundedRect(M,y,W-M*2,10+asistDia.length*7,2,2,'F');
+    doc.setDrawColor(59,130,246);doc.roundedRect(M,y,W-M*2,10+asistDia.length*7,2,2,'S');
+    doc.setTextColor(30,64,175);doc.setFontSize(10);doc.setFont('helvetica','bold');
+    doc.text('ASISTENCIA DEL PERSONAL',M+3,y+6);
+    y+=11;
+    asistDia.sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(function(r){
+      doc.setFont('helvetica','bold');doc.setFontSize(8);
+      doc.setTextColor(r.estado==='presente'?16:239,r.estado==='presente'?185:68,r.estado==='presente'?129:68);
+      doc.text(r.estado==='presente'?'✔':'✘',M+3,y+4);
+      doc.setTextColor(30,30,30);
+      doc.text(r.nombre,M+9,y+4);
+      doc.setFont('helvetica','normal');
+      doc.text(r.estado==='presente'?('Entrada: '+r.horaLlegada):'Ausente',M+95,y+4);
+      if(r.motivoTardanza){
+        doc.setTextColor(180,83,9);doc.setFontSize(7.5);
+        doc.text('Tardanza: '+r.motivoTardanza,M+135,y+4);
+      }
+      y+=7;
+    });
+    y+=6;
+  }
 
   // ── DETALLE POR PSICÓLOGA — tarjeta agrupada, igual estilo que la vista
   // en pantalla del Reporte del Día (nombre + contadores arriba, sesiones
@@ -4810,7 +4882,6 @@ async function renderHistorial(){
           '<td style="white-space:nowrap">'+pagoCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
           '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s):
-            s.estado==='noasistio'?'<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':
             '<span style="font-size:11px;color:var(--muted)">—</span>')+'</td></tr>';
       }).join('')+
       '</tbody></table></div>'
