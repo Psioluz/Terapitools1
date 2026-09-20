@@ -15,7 +15,7 @@
   --bg:#f0f4f8;--dark:#3d0c28;--acc:#f06292;--acc2:#f48fb1;
   --green:#10b981;--red:#ef4444;--orange:#f59e0b;--blue:#3b82f6;
   --purple:#7c3aed;--cyan:#00c5c5;--pink:#d4007f;
-  --card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b
+  --card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#47546b
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   background:var(--bg);color:var(--text);min-height:100vh}
@@ -143,8 +143,8 @@ tbody tr:hover{background:#e6fafa}
 /* Gráfico de barras horizontal */
 .bar-chart{display:flex;flex-direction:column;gap:10px}
 .bar-row{display:flex;align-items:center;gap:8px}
-.bar-label{font-size:11px;font-weight:700;color:var(--muted);min-width:80px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
-.bar-wrap{flex:1;background:var(--border);border-radius:4px;height:22px;overflow:hidden}
+.bar-label{font-size:12px;font-weight:800;color:var(--text);min-width:130px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+.bar-wrap{flex:1;background:var(--border);border-radius:4px;height:26px;overflow:hidden}
 .bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding:0 8px;
   font-size:10px;font-weight:700;color:#fff;white-space:nowrap;transition:width .6s ease;min-width:30px}
 .bar-val{font-size:11px;font-weight:800;color:var(--dark);min-width:60px;text-align:right}
@@ -373,6 +373,7 @@ select.fsel{
     <div class="ger-nav-item" id="gnav-tAsistHist" onclick="goTab('tAsistHist',this);if(typeof renderAsistHist==='function')renderAsistHist()">🕐 Asistencia</div>
     <div class="ger-nav-section">Sedes</div>
     <div class="ger-nav-item" id="gnav-tSedes" onclick="goTab('tSedes',this)">🏥 Sedes</div>
+    <div class="ger-nav-item" id="gnav-tAgenda" onclick="goTab('tAgenda',this);if(typeof renderAgendaGer==='function')renderAgendaGer()">🗓️ Agenda</div>
     <div class="ger-nav-item" id="gnav-tDocsPsicologas" onclick="goTab('tDocsPsicologas',this);if(typeof renderDocsPsicologas==='function')renderDocsPsicologas()">📋 Docs Psicólogas</div>
     <div class="ger-nav-section">Sistema</div>
     <div class="ger-nav-item" id="gnav-tAlertas" onclick="goTab('tAlertas',this);if(typeof renderAlertasSB==='function')renderAlertasSB()">🔔 Alertas <span class="nav-badge" id="alertaBadge" style="display:none"></span></div>
@@ -452,7 +453,7 @@ select.fsel{
   <div class="kpi-grid">
     <div class="kpi g"><div class="kv" id="kSesTotal">0</div><div class="kl">Sesiones</div><div class="kd pos" id="kSesAsist"></div></div>
     <div class="kpi"><div class="kv" id="kPacTotal">0</div><div class="kl">Pacientes</div><div class="kd neu" id="kPacPaq"></div></div>
-    <div class="kpi r"><div class="kv" id="kSaldo">S/0</div><div class="kl">Saldo Pendiente</div><div class="kd neg" id="kSaldoPacs"></div></div>
+    <div class="kpi r" id="kSaldoCard"><div class="kv" id="kSaldo">S/0</div><div class="kl" id="kSaldoLbl">Saldo Pendiente</div><div class="kd neg" id="kSaldoPacs"></div></div>
     <div class="kpi o"><div class="kv" id="kTicket">S/0</div><div class="kl">Ticket Promedio</div><div class="kd neu">por sesión</div></div>
   </div>
 
@@ -606,6 +607,29 @@ select.fsel{
 
 </div><!-- /tSedes -->
 
+<!-- ════════ AGENDA (todas las sedes) ════════ -->
+<div class="page" id="tAgenda">
+  <div class="card" style="margin-bottom:14px">
+    <div class="ch" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
+      <div class="ct">🗓️ Agenda</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="date" id="agendaFecha" class="fsel" onchange="renderAgendaGer()" style="min-width:0">
+        <select id="agendaSedeSel" class="fsel" onchange="renderAgendaGer()">
+          <option value="">🌐 Todas las sedes</option>
+        </select>
+        <select id="agendaPsSel" class="fsel" onchange="renderAgendaGer()">
+          <option value="">👩‍⚕️ Todas las psicólogas</option>
+        </select>
+      </div>
+    </div>
+    <div style="padding:6px 16px 12px;font-size:11px;color:var(--muted)">Este filtro de sede es independiente del filtro global de arriba — sirve para ver la agenda de una sede puntual sin cambiar el resto del panel.</div>
+  </div>
+  <div class="card">
+    <div class="ch"><div class="ct" id="agendaResumenTit">Sesiones del día</div></div>
+    <div class="cb" id="agendaListaContenido"></div>
+  </div>
+</div><!-- /tAgenda -->
+
 <!-- ════════ CRECIMIENTO ════════ -->
 <div class="page" id="tCrecimiento">
 
@@ -655,13 +679,16 @@ select.fsel{
     <div style="padding:14px" id="heatmapHorarios"></div>
   </div>
 
-  <!-- Cumpleaños del mes -->
-  <div class="card" style="margin-bottom:14px">
-    <div class="ch">
-      <div class="ct">🎂 Cumpleaños este mes</div>
-      <span id="nCumple" style="font-size:11px;color:var(--orange);font-weight:700"></span>
-    </div>
-    <div style="padding:12px" id="listCumple"></div>
+  <!-- Los cumpleaños ya tienen su propia pestaña dedicada (🎂 Cumpleaños en
+       el sidebar) — mostrarlos también aquí en Crecimiento no tenía nada
+       que ver con el resto de la pestaña (retención, LTV, ROI, ocupación) y
+       confundía. #listCumple/#nCumple quedan ocultos (fuera de pantalla,
+       no display:none) para no romper renderCumpleanos()/renderCumple(),
+       que los siguen usando como fuente para copiar el contenido real a la
+       pestaña Cumpleaños. -->
+  <div style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">
+    <span id="nCumple"></span>
+    <div id="listCumple"></div>
   </div>
 
   <!-- Análisis motivos de consulta -->
@@ -894,6 +921,7 @@ let G = {
   asistencia : [],
   gastos     : [],
   honorarios : [],
+  programas  : [],   // programas_paciente activos, para el saldo real (deuda de paquete)
   pagosLocal : [],   // pagos, cargados de Supabase en sincronizar()
   loaded     : false,
   ts         : null
@@ -995,11 +1023,12 @@ function _diasTrabajoANum(txt){
           _sb('contratos',Object.assign({'select':'*'},sedeFiltro(sede))),
           _sb('pagos',Object.assign({'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'},sedeFiltro(sede))),
           _sb('gastos',Object.assign({'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'},sedeFiltro(sede))),
-          _sb('asistencia_personal',Object.assign({'select':'*','order':'fecha.desc','limit':'500'},sedeFiltro(sede)))
+          _sb('asistencia_personal',Object.assign({'select':'*','order':'fecha.desc','limit':'500'},sedeFiltro(sede))),
+          _sb('programas_paciente',Object.assign({'estado':'eq.activo','select':'*'},sedeFiltro(sede)))
         ]).then(function(r){
           var ses=r[0]||[],psis=r[1]||[],recs=r[2]||[],pacs=r[3]||[],ters=r[4]||[];
           var fichas=r[5]||[],bonos=r[6]||[],hon=r[7]||[],conts=r[8]||[];
-          var pagos=r[9]||[],gastos=r[10]||[],asistPers=r[11]||[];
+          var pagos=r[9]||[],gastos=r[10]||[],asistPers=r[11]||[],progs=r[12]||[];
           return _jr({
             status:'ok',
             sesiones:ses.map(function(s){
@@ -1035,6 +1064,10 @@ function _diasTrabajoANum(txt){
                 estado:p.estado,saldo:p.saldo||0};
             }),
             terapias:ters,fichas:fichas,bonos:bonos,
+            programas:progs.map(function(pr){
+              return {id:pr.id,pacNombre:pr.paciente_nombre||'',sede:pr.sede||'',
+                estado:pr.estado||'activo',saldo:pr.saldo||0};
+            }),
             honorarios:hon.map(function(h){
               return {id:h.id,nombre:h.psicologa_nombre||'',sede:h.sede||'',mes:h.mes||'',
                 estado:h.estado||'pendiente',montoBase:h.monto_base||0,
@@ -1406,6 +1439,7 @@ async function sincronizar(mostrar){
     }
     if(data.asistencia?.length)G.asistencia=data.asistencia;
     if(data.gastos?.length)    G.gastos    =data.gastos;
+    if(data.programas)         G.programas =data.programas;
     if(data.pagos?.length)     G.pagosLocal=data.pagos.map(p=>Object.assign({},p,{_sede:p.sede||p._sede||''}));
 
     // Fusionar honorarios del Sheet con los del admin local
@@ -1476,6 +1510,17 @@ function filtSes(arr){
 function filtPac(arr){
   var sd=getFiltSede();
   return arr.filter(p=>!sd||(p.sede||p._sede||'')===sd);
+}
+// El saldo real de un paciente es pacientes.saldo (deuda/crédito suelto,
+// fuera de paquete) MÁS el saldo de sus paquetes activos — antes "Saldo
+// Pendiente" en Finanzas solo sumaba pacientes.saldo, ignorando por
+// completo la deuda de paquete (que es donde vive la mayoría de la
+// deuda real), así que el número mostrado (ej. "-58") no reflejaba la
+// deuda real de la clínica, solo el neto de créditos/deudas sueltas.
+function _saldoRealPac(p){
+  var saldoPaquetes=(G.programas||[]).filter(function(pr){return pr.pacNombre===p.nombre&&pr.estado==='activo';})
+    .reduce(function(a,pr){return a+(pr.saldo||0);},0);
+  return saldoPaquetes+(p.saldo||0);
 }
 // El progreso real de un paquete se calcula de las sesiones (tipo:'paquete',
 // totalPaq) — pacientes.mod/pacientes.paquete son campos heredados que no
@@ -1802,7 +1847,7 @@ function renderFinanzas(){
   // KPIs
   var asistPct = ses.length?pct(ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length,ses.length):0;
   var conPaq   = pacs.filter(p=>_paqInfoPac(p)).length;
-  var saldoTot = pacs.reduce((a,p)=>a+(p.saldo||0),0);
+  var saldoTot = pacs.reduce((a,p)=>a+_saldoRealPac(p),0);
   var tickProm = ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length>0
     ? Math.round(ingresos/ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length) : 0;
 
@@ -1810,8 +1855,11 @@ function renderFinanzas(){
   setText('kSesAsist', '✅ '+asistPct+'% asistencia');
   setText('kPacTotal', pacs.length);
   setText('kPacPaq',   conPaq+' con paquete');
-  setText('kSaldo',    'S/'+saldoTot.toLocaleString());
-  setText('kSaldoPacs',pacs.filter(p=>p.saldo>0).length+' pacientes con deuda');
+  setText('kSaldo',    'S/'+Math.abs(saldoTot).toLocaleString());
+  setText('kSaldoLbl', saldoTot<0?'Crédito a Favor':'Saldo Pendiente');
+  setText('kSaldoPacs',pacs.filter(p=>_saldoRealPac(p)>0).length+' pacientes con deuda');
+  var kSaldoCardEl=document.getElementById('kSaldoCard');
+  if(kSaldoCardEl){kSaldoCardEl.classList.toggle('r',saldoTot>=0);kSaldoCardEl.classList.toggle('g',saldoTot<0);}
   setText('kTicket',   'S/'+tickProm);
 
   // Gráfico por sede
@@ -1903,7 +1951,7 @@ function renderPacientes(){
       pacNuevos.add(pacId);
   });
 
-  var saldoTotal=pacs.reduce((a,p)=>a+(p.saldo||0),0);
+  var saldoTotal=pacs.reduce((a,p)=>a+_saldoRealPac(p),0);
   var conPaq=pacs.filter(p=>_paqInfoPac(p)).length;
 
   setText('pTotal',  pacs.length);
@@ -1911,14 +1959,33 @@ function renderPacientes(){
   setText('pSaldo',  'S/'+saldoTotal.toLocaleString());
   setText('pNuevos', pacNuevos.size);
 
+  // pacientes.psicologa/pacientes.terapia son campos heredados que casi
+  // nunca se mantienen al día (96 de 118 pacientes activos los tienen
+  // vacíos) — la psicóloga/terapia real de cada paciente vive en sus
+  // sesiones. Se arma un mapa con la sesión más reciente de cada paciente
+  // (dentro del período filtrado) y solo se cae al campo viejo si de
+  // verdad no tiene ninguna sesión registrada todavía.
+  var ultSesPac={};
+  ses.slice().sort((a,b)=>(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''))).forEach(function(s){
+    ultSesPac[s.pacNombre||s.pacId]=s;
+  });
+  function _psRealPac(p){
+    var us=ultSesPac[p.nombre];
+    return(us&&us.psNombre)||p.psNombre||'';
+  }
+  function _terRealPac(p){
+    var us=ultSesPac[p.nombre];
+    return(us&&us.terNombre)||p.terNombre||'';
+  }
+
   // Por psicóloga
   var porPs={};
-  pacs.forEach(p=>{var k=p.psNombre||'—';porPs[k]=(porPs[k]||0)+1;});
+  pacs.forEach(p=>{var k=_psRealPac(p)||'Sin asignar';porPs[k]=(porPs[k]||0)+1;});
   renderBarChart('chartPacPs', Object.entries(porPs).map(([k,v])=>({label:k.replace('Lic.','').trim(),val:v})).sort((a,b)=>b.val-a.val), '', '#7c3aed');
 
   // Por terapia
   var porTer={};
-  pacs.forEach(p=>{var k=p.terNombre||'—';porTer[k]=(porTer[k]||0)+1;});
+  pacs.forEach(p=>{var k=_terRealPac(p)||'Sin asignar';porTer[k]=(porTer[k]||0)+1;});
   renderBarChart('chartPacTer', Object.entries(porTer).map(([k,v])=>({label:k,val:v})).sort((a,b)=>b.val-a.val), '', '#00c5c5');
 
   // Por sede
@@ -1926,16 +1993,16 @@ function renderPacientes(){
   pacs.forEach(p=>{var k=p.sede||p._sede||'—';porSede[k]=(porSede[k]||0)+1;});
   renderBarChart('chartPacSede', Object.entries(porSede).map(([k,v])=>({label:k,val:v})).sort((a,b)=>b.val-a.val), '', '#10b981');
 
-  // Tabla saldos
-  var conSaldo=pacs.filter(p=>p.saldo>0).sort((a,b)=>b.saldo-a.saldo).slice(0,20);
+  // Tabla saldos — saldo REAL (suelto + paquetes activos), no solo pacientes.saldo
+  var conSaldo=pacs.map(p=>Object.assign({},p,{_saldoReal:_saldoRealPac(p)})).filter(p=>p._saldoReal>0).sort((a,b)=>b._saldoReal-a._saldoReal).slice(0,20);
   setText('nSaldos', conSaldo.length+' pacientes');
   var tbl=document.getElementById('tblSaldos');
   if(tbl)tbl.innerHTML=conSaldo.length?conSaldo.map(p=>`<tr>
     <td><strong>${p.nombre}</strong></td>
     <td><span class="badge bt">${p.sede||p._sede||'—'}</span></td>
-    <td>${(p.psNombre||'—').replace('Lic.','').trim()}</td>
+    <td>${(_psRealPac(p)||'—').replace('Lic.','').trim()}</td>
     <td><span class="badge bb">${(_paqInfoPac(p)||{}).total||0} ses.</span></td>
-    <td><strong style="color:var(--red)">S/${p.saldo}</strong></td></tr>`).join('')
+    <td><strong style="color:var(--red)">S/${p._saldoReal}</strong></td></tr>`).join('')
     :'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px">Sin saldos pendientes ✅</td></tr>';
 
   // Paquetes por terminar (≤2 sesiones restantes)
@@ -2240,6 +2307,77 @@ function renderSedes(){
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+//  AGENDA (todas las sedes, con filtro de sede/psicóloga PROPIO — no usa el
+//  filtro global de mes/sede de arriba, porque una agenda es por día, no
+//  por mes, y se quiere poder ver una sede puntual sin tocar el resto del
+//  panel).
+// ════════════════════════════════════════════════════════════════════════════
+var _agendaSelectsListos=false;
+function renderAgendaGer(){
+  var elF=document.getElementById('agendaFecha');
+  if(elF&&!elF.value)elF.value=today();
+  if(!_agendaSelectsListos){
+    var selSede=document.getElementById('agendaSedeSel');
+    if(selSede&&selSede.options.length<=1){
+      getSedes().forEach(function(sd){
+        var o=document.createElement('option');o.value=sd;o.textContent=sd;selSede.appendChild(o);
+      });
+    }
+    var selPs=document.getElementById('agendaPsSel');
+    if(selPs&&selPs.options.length<=1){
+      G.psicologas.slice().sort(function(a,b){return(a.nombre||'').localeCompare(b.nombre||'');}).forEach(function(p){
+        var o=document.createElement('option');o.value=p.nombre;o.textContent=(p.nombre||'').replace('Lic.','').trim();selPs.appendChild(o);
+      });
+    }
+    _agendaSelectsListos=true;
+  }
+  var fecha=elF?elF.value:today();
+  var sedeSel=document.getElementById('agendaSedeSel')?.value||'';
+  var psSel=document.getElementById('agendaPsSel')?.value||'';
+  var ses=(G.sesiones||[]).filter(function(s){
+    if(s.fecha!==fecha)return false;
+    if(sedeSel&&(s.sede||s._sede||'')!==sedeSel)return false;
+    if(psSel&&s.psNombre!==psSel)return false;
+    return true;
+  }).sort(function(a,b){return(a.hora||'').localeCompare(b.hora||'')||(a.sede||'').localeCompare(b.sede||'');});
+
+  var d=new Date(fecha+'T12:00:00');
+  var diasN=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  var mesesN=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var titEl=document.getElementById('agendaResumenTit');
+  if(titEl)titEl.textContent=diasN[d.getDay()]+' '+d.getDate()+' '+mesesN[d.getMonth()]+' — '+ses.length+' sesión(es)'+(sedeSel?' · '+sedeSel:'')+(psSel?' · '+psSel.replace('Lic.','').trim():'');
+
+  var cont=document.getElementById('agendaListaContenido');if(!cont)return;
+  if(!ses.length){cont.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">🗓️</div>Sin sesiones para este día'+(sedeSel||psSel?' con ese filtro':'')+'.</div>';return;}
+
+  // Agrupado por sede cuando se ven "todas las sedes" — así no se mezclan
+  // visualmente sesiones de sedes distintas a la misma hora.
+  var porSede={};
+  ses.forEach(function(s){var k=s.sede||s._sede||'—';(porSede[k]=porSede[k]||[]).push(s);});
+  var sedesOrd=Object.keys(porSede).sort();
+  function colorEstadoAg(estado){
+    return estado==='asistio'?'var(--green)':estado==='noasistio'?'var(--red)':
+      estado==='permiso'?'var(--orange)':estado==='reprogramado'?'var(--muted)':'var(--blue)';
+  }
+  cont.innerHTML=sedesOrd.map(function(sd){
+    return '<div style="margin-bottom:'+(sedesOrd.length>1?'16px':'0')+'">'+
+      (sedesOrd.length>1?'<div style="font-size:12px;font-weight:900;color:var(--acc);margin-bottom:6px;text-transform:uppercase">🏥 '+sd+' ('+porSede[sd].length+')</div>':'')+
+      porSede[sd].map(function(s){
+        var ec=colorEstadoAg(s.estado);
+        return '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg);border-radius:10px;margin-bottom:6px;border-left:4px solid '+ec+'">'+
+          '<div style="font-size:14px;font-weight:900;color:var(--dark);min-width:52px">'+(s.hora||'—')+'</div>'+
+          '<div style="flex:1;min-width:0">'+
+          '<div style="font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.pacNombre||'—')+'</div>'+
+          '<div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.psNombre||'—').replace('Lic.','').trim()+' · '+(s.terNombre||'—')+'</div>'+
+          '</div>'+
+          '<span class="badge" style="background:'+ec+';color:#fff;font-weight:800">'+(s.estado||'—')+'</span>'+
+          '</div>';
+      }).join('')+
+      '</div>';
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 //  ALERTAS
 // ════════════════════════════════════════════════════════════════════════════
 function renderAlertas(){
@@ -2247,9 +2385,9 @@ function renderAlertas(){
   var hoy=today();
   var mesH=mesActual();
 
-  // Saldos altos
-  filtPac(G.pacientes).filter(p=>p.saldo>100).sort((a,b)=>b.saldo-a.saldo).slice(0,5).forEach(p=>{
-    alertas.push({tipo:'r',icon:'⚠️',txt:`<strong>${p.nombre}</strong> (${p.sede||p._sede||'—'}) — Saldo pendiente: <strong>S/${p.saldo}</strong>`});
+  // Saldos altos — saldo REAL (suelto + paquetes activos)
+  filtPac(G.pacientes).map(p=>Object.assign({},p,{_saldoReal:_saldoRealPac(p)})).filter(p=>p._saldoReal>100).sort((a,b)=>b._saldoReal-a._saldoReal).slice(0,5).forEach(p=>{
+    alertas.push({tipo:'r',icon:'⚠️',txt:`<strong>${p.nombre}</strong> (${p.sede||p._sede||'—'}) — Saldo pendiente: <strong>S/${p._saldoReal}</strong>`});
   });
 
   // Paquetes por terminar
@@ -2999,6 +3137,16 @@ async function eliminarAcceso(tabla,id,nombre){
     if('Notification' in window&&Notification.permission==='default'){
       Notification.requestPermission().catch(function(){});
     }
+    // La mayoría de navegadores bloquea el audio hasta que haya un gesto
+    // real del usuario (click/touch) — si sonidoNotif() recién crea el
+    // AudioContext cuando llega la primera notificación (por un
+    // setInterval, sin gesto de por medio), el navegador la deja
+    // "suspended" para siempre y no suena nunca, sin ningún error visible.
+    // Se crea/reactiva aquí, en el primer click/touch real de la sesión.
+    try{
+      if(!_audioCtx)_audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      if(_audioCtx.state==='suspended')_audioCtx.resume();
+    }catch(e){}
     document.removeEventListener('click',pedirPermiso);
     document.removeEventListener('touchstart',pedirPermiso);
   }
