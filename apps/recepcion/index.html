@@ -3059,18 +3059,16 @@ async function guardarPaqueteFlujo(){
             posiciones.push({sesion:Math.max(1,sesionesPorCuota*j),monto:montoBase});
           }
         }
-        // El adelanto pagado AL REGISTRAR el paquete se aplica en cascada
-        // sobre estas cuotas en orden — si cubre más que la cuota 1, el
-        // excedente pasa a la cuota 2, y así — en vez de dejar TODAS las
-        // cuotas 2+ con su monto completo pendiente aunque ya se hayan
-        // cobrado por adelantado en un solo pago (ej. "pagó 2 de las 3
-        // cuotas de una vez" quedaba mostrando las 3 como pendientes).
-        let restante=adelanto;
-        posiciones.forEach(function(p){
-          const pendiente=Math.max(0,Math.round((p.monto-restante)*100)/100);
-          if(pendiente>0)cortes[p.sesion]=pendiente;
-          restante=Math.max(0,Math.round((restante-p.monto)*100)/100);
-        });
+        // Cada checkpoint se estampa con su monto COMPLETO — el adelanto NO
+        // se resta aquí. Se aplica después, en cascada, con la misma función
+        // que usan los pagos posteriores (aplicarCascadaCheckpoints), sobre
+        // las sesiones-checkpoint REALES ya guardadas en Supabase. Antes
+        // este cálculo se hacía en memoria con las cuotas recién armadas EN
+        // ESTA LLAMADA nada más — si el paquete ya tenía checkpoints de un
+        // registro anterior (agregar otra terapia/sesiones a un paquete
+        // activo), el adelanto de esta llamada nunca los tocaba y quedaban
+        // pendientes aunque ya estuvieran pagados.
+        posiciones.forEach(function(p){cortes[p.sesion]=p.monto;});
       }else if(saldo>0){
         cortes[totalSesiones]=saldo;
       }
@@ -3104,6 +3102,11 @@ async function guardarPaqueteFlujo(){
     }
 
     if(adelanto>0){
+      // Cascada del adelanto sobre TODAS las cuotas-checkpoint pendientes
+      // del paquete (las recién creadas arriba y cualquiera de un registro
+      // anterior), trayéndolas frescas de Supabase — nunca fiarse de lo que
+      // ya está en memoria en este punto.
+      await aplicarCascadaCheckpoints(progRow.id,adelanto);
       const n=new Date();
       const horaPago=horaLima(n);
       const filasPago=agFilasPagoParaGuardar(adelanto);
@@ -3593,7 +3596,7 @@ function abrirModalPagoGenerico(){
 // arrastra deuda de sesiones sueltas, y precompleta Concepto/Monto con esa
 // info — así la recepcionista no tiene que ir a mirar el Historial aparte
 // ni escribir el concepto a mano cada vez.
-function pgOnPaciente(){
+async function pgOnPaciente(){
   if(_pagoSesionId)return;
   const pacId=document.getElementById('pg-pac')?.value||'';
   const info=document.getElementById('pg-deuda-info');
@@ -3602,11 +3605,23 @@ function pgOnPaciente(){
   if(!info||!elMonto||!elConcepto)return;
   if(!pacId){info.style.display='none';return;}
   const pac=getPac(pacId);
-  const prog=(DB.programas||[]).filter(function(p){return p.paciente_nombre===pac.nombre;})
-    .sort(function(a,b){return(b.created_at||'').localeCompare(a.created_at||'');})[0];
+  // Se consulta Supabase directo (no DB.programas/DB.sesiones, que pueden
+  // estar desactualizados si el paquete se acaba de crear hace segundos)
+  // para no sugerir "Adelanto" cuando en realidad ya hay una cuota
+  // pendiente — eso hacía que el pago se registrara sin ligar a ninguna
+  // cuota y la cascada no encontrara nada que descontar.
+  let prog=null;
+  try{
+    const progs=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:'eq.'+DB.sede,estado:'eq.activo',select:'*'});
+    prog=(progs||[]).sort(function(a,b){return(b.created_at||'').localeCompare(a.created_at||'');})[0];
+  }catch(e){console.error('[pgOnPaciente]',e);}
+  if(document.getElementById('pg-pac')?.value!==pacId)return; // cambió de paciente mientras cargaba
   if(prog){
-    const cuotaPend=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===prog.id&&s.saldo>0;})
-      .sort(function(a,b){return(a.fecha+a.hora).localeCompare(b.fecha+b.hora);})[0];
+    let cuotaPend=null;
+    try{
+      const pend=await sbGet('sesiones',{programa_id:'eq.'+prog.id,saldo:'gt.0',select:'*',order:'fecha.asc,hora.asc',limit:'1'});
+      cuotaPend=pend&&pend[0]?{saldo:pend[0].saldo,fecha:pend[0].fecha}:null;
+    }catch(e){console.error('[pgOnPaciente cuota]',e);}
     info.style.display='block';
     if(cuotaPend){
       info.style.background='#fff7ed';info.style.color='#9a3412';
@@ -3639,6 +3654,38 @@ function pgOnPaciente(){
   }
 }
 
+// Aplica `montoDisponible` en cascada sobre las cuotas-checkpoint
+// pendientes de un paquete (de la más antigua a la más nueva) — si el
+// pago supera lo que debía esa cuota, el excedente pasa a la siguiente
+// en vez de perderse del seguimiento por sesión. Usada tanto por
+// guardarPago() (pagos posteriores) como por guardarPaqueteFlujo() (el
+// adelanto pagado al registrar el paquete) — un solo camino para que el
+// dinero SIEMPRE quede reflejado en la sesión-checkpoint correcta.
+//
+// SIEMPRE trae las sesiones pendientes DIRECTO de Supabase (nunca de
+// DB.sesiones, la copia en memoria del navegador): si el paquete se
+// acaba de crear hace segundos, DB.sesiones puede no tener todavía esa
+// sesión o traerla con el saldo viejo, y la cascada terminaba sin
+// encontrar nada que descontar aunque el pago sí cubriera la cuota
+// (quedaba marcada "vencida" para siempre pese a estar pagada).
+async function aplicarCascadaCheckpoints(programaId,montoDisponible){
+  if(!programaId||montoDisponible<=0)return;
+  let pendientes=[];
+  try{
+    pendientes=await sbGet('sesiones',{programa_id:'eq.'+programaId,saldo:'gt.0',select:'*',order:'fecha.asc,hora.asc'});
+  }catch(e){console.error('[cascada checkpoints]',e);return;}
+  const patches=[];
+  let restante=montoDisponible;
+  (pendientes||[]).forEach(function(s){
+    if(restante<=0||!s.id)return;
+    const aplicado=Math.min(restante,s.saldo||0);
+    const nuevoSaldo=Math.round(((s.saldo||0)-aplicado)*100)/100;
+    patches.push(sbPatch('sesiones',{saldo:nuevoSaldo},{id:'eq.'+s.id}));
+    restante=Math.round((restante-aplicado)*100)/100;
+  });
+  await Promise.all(patches);
+}
+
 async function guardarPago(){
   const pacId=document.getElementById('pg-pac').value||'';
   const psId=document.getElementById('pg-ps').value||'';
@@ -3664,24 +3711,6 @@ async function guardarPago(){
     const pagoInsertado=await sbPost('pagos',pagoRow);
     const pagoId=pagoInsertado&&pagoInsertado[0]&&pagoInsertado[0].id;
     const promesas=[];
-    // Aplica `montoDisponible` en cascada sobre las cuotas-checkpoint
-    // pendientes de un paquete (de la más antigua a la más nueva) — si el
-    // pago supera lo que debía esa cuota, el excedente pasa a la
-    // siguiente en vez de perderse del seguimiento por sesión (antes solo
-    // se restaba de la cuota más antigua y el resto del pago desaparecía
-    // de ahí, aunque el total del paquete sí quedara bien contado).
-    function aplicarCascadaCheckpoints(programaId,montoDisponible){
-      const pendientes=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===programaId&&s.saldo>0;})
-        .sort(function(a,b){return((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||''));});
-      let restante=montoDisponible;
-      pendientes.forEach(function(s){
-        if(restante<=0||!s._sb||!s._sb.id)return;
-        const aplicado=Math.min(restante,s.saldo||0);
-        const nuevoSaldo=Math.round(((s.saldo||0)-aplicado)*100)/100;
-        promesas.push(sbPatch('sesiones',{saldo:nuevoSaldo},{id:'eq.'+s._sb.id}));
-        restante=Math.round((restante-aplicado)*100)/100;
-      });
-    }
     // pacientes.saldo es SOLO el saldo corriente de sesiones/consultas
     // SUELTAS (fuera de paquete) — la deuda de un paquete vive aparte, en
     // programas_paciente.saldo + el checkpoint de cada sesión. Si el pago
@@ -3698,7 +3727,7 @@ async function guardarPago(){
         // Se sabe exactamente qué sesión/cuota se pagó, pero si el monto
         // pagado supera esa cuota puntual, el resto debe seguir cayendo
         // en cascada sobre las demás cuotas pendientes del MISMO paquete.
-        aplicarCascadaCheckpoints(progIdPagada,monto);
+        await aplicarCascadaCheckpoints(progIdPagada,monto);
         try{
           const progRows=await sbGet('programas_paciente',{id:'eq.'+progIdPagada,select:'*'});
           const progPagado=progRows&&progRows[0];
@@ -3730,7 +3759,7 @@ async function guardarPago(){
           // elegida) para que el Historial lo pueda mostrar apenas exista
           // una sesión de ese paquete, en vez de quedar sin vincular.
           if(pagoId)promesas.push(sbPatch('pagos',{programa_id:prog.id},{id:'eq.'+pagoId}));
-          aplicarCascadaCheckpoints(prog.id,monto);
+          await aplicarCascadaCheckpoints(prog.id,monto);
         }else{
           const ses=DB.sesiones.filter(s=>(s.pacNom===pac.nombre||s.pacId===pac.nombre)&&s.saldo>0)
             .sort((a,b)=>((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||'')))[0];
