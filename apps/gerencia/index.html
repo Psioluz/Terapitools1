@@ -70,6 +70,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 /* Contenido */
 .content{flex:1;padding:14px;overflow-y:auto}
 .page{display:none!important}.page.active{display:block!important}
+/* El chat necesita quedar en columna (flex) para que el cuadro de texto se
+   pegue abajo y los mensajes ocupen el resto — si no, .page.active de
+   arriba lo fuerza a display:block y deja un hueco vacío enorme debajo. */
+#tChat.page.active{display:flex!important}
+/* Los <option> de un <select> con fondo/color propios no heredan bien en
+   algunos navegadores — quedaba texto blanco sobre fondo blanco al abrir
+   la lista. Se fuerza texto oscuro sobre fondo claro en las opciones. */
+#chatSedeSelGer option{color:#111;background:#fff}
 
 /* Cards */
 .card{background:var(--card);border-radius:14px;border:1px solid var(--border);
@@ -451,6 +459,15 @@ select.fsel{
   <div class="card">
     <div class="ch"><div class="ct">💳 Métodos de Pago</div></div>
     <div class="cb" id="chartMetodos"></div>
+  </div>
+
+  <!-- Ingresos por día -->
+  <div class="card">
+    <div class="ch"><div class="ct">📅 Ingresos por Día</div></div>
+    <div class="cb" style="overflow-x:auto">
+      <table id="tblIngDia"><thead><tr><th>Fecha</th><th>Efectivo</th><th>Yape/Plin</th><th>Transferencia</th><th>Total</th></tr></thead>
+      <tbody id="tblIngDiaBody"></tbody></table>
+    </div>
   </div>
 
 </div><!-- /tFinanzas -->
@@ -1494,8 +1511,8 @@ function renderCrecimiento(){
   var sesPrev = G.sesiones.filter(s=>s.fecha&&s.fecha.startsWith(mesPrev)&&(!filtSede||(s.sede||s._sede||'')===filtSede));
   var pagMes  = filtPagos(G.pagosLocal).filter(p=>p.fecha&&p.fecha.startsWith(mes));
   var pagPrev = G.pagosLocal.filter(p=>p.fecha&&p.fecha.startsWith(mesPrev)&&(!filtSede||(p._sede||'')===filtSede));
-  var ingMes  = Math.max(sesMes.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0),pagMes.reduce((a,p)=>a+(p.monto||0),0));
-  var ingPrev = Math.max(sesPrev.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0),pagPrev.reduce((a,p)=>a+(p.monto||0),0));
+  var ingMes  = pagMes.reduce((a,p)=>a+(p.monto||0),0);
+  var ingPrev = pagPrev.reduce((a,p)=>a+(p.monto||0),0);
   var gasMes  = filtGas(G.gastos).filter(g=>g.fecha&&g.fecha.startsWith(mes)&&g.tipo!=='ingreso').reduce((a,g)=>a+(g.monto||0),0);
   var gasPrev = G.gastos.filter(g=>g.fecha&&g.fecha.startsWith(mesPrev)&&g.tipo!=='ingreso'&&(!filtSede||(g.sede||'')===filtSede)).reduce((a,g)=>a+(g.monto||0),0);
 
@@ -1564,8 +1581,7 @@ function renderCrecimiento(){
 
   // ── LTV ──────────────────────────────────────────────────────
   var ltv=pacs.reduce((a,p)=>{
-    var sesPac=G.sesiones.filter(s=>s.pacNombre===p.nombre||s.pacId===p.id);
-    var totalGen=sesPac.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((x,s)=>x+(s.costoTotal||0)-(s.saldo||0),0);
+    var totalGen=G.pagosLocal.filter(pg=>pg.paciente_nombre===p.nombre).reduce((x,pg)=>x+(pg.monto||0),0);
     return a+totalGen;
   },0);
   setText('crLTV','S/'+(pacs.length>0?Math.round(ltv/pacs.length):0).toLocaleString());
@@ -1717,10 +1733,13 @@ function renderFinanzas(){
   var hon    = filtGas(G.honorarios);
   var pacs   = filtPac(G.pacientes);
 
-  // Ingresos de sesiones asistidas (costo - saldo = pagado)
-  var ingSes = ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0);
-  var ingPagos = pagos.reduce((a,p)=>a+(p.monto||0),0);
-  var ingresos = Math.max(ingSes, ingPagos); // usar el mayor
+  // Los ingresos reales son la suma de pagos efectivamente registrados
+  // (tabla pagos) — nunca se infieren de las sesiones: s.costoTotal es el
+  // costo TOTAL del paquete completo (no de esa sesión puntual), así que
+  // sumarlo por cada sesión asistida multiplicaba el ingreso real por la
+  // cantidad de sesiones del paquete (un paquete de 20 sesiones a S/690
+  // inflaba a ~S/13,800 solo por ese paciente).
+  var ingresos = pagos.reduce((a,p)=>a+(p.monto||0),0);
 
   var gasTotal  = gastos.filter(g=>g.tipo!=='ingreso').reduce((a,g)=>a+(g.monto||0),0);
   var gasIngExtra = gastos.filter(g=>g.tipo==='ingreso').reduce((a,g)=>a+(g.monto||0),0);
@@ -1758,10 +1777,8 @@ function renderFinanzas(){
   // Gráfico por sede
   var sedes = getSedes();
   var sedesData = sedes.map(sd=>{
-    var sesSd=ses.filter(s=>(s.sede||s._sede||'')===sd);
-    var ing=sesSd.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0);
-    var pagSd=pagos.filter(p=>p._sede===sd).reduce((a,p)=>a+(p.monto||0),0);
-    return{label:sd, val:Math.max(ing,pagSd)};
+    var pagSd=pagos.filter(p=>(p._sede||p.sede)===sd).reduce((a,p)=>a+(p.monto||0),0);
+    return{label:sd, val:pagSd};
   }).filter(x=>x.val>0).sort((a,b)=>b.val-a.val);
 
   renderBarChart('chartSedes', sedesData, 'S/', '#00c5c5');
@@ -1772,10 +1789,8 @@ function renderFinanzas(){
   for(let i=5;i>=0;i--){
     var d=new Date(now.getFullYear(),now.getMonth()-i,1);
     var ym=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-    var sesMes=G.sesiones.filter(s=>s.fecha&&s.fecha.startsWith(ym)&&(!getFiltSede()||(s.sede||s._sede||'')===getFiltSede()));
-    var ingMes=sesMes.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0);
-    var pagMes=G.pagosLocal.filter(p=>p.fecha&&p.fecha.startsWith(ym)&&(!getFiltSede()||(p._sede||'')===getFiltSede())).reduce((a,p)=>a+(p.monto||0),0);
-    meses6.push({label:MESES[d.getMonth()], val:Math.max(ingMes,pagMes)});
+    var pagMes=G.pagosLocal.filter(p=>p.fecha&&p.fecha.startsWith(ym)&&(!getFiltSede()||(p._sede||p.sede||'')===getFiltSede())).reduce((a,p)=>a+(p.monto||0),0);
+    meses6.push({label:MESES[d.getMonth()], val:pagMes});
   }
   renderBarChart('chartMeses', meses6, 'S/', '#10b981', true);
 
@@ -1798,6 +1813,28 @@ function renderFinanzas(){
   });
   var metData=Object.entries(metodos).map(([k,v])=>({label:k,val:v})).filter(x=>x.val>0);
   renderDonut('chartMetodos', metData);
+
+  // Ingresos por día, con el mismo desglose de método (respeta los filtros
+  // de mes/sede ya aplicados arriba en "pagos") — más reciente primero.
+  var porDia={};
+  pagos.forEach(function(p){
+    var f=p.fecha;if(!f)return;
+    if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0};
+    var m2=p.metodo||'Efectivo';
+    if(m2==='Yape'||m2==='Plin')porDia[f].yape+=p.monto||0;
+    else if(m2==='Transferencia'||m2==='Tarjeta')porDia[f].transferencia+=p.monto||0;
+    else porDia[f].efectivo+=p.monto||0;
+  });
+  var diasOrd=Object.keys(porDia).sort().reverse();
+  var bodyDia=document.getElementById('tblIngDiaBody');
+  if(bodyDia){
+    bodyDia.innerHTML=diasOrd.length?diasOrd.map(function(f){
+      var d=porDia[f];var tot=d.efectivo+d.yape+d.transferencia;
+      return'<tr><td>'+fmtF(f)+'</td><td>S/'+d.efectivo.toLocaleString()+'</td>'+
+        '<td>S/'+d.yape.toLocaleString()+'</td><td>S/'+d.transferencia.toLocaleString()+'</td>'+
+        '<td style="font-weight:800">S/'+tot.toLocaleString()+'</td></tr>';
+    }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px">Sin pagos en el período</td></tr>';
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1900,6 +1937,13 @@ function renderPersonal(){
   renderRendimientoRecepcionGer();
   var asistHoy = G.asistencia.filter(a=>a.fecha===hoy&&a.estado==='presente');
   var hon    = G.honorarios.filter(h=>h.mes===mesActual());
+  // Los pagos no traen a qué psicóloga corresponden directamente — se
+  // averigua a través de la sesión que el pago trae ligada (sesion_id).
+  // Un pago de adelanto que todavía no tiene ninguna sesión ligada no se
+  // puede atribuir a nadie en particular, así que queda fuera (mejor no
+  // mostrar nada que mostrarlo mal repartido).
+  var sesPorId={};ses.forEach(function(s){sesPorId[s.id]=s;});
+  var pagosConPs=filtPagos(G.pagosLocal).filter(function(p){return p.sesion_id&&sesPorId[p.sesion_id];});
 
   setText('psTotal',     G.psicologas.length);
   setText('psActivas',   G.psicologas.filter(p=>p.estado==='activa'||(p.estado||'activa')==='activa').length);
@@ -1929,9 +1973,8 @@ function renderPersonal(){
     var honPs=G.honorarios.filter(h=>h.nombre===ps.nombre&&h.mes===mesActual());
     var sueldoPs=honPs.reduce((a,h)=>a+(h.neto||h.montoBase||0),0);
     var asistHoyPs=asistHoy.find(a=>a.nombre===ps.nombre);
-    var ing=sesPsic.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0);
-    var ingresoSesiones=G.pagosLocal.filter(p=>(p.psId||0)===ps.id).reduce((a,p)=>a+(p.monto||0),0);
-    var ingFinal=Math.max(ing,ingresoSesiones);
+    var ingFinal=pagosConPs.filter(function(p){return sesPorId[p.sesion_id].psNombre===ps.nombre;})
+      .reduce(function(a,p){return a+(p.monto||0);},0);
 
     // Tiempo en empresa
     let tiempoStr='—';
@@ -2079,9 +2122,7 @@ function renderSedes(){
       var sesSd=ses.filter(s=>(s.sede||s._sede||'')===sd);
       var pacSd=pacs.filter(p=>(p.sede||p._sede||'')===sd);
       var psSd =G.psicologas.filter(p=>(p.sede||p._sede||'')===sd);
-      var ing  =Math.max(
-        sesSd.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0),
-        G.pagosLocal.filter(p=>p._sede===sd).reduce((a,p)=>a+(p.monto||0),0));
+      var ing  =G.pagosLocal.filter(p=>(p._sede||p.sede)===sd).reduce((a,p)=>a+(p.monto||0),0);
       var gas  =G.gastos.filter(g=>(g.sede||'')===sd).reduce((a,g)=>a+(g.monto||0),0);
       var neto =ing-gas;
       return`<tr>
@@ -2097,9 +2138,7 @@ function renderSedes(){
 
   // Participación
   var partData=sedes.map(sd=>{
-    var ing=Math.max(
-      ses.filter(s=>(s.sede||s._sede||'')===sd&&s.estado==='asistio').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0),
-      G.pagosLocal.filter(p=>p._sede===sd).reduce((a,p)=>a+(p.monto||0),0));
+    var ing=G.pagosLocal.filter(p=>(p._sede||p.sede)===sd).reduce((a,p)=>a+(p.monto||0),0);
     return{label:sd,val:ing};
   }).filter(x=>x.val>0);
   renderDonut('chartPartSede', partData);
@@ -2112,9 +2151,7 @@ function renderSedes(){
       var pacSd=pacs.filter(p=>(p.sede||p._sede||'')===sd);
       var psSd =G.psicologas.filter(p=>(p.sede||p._sede||'')===sd);
       var asistPctSd=sesSd.length?pct(sesSd.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length,sesSd.length):0;
-      var ing=Math.max(
-        sesSd.filter(s=>s.estado==='asistio'||s.estado==='tardanza').reduce((a,s)=>a+(s.costoTotal||0)-(s.saldo||0),0),
-        G.pagosLocal.filter(p=>p._sede===sd).reduce((a,p)=>a+(p.monto||0),0));
+      var ing=G.pagosLocal.filter(p=>(p._sede||p.sede)===sd).reduce((a,p)=>a+(p.monto||0),0);
       var sedeInfo=G.sedes.find(s=>s.nombre===sd)||{};
       return`<div class="card" style="border-top:4px solid ${COLORES[idx%COLORES.length]}">
         <div class="ch"><div class="ct" style="color:${COLORES[idx%COLORES.length]}">🏥 ${sd}</div>
