@@ -69,6 +69,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 
 /* Contenido */
 .content{flex:1;padding:14px;overflow-y:auto}
+/* Algunas pestañas (Asistencia, Chat, Docs Psicólogas, Cumpleaños,
+   Calendario, Accesos) NO viven dentro de .content — son hermanas suyas,
+   directamente bajo .ger-main (flex-column). Como .content tiene flex:1,
+   sigue creciendo y ocupando espacio aunque esté vacía (todas sus páginas
+   internas en display:none), empujando hacia abajo a la pestaña de
+   verdad activa — el hueco en blanco que se veía arriba de Asistencia y
+   Docs Psicólogas. Se colapsa por completo cuando ninguna de SUS páginas
+   está activa. */
+.content:not(:has(.page.active)){flex:0 0 0;padding:0;min-height:0;overflow:hidden}
 .page{display:none!important}.page.active{display:block!important}
 /* El chat necesita quedar en columna (flex) para que el cuadro de texto se
    pegue abajo y los mensajes ocupen el resto — si no, .page.active de
@@ -140,7 +149,7 @@ tbody tr:hover{background:#e6fafa}
   font-size:10px;font-weight:700;color:#fff;white-space:nowrap;transition:width .6s ease;min-width:30px}
 .bar-val{font-size:11px;font-weight:800;color:var(--dark);min-width:60px;text-align:right}
 /* Gráfico vertical con línea de tendencia */
-.vchart-wrap{width:100%;overflow-x:auto}
+.vchart-wrap{width:100%;overflow-x:auto;position:relative}
 .vchart{display:flex;align-items:flex-end;gap:6px;padding:10px 0 0;min-height:180px;position:relative}
 .vchart-bar-wrap{display:flex;flex-direction:column;align-items:center;flex:1;min-width:36px;gap:4px;position:relative}
 .vchart-bar{width:100%;border-radius:6px 6px 0 0;transition:height .6s ease;position:relative;min-height:4px;cursor:pointer}
@@ -174,11 +183,16 @@ tbody tr:hover{background:#e6fafa}
 .ps-stat-v{font-size:16px;font-weight:900;color:var(--acc)}
 .ps-stat-l{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase}
 
-/* Toast */
+/* Toast — en reposo solo se escondía moviéndolo 80px hacia abajo con
+   transform, pero como la caja tiene padding fijo (aunque esté vacía de
+   texto) ese cálculo no la saca del todo de la pantalla: quedaba una
+   cajita oscura visible flotando cerca del borde inferior todo el
+   tiempo. Ahora además se apaga con opacity/pointer-events. */
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(80px);
   background:#1e293b;color:#fff;padding:10px 20px;border-radius:20px;
-  font-size:12px;font-weight:700;z-index:9999;transition:.3s;white-space:nowrap;max-width:90vw;text-align:center}
-.toast.show{transform:translateX(-50%) translateY(0)}
+  font-size:12px;font-weight:700;z-index:9999;transition:.3s;white-space:nowrap;max-width:90vw;text-align:center;
+  opacity:0;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;pointer-events:auto}
 .toast.ok{background:var(--green)}.toast.err{background:var(--red)}.toast.inf{background:var(--acc)}
 
 /* Sync bar */
@@ -197,8 +211,13 @@ tbody tr:hover{background:#e6fafa}
 .ai{background:#eff6ff;border-color:var(--blue);color:#1e40af}
 .ar{background:#fee2e2;border-color:var(--red);color:#991b1b}
 
-/* PWA botón instalar */
-#btnInstalar{display:none;position:fixed;bottom:20px;right:16px;background:var(--dark);
+/* PWA botón instalar — vive dentro de la tarjeta de login (ver el <button
+   id="btnInstalar"> más abajo), nunca flotante: la regla vieja traía
+   position:fixed;bottom;right pensada para un botón flotante que ya no
+   existe, y como el botón real no fija su propia posición, terminaba
+   siendo un recuadro fijo de ancho completo (100% del viewport) pegado
+   abajo — la "cajita negra" que se asomaba en la esquina inferior. */
+#btnInstalar{display:none;background:var(--dark);
   color:var(--acc);border:2px solid var(--acc);border-radius:40px;padding:10px 18px;
   font-size:12px;font-weight:700;cursor:pointer;z-index:99;align-items:center;gap:6px;
   box-shadow:0 4px 16px rgba(0,0,0,.3)}
@@ -351,10 +370,10 @@ select.fsel{
     <div class="ger-nav-section">Personal</div>
     <div class="ger-nav-item" id="gnav-tPersonal" onclick="goTab('tPersonal',this);if(typeof renderMetasPsicologas==='function')renderMetasPsicologas()">👩‍⚕️ Personal</div>
     <div class="ger-nav-item" id="gnav-tAccesos" onclick="goTab('tAccesos',this);if(typeof renderAccesos==='function')renderAccesos()">🔐 Accesos</div>
-    <div class="ger-nav-item" id="gnav-tAsistHist" onclick="goTab('tAsistHist',this)">🕐 Asistencia</div>
+    <div class="ger-nav-item" id="gnav-tAsistHist" onclick="goTab('tAsistHist',this);if(typeof renderAsistHist==='function')renderAsistHist()">🕐 Asistencia</div>
     <div class="ger-nav-section">Sedes</div>
     <div class="ger-nav-item" id="gnav-tSedes" onclick="goTab('tSedes',this)">🏥 Sedes</div>
-    <div class="ger-nav-item" id="gnav-tDocsPsicologas" onclick="goTab('tDocsPsicologas',this)">📋 Docs Psicólogas</div>
+    <div class="ger-nav-item" id="gnav-tDocsPsicologas" onclick="goTab('tDocsPsicologas',this);if(typeof renderDocsPsicologas==='function')renderDocsPsicologas()">📋 Docs Psicólogas</div>
     <div class="ger-nav-section">Sistema</div>
     <div class="ger-nav-item" id="gnav-tAlertas" onclick="goTab('tAlertas',this);if(typeof renderAlertasSB==='function')renderAlertasSB()">🔔 Alertas <span class="nav-badge" id="alertaBadge" style="display:none"></span></div>
     <div class="ger-nav-item" id="gnav-tPagos" onclick="goTab('tPagos',this);if(typeof renderCalendarioPagos==='function')renderCalendarioPagos('calendarioPagosContainer');if(typeof renderPagosRecurrentesLista==='function')renderPagosRecurrentesLista()">📅 Calendario</div>
@@ -466,7 +485,8 @@ select.fsel{
     <div class="ch"><div class="ct">📅 Ingresos por Día</div></div>
     <div class="cb" style="overflow-x:auto">
       <table id="tblIngDia"><thead><tr><th>Fecha</th><th>Efectivo</th><th>Yape/Plin</th><th>Transferencia</th><th>Total</th></tr></thead>
-      <tbody id="tblIngDiaBody"></tbody></table>
+      <tbody id="tblIngDiaBody"></tbody>
+      <tfoot id="tblIngDiaFoot"></tfoot></table>
     </div>
   </div>
 
@@ -1491,7 +1511,8 @@ function recargar(){
   var renderMap={
     'tFinanzas':renderFinanzas,'tPacientes':renderPacientes,
     'tPersonal':renderPersonal,'tSedes':renderSedes,
-    'tAlertas':renderAlertas,'tCrecimiento':renderCrecimiento
+    'tAlertas':renderAlertas,'tCrecimiento':renderCrecimiento,
+    'tAsistHist':renderAsistHist,'tDocsPsicologas':renderDocsPsicologas
   };
   var fn=renderMap[tabId];
   if(fn)fn();
@@ -1622,7 +1643,10 @@ function renderCrecimiento(){
   var horas=['08:00','08:45','09:30','10:15','11:00','11:45','12:30','13:15','14:00','14:45','15:30','16:15','17:00','17:45','18:30','19:15'];
   var dias=['Lun','Mar','Mié','Jue','Vie','Sáb'];
   var heatData={};
-  G.sesiones.forEach(s=>{
+  // Respeta los mismos filtros de mes/sede que el resto del panel — antes
+  // el heatmap siempre usaba TODAS las sesiones de TODO el histórico y de
+  // TODAS las sedes sin importar lo que se eligiera arriba.
+  filtSes(G.sesiones).forEach(s=>{
     if(!s.fecha||!s.hora)return;
     var d=new Date(s.fecha+'T12:00:00');
     var dIdx=d.getDay()-1; // 0=Lun
@@ -1632,6 +1656,16 @@ function renderCrecimiento(){
     heatData[key]=(heatData[key]||0)+1;
   });
   var maxHeat=Math.max(1,...Object.values(heatData));
+  function _heatColor(t){
+    // 0 -> amarillo pálido, .5 -> naranja, 1 -> rojo intenso
+    var stops=[[254,249,195],[251,146,60],[185,28,28]];
+    var seg=t<0.5?0:1;var local=t<0.5?t*2:(t-0.5)*2;
+    var a=stops[seg],b=stops[seg+1];
+    var r=Math.round(a[0]+(b[0]-a[0])*local);
+    var g=Math.round(a[1]+(b[1]-a[1])*local);
+    var bl=Math.round(a[2]+(b[2]-a[2])*local);
+    return 'rgb('+r+','+g+','+bl+')';
+  }
   var hmEl=document.getElementById('heatmapHorarios');
   if(hmEl){
     let h='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr><td style="padding:3px;font-weight:700;color:var(--muted)">Hora</td>'+
@@ -1640,9 +1674,15 @@ function renderCrecimiento(){
       h+='<tr><td style="padding:3px;font-size:9px;color:var(--muted);white-space:nowrap;font-weight:700">'+hora+'</td>';
       for(let di=0;di<6;di++){
         var v=heatData[di+'_'+hora]||0;
-        var intensity=v/maxHeat;
-        var bg=v===0?'#f8faff':`rgba(0,197,197,${0.15+intensity*0.85})`;
-        var tc=intensity>0.5?'#fff':'var(--muted)';
+        // Antes era un solo tono (teal) variando solo en opacidad — con
+        // datos repartidos en 16 horas x 6 días, casi todas las celdas
+        // caían cerca del mínimo y el mapa se veía de un solo color parejo.
+        // Ahora interpola un degradado real (amarillo pálido -> naranja ->
+        // rojo intenso), que se nota mucho más entre celdas con poca y
+        // mucha demanda.
+        var intensity=Math.pow(v/maxHeat,0.6); // curva para que valores medios ya se noten
+        var bg=v===0?'#f8faff':_heatColor(intensity);
+        var tc=intensity>0.45?'#fff':'#7c2d12';
         h+=`<td style="padding:4px;text-align:center;background:${bg};border-radius:4px;margin:1px;color:${tc};font-weight:${v>0?'800':'400'}">${v||''}</td>`;
       }
       h+='</tr>';
@@ -1835,6 +1875,16 @@ function renderFinanzas(){
         '<td style="font-weight:800">S/'+tot.toLocaleString()+'</td></tr>';
     }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px">Sin pagos en el período</td></tr>';
   }
+  var footDia=document.getElementById('tblIngDiaFoot');
+  if(footDia){
+    var totEf=diasOrd.reduce(function(a,f){return a+porDia[f].efectivo;},0);
+    var totYp=diasOrd.reduce(function(a,f){return a+porDia[f].yape;},0);
+    var totTr=diasOrd.reduce(function(a,f){return a+porDia[f].transferencia;},0);
+    var totAll=totEf+totYp+totTr;
+    footDia.innerHTML=diasOrd.length?('<tr style="background:#fdf2f8;font-weight:900"><td>TOTAL</td>'+
+      '<td>S/'+totEf.toLocaleString()+'</td><td>S/'+totYp.toLocaleString()+'</td>'+
+      '<td>S/'+totTr.toLocaleString()+'</td><td>S/'+totAll.toLocaleString()+'</td></tr>'):'';
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1947,7 +1997,16 @@ function renderPersonal(){
 
   setText('psTotal',     G.psicologas.length);
   setText('psActivas',   G.psicologas.filter(p=>p.estado==='activa'||(p.estado||'activa')==='activa').length);
-  setText('psHonorarios','S/'+hon.reduce((a,h)=>a+(h.neto||h.montoBase||0),0).toLocaleString());
+  // La planilla mensual solo sumaba los honorarios de psicólogas (tabla
+  // honorarios, que varía mes a mes) — las recepcionistas activas también
+  // son personal y tienen un sueldo fijo (recepcionistas.sueldo), pero
+  // nunca se contaban aquí.
+  var sdFiltroPersonal=getFiltSede();
+  var recepActivasSueldo=(G.recepcionistas||[])
+    .filter(function(r){return r.estado==='activa'&&(!sdFiltroPersonal||r.sede===sdFiltroPersonal);})
+    .reduce(function(a,r){return a+(r.sueldo||0);},0);
+  var totalPlanilla=hon.reduce((a,h)=>a+(h.neto||h.montoBase||0),0)+recepActivasSueldo;
+  setText('psHonorarios','S/'+totalPlanilla.toLocaleString());
   var asistPct=G.psicologas.length?pct(asistHoy.length,G.psicologas.length):0;
   setText('psAsistHoy',  asistPct+'%');
 
@@ -2261,7 +2320,7 @@ function renderBarChart(elId, data, prefix, color, vertical){
       bars.map((d,i)=>{
         var topPx=h-d.pctH;
         return'<div class="vchart-bar-wrap" style="height:'+(h+30)+'px;justify-content:flex-end">'+
-          '<div class="vchart-val">'+(prefix||'')+(d.val>=1000?Math.round(d.val/1000)+'k':d.val)+'</div>'+
+          '<div class="vchart-val">'+(prefix||'')+d.val.toLocaleString()+'</div>'+
           '<div class="vchart-bar" style="height:'+d.pctH+'px;background:'+d.col+'" title="'+d.label+': '+(prefix||'')+d.val.toLocaleString()+'"></div>'+
           '<div class="vchart-axis"></div>'+
           '<div class="vchart-lbl">'+d.label+'</div>'+
@@ -2329,7 +2388,7 @@ function renderDonut(elId, data){
     <svg width="120" height="120" viewBox="0 0 120 120" style="flex-shrink:0">
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e2e8f0" stroke-width="${stroke}"/>
       ${paths}
-      <text x="${cx}" y="${cy-4}" text-anchor="middle" font-size="11" font-weight="800" fill="#1e293b">S/${Math.round(total/1000)}k</text>
+      <text x="${cx}" y="${cy-4}" text-anchor="middle" font-size="11" font-weight="800" fill="#1e293b">S/${total.toLocaleString()}</text>
       <text x="${cx}" y="${cy+11}" text-anchor="middle" font-size="9" fill="#64748b">total</text>
     </svg>
     <div class="donut-legend">${legendItems}</div></div>`;
@@ -2530,73 +2589,6 @@ function cambiarFotoGer(input){
     img.src=e.target.result;
   };
   reader.readAsDataURL(file);
-}
-
-// ── HISTORIAL DE ASISTENCIA ───────────────────────────────────
-function renderAsistHist(){
-  var el=document.getElementById('tAsistHist');if(!el)return;
-  var sede=getFiltSede();
-  var mes=getFiltMes();
-  
-  let registros=[];
-  if(G.asistencia&&G.asistencia.length){
-    G.asistencia.forEach(a=>{
-      if(sede&&(a.sede||'')!==sede)return;
-      if(mes&&!(a.fecha||'').startsWith(mes))return;
-      registros.push(a);
-    });
-  }
-  
-  registros.sort((a,b)=>b.fecha.localeCompare(a.fecha));
-  
-  if(!registros.length){
-    var contentEl=document.getElementById('asistHistContent');
-    if(contentEl)contentEl.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">'+
-      '<div style="font-size:32px;margin-bottom:10px">🕐</div>'+
-      '<div>Sin registros de asistencia</div>'+
-      '<div style="font-size:11px;margin-top:6px">Sincroniza o carga datos de una sede</div></div>';
-    return;
-  }
-  
-  // Agrupar por fecha
-  var porFecha={};
-  registros.forEach(r=>{
-    var k=r.fecha;
-    if(!porFecha[k])porFecha[k]=[];
-    porFecha[k].push(r);
-  });
-  
-  var contentEl=document.getElementById('asistHistContent');
-  if(!contentEl)return;
-  
-  contentEl.innerHTML=Object.entries(porFecha).slice(0,60).map(([fecha,regs])=>{
-    var d=new Date(fecha+'T12:00:00');
-    var diasN=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-    var mesesN=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    var diaStr=diasN[d.getDay()]+' '+d.getDate()+' '+mesesN[d.getMonth()]+' '+d.getFullYear();
-    return '<div class="card" style="margin-bottom:12px">'+
-      '<div style="padding:10px 14px;background:linear-gradient(135deg,#3d0c28,#ad1457);color:#fff;font-size:13px;font-weight:800;border-radius:10px 10px 0 0">'+
-      '📅 '+diaStr+'</div>'+
-      '<table style="width:100%;border-collapse:collapse">'+
-      '<thead><tr style="background:var(--hover)">'+
-      '<th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--muted)">Psicóloga</th>'+
-      '<th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--muted)">Sede</th>'+
-      '<th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--muted)">Entrada</th>'+
-      '<th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--muted)">Salida</th>'+
-      '<th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--muted)">Estado</th>'+
-      '</tr></thead><tbody>'+
-      regs.map((r,i)=>{
-        var col=r.estado==='presente'?'var(--green)':r.estado==='tardanza'?'var(--orange)':r.estado==='falta'?'var(--red)':'var(--muted)';
-        return '<tr style="background:'+(i%2?'var(--hover)':'#fff')+';border-bottom:1px solid var(--border)">'+
-          '<td style="padding:8px 10px;font-size:12px;font-weight:700">'+r.psicologa+'</td>'+
-          '<td style="padding:8px 10px;font-size:11px;color:var(--muted)">'+r.sede+'</td>'+
-          '<td style="padding:8px 10px;font-size:12px">'+( r.entrada||'—')+'</td>'+
-          '<td style="padding:8px 10px;font-size:12px">'+( r.salida||'—')+'</td>'+
-          '<td style="padding:8px 10px"><span style="background:'+col+';color:#fff;border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700">'+r.estado+'</span></td>'+
-          '</tr>';
-      }).join('')+
-      '</tbody></table></div>';
-  }).join('');
 }
 
 // ── CHAT GERENCIA (todas las sedes) ──────────────────────────
@@ -3108,9 +3100,19 @@ async function renderAsistHist(){
   var el=document.getElementById('asistHistContent');if(!el)return;
   el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)">⏳ Cargando...</div>';
   try{
-    var desde=fechaLima(new Date(Date.now()-30*86400000));
-    var rows=await accGet('asistencia_personal',{select:'*',fecha:'gte.'+desde,order:'fecha.desc',limit:'400'});
-    if(!rows||!rows.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)">Sin registros de asistencia en los últimos 30 días</div>';return;}
+    // Respeta los filtros globales de mes/sede — antes traía siempre los
+    // últimos 30 días de TODAS las sedes sin importar lo que se eligiera
+    // arriba, así que cambiar el filtro aquí no hacía nada.
+    var mesF=getFiltMes(),sedeF=getFiltSede();
+    var q={select:'*',order:'fecha.desc',limit:'400'};
+    if(mesF&&mesF!=='todos'){q.fecha='gte.'+mesF+'-01';}
+    else{q.fecha='gte.'+fechaLima(new Date(Date.now()-30*86400000));}
+    if(sedeF)q.sede='eq.'+sedeF;
+    var rows=await accGet('asistencia_personal',q);
+    if(mesF&&mesF!=='todos'){
+      rows=(rows||[]).filter(function(r){return(r.fecha||'').startsWith(mesF);});
+    }
+    if(!rows||!rows.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)">Sin registros de asistencia en el período elegido</div>';return;}
     var porFecha={};
     rows.forEach(function(r){(porFecha[r.fecha]=porFecha[r.fecha]||[]).push(r);});
     el.innerHTML=Object.keys(porFecha).sort().reverse().map(function(f){
@@ -3212,15 +3214,21 @@ async function verDetalleEvento(dia,idx){
   try{
     var mes=new Date();
     var desde=mes.getFullYear()+'-'+String(mes.getMonth()+1).padStart(2,'0')+'-01';
-    var ses=await accGet('sesiones',{select:'estado,paciente_nombre',psicologa:'eq.'+e.ref,fecha:'gte.'+desde,limit:'2000'});
-    var aTiempo=ses.filter(function(s){return s.estado==='asistio';}).length;
-    var tarde=ses.filter(function(s){return s.estado==='tardanza';}).length;
-    var totalAsistidas=aTiempo+tarde;
-    var pct=totalAsistidas?Math.round(aTiempo*100/totalAsistidas):0;
+    // La puntualidad ya no se puede medir por sesiones — el estado
+    // "tardanza" en sesiones se eliminó (una sesión asistida siempre
+    // queda como "asistio", sin importar la hora), así que esta cuenta
+    // siempre daba 100% sin importar la tardanza real. Ahora se mide con
+    // la asistencia_personal real (hora de entrada + motivo_tardanza,
+    // que sí se sigue registrando cuando la psicóloga llega tarde).
+    var asist=await accGet('asistencia_personal',{select:'estado,motivo_tardanza',psicologa:'eq.'+e.ref,fecha:'gte.'+desde,limit:'200'});
+    var presentes=asist.filter(function(a){return a.estado==='presente';});
+    var tarde=presentes.filter(function(a){return a.motivo_tardanza;}).length;
+    var aTiempo=presentes.length-tarde;
+    var pct=presentes.length?Math.round(aTiempo*100/presentes.length):0;
     var metaEl=document.getElementById('detalleEvMeta');
-    if(metaEl)metaEl.innerHTML=ses.length
+    if(metaEl)metaEl.innerHTML=presentes.length
       ? (pct>=85?'🏆 <b style="color:#059669">Meta de puntualidad cumplida ('+pct+'%)</b>':'⏳ En curso ('+pct+'% puntualidad, meta 85%)')+'<div style="font-size:10px;color:var(--muted);margin-top:4px">El bono se otorga por cantidad de pacientes atendidos, no por puntualidad. La puntualidad puede generar descuentos por tardanza/inasistencia (ver Sueldos y Bonos en Administración).</div>'
-      : 'Sin sesiones registradas este mes.';
+      : 'Sin registros de asistencia este mes.';
   }catch(err){
     var metaEl2=document.getElementById('detalleEvMeta');
     if(metaEl2)metaEl2.textContent='No se pudo calcular.';
@@ -3310,11 +3318,22 @@ async function renderMetasPsicologas(){
     (ses||[]).forEach(function(x){
       var p=por[x.psicologa]=por[x.psicologa]||{t:0,aTiempo:0,tarde:0,pacs:{}};
       p.t++;
-      if(x.estado==='asistio'){p.aTiempo++;p.pacs[x.paciente_nombre]=1;}
-      else if(x.estado==='tardanza'){p.tarde++;p.pacs[x.paciente_nombre]=1;}
+      if(x.estado==='asistio'){p.pacs[x.paciente_nombre]=1;}
     });
     var noms=Object.keys(por);
     if(!noms.length){el.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted)">Sin sesiones este mes</div>';return;}
+    // La puntualidad ya no se puede sacar de sesiones (el estado
+    // "tardanza" se eliminó — una sesión asistida siempre queda como
+    // "asistio" sin importar la hora), así que esto SIEMPRE daba 100% a
+    // cualquiera con al menos una sesión asistida. Se mide con
+    // asistencia_personal (hora de entrada real + motivo_tardanza).
+    var asistPers=await accGet('asistencia_personal',{select:'psicologa,estado,motivo_tardanza',fecha:'gte.'+desde,limit:'2000'});
+    (asistPers||[]).forEach(function(a){
+      if(!a.psicologa)return;
+      var p=por[a.psicologa]=por[a.psicologa]||{t:0,aTiempo:0,tarde:0,pacs:{}};
+      if(a.estado==='presente'){if(a.motivo_tardanza)p.tarde++;else p.aTiempo++;}
+    });
+    noms=Object.keys(por);
     el.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#fdf2f8;color:#9d174d;font-size:10px"><th style="padding:8px;text-align:left">PSICÓLOGA</th><th>SESIONES</th><th>A TIEMPO</th><th>PUNTUALIDAD %</th><th>👥 PACIENTES</th><th>META 85%</th></tr></thead><tbody>'
       +noms.map(function(n){
         var p=por[n];var totalAsistidas=p.aTiempo+p.tarde;var pct=totalAsistidas?Math.round(p.aTiempo*100/totalAsistidas):0;var nP=Object.keys(p.pacs).length;
