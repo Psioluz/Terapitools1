@@ -5446,6 +5446,16 @@ async function enviarMensajeChatRec(){
     if('Notification' in window&&Notification.permission==='default'){
       Notification.requestPermission().catch(function(){});
     }
+    // La mayoría de navegadores bloquea el audio hasta que haya un gesto
+    // real del usuario (click/touch) — si sonidoNotif() recién crea el
+    // AudioContext cuando llega la primera notificación (por un
+    // setInterval, sin gesto de por medio), el navegador la deja
+    // "suspended" para siempre y no suena nunca, sin ningún error visible.
+    // Se crea/reactiva aquí, en el primer click/touch real de la sesión.
+    try{
+      if(!_audioCtx)_audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      if(_audioCtx.state==='suspended')_audioCtx.resume();
+    }catch(e){}
     document.removeEventListener('click',pedirPermiso);
     document.removeEventListener('touchstart',pedirPermiso);
   }
