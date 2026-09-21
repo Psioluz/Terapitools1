@@ -283,6 +283,13 @@ select.fsel{
 .stat{background:var(--bg);border-radius:10px;padding:10px;text-align:center}
 .stat-v{font-size:20px;font-weight:900;color:var(--acc)}
 .stat-l{font-size:11px;color:#475569;font-weight:700;text-transform:uppercase;margin-top:3px;line-height:1.3}
+.ag-grid{display:grid;gap:0;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.ag-head{background:var(--dark);color:#fff;padding:8px 4px;text-align:center;font-size:12.5px;font-weight:800;cursor:pointer}
+.ag-head.hoy{background:var(--acc)}
+.ag-hora{background:#f8faff;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted);padding:2px}
+.ag-celda{border-top:1px solid var(--border);border-left:1px solid var(--border);min-height:54px;padding:2px;display:flex;flex-direction:column;gap:2px}
+.ag-chip{border-radius:4px;padding:3px 5px;font-size:10.5px;font-weight:700;color:#000;line-height:1.25}
+.ag-mas{color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100%;font-size:18px}
 </style>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png" type="image/png">
@@ -376,7 +383,7 @@ select.fsel{
     <div class="ger-nav-item" id="gnav-tAgenda" onclick="goTab('tAgenda',this);if(typeof renderAgendaGer==='function')renderAgendaGer()">🗓️ Agenda</div>
     <div class="ger-nav-item" id="gnav-tDocsPsicologas" onclick="goTab('tDocsPsicologas',this);if(typeof renderDocsPsicologas==='function')renderDocsPsicologas()">📋 Docs Psicólogas</div>
     <div class="ger-nav-section">Sistema</div>
-    <div class="ger-nav-item" id="gnav-tAlertas" onclick="goTab('tAlertas',this);if(typeof renderAlertasSB==='function')renderAlertasSB()">🔔 Alertas <span class="nav-badge" id="alertaBadge" style="display:none"></span></div>
+    <div class="ger-nav-item" id="gnav-tAlertas" onclick="goTab('tAlertas',this)">🔔 Alertas <span class="nav-badge" id="alertaBadge" style="display:none"></span></div>
     <div class="ger-nav-item" id="gnav-tPagos" onclick="goTab('tPagos',this);if(typeof renderCalendarioPagos==='function')renderCalendarioPagos('calendarioPagosContainer');if(typeof renderPagosRecurrentesLista==='function')renderPagosRecurrentesLista()">📅 Calendario</div>
     <div class="ger-nav-item" id="gnav-tCumple" onclick="goTab('tCumple',this);if(typeof renderCumple==='function')renderCumple('listCumple2')">🎂 Cumpleaños</div>
     <div class="ger-nav-item" id="gnav-tChat" onclick="goTab('tChat',this);abrirChatGer()">💬 Chat <span id="chatBadgeGer" style="display:none;background:#e91e8c;color:#fff;border-radius:10px;font-size:9px;padding:1px 5px;font-weight:800;margin-left:4px"></span></div>
@@ -607,13 +614,15 @@ select.fsel{
 
 </div><!-- /tSedes -->
 
-<!-- ════════ AGENDA (todas las sedes) ════════ -->
+<!-- ════════ AGENDA (réplica de recepción, con filtro de sede propio) ════════ -->
 <div class="page" id="tAgenda">
   <div class="card" style="margin-bottom:14px">
     <div class="ch" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
       <div class="ct">🗓️ Agenda</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input type="date" id="agendaFecha" class="fsel" onchange="renderAgendaGer()" style="min-width:0">
+        <button onclick="navSemGer(-1)" style="border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer">◀</button>
+        <button onclick="irHoyGer()" style="border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer">Hoy</button>
+        <button onclick="navSemGer(1)" style="border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer">▶</button>
         <select id="agendaSedeSel" class="fsel" onchange="renderAgendaGer()">
           <option value="">🌐 Todas las sedes</option>
         </select>
@@ -622,9 +631,13 @@ select.fsel{
         </select>
       </div>
     </div>
-    <div style="padding:6px 16px 12px;font-size:11px;color:var(--muted)">Este filtro de sede es independiente del filtro global de arriba — sirve para ver la agenda de una sede puntual sin cambiar el resto del panel.</div>
+    <div style="padding:0 16px 12px;font-size:13px;font-weight:800;color:var(--muted)" id="agendaSemTit"></div>
+    <div style="padding:0 16px 12px;font-size:11px;color:var(--muted)">Réplica de la agenda de recepción, con el filtro de sede propio de este panel — los filtros globales de arriba no aplican aquí. Los colores respetan los que cada recepcionista asignó a cada psicóloga.</div>
   </div>
-  <div class="card">
+  <div class="card" style="overflow-x:auto">
+    <div class="ag-grid" id="agendaGrid"></div>
+  </div>
+  <div class="card" id="agendaDetalleCard" style="display:none">
     <div class="ch"><div class="ct" id="agendaResumenTit">Sesiones del día</div></div>
     <div class="cb" id="agendaListaContenido"></div>
   </div>
@@ -1047,7 +1060,7 @@ function _diasTrabajoANum(txt){
                 fin:_fH(p.hora_fin)||'19:15',
                 diasSemana:_diasTrabajoANum(p.dias_trabajo),
                 fechaNac:p.fecha_nac||'',tel:p.telefono||'',diaEspecial:p.dia_completo||'',
-                cuenta:p.numero_cuenta||'',cci:p.cci||'',
+                cuenta:p.numero_cuenta||'',cci:p.cci||'',colorAgenda:p.color_agenda||'',
                 sueldo:p.sueldo||0,fotoUrl:p.foto_url||'',rol:'psicologa'};
             }),
             recepcionistas:recs.map(function(p){
@@ -1557,7 +1570,8 @@ function recargar(){
     'tFinanzas':renderFinanzas,'tPacientes':renderPacientes,
     'tPersonal':renderPersonal,'tSedes':renderSedes,
     'tAlertas':renderAlertas,'tCrecimiento':renderCrecimiento,
-    'tAsistHist':renderAsistHist,'tDocsPsicologas':renderDocsPsicologas
+    'tAsistHist':renderAsistHist,'tDocsPsicologas':renderDocsPsicologas,
+    'tAgenda':renderAgendaGer
   };
   var fn=renderMap[tabId];
   if(fn)fn();
@@ -2313,9 +2327,40 @@ function renderSedes(){
 //  panel).
 // ════════════════════════════════════════════════════════════════════════════
 var _agendaSelectsListos=false;
+var _agSemOffGer=0;
+var _agDiaSelGer='';
+var PALETA_PS_AGENDA_GER=['#7c3aed','#059669','#dc2626','#2563eb','#d97706','#db2777','#0891b2','#65a30d','#9333ea','#ea580c','#0d9488','#4f46e5'];
+var DIA_FULL_GER=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+var DIA_ES_GER=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+var MES_ES_GER=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+function getLunesGer(f){
+  var d=new Date(f+'T12:00:00');
+  d.setDate(d.getDate()-((d.getDay()+6)%7));
+  return fechaLima(d);
+}
+function navSemGer(dir){_agSemOffGer+=dir;renderAgendaGer();}
+function irHoyGer(){_agSemOffGer=0;_agDiaSelGer=today();renderAgendaGer();}
+function abrevTerapiaGer(nombre){
+  nombre=(nombre||'').trim();
+  if(!nombre)return'';
+  return nombre.replace(/^T\.\s*/i,'').split(' ').slice(0,2).join(' ');
+}
+// Los colores de la agenda son los que cada recepcionista le asignó a cada
+// psicóloga (psicologas.color_agenda) — si no tiene uno propio, se usa la
+// misma paleta hash-based que usa recepción, para que coincidan igual.
+function colorPsAgendaGer(psNombre){
+  var ps=(G.psicologas||[]).find(function(p){return p.nombre===psNombre;});
+  if(ps&&ps.colorAgenda)return ps.colorAgenda;
+  var s=String((ps&&ps.id)||psNombre||'');
+  var h=0;for(var i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0;}
+  return PALETA_PS_AGENDA_GER[h%PALETA_PS_AGENDA_GER.length];
+}
+function colorEstadoAgGer(estado){
+  return estado==='asistio'?'#059669':estado==='noasistio'?'#dc2626':
+    estado==='permiso'?'#f59e0b':'rgba(0,0,0,.45)';
+}
+function agSelDiaGer(fecha){_agDiaSelGer=fecha;renderAgendaGer();}
 function renderAgendaGer(){
-  var elF=document.getElementById('agendaFecha');
-  if(elF&&!elF.value)elF.value=today();
   if(!_agendaSelectsListos){
     var selSede=document.getElementById('agendaSedeSel');
     if(selSede&&selSede.options.length<=1){
@@ -2331,46 +2376,95 @@ function renderAgendaGer(){
     }
     _agendaSelectsListos=true;
   }
-  var fecha=elF?elF.value:today();
+  if(!_agDiaSelGer)_agDiaSelGer=today();
   var sedeSel=document.getElementById('agendaSedeSel')?.value||'';
   var psSel=document.getElementById('agendaPsSel')?.value||'';
-  var ses=(G.sesiones||[]).filter(function(s){
-    if(s.fecha!==fecha)return false;
-    if(sedeSel&&(s.sede||s._sede||'')!==sedeSel)return false;
+
+  var base=new Date();base.setDate(base.getDate()+_agSemOffGer*7);
+  var lunes=getLunesGer(fechaLima(base));
+  var dias=[];
+  for(var i=0;i<6;i++){
+    var dd=new Date(lunes+'T12:00:00');dd.setDate(dd.getDate()+i);
+    dias.push({f:fechaLima(dd),d:dd});
+  }
+  var d0=dias[0].d,d5=dias[5].d;
+  var titEl=document.getElementById('agendaSemTit');
+  if(titEl)titEl.textContent=d0.getDate()+' '+MES_ES_GER[d0.getMonth()]+' — '+d5.getDate()+' '+MES_ES_GER[d5.getMonth()]+(sedeSel?' · '+sedeSel:' · Todas las sedes')+(psSel?' · '+psSel.replace('Lic.','').trim():'');
+
+  var todasSes=(G.sesiones||[]).filter(function(s){
+    if(sedeSel&&(s.sede||'')!==sedeSel)return false;
     if(psSel&&s.psNombre!==psSel)return false;
     return true;
-  }).sort(function(a,b){return(a.hora||'').localeCompare(b.hora||'')||(a.sede||'').localeCompare(b.sede||'');});
+  });
 
-  var d=new Date(fecha+'T12:00:00');
-  var diasN=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  var mesesN=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  var titEl=document.getElementById('agendaResumenTit');
-  if(titEl)titEl.textContent=diasN[d.getDay()]+' '+d.getDate()+' '+mesesN[d.getMonth()]+' — '+ses.length+' sesión(es)'+(sedeSel?' · '+sedeSel:'')+(psSel?' · '+psSel.replace('Lic.','').trim():'');
+  var allSlots={};
+  ['13:15','14:00','14:45','15:30','16:15','17:00','17:45','18:30','19:15'].forEach(function(s){allSlots[s]=1;});
+  todasSes.filter(function(s){return dias.some(function(d){return d.f===s.fecha;});}).forEach(function(s){if(s.hora)allSlots[s.hora]=1;});
+  var slots=Object.keys(allSlots).sort();
 
-  var cont=document.getElementById('agendaListaContenido');if(!cont)return;
+  var grid=document.getElementById('agendaGrid');if(!grid)return;
+  grid.style.gridTemplateColumns='58px repeat(6,1fr)';
+  var hoy=today();
+  var h='<div class="ag-head" style="background:var(--dark)">HORA</div>';
+  dias.forEach(function(dia){
+    var esH=dia.f===hoy;
+    var esSel=dia.f===_agDiaSelGer;
+    h+='<div class="ag-head'+(esH?' hoy':'')+'" style="'+(esSel&&!esH?'background:#7c3aed;':'')+'" onclick="agSelDiaGer(\''+dia.f+'\')">'+
+      '<div style="font-size:9px;opacity:.8;text-transform:uppercase">'+DIA_ES_GER[dia.d.getDay()]+'</div>'+
+      '<div style="font-size:15px;font-weight:900">'+String(dia.d.getDate()).padStart(2,'0')+'/'+String(dia.d.getMonth()+1).padStart(2,'0')+'</div>'+
+      '</div>';
+  });
+  slots.forEach(function(slot){
+    h+='<div class="ag-hora">'+slot+'</div>';
+    dias.forEach(function(dia){
+      var sesList=todasSes.filter(function(s){return s.fecha===dia.f&&s.hora===slot;});
+      var bgCelda=dia.f===_agDiaSelGer?'#eff6ff':dia.f===hoy?'#f0fdf4':'#fff';
+      h+='<div class="ag-celda" style="background:'+bgCelda+'">';
+      sesList.forEach(function(s){
+        var esReprog=s.estado==='reprogramado';
+        var bc=esReprog?'#94a3b8':colorPsAgendaGer(s.psNombre);
+        var bordeEstado=colorEstadoAgGer(s.estado);
+        var progTxt=(s.tipo==='paquete'&&s.totalPaq)?(' '+s.nroEnPaq+'/'+s.totalPaq):'';
+        var titulo=(s.pacNombre||'')+' · '+(s.terNombre||'')+progTxt+' · '+(s.psNombre||'')+(sedeSel?'':' · '+(s.sede||''))+(esReprog?' (reprogramado)':'');
+        h+='<div class="ag-chip" style="background:'+bc+';border-left:3px solid '+bordeEstado+(esReprog?';opacity:.55;text-decoration:line-through':'')+'" title="'+titulo.replace(/"/g,'')+'">'+
+          '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:800">'+(s.pacNombre||'').split(' ')[0]+'</div>'+
+          '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;opacity:.9">'+abrevTerapiaGer(s.terNombre)+(sedeSel?'':' · '+(s.sede||''))+'</div>'+
+          '</div>';
+      });
+      h+='</div>';
+    });
+  });
+  grid.innerHTML=h;
+
+  // Detalle del día seleccionado
+  var detCard=document.getElementById('agendaDetalleCard');
+  var cont=document.getElementById('agendaListaContenido');
+  var titDet=document.getElementById('agendaResumenTit');
+  if(!detCard||!cont)return;
+  var fecha=_agDiaSelGer;
+  var esDentroSemana=dias.some(function(d){return d.f===fecha;});
+  if(!esDentroSemana){detCard.style.display='none';return;}
+  var ses=todasSes.filter(function(s){return s.fecha===fecha;}).sort(function(a,b){return(a.hora||'').localeCompare(b.hora||'');});
+  detCard.style.display='block';
+  var dSel=new Date(fecha+'T12:00:00');
+  if(titDet)titDet.textContent=DIA_FULL_GER[dSel.getDay()]+' '+dSel.getDate()+' '+MES_ES_GER[dSel.getMonth()]+' — '+ses.length+' sesión(es)';
   if(!ses.length){cont.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">🗓️</div>Sin sesiones para este día'+(sedeSel||psSel?' con ese filtro':'')+'.</div>';return;}
-
-  // Agrupado por sede cuando se ven "todas las sedes" — así no se mezclan
-  // visualmente sesiones de sedes distintas a la misma hora.
   var porSede={};
-  ses.forEach(function(s){var k=s.sede||s._sede||'—';(porSede[k]=porSede[k]||[]).push(s);});
+  ses.forEach(function(s){var k=s.sede||'—';(porSede[k]=porSede[k]||[]).push(s);});
   var sedesOrd=Object.keys(porSede).sort();
-  function colorEstadoAg(estado){
-    return estado==='asistio'?'var(--green)':estado==='noasistio'?'var(--red)':
-      estado==='permiso'?'var(--orange)':estado==='reprogramado'?'var(--muted)':'var(--blue)';
-  }
   cont.innerHTML=sedesOrd.map(function(sd){
     return '<div style="margin-bottom:'+(sedesOrd.length>1?'16px':'0')+'">'+
       (sedesOrd.length>1?'<div style="font-size:12px;font-weight:900;color:var(--acc);margin-bottom:6px;text-transform:uppercase">🏥 '+sd+' ('+porSede[sd].length+')</div>':'')+
       porSede[sd].map(function(s){
-        var ec=colorEstadoAg(s.estado);
+        var bc=colorPsAgendaGer(s.psNombre);
+        var ec=colorEstadoAgGer(s.estado);
         return '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg);border-radius:10px;margin-bottom:6px;border-left:4px solid '+ec+'">'+
           '<div style="font-size:14px;font-weight:900;color:var(--dark);min-width:52px">'+(s.hora||'—')+'</div>'+
           '<div style="flex:1;min-width:0">'+
           '<div style="font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.pacNombre||'—')+'</div>'+
           '<div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.psNombre||'—').replace('Lic.','').trim()+' · '+(s.terNombre||'—')+'</div>'+
           '</div>'+
-          '<span class="badge" style="background:'+ec+';color:#fff;font-weight:800">'+(s.estado||'—')+'</span>'+
+          '<span class="badge" style="background:'+bc+';color:#000;font-weight:800">'+(s.estado||'—')+'</span>'+
           '</div>';
       }).join('')+
       '</div>';
@@ -2568,6 +2662,11 @@ function goTab(id,btn){
   var ov=document.getElementById('gerOverlay');
   if(sb)sb.classList.remove('open');
   if(ov)ov.classList.remove('open');
+
+  // La Agenda tiene su propio filtro de sede independiente — el filtro
+  // global de mes/sede de arriba no aplica ahí y se oculta para no confundir.
+  var fb=document.querySelector('.filtros-bar');
+  if(fb)fb.style.display=(id==='tAgenda')?'none':'';
 
   // Renderizar solo la pestaña activa
   var renderMap={
