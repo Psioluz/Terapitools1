@@ -18,7 +18,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
 .bg{background:#dcfce7;color:#166534}.br{background:#fee2e2;color:#991b1b}.bb{background:#eff6ff;color:#1d4ed8}.bo{background:#fff7ed;color:#c2410c}.bgr{background:#f1f5f9;color:#64748b}
 #app{display:none;height:100vh;overflow:hidden;flex-direction:row}
-.sidebar{width:220px;background:var(--sidebar);color:#fff;flex-shrink:0;display:flex;flex-direction:column;height:100vh}
+.sidebar{width:220px;background:var(--sidebar);color:#fff;flex-shrink:0;display:flex;flex-direction:column;height:100vh;transition:width .2s}
+@media(min-width:769px){.sidebar.collapsed{width:0;min-width:0;overflow:hidden}}
 .sidebar-logo{padding:16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
 .sidebar-logo img{width:44px;height:44px;border-radius:10px;object-fit:contain}
 .nav-section{font-size:10px;font-weight:700;color:rgba(255,255,255,.4);padding:14px 16px 4px;text-transform:uppercase;letter-spacing:.6px}
@@ -55,7 +56,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 <script>try{Neutralino.init();Neutralino.events.on("windowClose",function(){Neutralino.app.exit();});}catch(e){console.log("no neutralino")}</script>
 <script>
-// Controles de ventana (minimizar/cerrar) — de respaldo, por si la barra
+// Controles de ventana (minimizar/cerrar) - de respaldo, por si la barra
 // de título nativa de Windows no se ve bien en alguna PC. Solo aparece
 // dentro del ejecutable de escritorio (no en el navegador/PWA).
 try{
@@ -199,7 +200,7 @@ try{
     <div id='listaTerapiasAdm' style='padding:0 14px 14px'></div>
   </div>
   <div class='card'>
-    <div class='card-header'><div class='card-title'>💲 Tarifas por Sede — <span id='tarSedeLbl'></span></div>
+    <div class='card-header'><div class='card-title'>💲 Tarifas por Sede - <span id='tarSedeLbl'></span></div>
       <button class='btn btn-primary btn-sm' onclick="abrirModalTarifa()">+ Nueva Tarifa</button></div>
     <div id='listaTarifas' style='padding:14px'></div>
   </div>
@@ -249,7 +250,7 @@ try{
       <button class='btn btn-primary btn-sm' onclick='abrirModalFeriado()'>➕ Nuevo feriado</button></div>
     <div style='font-size:11px;color:#9d174d;background:#fdf2f8;border-radius:10px;padding:10px 12px;margin:0 14px 12px'>
       Marca si <b>se trabaja o no</b> cada feriado del Perú. Si "No se trabaja": la agenda de
-      las psicólogas queda vacía ese día y Recepción no puede agendar sesiones — no se
+      las psicólogas queda vacía ese día y Recepción no puede agendar sesiones - no se
       contabiliza como sesión perdida. Si "Sí se trabaja": el día funciona normal, sin cambios.
     </div>
     <div style='padding:0 14px 14px' id='listaFeriados'></div>
@@ -395,8 +396,8 @@ try{
   </select>
   <label class='flabel'>¿Se trabaja este feriado?</label>
   <select class='finput' id='ferTipo'>
-    <option value='no_laborable'>❌ No se trabaja — agenda vacía, no se agenda ni cuenta nada</option>
-    <option value='laborable'>✅ Sí se trabaja — día normal</option>
+    <option value='no_laborable'>❌ No se trabaja - agenda vacía, no se agenda ni cuenta nada</option>
+    <option value='laborable'>✅ Sí se trabaja - día normal</option>
   </select>
   <button class='btn btn-primary' style='width:100%;margin-top:12px' onclick='guardarFeriado()'>Guardar</button>
  </div>
@@ -518,7 +519,7 @@ async function sbDelete(t,f){const q=Object.entries(f).map(([k,v])=>k+'='+encode
 async function sbUpload(bucket,path,file,ct){const h={apikey:SBK,'Authorization':'Bearer '+SBK,'Content-Type':ct||file.type||'application/octet-stream','x-upsert':'true'};const r=await fetch(SBU+'/storage/v1/object/'+bucket+'/'+path,{method:'POST',headers:h,body:file});if(!r.ok)throw new Error(await r.text());return SBU+'/storage/v1/object/public/'+bucket+'/'+path;}
 function today(){return new Date(Date.now()-5*3600000).toISOString().split('T')[0];}
 function mesY(){var d=new Date(Date.now()-5*3600000);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
-function fmtF(s){if(!s)return'—';var p=s.toString().split('T')[0].split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:s;}
+function fmtF(s){if(!s)return'-';var p=s.toString().split('T')[0].split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:s;}
 function toast(msg,type){var el=document.getElementById('toast');if(!el)return;el.style.background=type==='error'?'#dc2626':type==='success'?'#15803d':'var(--dark)';el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('show');},4000);}
 function badge(e){var m={activo:'bg',activa:'bg',activo:'bg',firmado:'bg',presente:'bg',programado:'bb',pendiente:'bo',noasistio:'br',vencido:'br',cesada:'bgr'};return'<span class="badge '+(m[String(e||'').toLowerCase()]||'bgr')+'">'+e+'</span>';}
 
@@ -614,7 +615,7 @@ async function recargar(){
 }
 // Histórico de ingresos/gastos de los últimos 6 meses, para el gráfico
 // evolutivo del Dashboard (no se guarda el monto exacto del mes en la UI,
-// solo la tendencia — ver renderDashboard).
+// solo la tendencia - ver renderDashboard).
 async function cargarEvolutivo(){
   var meses=[];
   var d=new Date();
@@ -646,12 +647,26 @@ function showPage(name,el){
   var renders={dashboard:renderDashboard,contratos:renderContratos,sueldos:renderSueldos,asistencia:renderAsistencia,inventario:renderInventario,personal:renderPersonal,sedes:renderSedes,gastos:renderGastos,alquiler:renderAlquiler,auditoria:renderAuditoria,chat:renderChat,cumpleanos:renderCumpleanos,calendario:function(){renderCalendarioPagos('calendarioPagosContainer');},metas:renderMetasPsicologas,fichas:renderFichaPacSel,accesos:renderAccesos,feriados:renderFeriados,rendimiento:renderRendimiento};
   if(renders[name])renders[name]();
   // Cerrar el menú lateral al elegir una sección (igual que las demás
-  // apps) — en escritorio no afecta nada (el sidebar ya es fijo ahí),
+  // apps) - en escritorio no afecta nada (el sidebar ya es fijo ahí),
   // en móvil se oculta y deja más espacio hasta que se presiona ☰ de nuevo.
   document.getElementById('sidebar').classList.remove('open');
 }
 function renderActiva(){var a=document.querySelector('.page.active');if(a){var n=a.id.replace('page-','');showPage(n,document.querySelector('.nav-item.active'));}else showPage('dashboard');}
-function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');}
+function toggleSidebar(){
+  var sb=document.getElementById('sidebar');if(!sb)return;
+  if(window.innerWidth<=768){
+    sb.classList.toggle('open');
+  }else{
+    var col=sb.classList.toggle('collapsed');
+    try{localStorage.setItem('admSidebarCollapsed',col?'1':'0');}catch(e){}
+  }
+}
+window.addEventListener('DOMContentLoaded',function(){
+  var sb=document.getElementById('sidebar');
+  if(sb&&window.innerWidth>768){
+    try{if(localStorage.getItem('admSidebarCollapsed')==='1')sb.classList.add('collapsed');}catch(e){}
+  }
+});
 function cambiarSede(){
   var sel=document.getElementById('selectorSede');if(sel){D.sede=sel.value;recargar();}
 }
@@ -662,7 +677,7 @@ function renderDashboard(){
   var totSes=D.sesiones.length;
   var asistH=D.sesiones.filter(function(s){return s.fecha===today()&&s.estado==='asistio';}).length;
   var kpi=document.getElementById('kpiAdmin');
-  // Administración ve conteos operativos, no montos mensuales exactos —
+  // Administración ve conteos operativos, no montos mensuales exactos -
   // esos los ve Gerencia. Aquí solo tendencia (ver gráfico evolutivo abajo).
   if(kpi)kpi.innerHTML=[
     ['👩‍⚕️',D.psicologas.length,'Psicólogas','#be185d'],
@@ -676,7 +691,7 @@ function renderDashboard(){
   var elA=document.getElementById('alertasAdmin');if(elA)elA.innerHTML=alertas.join('')||'<p style="color:var(--muted);padding:12px">Sin alertas críticas ✅</p>';
   renderEvolutivo();
 }
-// Gráfico evolutivo (últimos 6 meses) — solo tendencia, sin cifra exacta
+// Gráfico evolutivo (últimos 6 meses) - solo tendencia, sin cifra exacta
 // destacada, a propósito (los montos mensuales exactos los ve Gerencia).
 function renderEvolutivo(){
   var el=document.getElementById('resumenDash');if(!el)return;
@@ -684,7 +699,7 @@ function renderEvolutivo(){
     cargarEvolutivo().then(renderEvolutivo);return;}
   var meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   var max=Math.max(1,Math.max.apply(null,D.evolutivo.map(function(x){return Math.max(x.ingresos,x.gastos);})));
-  el.innerHTML='<div style="font-size:11px;color:var(--muted);margin-bottom:10px">Tendencia de ingresos vs. gastos — últimos 6 meses (sin cifras exactas: eso lo ve Gerencia)</div>'+
+  el.innerHTML='<div style="font-size:11px;color:var(--muted);margin-bottom:10px">Tendencia de ingresos vs. gastos - últimos 6 meses (sin cifras exactas: eso lo ve Gerencia)</div>'+
     '<div style="display:flex;align-items:flex-end;gap:10px;height:120px;padding:0 4px">'+
     D.evolutivo.map(function(x){
       var hi=Math.round((x.ingresos/max)*100),hg=Math.round((x.gastos/max)*100);
@@ -705,7 +720,7 @@ function renderContratos(){
   var el=document.getElementById('listaContratos');if(!el)return;
   if(!D.contratos.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin contratos</p>';return;}
   el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Trabajadora</th><th>Tipo</th><th>Inicio</th><th>Vence</th><th>Monto</th><th>Estado</th><th>Firma</th><th></th></tr></thead><tbody>'+
-  D.contratos.map(function(c){return'<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+c.trabajadora+'</td><td style="font-size:12px">'+( c.tipo||'—')+'</td><td style="font-size:12px">'+fmtF(c.fecha_inicio)+'</td><td style="font-size:12px">'+fmtF(c.fecha_fin)+'</td><td style="font-weight:700;color:#15803d">S/'+(c.monto||0)+'</td><td>'+badge(c.estado||'pendiente')+'</td><td style="font-size:11px">'+(c.url_documento?'<a href="'+c.url_documento+'" target="_blank" style="color:var(--acc);font-weight:700">📄 Ver PDF</a>':'—')+'</td><td style="text-align:right"><button onclick="eliminarContrato(\''+c.id+'\')" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer">🗑</button></td></tr>';}).join('')+'</tbody></table>';
+  D.contratos.map(function(c){return'<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+c.trabajadora+'</td><td style="font-size:12px">'+( c.tipo||'-')+'</td><td style="font-size:12px">'+fmtF(c.fecha_inicio)+'</td><td style="font-size:12px">'+fmtF(c.fecha_fin)+'</td><td style="font-weight:700;color:#15803d">S/'+(c.monto||0)+'</td><td>'+badge(c.estado||'pendiente')+'</td><td style="font-size:11px">'+(c.url_documento?'<a href="'+c.url_documento+'" target="_blank" style="color:var(--acc);font-weight:700">📄 Ver PDF</a>':'-')+'</td><td style="text-align:right"><button onclick="eliminarContrato(\''+c.id+'\')" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer">🗑</button></td></tr>';}).join('')+'</tbody></table>';
 }
 async function guardarContrato(){
   var d={trabajadora:document.getElementById('ctTrabajadora').value,sede:D.sede,tipo:document.getElementById('ctTipo').value,fecha_inicio:document.getElementById('ctInicio').value,fecha_fin:document.getElementById('ctFin').value,monto:parseFloat(document.getElementById('ctMonto').value)||0,estado:'pendiente',firmado_el:null,notas:document.getElementById('ctNotas').value};
@@ -721,13 +736,13 @@ async function guardarContrato(){
       var path=sedeCarpeta+'/'+nombreLimpio+'_'+Date.now()+'.pdf';
       d.url_documento=await sbUpload('contratos',path,f,'application/pdf');
     }
-    // Cada trabajadora tiene UN solo contrato vigente — si ya existe una
+    // Cada trabajadora tiene UN solo contrato vigente - si ya existe una
     // fila para ella, se actualiza (y se resetea a "pendiente" con el
     // nuevo PDF) en vez de crear una fila nueva. Antes cada "Crear
     // Contrato" insertaba una fila más, y como la psicóloga consulta
     // "el" contrato con un límite de 1 sin orden definido, Supabase podía
-    // devolver cualquiera de las filas viejas — a veces la ya firmada,
-    // a veces una sin firmar — mostrando estados inconsistentes.
+    // devolver cualquiera de las filas viejas - a veces la ya firmada,
+    // a veces una sin firmar - mostrando estados inconsistentes.
     var existente=await sbGet('contratos',{trabajadora:'eq.'+d.trabajadora,sede:'eq.'+d.sede,select:'id',limit:'1'}).catch(function(){return[];});
     if(existente&&existente.length){
       await sbPatch('contratos',d,{id:'eq.'+existente[0].id});
@@ -768,7 +783,7 @@ function renderSueldos(){
     return'<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+p.nombre+'</td><td>S/'+base+'</td><td style="font-weight:700;color:var(--acc)">'+pacMes+'</td>'
       +'<td style="text-align:center">'+nTard+(rTard?' <span style="font-size:10px;color:var(--muted)">(S/'+rTard.toFixed(2)+' c/u)</span>':'')+'</td>'
       +'<td style="text-align:center">'+nInas+(rInas?' <span style="font-size:10px;color:var(--muted)">(S/'+rInas.toFixed(2)+' c/u)</span>':'')+'</td>'
-      +'<td style="font-weight:700;color:'+(descuento>0?'#dc2626':'var(--muted)')+'">'+(descuento>0?'-S/'+descuento.toFixed(2):'—')+'</td>'
+      +'<td style="font-weight:700;color:'+(descuento>0?'#dc2626':'var(--muted)')+'">'+(descuento>0?'-S/'+descuento.toFixed(2):'-')+'</td>'
       +'<td style="color:#15803d">S/'+bonos.toFixed(2)+'</td><td style="font-weight:900;color:var(--dark)">S/'+total.toFixed(2)+'</td><td>'+badge((hon&&hon.estado)||'pendiente')+'</td></tr>';
   }).join('')+'</tbody></table>'
   +'<div style="font-size:10px;color:var(--muted);margin-top:8px">➖ Los descuentos se aplican según la tasa en S/ configurada por trabajadora (botón "Descuentos"). El bono se asigna manualmente según metas de pacientes atendidos, no por asistencia.</div>';
@@ -779,7 +794,7 @@ function renderAsistencia(){
   var el=document.getElementById('listaAsistAdmin');if(!el)return;
   if(!D.asistencia.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin registros de asistencia</p>';return;}
   el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Fecha</th><th>Psicóloga</th><th>Estado</th><th>Entrada</th><th>Salida</th></tr></thead><tbody>'+
-  D.asistencia.slice(0,100).map(function(a){return'<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-size:12px">'+fmtF(a.fecha)+'</td><td style="font-weight:700">'+a.psicologa+'</td><td>'+badge(a.estado||'presente')+'</td><td style="font-size:12px">'+(a.entrada||'—')+'</td><td style="font-size:12px">'+(a.salida||'—')+'</td></tr>';}).join('')+'</tbody></table>';
+  D.asistencia.slice(0,100).map(function(a){return'<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-size:12px">'+fmtF(a.fecha)+'</td><td style="font-weight:700">'+a.psicologa+'</td><td>'+badge(a.estado||'presente')+'</td><td style="font-size:12px">'+(a.entrada||'-')+'</td><td style="font-size:12px">'+(a.salida||'-')+'</td></tr>';}).join('')+'</tbody></table>';
 }
 
 // INVENTARIO
@@ -787,7 +802,7 @@ function renderInventario(){
   var el=document.getElementById('listaInventario');if(!el)return;
   if(!D.insumos.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin insumos registrados</p>';return;}
   el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Insumo</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Precio</th><th>Vence</th><th>Estado</th></tr></thead><tbody>'+
-  D.insumos.map(function(i){var bajo=(i.cantidad_actual||0)<=(i.stock_minimo||0);return'<tr style="border-bottom:1px solid var(--border)'+(bajo?';background:#fff5f5':'')+'">'+'<td style="padding:9px 10px;font-weight:700">'+i.nombre+'</td><td style="font-size:12px">'+(i.categoria||'—')+'</td><td style="font-weight:900;color:'+(bajo?'#dc2626':'#15803d')+'">'+( i.cantidad_actual||0)+' '+(i.unidad||'')+'</td><td style="font-size:12px">'+(i.stock_minimo||0)+'</td><td style="font-size:12px">S/'+(i.precio_unitario||0)+'</td><td style="font-size:12px">'+fmtF(i.fecha_vencimiento)+'</td><td>'+badge(bajo?'vencido':'activo')+'</td></tr>';}).join('')+'</tbody></table>';
+  D.insumos.map(function(i){var bajo=(i.cantidad_actual||0)<=(i.stock_minimo||0);return'<tr style="border-bottom:1px solid var(--border)'+(bajo?';background:#fff5f5':'')+'">'+'<td style="padding:9px 10px;font-weight:700">'+i.nombre+'</td><td style="font-size:12px">'+(i.categoria||'-')+'</td><td style="font-weight:900;color:'+(bajo?'#dc2626':'#15803d')+'">'+( i.cantidad_actual||0)+' '+(i.unidad||'')+'</td><td style="font-size:12px">'+(i.stock_minimo||0)+'</td><td style="font-size:12px">S/'+(i.precio_unitario||0)+'</td><td style="font-size:12px">'+fmtF(i.fecha_vencimiento)+'</td><td>'+badge(bajo?'vencido':'activo')+'</td></tr>';}).join('')+'</tbody></table>';
 }
 async function guardarInsumo(){
   var d={nombre:document.getElementById('inNombre').value,sede:D.sede,categoria:document.getElementById('inCat').value,unidad:document.getElementById('inUnidad').value,cantidad_actual:parseFloat(document.getElementById('inCant').value)||0,stock_minimo:parseFloat(document.getElementById('inMin').value)||0,precio_unitario:parseFloat(document.getElementById('inPrecio').value)||0,fecha_vencimiento:document.getElementById('inVence').value||null};
@@ -868,8 +883,8 @@ function renderAccesos(){
     if(!lista.length){el.innerHTML=titulo+'<p style="color:var(--muted);font-size:12px;padding:8px 0">Sin cuentas registradas</p>';return;}
     el.innerHTML=titulo+'<div style="display:grid;gap:8px">'+lista.map(function(u){
       return '<div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f8faff;border-radius:10px;flex-wrap:wrap">'+
-        '<div style="flex:1;min-width:160px"><div style="font-weight:700;font-size:13px">'+(u.nombre||'—')+'</div>'+
-        '<div style="font-size:11px;color:var(--muted)">'+(u.email||'—')+(u.sede?' · '+u.sede:'')+(u.rol?' · '+u.rol:'')+'</div></div>'+
+        '<div style="flex:1;min-width:160px"><div style="font-weight:700;font-size:13px">'+(u.nombre||'-')+'</div>'+
+        '<div style="font-size:11px;color:var(--muted)">'+(u.email||'-')+(u.sede?' · '+u.sede:'')+(u.rol?' · '+u.rol:'')+'</div></div>'+
         (u.estado?badge(u.estado):'')+
         '<button style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="editarAcceso(\''+tabla+'\','+JSON.stringify(u.id)+')">✏️ Editar</button>'+
         '<button style="padding:5px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="eliminarAcceso(\''+tabla+'\','+JSON.stringify(u.id)+')">🗑️</button>'+
@@ -955,7 +970,7 @@ function renderFeriados(){
     var noLab=f.tipo_gestion==='no_laborable';
     var inactivo=f.estado==='inactivo';
     return '<div style="display:flex;align-items:center;gap:10px;padding:10px;background:'+(inactivo?'#f1f5f9':(noLab?'#fef2f2':'#f0fdf4'))+';border-radius:10px;flex-wrap:wrap'+(inactivo?';opacity:.6':'')+'">'+
-      '<div style="flex:1;min-width:160px"><div style="font-weight:700;font-size:13px">'+fmtF(f.fecha)+' — '+(f.descripcion||'—')+'</div>'+
+      '<div style="flex:1;min-width:160px"><div style="font-weight:700;font-size:13px">'+fmtF(f.fecha)+' - '+(f.descripcion||'-')+'</div>'+
       '<div style="font-size:11px;color:var(--muted)">'+(f.sede||'Todas')+' · '+(noLab?'❌ No se trabaja':'✅ Sí se trabaja')+(inactivo?' · inactivo':'')+'</div></div>'+
       '<button style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="editarFeriado(\''+f.id+'\')">✏️</button>'+
       '<button style="padding:5px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="eliminarFeriado(\''+f.id+'\')">🗑️</button>'+
@@ -1001,19 +1016,19 @@ async function eliminarFeriado(id){
 function renderRendimiento(){
   var el=document.getElementById('listaRendimiento');if(!el)return;
   var lista=(D.rendimiento||[]).slice().sort(function(a,b){return (b.score_rendimiento||0)-(a.score_rendimiento||0);});
-  if(!lista.length){el.innerHTML='<p style="color:var(--muted);text-align:center;padding:16px">Sin reporte generado para '+mesY()+' — usa "Generar reporte del mes"</p>';return;}
+  if(!lista.length){el.innerHTML='<p style="color:var(--muted);text-align:center;padding:16px">Sin reporte generado para '+mesY()+' - usa "Generar reporte del mes"</p>';return;}
   el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Recepcionista</th><th>Sede</th><th>Consultas</th><th>Paquetes</th><th>Conversión</th><th>% Asistencia</th><th>Puntaje</th><th>Nivel</th></tr></thead><tbody>'+
   lista.map(function(r){
     var conv=r.consultas_agendadas>0?Math.round((r.paquetes_agendados/r.consultas_agendadas)*100):0;
     var colorNivel={'Excelente':'#15803d','Bueno':'#2563eb','Regular':'#d97706','Bajo':'#dc2626'}[r.nivel_rendimiento]||'#64748b';
-    return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(r.nombre||'—')+'</td>'+
-      '<td style="font-size:11px;color:var(--muted)">'+(r.sede||'—')+'</td>'+
+    return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(r.nombre||'-')+'</td>'+
+      '<td style="font-size:11px;color:var(--muted)">'+(r.sede||'-')+'</td>'+
       '<td style="text-align:center">'+(r.consultas_agendadas||0)+'</td>'+
       '<td style="text-align:center">'+(r.paquetes_agendados||0)+'</td>'+
       '<td style="text-align:center;font-weight:700">'+conv+'%</td>'+
       '<td style="text-align:center">'+(r.porcentaje_asistencia||0).toFixed(0)+'%</td>'+
       '<td style="text-align:center;font-weight:900">'+(r.score_rendimiento||0).toFixed(0)+'</td>'+
-      '<td style="text-align:center;font-weight:700;color:'+colorNivel+'">'+(r.nivel_rendimiento||'—')+'</td></tr>';
+      '<td style="text-align:center;font-weight:700;color:'+colorNivel+'">'+(r.nivel_rendimiento||'-')+'</td></tr>';
   }).join('')+'</tbody></table>'+
   '<div style="font-size:10px;color:var(--muted);padding:10px 4px 0">"Conversión" = paquetes agendados ÷ consultas agendadas (cuántos pacientes se quedan tras la consulta). Puntaje = 60% conversión + 40% % de asistencia.</div>';
 }
@@ -1067,7 +1082,7 @@ function renderGastos(){
   document.getElementById('totalGastos').textContent='S/'+tot.toFixed(2);
   if(!D.gastos.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin gastos registrados</p>';return;}
   el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Fecha</th><th>Tipo</th><th>Descripción</th><th>Monto</th><th>Registrado por</th></tr></thead><tbody>'+
-  D.gastos.map(function(g){return'<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-size:12px">'+fmtF(g.fecha)+'</td><td>'+badge(g.tipo||'—')+'</td><td style="font-size:12px">'+(g.descripcion||'—')+'</td><td style="font-weight:700;color:#dc2626">S/'+(g.monto||0).toFixed(2)+'</td><td style="font-size:11px;color:var(--muted)">'+(g.registrado_por||'—')+'</td></tr>';}).join('')+'</tbody></table>';
+  D.gastos.map(function(g){return'<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-size:12px">'+fmtF(g.fecha)+'</td><td>'+badge(g.tipo||'-')+'</td><td style="font-size:12px">'+(g.descripcion||'-')+'</td><td style="font-weight:700;color:#dc2626">S/'+(g.monto||0).toFixed(2)+'</td><td style="font-size:11px;color:var(--muted)">'+(g.registrado_por||'-')+'</td></tr>';}).join('')+'</tbody></table>';
 }
 async function guardarGasto(){
   var d={fecha:document.getElementById('gtFecha').value||today(),sede:D.sede,tipo:document.getElementById('gtTipo').value,descripcion:document.getElementById('gtDesc').value,monto:parseFloat(document.getElementById('gtMonto').value)||0,registrado_por:ADM.nombre};
@@ -1192,13 +1207,13 @@ function renderTarifas(){
     var verTodas=!D.sede;
     if(!(D.tarifas||[]).length)el.innerHTML='<p style="color:var(--muted);text-align:center;padding:16px">Sin tarifas registradas'+(verTodas?'':' para esta sede')+'</p>';
     else el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Servicio</th>'+(verTodas?'<th>Sede</th>':'')+'<th>Tipo</th><th>Sesiones</th><th>Precio</th><th>Cuotas</th><th>Por cuota</th><th></th></tr></thead><tbody>'+
-    D.tarifas.map(function(t){var cuotas=t.cantidad_cuotas||1;var porCuota=t.monto_cuota||((t.costo_total||0)/cuotas);return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(t.nombre_servicio||'—')+'</td>'+(verTodas?'<td style="font-size:11px;color:var(--muted)">'+(t.sede||'—')+'</td>':'')+'<td style="font-size:12px">'+(t.tipo||'paquete')+'</td><td style="font-weight:700">'+(t.nro_sesiones||0)+'</td><td style="font-weight:900;color:#15803d">S/'+(t.costo_total||0)+'</td><td style="text-align:center">'+cuotas+'</td><td>S/'+porCuota.toFixed(2)+'</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-sm" style="background:#eef2ff;color:#4338ca" onclick="editarTarifa(\''+t.id+'\')">✏️</button> <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarTarifa(\''+t.id+'\')">🗑</button></td></tr>';}).join('')+'</tbody></table>';
+    D.tarifas.map(function(t){var cuotas=t.cantidad_cuotas||1;var porCuota=t.monto_cuota||((t.costo_total||0)/cuotas);return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(t.nombre_servicio||'-')+'</td>'+(verTodas?'<td style="font-size:11px;color:var(--muted)">'+(t.sede||'-')+'</td>':'')+'<td style="font-size:12px">'+(t.tipo||'paquete')+'</td><td style="font-weight:700">'+(t.nro_sesiones||0)+'</td><td style="font-weight:900;color:#15803d">S/'+(t.costo_total||0)+'</td><td style="text-align:center">'+cuotas+'</td><td>S/'+porCuota.toFixed(2)+'</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-sm" style="background:#eef2ff;color:#4338ca" onclick="editarTarifa(\''+t.id+'\')">✏️</button> <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarTarifa(\''+t.id+'\')">🗑</button></td></tr>';}).join('')+'</tbody></table>';
   }
   var el2=document.getElementById('listaPrecios');
   if(el2){
     if(!(D.precios||[]).length)el2.innerHTML='<p style="color:var(--muted);text-align:center;padding:16px">Sin precios especiales</p>';
     else el2.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Paciente</th><th>Servicio</th><th>Precio</th><th>Motivo</th><th></th></tr></thead><tbody>'+
-    D.precios.map(function(p){return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(p.paciente_nombre||'—')+'</td><td style="font-size:12px">'+(p.nombre_servicio||'—')+'</td><td style="font-weight:900;color:var(--acc)">S/'+(p.precio_especial||0)+'</td><td style="font-size:12px">'+(p.motivo||'—')+'</td><td style="text-align:right"><button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarPrecioEsp(\''+p.id+'\')">🗑</button></td></tr>';}).join('')+'</tbody></table>';
+    D.precios.map(function(p){return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(p.paciente_nombre||'-')+'</td><td style="font-size:12px">'+(p.nombre_servicio||'-')+'</td><td style="font-weight:900;color:var(--acc)">S/'+(p.precio_especial||0)+'</td><td style="font-size:12px">'+(p.motivo||'-')+'</td><td style="text-align:right"><button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarPrecioEsp(\''+p.id+'\')">🗑</button></td></tr>';}).join('')+'</tbody></table>';
   }
 }
 function abrirModalTarifa(){
@@ -1297,17 +1312,17 @@ function _pdfEncabezado(doc,titulo,pac){
   doc.text('CENTRO TERAPÉUTICO INTEGRAL PSICOLUZ',46,y+8);
   doc.setFontSize(11);doc.text(titulo,46,y+16);
   doc.setFontSize(8);doc.setFont('helvetica','normal');
-  doc.text('Generado: '+new Date().toLocaleString('es-PE')+' — Por: '+((typeof ADM!=='undefined'&&ADM&&ADM.nombre)||'Administración'),46,y+23);
+  doc.text('Generado: '+new Date().toLocaleString('es-PE')+' - Por: '+((typeof ADM!=='undefined'&&ADM&&ADM.nombre)||'Administración'),46,y+23);
   y+=34;
   doc.setTextColor(30,30,30);
   doc.setDrawColor(230,230,230);doc.setFillColor(250,247,248);
   doc.roundedRect(M,y,W-M*2,26,2,2,'FD');
   doc.setFontSize(9);doc.setFont('helvetica','bold');
-  doc.text('Paciente: '+(pac.nombre||'—'),M+4,y+7);
+  doc.text('Paciente: '+(pac.nombre||'-'),M+4,y+7);
   doc.setFont('helvetica','normal');
-  doc.text('DNI: '+(pac.dni||'—')+'   Sede: '+(pac.sede||'—')+'   Fecha de nacimiento: '+(pac.fecha_nac||'—'),M+4,y+13);
-  doc.text('Diagnóstico: '+(pac.diagnostico||'—'),M+4,y+19);
-  doc.text('Psicóloga: '+(pac.psicologa||'—')+'   Terapia: '+(pac.terapia||'—'),M+4,y+25);
+  doc.text('DNI: '+(pac.dni||'-')+'   Sede: '+(pac.sede||'-')+'   Fecha de nacimiento: '+(pac.fecha_nac||'-'),M+4,y+13);
+  doc.text('Diagnóstico: '+(pac.diagnostico||'-'),M+4,y+19);
+  doc.text('Psicóloga: '+(pac.psicologa||'-')+'   Terapia: '+(pac.terapia||'-'),M+4,y+25);
   return y+32;
 }
 async function imprimirFichaConsolidada(){
@@ -1326,7 +1341,7 @@ async function imprimirFichaConsolidada(){
       if(y>H-40){doc.addPage();y=16;}
       doc.setFillColor(253,242,246);doc.roundedRect(M,y,W-M*2,6,1,1,'F');
       doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(136,14,79);
-      doc.text('Sesión del '+(f.fecha||'—')+(f.hora?' — '+f.hora:'')+'   ·   '+(f.terapia||'—')+'   ·   '+(f.psicologa_nombre||'—'),M+2,y+4.3);
+      doc.text('Sesión del '+(f.fecha||'-')+(f.hora?' - '+f.hora:'')+'   ·   '+(f.terapia||'-')+'   ·   '+(f.psicologa_nombre||'-'),M+2,y+4.3);
       y+=9;
       doc.setTextColor(30,30,30);doc.setFont('helvetica','normal');doc.setFontSize(8.5);
       var campos=[['Objetivo',f.objetivo],['Actividad realizada',f.actividad],['Resultados / observaciones',f.resultados],['Próxima sesión sugerida',f.proxima_sesion]];
@@ -1365,7 +1380,7 @@ async function imprimirHistorialAtencion(){
       var obs=ficha?(ficha.resultados||ficha.actividad||''):'';
       if(i%2===1){doc.setFillColor(250,247,248);doc.rect(M,y,W-M*2,6,'F');}
       x=M;
-      var vals=[String(i+1),s.fecha||'—',(s.terapia||'—').slice(0,22),(s.psicologa||'—').slice(0,22),s.estado||'—',pago?pago.fecha:'—',pago?('S/'+pago.monto):'—',obs.slice(0,60)];
+      var vals=[String(i+1),s.fecha||'-',(s.terapia||'-').slice(0,22),(s.psicologa||'-').slice(0,22),s.estado||'-',pago?pago.fecha:'-',pago?('S/'+pago.monto):'-',obs.slice(0,60)];
       vals.forEach(function(v,ci){doc.text(String(v),x+2,y+4.2);x+=cols[ci][1];});
       y+=6;
     });
@@ -1472,7 +1487,7 @@ function renderAlquiler(){
   var tot=rows.reduce(function(a,r){return a+(r.monto||0);},0);
   el.innerHTML='<div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:8px">Total mensual fijo: S/'+tot.toFixed(2)+'</div>'+
     '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Concepto</th><th>Monto</th><th>Día de pago</th><th>Sede</th><th>Estado</th><th></th></tr></thead><tbody>'+
-    rows.map(function(r){return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(r.concepto||'—')+'</td><td style="font-weight:900;color:#dc2626">S/'+(r.monto||0)+'</td><td style="font-size:12px">Día '+(r.dia_pago||'—')+'</td><td style="font-size:12px">'+(r.sede||'Todas')+'</td><td>'+badge(r.activo===false?'inactivo':'activo')+'</td><td style="text-align:right"><button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarRecurrente(\''+r.id+'\')">🗑</button></td></tr>';}).join('')+
+    rows.map(function(r){return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(r.concepto||'-')+'</td><td style="font-weight:900;color:#dc2626">S/'+(r.monto||0)+'</td><td style="font-size:12px">Día '+(r.dia_pago||'-')+'</td><td style="font-size:12px">'+(r.sede||'Todas')+'</td><td>'+badge(r.activo===false?'inactivo':'activo')+'</td><td style="text-align:right"><button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarRecurrente(\''+r.id+'\')">🗑</button></td></tr>';}).join('')+
     '</tbody></table>';
 }
 function abrirModalRecurrente(){
@@ -1630,9 +1645,9 @@ async function verDetalleEvento(dia,idx){
   var t=_calTrabajadoras.find(function(x){return x.nombre===e.ref;});
   titEl.textContent='👤 '+e.ref;
   if(!t){cuerpoEl.innerHTML='<div style="color:var(--muted)">No se encontró el detalle.</div>';return;}
-  cuerpoEl.innerHTML=fila('Sede',t.sede||'—')
+  cuerpoEl.innerHTML=fila('Sede',t.sede||'-')
     +fila('Sueldo mensual',t.sueldo?('S/ '+Number(t.sueldo).toFixed(2)):'<span style="color:#dc2626">No registrado</span>')
-    +fila('Día de pago',(t.dia_pago||'—')+'')
+    +fila('Día de pago',(t.dia_pago||'-')+'')
     +fila('N° de cuenta',t.numero_cuenta||'<span style="color:#dc2626">No registrado</span>')
     +fila('Cuenta interbancaria (CCI)',t.cci||'<span style="color:#dc2626">No registrado</span>')
     +'<div style="margin-top:6px;padding-top:8px;border-top:1px dashed var(--border)"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">🎯 Metas del mes</div><div id="detalleEvMeta">⏳ Calculando...</div></div>';
@@ -1693,7 +1708,7 @@ async function renderMetasPsicologas(){
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-//  PSICOLUZ — NOTIFICACIONES UNIVERSALES v2
+//  PSICOLUZ - NOTIFICACIONES UNIVERSALES v2
 //  Sonido + notificación del sistema + banner en la app
 // ═══════════════════════════════════════════════════════════════
 (function(){
@@ -1765,7 +1780,7 @@ async function renderMetasPsicologas(){
       Notification.requestPermission().catch(function(){});
     }
     // La mayoría de navegadores bloquea el audio hasta que haya un gesto
-    // real del usuario (click/touch) — si sonidoNotif() recién crea el
+    // real del usuario (click/touch) - si sonidoNotif() recién crea el
     // AudioContext cuando llega la primera notificación (por un
     // setInterval, sin gesto de por medio), el navegador la deja
     // "suspended" para siempre y no suena nunca, sin ningún error visible.

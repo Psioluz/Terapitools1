@@ -46,6 +46,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .hdr-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .reloj-hdr{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--acc);letter-spacing:1px}
 .fecha-hdr{font-size:10px;opacity:.65;text-align:right}
+/* En escritorio el sidebar ya muestra el logo/nombre/rol - repetirlo en el
+   header principal era la 3ra vez que se veía la misma marca en pantalla
+   (ventana + sidebar + header). Se oculta ahí y queda solo en el sidebar. */
+@media(min-width:901px){.hdr-left{display:none}}
+.ger-hamburger{display:flex!important}
 
 /* Filtros globales */
 .filtros-bar{background:#fff;border-bottom:1px solid var(--border);
@@ -70,21 +75,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 /* Contenido */
 .content{flex:1;padding:14px;overflow-y:auto}
 /* Algunas pestañas (Asistencia, Chat, Docs Psicólogas, Cumpleaños,
-   Calendario, Accesos) NO viven dentro de .content — son hermanas suyas,
+   Calendario, Accesos) NO viven dentro de .content - son hermanas suyas,
    directamente bajo .ger-main (flex-column). Como .content tiene flex:1,
    sigue creciendo y ocupando espacio aunque esté vacía (todas sus páginas
    internas en display:none), empujando hacia abajo a la pestaña de
-   verdad activa — el hueco en blanco que se veía arriba de Asistencia y
+   verdad activa - el hueco en blanco que se veía arriba de Asistencia y
    Docs Psicólogas. Se colapsa por completo cuando ninguna de SUS páginas
    está activa. */
 .content:not(:has(.page.active)){flex:0 0 0;padding:0;min-height:0;overflow:hidden}
 .page{display:none!important}.page.active{display:block!important}
 /* El chat necesita quedar en columna (flex) para que el cuadro de texto se
-   pegue abajo y los mensajes ocupen el resto — si no, .page.active de
+   pegue abajo y los mensajes ocupen el resto - si no, .page.active de
    arriba lo fuerza a display:block y deja un hueco vacío enorme debajo. */
 #tChat.page.active{display:flex!important}
 /* Los <option> de un <select> con fondo/color propios no heredan bien en
-   algunos navegadores — quedaba texto blanco sobre fondo blanco al abrir
+   algunos navegadores - quedaba texto blanco sobre fondo blanco al abrir
    la lista. Se fuerza texto oscuro sobre fondo claro en las opciones. */
 #chatSedeSelGer option{color:#111;background:#fff}
 
@@ -183,7 +188,7 @@ tbody tr:hover{background:#e6fafa}
 .ps-stat-v{font-size:16px;font-weight:900;color:var(--acc)}
 .ps-stat-l{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase}
 
-/* Toast — en reposo solo se escondía moviéndolo 80px hacia abajo con
+/* Toast - en reposo solo se escondía moviéndolo 80px hacia abajo con
    transform, pero como la caja tiene padding fijo (aunque esté vacía de
    texto) ese cálculo no la saca del todo de la pantalla: quedaba una
    cajita oscura visible flotando cerca del borde inferior todo el
@@ -211,12 +216,12 @@ tbody tr:hover{background:#e6fafa}
 .ai{background:#eff6ff;border-color:var(--blue);color:#1e40af}
 .ar{background:#fee2e2;border-color:var(--red);color:#991b1b}
 
-/* PWA botón instalar — vive dentro de la tarjeta de login (ver el <button
+/* PWA botón instalar - vive dentro de la tarjeta de login (ver el <button
    id="btnInstalar"> más abajo), nunca flotante: la regla vieja traía
    position:fixed;bottom;right pensada para un botón flotante que ya no
    existe, y como el botón real no fija su propia posición, terminaba
    siendo un recuadro fijo de ancho completo (100% del viewport) pegado
-   abajo — la "cajita negra" que se asomaba en la esquina inferior. */
+   abajo - la "cajita negra" que se asomaba en la esquina inferior. */
 #btnInstalar{display:none;background:var(--dark);
   color:var(--acc);border:2px solid var(--acc);border-radius:40px;padding:10px 18px;
   font-size:12px;font-weight:700;cursor:pointer;z-index:99;align-items:center;gap:6px;
@@ -267,6 +272,12 @@ select.fsel{
 .ger-nav-item.active{background:rgba(240,98,146,.2);color:#fff;border-left-color:#f06292;font-weight:800}
 .ger-main{flex:1;display:flex;flex-direction:column;min-width:0;overflow-x:hidden}
 .ger-sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99}
+/* Colapsar el sidebar en escritorio para ganar espacio de pantalla - a
+   diferencia de .open (drawer móvil), esto NO usa transform (rompería el
+   position:sticky) sino que directamente le quita el ancho. */
+@media(min-width:901px){
+  .ger-sidebar.collapsed{width:0;min-width:0;overflow:hidden;box-shadow:none;border:none}
+}
 @media(max-width:900px){
   .ger-sidebar{position:fixed;left:0;top:0;height:100%;width:280px;min-width:280px;
     transform:translateX(-100%);z-index:200}
@@ -426,7 +437,7 @@ select.fsel{
   <select class="fsel" id="fSede" onchange="recargar()">
     <option value="">🌐 Todas las sedes</option>
   </select>
-  <span class="sync-status" id="syncStatus" style="display:none">—</span>
+  <span class="sync-status" id="syncStatus" style="display:none">-</span>
 </div>
 
 <!-- Nav tabs -->
@@ -634,7 +645,7 @@ select.fsel{
       </div>
     </div>
     <div style="padding:0 16px 12px;font-size:13px;font-weight:800;color:var(--muted)" id="agendaSemTit"></div>
-    <div style="padding:0 16px 12px;font-size:11px;color:var(--muted)">Réplica de la agenda de recepción, con el filtro de sede propio de este panel — los filtros globales de arriba no aplican aquí. Los colores respetan los que cada recepcionista asignó a cada psicóloga.</div>
+    <div style="padding:0 16px 12px;font-size:11px;color:var(--muted)">Réplica de la agenda de recepción, con el filtro de sede propio de este panel - los filtros globales de arriba no aplican aquí. Los colores respetan los que cada recepcionista asignó a cada psicóloga.</div>
   </div>
   <div class="card" style="padding:0">
     <div class="ag-scroll-box">
@@ -660,7 +671,7 @@ select.fsel{
       </div>
       <div style="text-align:right">
         <div style="font-size:11px;opacity:.7">Confianza</div>
-        <div style="font-size:24px;font-weight:900" id="fcConfianza">—</div>
+        <div style="font-size:24px;font-weight:900" id="fcConfianza">-</div>
       </div>
     </div>
     <div class="fin-chips" style="margin-top:10px">
@@ -697,7 +708,7 @@ select.fsel{
   </div>
 
   <!-- Los cumpleaños ya tienen su propia pestaña dedicada (🎂 Cumpleaños en
-       el sidebar) — mostrarlos también aquí en Crecimiento no tenía nada
+       el sidebar) - mostrarlos también aquí en Crecimiento no tenía nada
        que ver con el resto de la pestaña (retención, LTV, ROI, ocupación) y
        confundía. #listCumple/#nCumple quedan ocultos (fuera de pantalla,
        no display:none) para no romper renderCumpleanos()/renderCumple(),
@@ -844,11 +855,11 @@ async function eliminarPagoRecurrente(id){
   <!-- ══ CHAT GERENCIA (todas las sedes) ══ -->
   <div class="page" id="tChat" style="display:flex;flex-direction:column;height:calc(100vh - 64px)">
     <div style="padding:12px 16px;background:linear-gradient(135deg,#3d0c28,#ad1457);color:#fff;flex-shrink:0">
-      <div style="font-weight:800;font-size:14px">💬 Chat — <span id="chatSedeTituloGer">Todas las sedes</span></div>
+      <div style="font-weight:800;font-size:14px">💬 Chat - <span id="chatSedeTituloGer">Todas las sedes</span></div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
         <label style="font-size:10px;opacity:.8">Enviar a sede:</label>
         <select id="chatSedeSelGer" onchange="window._chatSedeSelGerVal=this.value" style="font-size:11px;padding:3px 8px;border-radius:6px;border:none;background:rgba(255,255,255,.2);color:#fff">
-          <option value="">— Elige la sede —</option>
+          <option value="">- Elige la sede -</option>
         </select>
         <span style="font-size:10px;opacity:.7">· Ves mensajes de todas las sedes</span>
       </div>
@@ -867,11 +878,7 @@ async function eliminarPagoRecurrente(id){
     <div class="card" style="margin-bottom:14px">
       <div class="ch" style="display:flex;justify-content:space-between;align-items:center">
         <div class="ct">📋 Documentos del Personal</div>
-        <div style="display:flex;gap:8px">
-          <select id="docsPsFilSede" class="fsel" onchange="renderDocsPsicologas()" style="font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--border)">
-            <option value="">Todas las sedes</option>
-          </select>
-        </div>
+        <div style="font-size:11px;color:var(--muted)">Usa el filtro de sede de arriba ↑</div>
       </div>
     </div>
     <div id="docsPsContenido">
@@ -898,7 +905,7 @@ function mostrarBienvenida(nombre){
   var saludo=h<12?'¡Buenos días':h<19?'¡Buenas tardes':'¡Buenas noches';
   var nom=(nombre||_gerNombre||'').replace(/^(lic\.?|sr\.?|sra\.?)\s*/i,'').trim().split(' ')[0]||'Gerente';
   var frases=[
-    saludo+', '+nom+'! 💎 Que tenga un excelente día — es la mejor 🏆',
+    saludo+', '+nom+'! 💎 Que tenga un excelente día - es la mejor 🏆',
     saludo+', '+nom+'! 🚀 Su visión sigue impulsando a todo el equipo',
     saludo+', '+nom+'! 🌟 Cada decisión suya construye el futuro de Psicoluz',
     saludo+', '+nom+'! 💜 Liderar con el corazón es su mayor fortaleza',
@@ -945,7 +952,7 @@ let G = {
 };
 
 // ── UTILS ────────────────────────────────────────────────────────────────────
-// Perú usa GMT-5 todo el año (sin horario de verano) — se calcula restando
+// Perú usa GMT-5 todo el año (sin horario de verano) - se calcula restando
 // 5h al instante UTC y leyendo los componentes UTC del resultado, para que
 // la fecha/hora no dependa de cómo esté configurado el equipo/navegador ni
 // de Date#toISOString (que da la fecha en UTC: pasado las 7pm hora de Lima
@@ -955,8 +962,8 @@ function fechaLima(d){var l=new Date(_limaMs(d));return l.getUTCFullYear()+'-'+S
 function horaLima(d){var l=new Date(_limaMs(d));return String(l.getUTCHours()).padStart(2,'0')+':'+String(l.getUTCMinutes()).padStart(2,'0');}
 function today(){ return fechaLima(); }
 function mesActual(){ var l=new Date(_limaMs()); return l.getUTCFullYear()+'-'+String(l.getUTCMonth()+1).padStart(2,'0'); }
-function fmtF(f){ if(!f)return'—'; var p=String(f).split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f; }
-function fmtM(ym){ if(!ym||!ym.includes('-'))return ym||'—'; var p=ym.split('-'); return MESES[parseInt(p[1])-1]+' '+p[0]; }
+function fmtF(f){ if(!f)return'-'; var p=String(f).split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f; }
+function fmtM(ym){ if(!ym||!ym.includes('-'))return ym||'-'; var p=ym.split('-'); return MESES[parseInt(p[1])-1]+' '+p[0]; }
 function s2(v){ return String(v||0).padStart(2,'0'); }
 function pct(a,b){ return b>0?Math.round(a/b*100):0; }
 
@@ -997,7 +1004,7 @@ function sbar(on){
   }
   function _jr(d){return new Response(JSON.stringify(d),{headers:{'Content-Type':'application/json'}});}
   function _fH(h){return h?h.substring(0,5):'';}
-  // Gerencia no tiene una "sede actual" (administra las 4) — a diferencia de
+  // Gerencia no tiene una "sede actual" (administra las 4) - a diferencia de
   // psicologa.html/recepcion.html, aquí NO existe un objeto PS. Antes esto
   // lanzaba un ReferenceError silenciosamente atrapado que hacía caer todo a
   // 'Comas', así que getData nunca traía datos de las otras 3 sedes.
@@ -1050,8 +1057,8 @@ function _diasTrabajoANum(txt){
             status:'ok',
             sesiones:ses.map(function(s){
               return {id:s.id,fecha:s.fecha,hora:_fH(s.hora),sede:s.sede||'',
-                pacNombre:s.paciente_nombre||'—',pacTel:s.paciente_tel||'',
-                psNombre:s.psicologa||'—',terNombre:s.terapia||'—',
+                pacNombre:s.paciente_nombre||'-',pacTel:s.paciente_tel||'',
+                psNombre:s.psicologa||'-',terNombre:s.terapia||'-',
                 estado:s.estado||'programado',tipo:s.tipo||'sesion',
                 nroEnPaq:s.nro_en_paquete||0,totalPaq:s.total_paquete||1,
                 costoTotal:s.costo_total||0,saldo:s.saldo||0,
@@ -1292,7 +1299,7 @@ function _diasTrabajoANum(txt){
 
 
 // (El calendario de pagos vivo ahora es renderCalendarioPagos, definido más abajo
-//  como calendario mensual con pagos + recurrentes + cumpleaños — este bloque viejo
+//  como calendario mensual con pagos + recurrentes + cumpleaños - este bloque viejo
 //  se eliminó porque sobreescribía esa versión más completa.)
 
 
@@ -1476,7 +1483,7 @@ async function sincronizar(mostrar){
   }catch(err){
     var el=document.getElementById('syncStatus');
     if(el)el.textContent='⚠️ Sin Sheet';
-    if(mostrar)toast('Sin conexión al Sheet — mostrando datos locales','err');
+    if(mostrar)toast('Sin conexión al Sheet - mostrando datos locales','err');
     console.log('Sheet:',err.message);
     renderTodo();
   }
@@ -1529,7 +1536,7 @@ function filtPac(arr){
   return arr.filter(p=>!sd||(p.sede||p._sede||'')===sd);
 }
 // El saldo real de un paciente es pacientes.saldo (deuda/crédito suelto,
-// fuera de paquete) MÁS el saldo de sus paquetes activos — antes "Saldo
+// fuera de paquete) MÁS el saldo de sus paquetes activos - antes "Saldo
 // Pendiente" en Finanzas solo sumaba pacientes.saldo, ignorando por
 // completo la deuda de paquete (que es donde vive la mayoría de la
 // deuda real), así que el número mostrado (ej. "-58") no reflejaba la
@@ -1540,7 +1547,7 @@ function _saldoRealPac(p){
   return saldoPaquetes+(p.saldo||0);
 }
 // El progreso real de un paquete se calcula de las sesiones (tipo:'paquete',
-// totalPaq) — pacientes.mod/pacientes.paquete son campos heredados que no
+// totalPaq) - pacientes.mod/pacientes.paquete son campos heredados que no
 // reflejan el paquete real (viven en programas_paciente/sesiones).
 function _paqInfoPac(p){
   var ses=(G.sesiones||[]).filter(function(s){return(s.pacNombre===p.nombre||s.pacId===p.id)&&s.tipo==='paquete'&&s.totalPaq;});
@@ -1584,7 +1591,7 @@ function recargar(){
 // ── RENDER GLOBAL ─────────────────────────────────────────────────────────────
 
 // ════════════════════════════════════════════════════════════════
-//  CRECIMIENTO — Forecast, Semáforo, Retención, LTV, ROI, Heatmap
+//  CRECIMIENTO - Forecast, Semáforo, Retención, LTV, ROI, Heatmap
 // ════════════════════════════════════════════════════════════════
 function renderCrecimiento(){
   var mes  = getFiltMes()!=='todos'?getFiltMes():mesActual();
@@ -1672,7 +1679,7 @@ function renderCrecimiento(){
 
   // ── ROI psicólogas ───────────────────────────────────────────
   var honMes=G.honorarios.filter(h=>h.mes===mes).reduce((a,h)=>a+(h.neto||h.montoBase||0),0);
-  var roi=honMes>0?(ingMes/honMes).toFixed(1)+'x':'—';
+  var roi=honMes>0?(ingMes/honMes).toFixed(1)+'x':'-';
   setText('crROI',roi);
 
   // ── OCUPACIÓN DE AGENDA ──────────────────────────────────────
@@ -1706,7 +1713,7 @@ function renderCrecimiento(){
   var horas=['08:00','08:45','09:30','10:15','11:00','11:45','12:30','13:15','14:00','14:45','15:30','16:15','17:00','17:45','18:30','19:15'];
   var dias=['Lun','Mar','Mié','Jue','Vie','Sáb'];
   var heatData={};
-  // Respeta los mismos filtros de mes/sede que el resto del panel — antes
+  // Respeta los mismos filtros de mes/sede que el resto del panel - antes
   // el heatmap siempre usaba TODAS las sesiones de TODO el histórico y de
   // TODAS las sedes sin importar lo que se eligiera arriba.
   filtSes(G.sesiones).forEach(s=>{
@@ -1737,7 +1744,7 @@ function renderCrecimiento(){
       h+='<tr><td style="padding:3px;font-size:9px;color:var(--muted);white-space:nowrap;font-weight:700">'+hora+'</td>';
       for(let di=0;di<6;di++){
         var v=heatData[di+'_'+hora]||0;
-        // Antes era un solo tono (teal) variando solo en opacidad — con
+        // Antes era un solo tono (teal) variando solo en opacidad - con
         // datos repartidos en 16 horas x 6 días, casi todas las celdas
         // caían cerca del mínimo y el mapa se veía de un solo color parejo.
         // Ahora interpola un degradado real (amarillo pálido -> naranja ->
@@ -1805,7 +1812,7 @@ function renderCumpleanos(){
     var anos=c.fecha?new Date().getFullYear()-parseInt(c.fecha.split('-')[0]):0;
     return`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:${esHoy?'#fffbeb':'var(--bg)'};border-radius:10px;margin-bottom:6px;border-left:3px solid ${c.tipo==='trabajadora'?'var(--purple)':'var(--acc)'}">
       <div>
-        <div style="font-size:13px;font-weight:700">${esHoy?'🎂 ':''}<strong>${c.nombre}</strong>${esHoy?' — ¡HOY!':''}</div>
+        <div style="font-size:13px;font-weight:700">${esHoy?'🎂 ':''}<strong>${c.nombre}</strong>${esHoy?' - ¡HOY!':''}</div>
         <div style="display:flex;gap:6px;margin-top:3px">
           <span class="badge ${c.tipo==='trabajadora'?'bp':'bt'}" style="font-size:10px">${c.tipo==='trabajadora'?'👩‍⚕️ Trabajadora':'👤 Paciente'}</span>
           ${anos>0?`<span class="badge bk" style="font-size:10px">${anos} años</span>`:''}
@@ -1837,7 +1844,7 @@ function renderFinanzas(){
   var pacs   = filtPac(G.pacientes);
 
   // Los ingresos reales son la suma de pagos efectivamente registrados
-  // (tabla pagos) — nunca se infieren de las sesiones: s.costoTotal es el
+  // (tabla pagos) - nunca se infieren de las sesiones: s.costoTotal es el
   // costo TOTAL del paquete completo (no de esa sesión puntual), así que
   // sumarlo por cada sesión asistida multiplicaba el ingreso real por la
   // cantidad de sesiones del paquete (un paquete de 20 sesiones a S/690
@@ -1921,7 +1928,7 @@ function renderFinanzas(){
   renderDonut('chartMetodos', metData);
 
   // Ingresos por día, con el mismo desglose de método (respeta los filtros
-  // de mes/sede ya aplicados arriba en "pagos") — más reciente primero.
+  // de mes/sede ya aplicados arriba en "pagos") - más reciente primero.
   var porDia={};
   pagos.forEach(function(p){
     var f=p.fecha;if(!f)return;
@@ -1979,7 +1986,7 @@ function renderPacientes(){
 
   // pacientes.psicologa/pacientes.terapia son campos heredados que casi
   // nunca se mantienen al día (96 de 118 pacientes activos los tienen
-  // vacíos) — la psicóloga/terapia real de cada paciente vive en sus
+  // vacíos) - la psicóloga/terapia real de cada paciente vive en sus
   // sesiones. Se arma un mapa con la sesión más reciente de cada paciente
   // (dentro del período filtrado) y solo se cae al campo viejo si de
   // verdad no tiene ninguna sesión registrada todavía.
@@ -2008,17 +2015,17 @@ function renderPacientes(){
 
   // Por sede
   var porSede={};
-  pacs.forEach(p=>{var k=p.sede||p._sede||'—';porSede[k]=(porSede[k]||0)+1;});
+  pacs.forEach(p=>{var k=p.sede||p._sede||'-';porSede[k]=(porSede[k]||0)+1;});
   renderBarChart('chartPacSede', Object.entries(porSede).map(([k,v])=>({label:k,val:v})).sort((a,b)=>b.val-a.val), '', '#10b981');
 
-  // Tabla saldos — saldo REAL (suelto + paquetes activos), no solo pacientes.saldo
+  // Tabla saldos - saldo REAL (suelto + paquetes activos), no solo pacientes.saldo
   var conSaldo=pacs.map(p=>Object.assign({},p,{_saldoReal:_saldoRealPac(p)})).filter(p=>p._saldoReal>0).sort((a,b)=>b._saldoReal-a._saldoReal).slice(0,20);
   setText('nSaldos', conSaldo.length+' pacientes');
   var tbl=document.getElementById('tblSaldos');
   if(tbl)tbl.innerHTML=conSaldo.length?conSaldo.map(p=>`<tr>
     <td><strong>${p.nombre}</strong></td>
-    <td><span class="badge bt">${p.sede||p._sede||'—'}</span></td>
-    <td>${(_psRealPac(p)||'—').replace('Lic.','').trim()}</td>
+    <td><span class="badge bt">${p.sede||p._sede||'-'}</span></td>
+    <td>${(_psRealPac(p)||'-').replace('Lic.','').trim()}</td>
     <td><span class="badge bb">${(_paqInfoPac(p)||{}).total||0} ses.</span></td>
     <td><strong style="color:var(--red)">S/${p._saldoReal}</strong></td></tr>`).join('')
     :'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px">Sin saldos pendientes ✅</td></tr>';
@@ -2035,7 +2042,7 @@ function renderPacientes(){
       var info=_paqInfoPac(p);
       var rest=info.total-info.hechas;
       return`<div class="alert ${rest===0?'ag':'aw'}" style="display:flex;justify-content:space-between;align-items:center">
-        <div><strong>${p.nombre}</strong> · ${p.sede||p._sede||'—'}</div>
+        <div><strong>${p.nombre}</strong> · ${p.sede||p._sede||'-'}</div>
         <span class="badge ${rest===0?'bg':'bo'}">${rest===0?'Terminado':''+rest+' ses. restantes'}</span>
       </div>`;}).join('')
     :'<div style="color:var(--muted);text-align:center;padding:14px;font-size:12px">Sin paquetes próximos a terminar</div>';
@@ -2050,18 +2057,18 @@ function renderRendimientoRecepcionGer(){
   var q={mes:'eq.'+mes,select:'*'};if(sede)q.sede='eq.'+sede;
   accGet('rendimiento_recepcion',q).then(function(rows){
     rows=rows||[];
-    if(!rows.length){cont.innerHTML='<p style="color:var(--muted);text-align:center;padding:10px">Sin reporte de '+mes+' — se genera desde Administración</p>';return;}
+    if(!rows.length){cont.innerHTML='<p style="color:var(--muted);text-align:center;padding:10px">Sin reporte de '+mes+' - se genera desde Administración</p>';return;}
     rows.sort(function(a,b){return (b.score_rendimiento||0)-(a.score_rendimiento||0);});
     cont.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:8px;font-size:10px;text-align:left;color:var(--muted)">Recepcionista</th><th>Sede</th><th>Consultas</th><th>Paquetes</th><th>% Asist.</th><th>Puntaje</th><th>Nivel</th></tr></thead><tbody>'+
       rows.map(function(r){
         var colorNivel={'Excelente':'#15803d','Bueno':'#2563eb','Regular':'#d97706','Bajo':'#dc2626'}[r.nivel_rendimiento]||'#64748b';
-        return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:8px;font-weight:700">'+(r.nombre||'—')+'</td>'+
-          '<td style="font-size:11px;color:var(--muted)">'+(r.sede||'—')+'</td>'+
+        return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:8px;font-weight:700">'+(r.nombre||'-')+'</td>'+
+          '<td style="font-size:11px;color:var(--muted)">'+(r.sede||'-')+'</td>'+
           '<td style="text-align:center">'+(r.consultas_agendadas||0)+'</td>'+
           '<td style="text-align:center">'+(r.paquetes_agendados||0)+'</td>'+
           '<td style="text-align:center">'+(r.porcentaje_asistencia||0).toFixed(0)+'%</td>'+
           '<td style="text-align:center;font-weight:900">'+(r.score_rendimiento||0).toFixed(0)+'</td>'+
-          '<td style="text-align:center;font-weight:700;color:'+colorNivel+'">'+(r.nivel_rendimiento||'—')+'</td></tr>';
+          '<td style="text-align:center;font-weight:700;color:'+colorNivel+'">'+(r.nivel_rendimiento||'-')+'</td></tr>';
       }).join('')+'</tbody></table>';
   }).catch(function(e){cont.innerHTML='<p style="color:var(--red);padding:10px">Error: '+e.message+'</p>';});
 }
@@ -2072,7 +2079,7 @@ function renderPersonal(){
   renderRendimientoRecepcionGer();
   var asistHoy = G.asistencia.filter(a=>a.fecha===hoy&&a.estado==='presente');
   var hon    = G.honorarios.filter(h=>h.mes===mesActual());
-  // Los pagos no traen a qué psicóloga corresponden directamente — se
+  // Los pagos no traen a qué psicóloga corresponden directamente - se
   // averigua a través de la sesión que el pago trae ligada (sesion_id).
   // Un pago de adelanto que todavía no tiene ninguna sesión ligada no se
   // puede atribuir a nadie en particular, así que queda fuera (mejor no
@@ -2083,7 +2090,7 @@ function renderPersonal(){
   setText('psTotal',     G.psicologas.length);
   setText('psActivas',   G.psicologas.filter(p=>p.estado==='activa'||(p.estado||'activa')==='activa').length);
   // La planilla mensual solo sumaba los honorarios de psicólogas (tabla
-  // honorarios, que varía mes a mes) — las recepcionistas activas también
+  // honorarios, que varía mes a mes) - las recepcionistas activas también
   // son personal y tienen un sueldo fijo (recepcionistas.sueldo), pero
   // nunca se contaban aquí.
   var sdFiltroPersonal=getFiltSede();
@@ -2098,7 +2105,7 @@ function renderPersonal(){
   // Productividad (sesiones por psicóloga en el período)
   var prodData=G.psicologas.map(ps=>{
     var sesPsic=ses.filter(s=>(s.psNombre||'')===ps.nombre&&s.tipo!=='consulta');
-    return{label:(ps.nombre||'—').replace('Lic.','').trim(), val:sesPsic.length,
+    return{label:(ps.nombre||'-').replace('Lic.','').trim(), val:sesPsic.length,
       asist:sesPsic.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length};
   }).filter(x=>x.val>0).sort((a,b)=>b.val-a.val);
   renderBarChart('chartProductividad', prodData, '', '#7c3aed', true);
@@ -2121,7 +2128,7 @@ function renderPersonal(){
       .reduce(function(a,p){return a+(p.monto||0);},0);
 
     // Tiempo en empresa
-    let tiempoStr='—';
+    let tiempoStr='-';
     if(ps.fechaIngreso){
       var meses=Math.floor((new Date()-new Date(ps.fechaIngreso))/(1000*60*60*24*30.44));
       tiempoStr=meses>=12?(Math.floor(meses/12)+'a '+meses%12+'m'):(meses+'m');
@@ -2130,7 +2137,7 @@ function renderPersonal(){
     return`<div class="ps-card" style="cursor:pointer" onclick="abrirDetallePersonal('${(ps.nombre||'').replace(/'/g,"\\'")}','psicologa')">
       <div class="ps-avatar" style="background:${COLORES[idx%COLORES.length]}">${(ps.nombre||'?').replace('Lic.','').trim().charAt(0)}</div>
       <div class="ps-info">
-        <div class="ps-name">${ps.nombre||'—'}</div>
+        <div class="ps-name">${ps.nombre||'-'}</div>
         <div class="ps-meta">
           ${ps.cop?'<span class="badge bk">'+ps.cop+'</span> ':''}
           ${ps.especialidad||ps.esp?'<span class="badge bt">'+(ps.especialidad||ps.esp)+'</span> ':''}
@@ -2138,8 +2145,8 @@ function renderPersonal(){
           ${ps.sede||ps._sede?'<span class="badge bk">'+(ps.sede||ps._sede)+'</span>':''}
         </div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:6px">
-          ⏰ ${ps.inicio||'13:15'}–${ps.fin||'20:00'}${ps.diaEspecial?' · ⭐ '+ps.diaEspecial:''}
-          ${tiempoStr!=='—'?' · '+tiempoStr+' en empresa':''}
+          ⏰ ${ps.inicio||'13:15'}-${ps.fin||'20:00'}${ps.diaEspecial?' · ⭐ '+ps.diaEspecial:''}
+          ${tiempoStr!=='-'?' · '+tiempoStr+' en empresa':''}
         </div>
         <div class="ps-stats">
           <div class="ps-stat"><div class="ps-stat-v">${sesPsic.length}</div><div class="ps-stat-l">Sesiones</div></div>
@@ -2164,7 +2171,7 @@ function renderPersonal(){
         <span class="badge br" style="margin-left:6px;font-size:9px">Cesada</span>
         ${p.fechaCese?'<span style="font-size:10px;color:var(--muted);margin-left:4px">'+fmtF(p.fechaCese)+'</span>':''}
       </div>
-      <span class="badge bk" style="font-size:9px">${p.sede||p._sede||'—'}</span>
+      <span class="badge bk" style="font-size:9px">${p.sede||p._sede||'-'}</span>
     </div>`).join('')+
     '</div>'
   :'')||'<div style="color:var(--muted);text-align:center;padding:20px">Sin datos de personal. Actualiza desde el Sheet.</div>';
@@ -2179,8 +2186,8 @@ function renderPersonal(){
       h+=recs.map(function(r,idx){
         return '<div class="ps-card" style="cursor:pointer" onclick="abrirDetallePersonal(\''+(r.nombre||'').replace(/'/g,"\\'")+'\',\'recepcion\')">'+
           '<div class="ps-avatar" style="background:'+COLORES[idx%COLORES.length]+'">'+(r.nombre||'?').charAt(0)+'</div>'+
-          '<div class="ps-info"><div class="ps-name">'+(r.nombre||'—')+'</div>'+
-          '<div class="ps-meta"><span class="badge bk">'+(r.sede||r._sede||'—')+'</span></div></div></div>';
+          '<div class="ps-info"><div class="ps-name">'+(r.nombre||'-')+'</div>'+
+          '<div class="ps-meta"><span class="badge bk">'+(r.sede||r._sede||'-')+'</span></div></div></div>';
       }).join('');
     }
     var admins=(G.usuariosGerencia||[]);
@@ -2189,7 +2196,7 @@ function renderPersonal(){
       h+=admins.map(function(a,idx){
         return '<div class="ps-card">'+
           '<div class="ps-avatar" style="background:'+COLORES[idx%COLORES.length]+'">'+(a.nombre||'?').charAt(0)+'</div>'+
-          '<div class="ps-info"><div class="ps-name">'+(a.nombre||a.email||'—')+'</div>'+
+          '<div class="ps-info"><div class="ps-name">'+(a.nombre||a.email||'-')+'</div>'+
           '<div class="ps-meta"><span class="badge bt">'+(a.rol||'gerencia')+'</span></div></div></div>';
       }).join('');
     }
@@ -2225,7 +2232,7 @@ function abrirDetallePersonal(nombre,tipo){
     var sueldo=hon.reduce(function(a,h){return a+(h.neto||h.montoBase||0);},0);
     var asistHist=(G.asistencia||[]).filter(function(a){return a.nombre===nombre;}).sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');}).slice(0,10);
     body.innerHTML='<div style="font-weight:900;font-size:16px;margin-bottom:4px">'+nombre+'</div>'+
-      '<div class="hint" style="margin-bottom:12px">'+(ps.sede||'—')+' · '+(ps.especialidad||ps.esp||'Sin especialidad')+' · '+(ps.cop?'COP '+ps.cop:'')+'</div>'+
+      '<div class="hint" style="margin-bottom:12px">'+(ps.sede||'-')+' · '+(ps.especialidad||ps.esp||'Sin especialidad')+' · '+(ps.cop?'COP '+ps.cop:'')+'</div>'+
       '<div class="grid g4" style="margin-bottom:12px">'+
         '<div class="stat"><div class="stat-v">'+ses.length+'</div><div class="stat-l">Sesiones</div></div>'+
         '<div class="stat"><div class="stat-v" style="color:var(--green)">'+asist+'</div><div class="stat-l">Asistidas</div></div>'+
@@ -2238,7 +2245,7 @@ function abrirDetallePersonal(nombre,tipo){
         asistHist.map(function(a){return '<tr><td>'+(a.fecha||'')+'</td><td>'+(a.estado||'')+'</td><td>'+(a.entrada||'')+'</td></tr>';}).join('')+
         '</tbody></table>':'<div class="hint">Sin registros.</div>')+
       '<div style="font-weight:800;font-size:12px;margin:10px 0 6px">📞 Datos</div>'+
-      '<div class="hint">Tel: '+(ps.tel||'—')+' · Email: '+(ps.email||'—')+' · Ingreso: '+(ps.fechaIngreso?fmtF(ps.fechaIngreso):'—')+'</div>';
+      '<div class="hint">Tel: '+(ps.tel||'-')+' · Email: '+(ps.email||'-')+' · Ingreso: '+(ps.fechaIngreso?fmtF(ps.fechaIngreso):'-')+'</div>';
     accGet('bonos_diarios',{'psicologa_nombre':'eq.'+nombre,'fecha':'gte.'+mesActual()+'-01','select':'*'}).then(function(rows){
       var el=document.getElementById('detBonosMeta');
       if(el)el.textContent='🎯 Bonos de meta este mes: '+(rows||[]).length;
@@ -2246,8 +2253,8 @@ function abrirDetallePersonal(nombre,tipo){
   } else {
     var rec=(G.recepcionistas||[]).find(function(p){return p.nombre===nombre;})||{};
     body.innerHTML='<div style="font-weight:900;font-size:16px;margin-bottom:4px">'+nombre+'</div>'+
-      '<div class="hint" style="margin-bottom:12px">Recepción · '+(rec.sede||'—')+'</div>'+
-      '<div class="hint">Tel: '+(rec.tel||'—')+' · Email: '+(rec.email||'—')+' · Ingreso: '+(rec.fechaIngreso?fmtF(rec.fechaIngreso):'—')+'</div>';
+      '<div class="hint" style="margin-bottom:12px">Recepción · '+(rec.sede||'-')+'</div>'+
+      '<div class="hint">Tel: '+(rec.tel||'-')+' · Email: '+(rec.email||'-')+' · Ingreso: '+(rec.fechaIngreso?fmtF(rec.fechaIngreso):'-')+'</div>';
   }
   modal.classList.add('open');
 }
@@ -2325,7 +2332,7 @@ function renderSedes(){
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  AGENDA (todas las sedes, con filtro de sede/psicóloga PROPIO — no usa el
+//  AGENDA (todas las sedes, con filtro de sede/psicóloga PROPIO - no usa el
 //  filtro global de mes/sede de arriba, porque una agenda es por día, no
 //  por mes, y se quiere poder ver una sede puntual sin tocar el resto del
 //  panel).
@@ -2350,7 +2357,7 @@ function abrevTerapiaGer(nombre){
   return nombre.replace(/^T\.\s*/i,'').split(' ').slice(0,2).join(' ');
 }
 // Los colores de la agenda son los que cada recepcionista le asignó a cada
-// psicóloga (psicologas.color_agenda) — si no tiene uno propio, se usa la
+// psicóloga (psicologas.color_agenda) - si no tiene uno propio, se usa la
 // misma paleta hash-based que usa recepción, para que coincidan igual.
 function colorPsAgendaGer(psNombre){
   var ps=(G.psicologas||[]).find(function(p){return p.nombre===psNombre;});
@@ -2375,7 +2382,7 @@ function _slotsDesdeGer(ini,fin){
   return slots;
 }
 // Horario real de cada psicóloga ese día (dias_trabajo/hora_inicio/hora_fin,
-// más el día especial si lo tiene) — igual que horasPs() en recepción, para
+// más el día especial si lo tiene) - igual que horasPs() en recepción, para
 // que la grilla arranque desde la mañana (08:00) y no solo desde la tarde.
 function horasPsGer(ps,fecha){
   if(!ps)return[];
@@ -2414,7 +2421,7 @@ function renderAgendaGer(){
   }
   var d0=dias[0].d,d5=dias[5].d;
   var titEl=document.getElementById('agendaSemTit');
-  if(titEl)titEl.textContent=d0.getDate()+' '+MES_ES_GER[d0.getMonth()]+' — '+d5.getDate()+' '+MES_ES_GER[d5.getMonth()]+(sedeSel?' · '+sedeSel:' · Todas las sedes')+(psSel?' · '+psSel.replace('Lic.','').trim():'');
+  if(titEl)titEl.textContent=d0.getDate()+' '+MES_ES_GER[d0.getMonth()]+' - '+d5.getDate()+' '+MES_ES_GER[d5.getMonth()]+(sedeSel?' · '+sedeSel:' · Todas las sedes')+(psSel?' · '+psSel.replace('Lic.','').trim():'');
 
   var todasSes=(G.sesiones||[]).filter(function(s){
     if(sedeSel&&(s.sede||'')!==sedeSel)return false;
@@ -2485,10 +2492,10 @@ function renderAgendaGer(){
   var ses=todasSes.filter(function(s){return s.fecha===fecha;}).sort(function(a,b){return(a.hora||'').localeCompare(b.hora||'');});
   detCard.style.display='block';
   var dSel=new Date(fecha+'T12:00:00');
-  if(titDet)titDet.textContent=DIA_FULL_GER[dSel.getDay()]+' '+dSel.getDate()+' '+MES_ES_GER[dSel.getMonth()]+' — '+ses.length+' sesión(es)';
+  if(titDet)titDet.textContent=DIA_FULL_GER[dSel.getDay()]+' '+dSel.getDate()+' '+MES_ES_GER[dSel.getMonth()]+' - '+ses.length+' sesión(es)';
   if(!ses.length){cont.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">🗓️</div>Sin sesiones para este día'+(sedeSel||psSel?' con ese filtro':'')+'.</div>';return;}
   var porSede={};
-  ses.forEach(function(s){var k=s.sede||'—';(porSede[k]=porSede[k]||[]).push(s);});
+  ses.forEach(function(s){var k=s.sede||'-';(porSede[k]=porSede[k]||[]).push(s);});
   var sedesOrd=Object.keys(porSede).sort();
   cont.innerHTML=sedesOrd.map(function(sd){
     return '<div style="margin-bottom:'+(sedesOrd.length>1?'16px':'0')+'">'+
@@ -2497,12 +2504,12 @@ function renderAgendaGer(){
         var bc=colorPsAgendaGer(s.psNombre);
         var ec=colorEstadoAgGer(s.estado);
         return '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg);border-radius:10px;margin-bottom:6px;border-left:4px solid '+ec+'">'+
-          '<div style="font-size:14px;font-weight:900;color:var(--dark);min-width:52px">'+(s.hora||'—')+'</div>'+
+          '<div style="font-size:14px;font-weight:900;color:var(--dark);min-width:52px">'+(s.hora||'-')+'</div>'+
           '<div style="flex:1;min-width:0">'+
-          '<div style="font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.pacNombre||'—')+'</div>'+
-          '<div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.psNombre||'—').replace('Lic.','').trim()+' · '+(s.terNombre||'—')+'</div>'+
+          '<div style="font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.pacNombre||'-')+'</div>'+
+          '<div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.psNombre||'-').replace('Lic.','').trim()+' · '+(s.terNombre||'-')+'</div>'+
           '</div>'+
-          '<span class="badge" style="background:'+bc+';color:#000;font-weight:800">'+(s.estado||'—')+'</span>'+
+          '<span class="badge" style="background:'+bc+';color:#000;font-weight:800">'+(s.estado||'-')+'</span>'+
           '</div>';
       }).join('')+
       '</div>';
@@ -2517,28 +2524,28 @@ function renderAlertas(){
   var hoy=today();
   var mesH=mesActual();
 
-  // Saldos altos — saldo REAL (suelto + paquetes activos)
+  // Saldos altos - saldo REAL (suelto + paquetes activos)
   filtPac(G.pacientes).map(p=>Object.assign({},p,{_saldoReal:_saldoRealPac(p)})).filter(p=>p._saldoReal>100).sort((a,b)=>b._saldoReal-a._saldoReal).slice(0,5).forEach(p=>{
-    alertas.push({tipo:'r',icon:'⚠️',txt:`<strong>${p.nombre}</strong> (${p.sede||p._sede||'—'}) — Saldo pendiente: <strong>S/${p._saldoReal}</strong>`});
+    alertas.push({tipo:'r',icon:'⚠️',txt:`<strong>${p.nombre}</strong> (${p.sede||p._sede||'-'}) - Saldo pendiente: <strong>S/${p._saldoReal}</strong>`});
   });
 
   // Paquetes por terminar
   filtPac(G.pacientes).forEach(p=>{
     var info=_paqInfoPac(p);
     if(info&&(info.total-info.hechas)<=1)
-      alertas.push({tipo:'o',icon:'🔄',txt:`<strong>${p.nombre}</strong> — ${info.total-info.hechas===0?'Paquete terminado':'Última sesión del paquete'} (${info.hechas}/${info.total})`});
+      alertas.push({tipo:'o',icon:'🔄',txt:`<strong>${p.nombre}</strong> - ${info.total-info.hechas===0?'Paquete terminado':'Última sesión del paquete'} (${info.hechas}/${info.total})`});
   });
 
   // Honorarios pendientes
   G.honorarios.filter(h=>h.estado==='pendiente'&&h.mes===mesH).forEach(h=>{
-    alertas.push({tipo:'p',icon:'💼',txt:`Honorarios pendientes: <strong>${h.nombre}</strong> (${h.sede||'—'}) — S/${h.neto||h.montoBase}`});
+    alertas.push({tipo:'p',icon:'💼',txt:`Honorarios pendientes: <strong>${h.nombre}</strong> (${h.sede||'-'}) - S/${h.neto||h.montoBase}`});
   });
 
   // Psicólogas ausentes hoy
   G.psicologas.forEach(ps=>{
     var reg=G.asistencia.find(a=>a.fecha===hoy&&a.nombre===ps.nombre);
     if(reg&&reg.estado==='ausente')
-      alertas.push({tipo:'r',icon:'👤',txt:`Ausente hoy: <strong>${ps.nombre}</strong> (${ps.sede||ps._sede||'—'})`});
+      alertas.push({tipo:'r',icon:'👤',txt:`Ausente hoy: <strong>${ps.nombre}</strong> (${ps.sede||ps._sede||'-'})`});
   });
 
   // Sin sesiones esta semana
@@ -2599,7 +2606,7 @@ function renderBarChart(elId, data, prefix, color, vertical){
       // SVG overlay para línea de tendencia
       '<svg style="position:absolute;top:10px;left:0;right:0;width:100%;height:'+h+'px;pointer-events:none;overflow:visible" id="svgTrend_'+elId+'">'+
         '<polyline fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3" opacity=".8" id="tline_'+elId+'"/>'+
-        '<text x="4" y="12" font-size="9" fill="#ef4444" font-weight="700" opacity=".8">— Tendencia</text>'+
+        '<text x="4" y="12" font-size="9" fill="#ef4444" font-weight="700" opacity=".8">- Tendencia</text>'+
       '</svg></div>';
     // Dibujar línea de tendencia
     setTimeout(()=>{
@@ -2701,7 +2708,7 @@ function goTab(id,btn){
   if(sb)sb.classList.remove('open');
   if(ov)ov.classList.remove('open');
 
-  // La Agenda tiene su propio filtro de sede independiente — el filtro
+  // La Agenda tiene su propio filtro de sede independiente - el filtro
   // global de mes/sede de arriba no aplica ahí y se oculta para no confundir.
   var fb=document.querySelector('.filtros-bar');
   if(fb)fb.style.display=(id==='tAgenda')?'none':'';
@@ -2724,7 +2731,7 @@ function goTab(id,btn){
 
 // ── PWA ───────────────────────────────────────────────────────────────────────
 // (El manifest.json y sw.js reales, con el ícono "G" de Psicoluz, se
-// registran más abajo — ver bloque "PWA: instalar aplicación".)
+// registran más abajo - ver bloque "PWA: instalar aplicación".)
 (function(){
 
   // ── Botón instalar (compatible con Android, iOS, Samsung) ──
@@ -2739,7 +2746,7 @@ function goTab(id,btn){
     });
   }
   // Mostrar el botón siempre (no solo cuando el navegador dispara
-  // beforeinstallprompt — Safari/iOS nunca lo dispara).
+  // beforeinstallprompt - Safari/iOS nunca lo dispara).
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', mostrarBtnInstalarGer);
   } else {
@@ -2798,27 +2805,26 @@ function goTab(id,btn){
 })();
 
 // ── SIDEBAR GERENCIA ──────────────────────────────────────────
+// El botón ☰ hace dos cosas distintas según el ancho: en escritorio
+// colapsa el sidebar fijo (más espacio de pantalla, se recuerda con
+// localStorage); en móvil abre/cierra el drawer superpuesto.
 function toggleGerSidebar(){
   var sb=document.getElementById('gerSidebar');
   var ov=document.getElementById('gerOverlay');
-  if(sb)sb.classList.toggle('open');
-  if(ov)ov.classList.toggle('open');
+  if(!sb)return;
+  if(window.innerWidth<=900){
+    sb.classList.toggle('open');
+    if(ov)ov.classList.toggle('open');
+  }else{
+    var col=sb.classList.toggle('collapsed');
+    try{localStorage.setItem('gerSidebarCollapsed',col?'1':'0');}catch(e){}
+  }
 }
-
-// Cerrar sidebar al cambiar de tab
-var _oldGoTab=goTab;
-
-
-// Hamburger solo en móvil
-window.addEventListener('resize',()=>{
-  var hb=document.getElementById('gerHamburger');
-  if(!hb)return;
-  hb.style.display=window.innerWidth<768?'flex':'none';
-});
 window.addEventListener('DOMContentLoaded',()=>{
-  var hb=document.getElementById('gerHamburger');
-  if(hb)hb.style.display=window.innerWidth<768?'flex':'none';
-  // La foto se carga por Supabase (cargarFotoGerSB), no local.
+  var sb=document.getElementById('gerSidebar');
+  if(sb&&window.innerWidth>900){
+    try{if(localStorage.getItem('gerSidebarCollapsed')==='1')sb.classList.add('collapsed');}catch(e){}
+  }
 });
 
 // ── FOTO DE PERFIL GERENCIA ───────────────────────────────────
@@ -2876,7 +2882,7 @@ function abrirChatGer(){
   _chatVisibleGer=true;
   var tit=document.getElementById('chatSedeTituloGer');
   if(tit)tit.textContent='Todas las sedes';
-  // Restaurar la última sede elegida para "Enviar a" — antes el <select>
+  // Restaurar la última sede elegida para "Enviar a" - antes el <select>
   // se repintaba en blanco (mostraba "Comas" por ser la 1ra opción) cada
   // vez que se reabría el chat, y era fácil mandar a la sede equivocada
   // sin darse cuenta.
@@ -2965,7 +2971,7 @@ function chatKeyDownGer(e){
 // ── DOCUMENTOS PSICÓLOGAS (Gerencia) ─────────────────────────
 async function renderDocsPsicologas(){
   var el=document.getElementById('docsPsContenido');if(!el)return;
-  var filSede=document.getElementById('docsPsFilSede')?.value||'';
+  var filSede=getFiltSede();
   el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">⏳ Cargando...</div>';
   try{
     var _API_GER=typeof _API!=='undefined'?_API:(typeof API!=='undefined'?API:'');
@@ -3064,7 +3070,7 @@ async function renderDocsPsicologas(){
       <option>Todas</option>
     </select>
   <label class="acc-lbl" style="font-size:11px;font-weight:700;color:#64748b;display:block;margin:10px 0 4px">💵 Día de pago mensual (1-31, opcional)</label>
-  <input type="number" min="1" max="31" id="accDiaPago" placeholder="Ej: 8 — si se deja vacío, usa el día de su fecha de ingreso" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;box-sizing:border-box">
+  <input type="number" min="1" max="31" id="accDiaPago" placeholder="Ej: 8 - si se deja vacío, usa el día de su fecha de ingreso" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;box-sizing:border-box">
   <label class="acc-lbl" style="font-size:11px;font-weight:700;color:#64748b;display:block;margin:10px 0 4px">💰 Sueldo mensual (S/)</label>
   <input type="number" step="0.01" id="accSueldo" placeholder="Ej: 1200" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;box-sizing:border-box;margin-bottom:10px">
   <label class="acc-lbl" style="font-size:11px;font-weight:700;color:#64748b;display:block;margin:10px 0 4px">🏦 N° de cuenta bancaria</label>
@@ -3110,8 +3116,8 @@ async function renderAccesos(){
         var act=(String(u.estado||'activo').toLowerCase().indexOf('activ')===0)||!u.estado;
         return '<div style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:6px;box-shadow:0 1px 4px rgba(0,0,0,.06)">'
           +'<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#4a0e2e,#e91e8c);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;flex-shrink:0">'+((u.nombre||'?').trim()[0]||'?').toUpperCase()+'</div>'
-          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(u.nombre||'—')+(act?'':' <span style=\'font-size:9px;background:#fee2e2;color:#991b1b;border-radius:6px;padding:1px 6px;font-weight:800\'>inactivo</span>')+'</div>'
-          +'<div style="font-size:11px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(u.email||'sin email')+' · '+(u.sede||'—')+'</div></div>'
+          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(u.nombre||'-')+(act?'':' <span style=\'font-size:9px;background:#fee2e2;color:#991b1b;border-radius:6px;padding:1px 6px;font-weight:800\'>inactivo</span>')+'</div>'
+          +'<div style="font-size:11px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(u.email||'sin email')+' · '+(u.sede||'-')+'</div></div>'
           +'<button onclick="editarAcceso(\''+tabla+'\',\''+u.id+'\')" title="Cambiar datos o contraseña" style="background:#eef2ff;color:#4338ca;border:none;border-radius:9px;padding:8px 10px;font-size:12px;font-weight:800;cursor:pointer">🔑</button>'
           +'<button onclick="eliminarAcceso(\''+tabla+'\',\''+u.id+'\',\''+String(u.nombre||'').replace(/'/g,'')+'\')" title="Eliminar acceso" style="background:#fee2e2;color:#991b1b;border:none;border-radius:9px;padding:8px 10px;font-size:12px;font-weight:800;cursor:pointer">🗑</button>'
           +'</div>';
@@ -3138,7 +3144,7 @@ function editarAcceso(tabla,id){
   var u=(_ACCESOS[tabla]||[]).find(function(x){return String(x.id)===String(id);});if(!u)return;
   document.getElementById('accId').value=u.id;
   document.getElementById('accTablaEdit').value=tabla;
-  document.getElementById('accModalTit').textContent='🔑 Editar acceso — '+(u.nombre||'');
+  document.getElementById('accModalTit').textContent='🔑 Editar acceso - '+(u.nombre||'');
   var sel=document.getElementById('accTabla');sel.value=tabla;sel.disabled=true;
   document.getElementById('accNombre').value=u.nombre||'';
   document.getElementById('accEmail').value=u.email||'';
@@ -3203,7 +3209,7 @@ async function eliminarAcceso(tabla,id,nombre){
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-//  PSICOLUZ — NOTIFICACIONES UNIVERSALES v2
+//  PSICOLUZ - NOTIFICACIONES UNIVERSALES v2
 //  Sonido + notificación del sistema + banner en la app
 // ═══════════════════════════════════════════════════════════════
 (function(){
@@ -3275,7 +3281,7 @@ async function eliminarAcceso(tabla,id,nombre){
       Notification.requestPermission().catch(function(){});
     }
     // La mayoría de navegadores bloquea el audio hasta que haya un gesto
-    // real del usuario (click/touch) — si sonidoNotif() recién crea el
+    // real del usuario (click/touch) - si sonidoNotif() recién crea el
     // AudioContext cuando llega la primera notificación (por un
     // setInterval, sin gesto de por medio), el navegador la deja
     // "suspended" para siempre y no suena nunca, sin ningún error visible.
@@ -3385,7 +3391,7 @@ async function renderAsistHist(){
   var el=document.getElementById('asistHistContent');if(!el)return;
   el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)">⏳ Cargando...</div>';
   try{
-    // Respeta los filtros globales de mes/sede — antes traía siempre los
+    // Respeta los filtros globales de mes/sede - antes traía siempre los
     // últimos 30 días de TODAS las sedes sin importar lo que se eligiera
     // arriba, así que cambiar el filtro aquí no hacía nada.
     var mesF=getFiltMes(),sedeF=getFiltSede();
@@ -3404,7 +3410,7 @@ async function renderAsistHist(){
       return '<div class="card" style="margin-bottom:10px"><div class="ch"><div class="ct" style="font-size:13px">📅 '+f+'</div></div><div class="cb" style="padding:8px 14px">'
         +porFecha[f].map(function(r){
           return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">'
-            +'<div><span style="font-weight:700;font-size:12px">'+(r.psicologa||'—')+'</span> <span style="font-size:10px;color:var(--muted)">· '+(r.sede||'')+'</span></div>'
+            +'<div><span style="font-weight:700;font-size:12px">'+(r.psicologa||'-')+'</span> <span style="font-size:10px;color:var(--muted)">· '+(r.sede||'')+'</span></div>'
             +'<div style="font-size:11px"><span style="color:'+(r.estado==='presente'?'#059669':'#dc2626')+';font-weight:800">'+(r.estado||'')+'</span>'
             +' <span style="color:var(--muted)">'+String(r.entrada||'').substring(0,5)+'</span></div></div>';
         }).join('')+'</div></div>';
@@ -3489,9 +3495,9 @@ async function verDetalleEvento(dia,idx){
   var t=_calTrabajadoras.find(function(x){return x.nombre===e.ref;});
   titEl.textContent='👤 '+e.ref;
   if(!t){cuerpoEl.innerHTML='<div style="color:var(--muted)">No se encontró el detalle.</div>';return;}
-  cuerpoEl.innerHTML=fila('Sede',t.sede||'—')
-    +fila('Sueldo mensual',t.sueldo?('S/ '+Number(t.sueldo).toFixed(2)):'<span style="color:#dc2626">No registrado — edítalo en Accesos</span>')
-    +fila('Día de pago',(t.dia_pago||'—')+'')
+  cuerpoEl.innerHTML=fila('Sede',t.sede||'-')
+    +fila('Sueldo mensual',t.sueldo?('S/ '+Number(t.sueldo).toFixed(2)):'<span style="color:#dc2626">No registrado - edítalo en Accesos</span>')
+    +fila('Día de pago',(t.dia_pago||'-')+'')
     +fila('N° de cuenta',t.numero_cuenta||'<span style="color:#dc2626">No registrado</span>')
     +fila('Cuenta interbancaria (CCI)',t.cci||'<span style="color:#dc2626">No registrado</span>')
     +'<div style="margin-top:6px;padding-top:8px;border-top:1px dashed var(--border)"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">🎯 Metas del mes</div><div id="detalleEvMeta">⏳ Calculando...</div></div>';
@@ -3499,7 +3505,7 @@ async function verDetalleEvento(dia,idx){
   try{
     var mes=new Date();
     var desde=mes.getFullYear()+'-'+String(mes.getMonth()+1).padStart(2,'0')+'-01';
-    // La puntualidad ya no se puede medir por sesiones — el estado
+    // La puntualidad ya no se puede medir por sesiones - el estado
     // "tardanza" en sesiones se eliminó (una sesión asistida siempre
     // queda como "asistio", sin importar la hora), así que esta cuenta
     // siempre daba 100% sin importar la tardanza real. Ahora se mide con
@@ -3565,28 +3571,36 @@ async function renderCalendarioPagos(contId){
     var hoyD=new Date();
     var esMesActual=(hoyD.getFullYear()===y&&hoyD.getMonth()===m);
     var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-      +'<button onclick="calMesMover(-1)" style="border:none;background:#f1f5f9;border-radius:8px;padding:6px 12px;font-weight:900;cursor:pointer">‹</button>'
-      +'<div style="font-size:15px;font-weight:900;color:var(--dark)">'+meses[m]+' '+y+'</div>'
-      +'<button onclick="calMesMover(1)" style="border:none;background:#f1f5f9;border-radius:8px;padding:6px 12px;font-weight:900;cursor:pointer">›</button></div>';
-    html+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:10px;font-weight:800;color:var(--muted);text-align:center;margin-bottom:4px">'
-      +['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'].map(function(d){return '<div>'+d+'</div>';}).join('')+'</div>';
+      +'<button onclick="calMesMover(-1)" style="border:none;background:linear-gradient(135deg,var(--dark),#ad1457);color:#fff;border-radius:8px;padding:7px 14px;font-weight:900;cursor:pointer">‹</button>'
+      +'<div style="font-size:16px;font-weight:900;color:var(--dark)">'+meses[m]+' '+y+'</div>'
+      +'<button onclick="calMesMover(1)" style="border:none;background:linear-gradient(135deg,var(--dark),#ad1457);color:#fff;border-radius:8px;padding:7px 14px;font-weight:900;cursor:pointer">›</button></div>';
+    html+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">'
+      +['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'].map(function(d,i){
+        return '<div style="text-align:center;font-size:10px;font-weight:800;color:#fff;background:'+(i===0||i===6?'#ad1457':'var(--dark)')+';border-radius:6px;padding:5px 0">'+d+'</div>';
+      }).join('')+'</div>';
     html+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">';
     for(var i=0;i<primerDia;i++)html+='<div></div>';
     for(var d=1;d<=diasMes;d++){
       var evs=eventos[d]||[];
       var esHoy=esMesActual&&hoyD.getDate()===d;
-      html+='<div onclick="verDetalleDiaCalendario('+d+')" style="cursor:pointer;min-height:74px;border:1.5px solid '+(esHoy?'var(--acc)':'var(--border)')+';border-radius:10px;padding:4px;transition:.12s;'
-        +(esHoy?'background:#fdf2f8;':'background:#fff;')+'overflow:hidden" onmouseover="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,.12)\'" onmouseout="this.style.boxShadow=\'none\'">'
-        +'<div style="font-size:11px;font-weight:900;color:'+(esHoy?'var(--acc)':'var(--dark)')+'">'+d+'</div>'
+      var diaSem=(primerDia+d-1)%7;
+      var esFinde=diaSem===0||diaSem===6;
+      var bgCelda=esHoy?'#fdf2f8':(esFinde?'#fbfaff':'#fff');
+      html+='<div onclick="verDetalleDiaCalendario('+d+')" style="cursor:pointer;min-height:82px;border:1.5px solid '+(esHoy?'var(--acc)':'var(--border)')+';border-radius:10px;padding:4px;transition:.12s;'
+        +'background:'+bgCelda+';overflow:hidden" onmouseover="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,.12)\'" onmouseout="this.style.boxShadow=\'none\'">'
+        +'<div style="font-size:12px;font-weight:900;color:'+(esHoy?'#fff':'var(--dark)')+(esHoy?';background:var(--acc);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center':'')+'">'+d+'</div>'
+        +'<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">'
         +evs.slice(0,3).map(function(e){
-          return '<div title="'+e.t+(e.s?' ('+e.s+')':'')+'" style="font-size:9px;font-weight:700;color:'+e.c+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px">'+e.i+' '+e.t+'</div>';
+          return '<div title="'+e.t+(e.s?' ('+e.s+')':'')+'" style="font-size:8.5px;font-weight:800;color:#fff;background:'+e.c+';border-radius:4px;padding:1.5px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 2px rgba(0,0,0,.15)">'+e.i+' '+e.t+'</div>';
         }).join('')
-        +(evs.length>3?'<div style="font-size:8px;color:var(--muted)">+'+(evs.length-3)+' más</div>':'')
-        +'</div>';
+        +(evs.length>3?'<div style="font-size:8px;color:var(--muted);font-weight:800;padding-left:2px">+'+(evs.length-3)+' más</div>':'')
+        +'</div></div>';
     }
     html+='</div>';
-    html+='<div style="display:flex;gap:14px;margin-top:10px;font-size:10px;font-weight:700;color:var(--muted);flex-wrap:wrap">'
-      +'<span>💵 Pago a trabajadora</span><span>🧾 Pago recurrente (local, internet...)</span><span>🎂 Cumpleaños</span></div>';
+    html+='<div style="display:flex;gap:10px;margin-top:12px;font-size:10.5px;font-weight:800;color:#fff;flex-wrap:wrap">'
+      +'<span style="background:#059669;border-radius:20px;padding:4px 10px">💵 Pago a trabajadora</span>'
+      +'<span style="background:#d97706;border-radius:20px;padding:4px 10px">🧾 Pago recurrente (local, internet...)</span>'
+      +'<span style="background:#e91e8c;border-radius:20px;padding:4px 10px">🎂 Cumpleaños</span></div>';
     cont.innerHTML=html;
   }catch(e){cont.innerHTML='<div style="color:#dc2626;padding:16px;font-size:12px">Error: '+e.message+'</div>';}
 }
@@ -3608,7 +3622,7 @@ async function renderMetasPsicologas(){
     var noms=Object.keys(por);
     if(!noms.length){el.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted)">Sin sesiones este mes</div>';return;}
     // La puntualidad ya no se puede sacar de sesiones (el estado
-    // "tardanza" se eliminó — una sesión asistida siempre queda como
+    // "tardanza" se eliminó - una sesión asistida siempre queda como
     // "asistio" sin importar la hora), así que esto SIEMPRE daba 100% a
     // cualquiera con al menos una sesión asistida. Se mide con
     // asistencia_personal (hora de entrada real + motivo_tardanza).

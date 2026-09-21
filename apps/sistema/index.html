@@ -84,7 +84,7 @@ tr.dirty td{background:#fff7e6}
 </style>
 <script>try{Neutralino.init();Neutralino.events.on("windowClose",function(){Neutralino.app.exit();});}catch(e){console.log("no neutralino")}</script>
 <script>
-// Controles de ventana (minimizar/cerrar) — de respaldo, por si la barra
+// Controles de ventana (minimizar/cerrar) - de respaldo, por si la barra
 // de título nativa de Windows no se ve bien en alguna PC. Solo aparece
 // dentro del ejecutable de escritorio (no en el navegador/PWA).
 try{
@@ -170,7 +170,7 @@ try{
         <div class="card">
           <div class="ch"><div class="ct">⚠️ Limitaciones conocidas de este panel</div></div>
           <div class="cb hint">
-            Este panel usa la misma anon key REST que las demás apps — no tiene acceso a la Management API de Supabase.
+            Este panel usa la misma anon key REST que las demás apps - no tiene acceso a la Management API de Supabase.
             Eso significa: el uso de almacenamiento mostrado abajo es una <strong>aproximación</strong> (suma de tamaños de archivos listados,
             no la cuota real del proyecto); "Backups" genera un <strong>export JSON descargable</strong>, no un backup nativo de Postgres;
             y el log de errores solo recibe lo que cada app reporta activamente (no es una auditoría completa).
@@ -219,7 +219,7 @@ try{
           </div>
         </div>
         <div class="card">
-          <div class="ch"><div class="ct" id="tblTitulo">—</div><span class="hint" id="tblCount"></span></div>
+          <div class="ch"><div class="ct" id="tblTitulo">-</div><span class="hint" id="tblCount"></span></div>
           <div class="cb" style="overflow:auto"><div id="tblGrid">Selecciona una tabla.</div></div>
         </div>
       </div>
@@ -231,7 +231,7 @@ try{
           <div class="cb">
             <div class="hint" style="margin-bottom:10px">
               Borra TODO lo registrado de un paciente (sesiones, paquetes, terapias del paquete, pagos y precios
-              exclusivos) — la fila del paciente en la tabla "pacientes" NUNCA se toca. Úsalo para limpiar datos
+              exclusivos) - la fila del paciente en la tabla "pacientes" NUNCA se toca. Úsalo para limpiar datos
               de prueba o corregir un registro mal hecho desde cero.
             </div>
             <div style="position:relative;max-width:420px">
@@ -303,7 +303,7 @@ try{
         <div class="card">
           <div class="ch"><div class="ct">💾 Backups</div></div>
           <div class="cb">
-            <div class="hint" style="margin-bottom:10px">Descarga un JSON con todas las filas de todas las tablas conocidas. Guárdalo en un lugar seguro — contiene datos de pacientes y contraseñas.</div>
+            <div class="hint" style="margin-bottom:10px">Descarga un JSON con todas las filas de todas las tablas conocidas. Guárdalo en un lugar seguro - contiene datos de pacientes y contraseñas.</div>
             <button class="btn btn-primary" style="width:auto" onclick="exportarBackup()">⬇️ Exportar backup completo (JSON)</button>
             <div id="backupStatus" class="hint" style="margin-top:10px"></div>
           </div>
@@ -325,7 +325,7 @@ try{
         <div class="card">
           <div class="ch"><div class="ct">🧹 Posibles duplicados</div>
             <button class="btn btn-outline btn-sm" onclick="renderDuplicados()">Buscar de nuevo</button></div>
-          <div class="cb hint" style="margin-bottom:0">Busca pacientes, psicólogas y recepcionistas con el mismo nombre + sede. Revisa antes de borrar — puede ser un nombre repetido legítimo.</div>
+          <div class="cb hint" style="margin-bottom:0">Busca pacientes, psicólogas y recepcionistas con el mismo nombre + sede. Revisa antes de borrar - puede ser un nombre repetido legítimo.</div>
         </div>
         <div id="duplicadosContent"></div>
       </div>
@@ -356,7 +356,7 @@ try{
 <div class="modal-overlay" id="modalFila">
   <div class="modal">
     <div style="font-weight:900;font-size:15px;margin-bottom:4px" id="modalFilaTitulo">Editar fila</div>
-    <div class="hint" style="margin-bottom:10px">Completa cada campo — los desplegables y el selector de color son los mismos que en la tabla.</div>
+    <div class="hint" style="margin-bottom:10px">Completa cada campo - los desplegables y el selector de color son los mismos que en la tabla.</div>
     <div id="modalFilaAyuda" style="display:none;background:#eef4ff;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:11px;color:var(--text);max-height:140px;overflow:auto"></div>
     <div id="modalFilaForm" style="display:flex;flex-direction:column;gap:10px;max-height:55vh;overflow-y:auto;padding-right:4px"></div>
     <div style="display:flex;gap:8px;margin-top:14px">
@@ -401,7 +401,7 @@ async function doLogin(){
   // 1) Cuenta maestra fija (respaldo, siempre funciona).
   let nombreSesion=email;
   let ok=(email===ADMIN_EMAIL.toLowerCase()&&pass===ADMIN_PASS);
-  // 2) Cuentas creadas en Cuentas → Gerencia con rol "superadmin" — así
+  // 2) Cuentas creadas en Cuentas → Gerencia con rol "superadmin" - así
   //    se le puede dar acceso a Sistema a otras personas sin compartir
   //    la contraseña maestra. Se gestionan igual que cualquier otra
   //    cuenta, desde la pestaña Cuentas.
@@ -518,7 +518,7 @@ async function initApp(){
   await cargarSelectsSede();
   restaurarFiltrosTabla();
   cargarStats();
-  // Auto-actualización silenciosa cada 40s — antes si otra persona
+  // Auto-actualización silenciosa cada 40s - antes si otra persona
   // cargaba datos desde Sistema al mismo tiempo, no se veía hasta
   // recargar la página a mano. Se salta la actualización si hay
   // cambios sin guardar en pantalla (filas marcadas "dirty"), para no
@@ -540,7 +540,7 @@ async function cargarStats(){
   el.innerHTML='<div class="stat"><div class="stat-v">⏳</div><div class="stat-l">Cargando…</div></div>';
   const claves=['pacientes','sesiones','psicologas','pagos'];
   const counts=await Promise.all(claves.map(t=>sbGetCount(t,{select:'id'}).catch(()=>null)));
-  el.innerHTML=claves.map((t,i)=>'<div class="stat"><div class="stat-v">'+(counts[i]===null?'—':counts[i])+'</div><div class="stat-l">'+t+'</div></div>').join('');
+  el.innerHTML=claves.map((t,i)=>'<div class="stat"><div class="stat-v">'+(counts[i]===null?'-':counts[i])+'</div><div class="stat-l">'+t+'</div></div>').join('');
 }
 
 // ── TABLAS ──
@@ -561,7 +561,7 @@ function renderGrid(containerId,rows,tabla){
 // listas desplegables para columnas con valores fijos, selector de color para
 // terapias.color, y "Actualizar todo" para guardar todas las filas modificadas.
 const READONLY_COLS=['id','created_at','updated_at'];
-const ARRAY_COLS=['dias_semana']; // columnas que Supabase devuelve como array — se editan separadas por coma
+const ARRAY_COLS=['dias_semana']; // columnas que Supabase devuelve como array - se editan separadas por coma
 const TABLE_ENUMS={
   pacientes:{estado:['activo','inactivo'],genero:['M','F','O'],modalidad:['Presencial','Virtual']},
   psicologas:{estado:['activa','inactiva','cesada'],frecuencia_pago:['mensual','quincenal','semanal'],
@@ -595,7 +595,7 @@ function capitalizarDefault(s){
 // adivinar. col='*' = aplica a esa columna en cualquier tabla que la tenga.
 const COLUMN_HINTS={
   '*':{
-    id:'Se genera solo — no editar.',
+    id:'Se genera solo - no editar.',
     sede:'Uno de: Comas, Ovalo Zapallal, Flecha, Pachacutec, Rosaluz',
     fecha:'Formato AAAA-MM-DD, ej. 2026-07-15',
     fecha_nac:'Formato AAAA-MM-DD, ej. 1995-03-20',
@@ -604,16 +604,16 @@ const COLUMN_HINTS={
     hora:'Formato HH:MM en 24h, ej. 14:30',
     hora_inicio:'Formato HH:MM en 24h, ej. 13:15',
     hora_fin:'Formato HH:MM en 24h, ej. 20:00',
-    email:'Correo completo, ej. nombre@gmail.com — se usa para iniciar sesión',
-    password:'Texto libre — el personal la cambia luego desde su app',
+    email:'Correo completo, ej. nombre@gmail.com - se usa para iniciar sesión',
+    password:'Texto libre - el personal la cambia luego desde su app',
     telefono:'Solo números, ej. 987654321 (sin +51, la app lo agrega al armar el link de WhatsApp)',
     dni:'8 dígitos, ej. 12345678',
     monto:'Número sin S/, ej. 150 o 150.50',
-    saldo:'Número sin S/ — lo que el paciente todavía debe, ej. 0 si ya pagó todo',
+    saldo:'Número sin S/ - lo que el paciente todavía debe, ej. 0 si ya pagó todo',
     costo_total:'Número sin S/, costo total del paquete o servicio',
     adelanto:'Número sin S/, lo que ya pagó por adelantado',
     registrado_por:'Nombre de quien registra (recepcionista o gerente)',
-    created_at:'Se genera solo — no editar.'
+    created_at:'Se genera solo - no editar.'
   },
   pacientes:{
     nombre:'Nombres y apellidos completos, ej. María López Torres',
@@ -624,7 +624,7 @@ const COLUMN_HINTS={
     psicologa:'Nombre completo tal cual aparece en la tabla psicologas, ej. Lic. María García',
     terapia:'Nombre tal cual aparece en la tabla terapias, ej. Psicología Clínica',
     diagnostico:'Texto libre, breve',
-    apoderado:'Solo si el paciente es menor de edad — nombre del apoderado',
+    apoderado:'Solo si el paciente es menor de edad - nombre del apoderado',
     colegio:'Solo si aplica, nombre del colegio',
     grado:'Ej. 3ro de primaria (si aplica)'
   },
@@ -635,9 +635,9 @@ const COLUMN_HINTS={
     banco:'Nombre del banco, ej. BCP',
     numero_cuenta:'Número de cuenta bancaria (solo números)',
     cci:'Código de cuenta interbancario, 20 dígitos',
-    dias_trabajo:'Ej. "Lunes-Sabado" o "Lunes, Miercoles, Viernes" — mejor usar el botón 🕐 Horario en vez de escribir esto a mano',
-    horario_completo:'true o false — mejor usar el botón 🕐 Horario',
-    dia_completo:'Día(s) en que entra más temprano (08:00). Si son varios, sepáralos con coma sin espacio, ej. "Martes,Jueves" — mejor usar el botón 🕐 Horario, que ya permite marcar varios',
+    dias_trabajo:'Ej. "Lunes-Sabado" o "Lunes, Miercoles, Viernes" - mejor usar el botón 🕐 Horario en vez de escribir esto a mano',
+    horario_completo:'true o false - mejor usar el botón 🕐 Horario',
+    dia_completo:'Día(s) en que entra más temprano (08:00). Si son varios, sepáralos con coma sin espacio, ej. "Martes,Jueves" - mejor usar el botón 🕐 Horario, que ya permite marcar varios',
     frecuencia_pago:'mensual, quincenal o semanal',
     dia_pago:'Día del mes en que se le paga, número del 1 al 31',
     grado_academico:'Ej. Licenciada, Magíster'
@@ -647,19 +647,19 @@ const COLUMN_HINTS={
     dia_pago:'Día del mes en que se le paga, número del 1 al 31'
   },
   usuarios_gerencia:{
-    rol:'"gerencia" = app Gerencia · "administracion" = app Administración · "superadmin" = además puede entrar a Sistema con su propio correo/contraseña. Por ahora Gerencia y Administración aceptan cualquier cuenta de esta tabla (no filtran por rol todavía) — el rol es para organizarlas.',
+    rol:'"gerencia" = app Gerencia · "administracion" = app Administración · "superadmin" = además puede entrar a Sistema con su propio correo/contraseña. Por ahora Gerencia y Administración aceptan cualquier cuenta de esta tabla (no filtran por rol todavía) - el rol es para organizarlas.',
     sede:'Todas (ve las 4 sedes) o el nombre de una sede específica'
   },
   sesiones:{
     paciente_nombre:'Nombre completo tal cual está en pacientes.nombre',
     psicologa:'Nombre completo tal cual está en psicologas.nombre',
     terapia:'Nombre tal cual está en terapias.nombre',
-    estado:'programado, asistio, tardanza, noasistio, permiso o cancelado — normalmente lo cambia Recepción con los botones, no aquí',
-    tipo:'sesion, consulta, paquete, informe, constancia o neuropsico — "consulta" NO cuenta para metas/bonos',
+    estado:'programado, asistio, tardanza, noasistio, permiso o cancelado - normalmente lo cambia Recepción con los botones, no aquí',
+    tipo:'sesion, consulta, paquete, informe, constancia o neuropsico - "consulta" NO cuenta para metas/bonos',
     nro_en_paquete:'Número de esta sesión dentro del paquete, ej. 3',
     total_paquete:'Total de sesiones del paquete, ej. 12',
-    programa_id:'Se llena solo al usar Recepción — no editar a mano salvo que sepas el id exacto',
-    programa_terapia_id:'Se llena solo al usar Recepción — no editar a mano salvo que sepas el id exacto'
+    programa_id:'Se llena solo al usar Recepción - no editar a mano salvo que sepas el id exacto',
+    programa_terapia_id:'Se llena solo al usar Recepción - no editar a mano salvo que sepas el id exacto'
   },
   pagos:{
     metodo:'Efectivo, Yape, Plin, Transferencia o Tarjeta',
@@ -669,7 +669,7 @@ const COLUMN_HINTS={
   },
   terapias:{
     nombre:'Nombre de la terapia, ej. Psicología Clínica',
-    color:'Usa el selector de color — no escribir el código a mano',
+    color:'Usa el selector de color - no escribir el código a mano',
     activa:'true o false',
     sede:'Vacío = disponible en todas las sedes. Un nombre de sede (ej. Comas) = solo ahí. Varias sedes separadas por coma (ej. "Comas, Flecha") = disponible en esas, pero no en el resto'
   },
@@ -689,14 +689,14 @@ const COLUMN_HINTS={
     activo:'true o false'
   },
   tarifas_sede:{
-    sede:'Sede a la que pertenece este precio — cada sede puede tener paquetes/precios distintos, es obligatorio',
+    sede:'Sede a la que pertenece este precio - cada sede puede tener paquetes/precios distintos, es obligatorio',
     nombre_servicio:'Nombre del paquete o servicio, ej. Paquete 12 sesiones',
     tipo:'paquete, consulta, informe, constancia, neuropsico u otro',
     nro_sesiones:'Cantidad de sesiones que trae el paquete, ej. 12',
-    costo_total:'Precio TOTAL del paquete, número sin S/ — mejor usar el formulario de Administración, que calcula solo el monto por cuota',
+    costo_total:'Precio TOTAL del paquete, número sin S/ - mejor usar el formulario de Administración, que calcula solo el monto por cuota',
     cantidad_cuotas:'En cuántas cuotas se paga el precio total, ej. 3. Si es 1, se paga todo junto',
-    monto_cuota:'Monto de cada cuota = costo_total ÷ cantidad_cuotas. Se calcula solo en Administración — si lo editas aquí a mano, asegúrate que la cuenta cuadre',
-    activo:'true o false — si está en false no aparece como opción activa en las apps'
+    monto_cuota:'Monto de cada cuota = costo_total ÷ cantidad_cuotas. Se calcula solo en Administración - si lo editas aquí a mano, asegúrate que la cuenta cuadre',
+    activo:'true o false - si está en false no aparece como opción activa en las apps'
   },
   honorarios:{
     psicologa_nombre:'Nombre completo tal cual está en psicologas.nombre',
@@ -716,7 +716,7 @@ const COLUMN_HINTS={
     paciente_nombre:'Nombre completo tal cual está en pacientes.nombre',
     tipo:'Informe, Evaluación, Constancia, Contrato u Otro',
     nombre:'Nombre del archivo tal cual se subió',
-    url:'Se llena solo al subir el archivo — no editar a mano'
+    url:'Se llena solo al subir el archivo - no editar a mano'
   },
   programas_paciente:{
     paciente_nombre:'Nombre completo tal cual está en pacientes.nombre',
@@ -725,14 +725,14 @@ const COLUMN_HINTS={
     nro_sesiones_total:'Cantidad total de sesiones del programa, ej. 12',
     costo_total:'Costo total del programa, número sin S/',
     adelanto_acumulado:'Suma de todos los adelantos/pagos hechos hasta ahora',
-    estado:'activo o completado — se marca "completado" solo al usar Recepción, normalmente no se edita a mano'
+    estado:'activo o completado - se marca "completado" solo al usar Recepción, normalmente no se edita a mano'
   },
   programa_terapias:{
-    programa_id:'id de la fila correspondiente en programas_paciente — no inventar, copiar el id real',
+    programa_id:'id de la fila correspondiente en programas_paciente - no inventar, copiar el id real',
     terapia:'Nombre tal cual está en terapias.nombre',
     psicologa:'Nombre completo tal cual está en psicologas.nombre',
     sesiones_asignadas:'Cuántas sesiones de esta terapia trae el programa',
-    sesiones_realizadas:'Cuántas ya se hicieron — normalmente lo actualiza Recepción solo'
+    sesiones_realizadas:'Cuántas ya se hicieron - normalmente lo actualiza Recepción solo'
   },
   notas_clinicas:{
     paciente_nombre:'Nombre completo tal cual está en pacientes.nombre',
@@ -753,8 +753,8 @@ const COLUMN_HINTS={
     psicologa_nombre:'Nombre completo tal cual está en psicologas.nombre',
     terapia:'Nombre tal cual está en terapias.nombre',
     objetivo:'Texto libre',
-    actividad:'Texto libre — qué se trabajó en la sesión',
-    resultados:'Texto libre — cómo respondió el paciente',
+    actividad:'Texto libre - qué se trabajó en la sesión',
+    resultados:'Texto libre - cómo respondió el paciente',
     proxima_sesion:'Formato AAAA-MM-DD, próxima cita sugerida'
   },
   bonos_diarios:{
@@ -769,9 +769,9 @@ const COLUMN_HINTS={
   reprogramaciones:{
     paciente_nombre:'Nombre completo tal cual está en pacientes.nombre',
     psicologa_nombre:'Nombre completo tal cual está en psicologas.nombre',
-    fecha_original:'Formato AAAA-MM-DD — fecha que se canceló',
-    fecha_nueva:'Formato AAAA-MM-DD — fecha nueva',
-    url_evidencia:'Se llena solo al subir el archivo — no editar a mano'
+    fecha_original:'Formato AAAA-MM-DD - fecha que se canceló',
+    fecha_nueva:'Formato AAAA-MM-DD - fecha nueva',
+    url_evidencia:'Se llena solo al subir el archivo - no editar a mano'
   }
 };
 function hintFor(tabla,col){
@@ -790,7 +790,7 @@ function celdaInput(tabla,col,v){
   }
   if(enums){
     return '<select class="cellsel" data-col="'+col+'" data-kind="text">'+
-      enums.map(function(o){return '<option value="'+o+'"'+(String(v)===o?' selected':'')+'>'+(o===''?'—':o)+'</option>';}).join('')+
+      enums.map(function(o){return '<option value="'+o+'"'+(String(v)===o?' selected':'')+'>'+(o===''?'-':o)+'</option>';}).join('')+
       '</select>';
   }
   if(ARRAY_COLS.includes(col)){
@@ -816,7 +816,7 @@ function celdaInput(tabla,col,v){
     }
     const actual=String(v||'').trim();
     return '<select class="cellsel" data-col="sede" data-kind="text">'+
-      '<option value=""'+(!actual?' selected':'')+'>— (vacío)</option>'+
+      '<option value=""'+(!actual?' selected':'')+'>- (vacío)</option>'+
       '<option value="Todas"'+(actual==='Todas'?' selected':'')+'>Todas</option>'+
       SEDES_ACTIVAS.map(function(s){return '<option value="'+s+'"'+(actual===s?' selected':'')+'>'+s+'</option>';}).join('')+
       '</select>';
@@ -850,7 +850,7 @@ function celdaInput(tabla,col,v){
   }
   if(typeof v==='boolean'){
     // Antes esto era un <input> de texto libre con "true"/"false" escrito
-    // como texto — si alguien lo retipeaba distinto (mayúscula, espacio,
+    // como texto - si alguien lo retipeaba distinto (mayúscula, espacio,
     // "sí"...), se guardaba como false sin avisar. Ahora es un desplegable,
     // como cualquier otro campo de sí/no.
     return '<select class="cellsel" data-col="'+col+'" data-kind="bool">'+
@@ -870,7 +870,7 @@ function celdaInput(tabla,col,v){
 function renderEditableGrid(containerId,rows,tabla){
   const el=document.getElementById(containerId);
   // Guardar el scroll actual (de la tabla y de la página) para
-  // restaurarlo después de redibujar — si no, cada actualización
+  // restaurarlo después de redibujar - si no, cada actualización
   // automática regresaba la vista arriba de todo, perdiendo dónde
   // estaba mirando el usuario.
   const scrollBox=el.querySelector('div[style*="overflow:auto"]');
@@ -887,7 +887,7 @@ function renderEditableGrid(containerId,rows,tabla){
     }).join('')+'<th>Acciones</th></tr></thead><tbody>';
   rows.forEach((r,i)=>{
     // El id real se guarda en la propia fila del DOM (no solo en _tblRows)
-    // porque "Tablas" y "Cuentas" comparten el mismo _tblRows[tabla] — si
+    // porque "Tablas" y "Cuentas" comparten el mismo _tblRows[tabla] - si
     // las dos secciones cargaron esa tabla en momentos distintos (con
     // distinto orden), el índice visual podía ya no coincidir con el
     // índice del array en memoria, y se guardaba/parchaba una fila
@@ -940,7 +940,7 @@ function leerFilaForm(tr,row){
 }
 async function tblGuardarFilaInline(tabla,idx,btn){
   // El id real se lee SIEMPRE de la propia fila del DOM (data-id), nunca
-  // de _tblRows[tabla][idx] — "Tablas" y "Cuentas" pueden tener cargada la
+  // de _tblRows[tabla][idx] - "Tablas" y "Cuentas" pueden tener cargada la
   // MISMA tabla al mismo tiempo, cada una con su propio orden, y como
   // ambas comparten el mismo _tblRows[tabla], el índice podía apuntar a
   // una fila distinta a la que se ve en pantalla. Tomar "this" del botón
@@ -950,15 +950,15 @@ async function tblGuardarFilaInline(tabla,idx,btn){
   const tr=btn?btn.closest('tr'):document.querySelector('tr[data-row="'+idx+'"][data-tabla="'+tabla+'"]');
   if(!tr){toast('No se encontró la fila en pantalla','error');return;}
   const idReal=tr.dataset.id;
-  if(idReal===undefined){toast('Esta fila no tiene columna id — no se puede editar así','error');return;}
+  if(idReal===undefined){toast('Esta fila no tiene columna id - no se puede editar así','error');return;}
   let data;
   try{data=leerFilaForm(tr,null);}catch(e){toast(e.message,'error');return;}
   try{
     const res=await sbPatch(tabla,data,{id:'eq.'+idReal});
     // sbPatch no lanza error si el filtro no encontró ninguna fila (la API
-    // igual responde 200 con un array vacío) — sin este chequeo, eso se
+    // igual responde 200 con un array vacío) - sin este chequeo, eso se
     // veía como "✅ actualizado" aunque en la base no cambió nada.
-    if(!res||!res.length){toast('⚠️ No se encontró esa fila en la base (puede que ya no exista) — nada se guardó','error');return;}
+    if(!res||!res.length){toast('⚠️ No se encontró esa fila en la base (puede que ya no exista) - nada se guardó','error');return;}
     toast('✅ Fila actualizada');
     tr.classList.remove('dirty');
     // Si quedan otras filas sin guardar en pantalla, no recargamos la tabla
@@ -1026,7 +1026,7 @@ async function tblCargar(){
   document.getElementById('tblCount').textContent='⏳ cargando…';
   try{
     // order:'id.asc' evita que las filas "salten" de posición cada vez que
-    // se recarga la tabla — sin un orden explícito, Postgres no garantiza
+    // se recarga la tabla - sin un orden explícito, Postgres no garantiza
     // el mismo orden entre consultas, y después de editar una fila podía
     // aparecer en otro lugar de la lista.
     const params={select:'*',limit:lim,order:'id.asc'};
@@ -1041,10 +1041,10 @@ async function tblCargar(){
   }
 }
 
-// ══ VISOR POR SEDE — vista de solo lectura, agrupada por tema ══
+// ══ VISOR POR SEDE - vista de solo lectura, agrupada por tema ══
 const VISOR_SECCIONES=[
   {tabla:'terapias',titulo:'🧠 Tipos de Terapia',sinSede:false,sedeNullable:true,orden:'nombre.asc',cols:[
-    {k:'nombre',l:'Nombre'},{k:'color',l:'Color',fmt:function(v){return v?'<span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:'+v+';vertical-align:middle;margin-right:4px"></span>'+v:'—';}},
+    {k:'nombre',l:'Nombre'},{k:'color',l:'Color',fmt:function(v){return v?'<span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:'+v+';vertical-align:middle;margin-right:4px"></span>'+v:'-';}},
     {k:'activa',l:'Activa',fmt:function(v){return v?'✅':'❌';}},{k:'sede',l:'Sede',fmt:function(v){return v||'Todas';}}]},
   {tabla:'psicologas',titulo:'👩‍⚕️ Psicólogas',orden:'nombre.asc',cols:[
     {k:'nombre',l:'Nombre'},{k:'especialidad',l:'Especialidad'},{k:'grado_academico',l:'Grado académico'},
@@ -1105,7 +1105,7 @@ async function visorCargar(){
       if(!rows.length){body.innerHTML='<div class="hint" style="padding:10px">Sin datos'+(sedeAplica?' para esta sede':'')+'.</div>';return;}
       var html='<table class="tbl"><thead><tr>'+s.cols.map(function(c){return '<th>'+c.l+'</th>';}).join('')+'</tr></thead><tbody>';
       rows.forEach(function(r){
-        html+='<tr>'+s.cols.map(function(c){var v=r[c.k];return '<td>'+(c.fmt?c.fmt(v):(v===null||v===undefined||v===''?'—':v))+'</td>';}).join('')+'</tr>';
+        html+='<tr>'+s.cols.map(function(c){var v=r[c.k];return '<td>'+(c.fmt?c.fmt(v):(v===null||v===undefined||v===''?'-':v))+'</td>';}).join('')+'</tr>';
       });
       html+='</tbody></table>';
       body.innerHTML=html;
@@ -1134,7 +1134,7 @@ const TABLE_TEMPLATES={
 function tblNuevaFila(tabla){
   tabla=tabla||document.getElementById('tblSelect').value;
   _modalCtx={tabla:tabla,idx:-1,row:null};
-  document.getElementById('modalFilaTitulo').textContent='Nueva fila — '+tabla;
+  document.getElementById('modalFilaTitulo').textContent='Nueva fila - '+tabla;
   var muestra=(_tblRows[tabla]&&_tblRows[tabla][0])||TABLE_TEMPLATES[tabla];
   var plantilla={};
   if(muestra){
@@ -1143,7 +1143,7 @@ function tblNuevaFila(tabla){
       plantilla[k]=typeof muestra[k]==='object'?muestra[k]:(typeof muestra[k]==='number'?0:typeof muestra[k]==='boolean'?false:'');
     });
   }
-  // Formulario por columna — mismos inputs/desplegables/selector de color
+  // Formulario por columna - mismos inputs/desplegables/selector de color
   // que la tabla editable, en vez de pedir JSON con comillas a mano.
   var formEl=document.getElementById('modalFilaForm');
   formEl.dataset.tabla=tabla;
@@ -1151,7 +1151,7 @@ function tblNuevaFila(tabla){
   formEl.innerHTML=cols.length?cols.map(function(c){
     return '<div><label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">'+c+'</label>'+
       celdaInput(tabla,c,plantilla[c])+'</div>';
-  }).join(''):'<div class="hint">Esta tabla no tiene columnas conocidas todavía — guarda una fila desde otra vista primero, o pide que se agregue la plantilla.</div>';
+  }).join(''):'<div class="hint">Esta tabla no tiene columnas conocidas todavía - guarda una fila desde otra vista primero, o pide que se agregue la plantilla.</div>';
   var ayudaEl=document.getElementById('modalFilaAyuda');
   var lineas=cols.map(function(k){var h=hintFor(tabla,k);return h?('<div><b>'+k+'</b>: '+h+'</div>'):'';}).filter(Boolean);
   if(lineas.length){ayudaEl.innerHTML='📋 <b>Cómo llenar '+tabla+':</b><br>'+lineas.join('');ayudaEl.style.display='block';}
@@ -1173,11 +1173,11 @@ async function guardarModalFila(){
 }
 async function tblEliminarFila(tabla,idx,btn){
   // Mismo motivo que en tblGuardarFilaInline: el id se toma de la fila del
-  // DOM (data-id) vía el botón que se apretó, nunca de _tblRows[idx] — así
+  // DOM (data-id) vía el botón que se apretó, nunca de _tblRows[idx] - así
   // nunca se puede borrar por error una fila distinta a la que se ve.
   const tr=btn?btn.closest('tr'):document.querySelector('tr[data-row="'+idx+'"][data-tabla="'+tabla+'"]');
   const idReal=tr?tr.dataset.id:((_tblRows[tabla]||[])[idx]||{}).id;
-  if(idReal===undefined){toast('Esta fila no tiene columna id — no se puede eliminar así','error');return;}
+  if(idReal===undefined){toast('Esta fila no tiene columna id - no se puede eliminar así','error');return;}
   if(!confirm('¿Eliminar esta fila de "'+tabla+'"? No se puede deshacer.'))return;
   try{
     await sbDelete(tabla,{id:'eq.'+idReal});
@@ -1189,7 +1189,7 @@ async function tblEliminarFila(tabla,idx,btn){
 
 // ── VACIAR PACIENTE ── borra sesiones/paquetes/terapias-del-paquete/pagos/
 // precios exclusivos de un paciente, dejando intacta su fila en "pacientes"
-// — el mismo procedimiento que se hace a mano al limpiar datos de prueba o
+// - el mismo procedimiento que se hace a mano al limpiar datos de prueba o
 // un registro mal hecho, pero desde la interfaz en vez de SQL directo.
 let _vaciarPac=null;
 let _vaciarDatos=null;
@@ -1207,7 +1207,7 @@ async function vaciarBuscarPac(){
       const nombreEsc=String(p.nombre).replace(/'/g,"\\'");
       return '<div onclick="vaciarElegirPac(\''+nombreEsc+'\')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border)" '+
         'onmouseover="this.style.background=\'#f4f6fb\'" onmouseout="this.style.background=\'\'">'+p.nombre+
-        ' <span class="hint">· '+(p.sede||'—')+'</span></div>';
+        ' <span class="hint">· '+(p.sede||'-')+'</span></div>';
     }).join('');
     list.style.display='block';
   }catch(e){}
@@ -1240,11 +1240,11 @@ async function vaciarRevisar(){
     _vaciarDatos={ses:ses.data||[],progs:progs.data||[],pagos:pagos.data||[],precios:precios.data||[],progTer:progTer};
     const total=_vaciarDatos.ses.length+_vaciarDatos.progs.length+_vaciarDatos.pagos.length+_vaciarDatos.precios.length;
     if(!total){
-      prevEl.innerHTML='<div class="hint">Este paciente no tiene nada registrado aparte de su ficha — no hay nada que borrar.</div>';
+      prevEl.innerHTML='<div class="hint">Este paciente no tiene nada registrado aparte de su ficha - no hay nada que borrar.</div>';
       document.getElementById('vaciarBtnBorrar').style.display='none';
       return;
     }
-    prevEl.innerHTML='<div class="hint" style="margin-bottom:8px">Se eliminará esto de <b>'+nombre+'</b> — su ficha en "pacientes" NO se toca:</div>'+
+    prevEl.innerHTML='<div class="hint" style="margin-bottom:8px">Se eliminará esto de <b>'+nombre+'</b> - su ficha en "pacientes" NO se toca:</div>'+
       '<ul style="margin:0;padding-left:18px">'+
       '<li>'+_vaciarDatos.ses.length+' sesión(es)</li>'+
       '<li>'+_vaciarDatos.progs.length+' paquete(s) registrado(s)</li>'+
@@ -1260,7 +1260,7 @@ async function vaciarConfirmar(){
   const nombre=_vaciarPac;
   if(!confirm('¿Seguro que quieres borrar TODO lo registrado de "'+nombre+'" (sesiones, paquetes, pagos, precios exclusivos)?\n\nEsto NO se puede deshacer. La ficha del paciente se mantiene.'))return;
   const escrito=prompt('Para confirmar, escribe exactamente el nombre del paciente:\n"'+nombre+'"');
-  if(escrito!==nombre){toast('El nombre no coincide — cancelado, no se borró nada','error');return;}
+  if(escrito!==nombre){toast('El nombre no coincide - cancelado, no se borró nada','error');return;}
   try{
     if(_vaciarDatos.progTer.length){
       const ids=_vaciarDatos.progTer.map(function(x){return x.id;});
@@ -1271,7 +1271,7 @@ async function vaciarConfirmar(){
     if(_vaciarDatos.precios.length)await sbDelete('precio_paciente',{paciente_nombre:'eq.'+nombre});
     if(_vaciarDatos.progs.length)await sbDelete('programas_paciente',{paciente_nombre:'eq.'+nombre});
     toast('✅ Se borró todo lo registrado de '+nombre+' (se mantuvo su ficha)');
-    document.getElementById('vaciarPreview').innerHTML='<div class="hint">✅ Listo — no queda nada registrado de este paciente, salvo su ficha.</div>';
+    document.getElementById('vaciarPreview').innerHTML='<div class="hint">✅ Listo - no queda nada registrado de este paciente, salvo su ficha.</div>';
     document.getElementById('vaciarBtnBorrar').style.display='none';
     _vaciarDatos=null;_vaciarPac=null;
   }catch(e){toast('Error al borrar: '+e.message,'error');}
@@ -1323,7 +1323,7 @@ function abrirHorarioPs(idx){
   if(/^lunes\s*-\s*sabado$/i.test(row.dias_trabajo||''))diasActuales=DIAS_SEMANA.slice(0,6);
   var diasCompletosActuales=(row.dia_completo||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
   document.getElementById('horarioBody').innerHTML=
-    '<div style="font-weight:900;font-size:15px;margin-bottom:10px">🕐 Horario — '+row.nombre+'</div>'+
+    '<div style="font-weight:900;font-size:15px;margin-bottom:10px">🕐 Horario - '+row.nombre+'</div>'+
     '<div class="hint" style="margin-bottom:6px">Días que trabaja</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">'+
     DIAS_SEMANA.map(function(d){
@@ -1332,7 +1332,7 @@ function abrirHorarioPs(idx){
         '<input type="checkbox" value="'+d+'" class="diaTrabajoChk" '+(checked?'checked':'')+'> '+d.slice(0,3)+'</label>';
     }).join('')+
     '</div>'+
-    '<div class="hint" style="margin-bottom:6px">Día(s) completo(s) — entra más temprano (08:00). Puede marcar más de uno.</div>'+
+    '<div class="hint" style="margin-bottom:6px">Día(s) completo(s) - entra más temprano (08:00). Puede marcar más de uno.</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">'+
     DIAS_SEMANA.map(function(d){
       var checked=diasCompletosActuales.indexOf(d)>-1;
@@ -1405,7 +1405,7 @@ async function listarBuckets(){
     const r=await fetch(SBU+'/storage/v1/bucket',{headers:SBH});
     if(r.ok){const d=await r.json();detectados=(d||[]).map(function(b){return b.name||b.id;});}
   }catch(e){}
-  // 2) Además, probar cada bucket conocido con un listado de su raíz — si responde 200,
+  // 2) Además, probar cada bucket conocido con un listado de su raíz - si responde 200,
   // el bucket existe y es accesible aunque /storage/v1/bucket no lo muestre.
   const pruebas=await Promise.all(BUCKETS_CONOCIDOS.map(async function(b){
     try{
@@ -1439,7 +1439,7 @@ async function listarArchivos(){
     let h='<div class="hint" style="margin-bottom:8px">'+(data||[]).length+' archivo(s) · ~'+(totalBytes/1024/1024).toFixed(2)+' MB (aproximado)</div>';
     h+='<div style="overflow:auto;max-height:480px"><table><thead><tr><th>Nombre</th><th>Tamaño</th><th>Actualizado</th><th>Acciones</th></tr></thead><tbody>';
     (data||[]).forEach(function(f){
-      const size=f.metadata&&f.metadata.size?(f.metadata.size/1024).toFixed(1)+' KB':'—';
+      const size=f.metadata&&f.metadata.size?(f.metadata.size/1024).toFixed(1)+' KB':'-';
       const path=(prefix?prefix+'/':'')+f.name;
       h+='<tr><td>'+f.name+'</td><td>'+size+'</td><td>'+(f.updated_at||'')+'</td>'+
         '<td><a class="btn btn-outline btn-sm" href="'+SBU+'/storage/v1/object/public/'+bucket+'/'+encodeURIComponent(path)+'" target="_blank">👁 Ver</a> '+
@@ -1502,7 +1502,7 @@ const TABLE_DOCS={
   psicologas:'Sistema (cuentas y horario). Recepción y Gerencia solo leen. Contraseña en texto plano.',
   recepcionistas:'Sistema (cuentas). Gerencia solo lee.',
   usuarios_gerencia:'Sistema (cuentas). Login de Gerencia lee de aquí.',
-  terapias:'Catálogo fijo — normalmente no cambia. Editable desde Sistema.',
+  terapias:'Catálogo fijo - normalmente no cambia. Editable desde Sistema.',
   sesiones:'Recepción crea/edita al agendar y marcar asistencia. Psicóloga y Gerencia solo leen.',
   pagos:'Recepción registra cada cobro. Gerencia lee para Finanzas.',
   fichas_seguimiento:'Psicóloga crea una por sesión (Llenar Ficha). Recepción/Gerencia solo leen.',
@@ -1511,10 +1511,10 @@ const TABLE_DOCS={
   registro_animo:'Psicóloga (ánimo diario del paciente). Requiere sql/001.',
   documentos:'Recepción sube documentos de pacientes (Storage + esta tabla).',
   documentos_personal:'Gerencia sube documentos del personal (contratos, etc.).',
-  bonos_diarios:'Nadie la escribe todavía — ningún app calcula bonos automáticamente hoy.',
+  bonos_diarios:'Nadie la escribe todavía - ningún app calcula bonos automáticamente hoy.',
   honorarios:'Gerencia (sueldos mensuales por psicóloga).',
   contratos:'Gerencia crea el contrato; la psicóloga lo firma desde su app.',
-  pagos_recurrentes:'Gerencia (alquiler, internet, servicios — pagos fijos del local).',
+  pagos_recurrentes:'Gerencia (alquiler, internet, servicios - pagos fijos del local).',
   gastos:'Gerencia registra gastos operativos.',
   chat_sede:'Las 3 apps (psicóloga, recepción, gerencia) leen y escriben aquí.',
   asistencia_personal:'Recepción marca presente/ausente del personal cada día.',
@@ -1537,12 +1537,12 @@ async function renderDocs(){
     h+='<details style="border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden">'+
       '<summary style="padding:10px 14px;font-weight:800;font-size:13px;cursor:pointer;background:#f3f8ff">'+t+'</summary>'+
       '<div style="padding:12px 14px">'+
-      '<div class="hint" style="margin-bottom:8px">✍️ Quién la llena: '+(TABLE_DOCS[t]||'—')+'</div>'+
+      '<div class="hint" style="margin-bottom:8px">✍️ Quién la llena: '+(TABLE_DOCS[t]||'-')+'</div>'+
       (error?'<div class="hint" style="color:var(--red)">❌ '+error+'</div>':
         cols.length?
           '<div class="hint" style="margin-bottom:6px">Columnas: '+cols.join(', ')+'</div>'+
           '<pre>'+JSON.stringify(ejemplo,null,2)+'</pre>'
-          :'<div class="hint">Tabla vacía o sin acceso — no se puede mostrar un ejemplo real todavía.</div>')+
+          :'<div class="hint">Tabla vacía o sin acceso - no se puede mostrar un ejemplo real todavía.</div>')+
       '</div></details>';
   }
   el.innerHTML=h;
