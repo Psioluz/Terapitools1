@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Psicoluz">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#001919">
-<meta name="description" content="Sistema de Agenda para Psicólogas — Psicoluz">
+<meta name="description" content="Sistema de Agenda para Psicólogas - Psicoluz">
 <link rel="manifest" id="pwaManifest" href="manifest.json">
 <link rel="icon" href="icon-192.png" type="image/png">
 <style>
@@ -93,7 +93,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   select{font-size:16px!important;min-height:44px}
 }
 /* En pantallas anchas (escritorio) el sidebar va siempre visible en flujo
-   normal — el botón hamburguesa lo colapsa/expande con un ancho animado
+   normal - el botón hamburguesa lo colapsa/expande con un ancho animado
    en vez del overlay que se usa en móvil. */
 @media(min-width:769px){
   .ps-sidebar{transition:width .22s ease,opacity .18s ease;overflow:hidden}
@@ -107,7 +107,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .pg{display:none;padding:14px}
 .pg.active{display:block}
 /* El chat necesita layout de columna (encabezado + mensajes que se
-   estiran + caja de texto abajo) en vez del bloque normal — si no, la
+   estiran + caja de texto abajo) en vez del bloque normal - si no, la
    caja de escribir queda flotando encima de mensajes en vez de debajo.
    goTab() fija display:block por JS al cambiar de pestaña, por eso el
    !important: si no, esa línea de JS gana siempre. */
@@ -229,7 +229,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
       <div style="min-width:0">
         <div style="font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="ps-sidebar-nombre">Psicóloga</div>
-        <div style="font-size:11px;opacity:.65;margin-top:1px" id="hdrSede">Sede —</div>
+        <div style="font-size:11px;opacity:.65;margin-top:1px" id="hdrSede">Sede -</div>
       </div>
     </div>
     <!-- Reloj -->
@@ -319,7 +319,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <!-- Selector de paciente -->
     <div style="margin-bottom:10px">
       <select class="fc" id="clPacSel" onchange="renderClinico()" style="font-size:14px;font-weight:700;margin-bottom:0">
-        <option value="">— Selecciona un paciente —</option>
+        <option value="">- Selecciona un paciente -</option>
       </select>
     </div>
     <div id="clContenido">
@@ -338,7 +338,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <!-- CHAT SEDE -->
   <div class="pg" id="tabMetas">
     <div class="card" style="margin-bottom:10px">
-      <div class="ch">🎯 Mis Metas del Mes — <span id="mtMes"></span></div>
+      <div class="ch">🎯 Mis Metas del Mes - <span id="mtMes"></span></div>
       <div class="cb">
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
           <div style="text-align:center;background:var(--bg);border-radius:12px;padding:12px">
@@ -381,7 +381,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#4a0e2e,#e91e8c);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">🗣️</div>
         <div style="flex:1">
           <div style="font-size:14px;font-weight:800">Terapia de Lenguaje</div>
-          <div style="font-size:11px;color:var(--muted)">Juego de fonemas — practica sonidos y palabras con el paciente</div>
+          <div style="font-size:11px;color:var(--muted)">Juego de fonemas - practica sonidos y palabras con el paciente</div>
         </div>
         <div style="font-size:20px;color:var(--muted)">→</div>
       </div>
@@ -390,7 +390,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="pg" id="tabChat">
     <!-- Encabezado del chat -->
     <div style="padding:12px 16px;background:linear-gradient(135deg,#4a0e2e,#c2185b);color:#fff;border-radius:12px 12px 0 0;margin:-0px;flex-shrink:0">
-      <div style="font-weight:800;font-size:14px">💬 Chat — Sede <span id="chatSedeTitulo"></span></div>
+      <div style="font-weight:800;font-size:14px">💬 Chat - Sede <span id="chatSedeTitulo"></span></div>
       <div style="font-size:11px;opacity:.8;margin-top:2px">Psicólogas + Recepción · Solo esta sede</div>
     </div>
 
@@ -434,11 +434,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <input type="file" id="inputFoto" accept="image/*" style="display:none" onchange="cambiarFoto(this)">
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:19px;font-weight:900;margin-bottom:3px" id="perNom">—</div>
-          <div style="font-size:12px;color:var(--muted)" id="perSede">—</div>
-          <div style="font-size:12px;color:var(--acc);font-weight:800;margin-top:2px" id="perCop">—</div>
-          <div style="font-size:12px;color:var(--muted)" id="perEsp">—</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:3px" id="perEmailLabel">—</div>
+          <div style="font-size:19px;font-weight:900;margin-bottom:3px" id="perNom">-</div>
+          <div style="font-size:12px;color:var(--muted)" id="perSede">-</div>
+          <div style="font-size:12px;color:var(--acc);font-weight:800;margin-top:2px" id="perCop">-</div>
+          <div style="font-size:12px;color:var(--muted)" id="perEsp">-</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px" id="perEmailLabel">-</div>
         </div>
       </div>
     </div>
@@ -452,7 +452,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
         <div style="background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <span style="font-size:12px;font-weight:700;color:var(--muted)">📧 Correo de acceso</span>
-          <span style="font-size:12px;font-weight:800;color:var(--dark)" id="cfgEmailLabel">—</span>
+          <span style="font-size:12px;font-weight:800;color:var(--dark)" id="cfgEmailLabel">-</span>
         </div>
         <div style="border-top:1px solid var(--border);padding-top:12px">
           <label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">🔢 PIN de acceso rápido (4 dígitos)</label>
@@ -498,11 +498,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div style="display:flex;flex-direction:column;gap:8px">
           <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:var(--bg);border-radius:8px">
             <span style="font-size:12px;font-weight:700;color:var(--muted)">⏰ Horario regular</span>
-            <span style="font-size:13px;font-weight:800;color:var(--dark)" id="perHorario">13:15 — 20:00</span>
+            <span style="font-size:13px;font-weight:800;color:var(--dark)" id="perHorario">13:15 - 20:00</span>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:#e6fafa;border-radius:8px;border:1px solid var(--acc)">
             <span style="font-size:12px;font-weight:700;color:var(--acc)">⭐ Día completo (desde 08:00)</span>
-            <span style="font-size:13px;font-weight:800;color:var(--dark)" id="perDiaEspLabel">—</span>
+            <span style="font-size:13px;font-weight:800;color:var(--dark)" id="perDiaEspLabel">-</span>
           </div>
     <!-- ASISTENCIA DEL DÍA -->
     <div id="perAsistenciaCard" style="background:var(--bg);border-radius:12px;padding:12px;margin-top:12px;border:1px solid var(--border)">
@@ -513,11 +513,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
           <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:var(--bg);border-radius:8px">
             <span style="font-size:12px;font-weight:700;color:var(--muted)">📅 Ingresó a Psicoluz</span>
-            <span style="font-size:13px;font-weight:800;color:var(--dark)" id="perFechaIngreso">—</span>
+            <span style="font-size:13px;font-weight:800;color:var(--dark)" id="perFechaIngreso">-</span>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:var(--bg);border-radius:8px">
             <span style="font-size:12px;font-weight:700;color:var(--muted)">⏳ Tiempo en empresa</span>
-            <span style="font-size:13px;font-weight:800;color:var(--acc)" id="perTiempo">—</span>
+            <span style="font-size:13px;font-weight:800;color:var(--acc)" id="perTiempo">-</span>
           </div>
           <div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:8px;text-align:center">
             ℹ️ Horario y día especial configurados por la administradora
@@ -534,7 +534,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <div class="stat" style="border-color:var(--green)"><div class="sv" style="color:var(--green)" id="prAsist">0</div><div class="sl">Asistidas</div></div>
           <div class="stat" style="border-color:var(--orange)"><div class="sv" style="color:var(--orange)" id="prPacs">0</div><div class="sl">Pacientes</div></div>
         </div>
-        <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--muted);text-align:center" id="perUltimaSes">Última sesión: —</div>
+        <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--muted);text-align:center" id="perUltimaSes">Última sesión: -</div>
       </div>
     </div>
     <!-- Instalar app (solo visible si no está instalada) -->
@@ -598,10 +598,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <!-- Datos pre-llenados -->
     <div class="ficha-meta">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">
-        <div><span style="color:#880e4f;font-weight:700">Paciente:</span><br><span id="fichaPacNom" style="font-weight:800">—</span></div>
-        <div><span style="color:#880e4f;font-weight:700">Fecha:</span><br><span id="fichaFecha" style="font-weight:800">—</span></div>
-        <div><span style="color:#880e4f;font-weight:700">Terapia:</span><br><span id="fichaTerapia" style="font-weight:800">—</span></div>
-        <div><span style="color:#880e4f;font-weight:700">Psicóloga:</span><br><span id="fichaPsicologa" style="font-weight:800">—</span></div>
+        <div><span style="color:#880e4f;font-weight:700">Paciente:</span><br><span id="fichaPacNom" style="font-weight:800">-</span></div>
+        <div><span style="color:#880e4f;font-weight:700">Fecha:</span><br><span id="fichaFecha" style="font-weight:800">-</span></div>
+        <div><span style="color:#880e4f;font-weight:700">Terapia:</span><br><span id="fichaTerapia" style="font-weight:800">-</span></div>
+        <div><span style="color:#880e4f;font-weight:700">Psicóloga:</span><br><span id="fichaPsicologa" style="font-weight:800">-</span></div>
       </div>
     </div>
     <!-- Campos de la ficha -->
@@ -710,8 +710,8 @@ function _diasTrabajoANum(txt){
             status:'ok',
             sesiones:ses.map(function(s){
               return {id:s.id,fecha:s.fecha,hora:_fH(s.hora),
-                pacNombre:s.paciente_nombre||'—',pacTel:s.paciente_tel||'',
-                psNombre:s.psicologa||'—',terNombre:s.terapia||'—',
+                pacNombre:s.paciente_nombre||'-',pacTel:s.paciente_tel||'',
+                psNombre:s.psicologa||'-',terNombre:s.terapia||'-',
                 estado:s.estado||'programado',tipo:s.tipo||'sesion',
                 nroEnPaq:s.nro_en_paquete||0,totalPaq:s.total_paquete||1,
                 costoTotal:s.costo_total||0,saldo:s.saldo||0,
@@ -1116,7 +1116,7 @@ window.onunhandledrejection = function(e){
       localStorage.setItem('psicoluz_pwa_instalada','1');
     } else {
       // Mostrar el botón siempre (no solo cuando el navegador dispara
-      // beforeinstallprompt — iOS Safari nunca lo dispara, por eso el botón
+      // beforeinstallprompt - iOS Safari nunca lo dispara, por eso el botón
       // nunca aparecía ahí. _instalarPWA() ya tiene instrucciones manuales
       // para cuando no hay prompt nativo disponible.
       mostrarBtnInstalar();
@@ -1211,7 +1211,7 @@ let PS={sede:'',nombre:'',email:'',foto:'',cop:'',esp:'',diaEspecial:'',inicio:'
         sesiones:[],pacientes:[],archivos:[]};
 // Caché en memoria (no localStorage) de datos clínicos, solo para evitar el
 // "parpadeo" de re-render mientras se actualiza desde Supabase. Se vacía al
-// recargar la página — nada clínico queda guardado en el dispositivo.
+// recargar la página - nada clínico queda guardado en el dispositivo.
 let _clinicoCache={};
 let _loginAttempts=0;
 let _lastActivity=Date.now();
@@ -1258,7 +1258,7 @@ function lockSession(){
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:240px" id="pinPad">
         ${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(n=>`<button onclick="pinPress('${n}')" style="padding:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:12px;color:#fff;font-size:20px;font-weight:700;cursor:pointer;${n===''?'visibility:hidden':''}">${n}</button>`).join('')}
       </div>
-      <button onclick="lockLogout()" style="margin-top:20px;background:none;border:none;color:rgba(255,255,255,.4);font-size:12px;cursor:pointer">No soy yo — Cambiar usuario</button>
+      <button onclick="lockLogout()" style="margin-top:20px;background:none;border:none;color:rgba(255,255,255,.4);font-size:12px;cursor:pointer">No soy yo - Cambiar usuario</button>
     `;
     document.body.appendChild(lock);
     window._pinInput='';
@@ -1305,7 +1305,7 @@ let _semOff=0;
 let _tick=null;
 
 // ── UTILS ──
-// Perú usa GMT-5 todo el año (sin horario de verano) — se calcula restando
+// Perú usa GMT-5 todo el año (sin horario de verano) - se calcula restando
 // 5h al instante UTC y leyendo los componentes UTC del resultado, para que
 // la fecha/hora no dependa de cómo esté configurado el equipo/navegador.
 function _limaMs(d){return(d instanceof Date?d:new Date()).getTime()-5*3600000;}
@@ -1314,7 +1314,7 @@ function horaLima(d){var l=new Date(_limaMs(d));return String(l.getUTCHours()).p
 function today(){
   return fechaLima();
 }
-function fmtF(f){if(!f)return'—';const p=String(f).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f;}
+function fmtF(f){if(!f)return'-';const p=String(f).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f;}
 function normF(v){
   if(!v)return'';
   v=String(v).trim();
@@ -1400,13 +1400,13 @@ function onSede(){
   const sel=document.getElementById('lPs');
   sel.innerHTML='<option value="">Cargando...</option>';
   sel.disabled=true;
-  if(!sede){sel.innerHTML='<option value="">— Primero elige la sede —</option>';return;}
+  if(!sede){sel.innerHTML='<option value="">- Primero elige la sede -</option>';return;}
   
   // Leer del caché local (psicoluz_v3_<sede>, alimentado por getData() de Supabase)
   // getPsFromLocalStorage ya filtra cesadas/inactivas
   const psList=getPsFromLocalStorage(sede);
   if(psList.length>0){
-    sel.innerHTML='<option value="">— Selecciona tu nombre —</option>'+
+    sel.innerHTML='<option value="">- Selecciona tu nombre -</option>'+
       psList.map(n=>`<option value="${n}">${n}</option>`).join('');
     sel.disabled=false;
     toast('✅ '+psList.length+' psicólogas cargadas','ok');
@@ -1422,20 +1422,20 @@ function onSede(){
             const nombres=[...new Set(data.psicologas
               .filter(p=>p.estado!=='cesada'&&p.estado!=='inactiva')
               .map(p=>p.nombre).filter(Boolean))];
-            sel.innerHTML='<option value="">— Selecciona tu nombre —</option>'+
+            sel.innerHTML='<option value="">- Selecciona tu nombre -</option>'+
               nombres.map(n=>`<option value="${n}">${n}</option>`).join('');
             sel.disabled=false;
             toast('✅ '+nombres.length+' psicólogas activas','ok');
             return;
           }
         }
-        sel.innerHTML='<option value="">Sin psicólogas — verifica el servidor</option>';        sel.innerHTML='<option value="">— Selecciona tu nombre —</option>'+
+        sel.innerHTML='<option value="">Sin psicólogas - verifica el servidor</option>';        sel.innerHTML='<option value="">- Selecciona tu nombre -</option>'+
           base.map(n=>`<option value="${n}">${n}</option>`).join('');
         sel.disabled=false;
         toast('Lista base (configura el servidor)','inf');
       }).catch(()=>{
         const base=['Lic. María García','Lic. Ana López','Lic. Rosa Pérez'];
-        sel.innerHTML='<option value="">— Selecciona tu nombre —</option>'+
+        sel.innerHTML='<option value="">- Selecciona tu nombre -</option>'+
           base.map(n=>`<option value="${n}">${n}</option>`).join('');
         sel.disabled=false;
       });
@@ -1450,7 +1450,7 @@ function getPsFromLocalStorage(sede){
       if(!s)continue;
       const db=JSON.parse(s);
       if(db.psicologas&&db.psicologas.length>0)
-        // Filtrar cesadas e inactivas — no deben aparecer en el login
+        // Filtrar cesadas e inactivas - no deben aparecer en el login
         return db.psicologas
           .filter(p=>p.estado!=='cesada'&&p.estado!=='inactiva')
           .map(p=>p.nombre).filter(Boolean);
@@ -1598,7 +1598,7 @@ async function completarLoginConPs(psObj){
       localStorage.setItem('psicoluz_foto_'+PS.email, PS.foto);
     }catch(e){}
   }else if(!PS.foto){
-    // Supabase ya respondió y esta psicóloga no tiene foto — borrar el
+    // Supabase ya respondió y esta psicóloga no tiene foto - borrar el
     // cache viejo para que no siga "resucitando" una foto eliminada.
     try{
       localStorage.removeItem('psicoluz_foto_'+PS.email);
@@ -1862,7 +1862,7 @@ function goTab(tabId, el){
 
   // Título dinámico
   const titles={
-    tabHoy:'Mi Agenda — Hoy', tabSemana:'Agenda Semanal',
+    tabHoy:'Mi Agenda - Hoy', tabSemana:'Agenda Semanal',
     tabPacs:'Mis Pacientes',  tabClinico:'Registro Clínico',
     tabMetas:'Metas', tabHerramientas:'Herramientas para Terapias',
     tabChat:'Chat de Sede',   tabPerfil:'Mi Perfil'
@@ -1906,7 +1906,7 @@ function toggleSidebar(){
   const wrap=document.querySelector('.ps-wrap');
   if(sb)sb.classList.toggle('open');
   if(ov)ov.classList.toggle('on');
-  // En escritorio (pantallas anchas) el sidebar no es un overlay — se
+  // En escritorio (pantallas anchas) el sidebar no es un overlay - se
   // colapsa/expande con esta clase en vez de con "open".
   if(wrap)wrap.classList.toggle('sb-collapsed');
 }
@@ -1934,12 +1934,12 @@ function cargarDeLocalStorage(){
   // Sesiones
   const misSes=(db.sesiones||[]).filter(s=>s.psId===psObj.id);
   PS.sesiones=misSes.map(s=>{
-    const pac=(db.pacientes||[]).find(p=>p.id===s.pacId)||{nombre:'—',tel:''};
-    const ter=(db.terapias||[]).find(t=>t.id===s.terId)||{nombre:'—'};
+    const pac=(db.pacientes||[]).find(p=>p.id===s.pacId)||{nombre:'-',tel:''};
+    const ter=(db.terapias||[]).find(t=>t.id===s.terId)||{nombre:'-'};
     const psO=(db.psicologas||[]).find(p=>p.id===s.psId)||{nombre:PS.nombre};
     return{id:s.id,fecha:normF(s.fecha),hora:normHora(s.hora),
-      pacId:s.pacId,pacNombre:pac.nombre||'—',pacTel:pac.tel||'',
-      psNombre:psO.nombre||PS.nombre,terNombre:ter.nombre||'—',
+      pacId:s.pacId,pacNombre:pac.nombre||'-',pacTel:pac.tel||'',
+      psNombre:psO.nombre||PS.nombre,terNombre:ter.nombre||'-',
       estado:s.estado||'programado',tipo:s.tipo||'sesion',
       nroEnPaq:s.nroEnPaq||0,totalPaq:s.totalPaq||1,
       costoTotal:s.costoTotal||0,saldo:s.saldo||0};
@@ -1949,7 +1949,7 @@ function cargarDeLocalStorage(){
   PS.pacientes=(db.pacientes||[]).filter(p=>p.psId===psObj.id).map(p=>{
     const ter=(db.terapias||[]).find(t=>t.id===p.terId)||{nombre:''};
     const sesUsadas=(db.sesiones||[]).filter(s=>s.pacId===p.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
-    return{id:p.id,nombre:p.nombre||'—',tel:p.tel||'',
+    return{id:p.id,nombre:p.nombre||'-',tel:p.tel||'',
       terNombre:ter.nombre||'',mod:p.mod||'sesion',paq:p.paq||0,sesUsadas};
   });
   
@@ -2044,7 +2044,7 @@ async function sync(mostrar){
       return pn.includes(nomB)||nomB.includes(pn.split(' ')[0]);
     });
     if(psData){
-      // diaEspecial y diasSemana SÍ se sobrescriben aunque vengan vacíos —
+      // diaEspecial y diasSemana SÍ se sobrescriben aunque vengan vacíos -
       // si la administradora quita un día especial o reduce los días de
       // trabajo, este refresco periódico debe reflejarlo, no solo "sumar".
       PS.diaEspecial=psData.diaEspecial||'';
@@ -2181,7 +2181,7 @@ function renderSemana(){
   }
   var d0=dias[0].d,d5=dias[5].d;
   var st=document.getElementById('semTitPs');
-  if(st)st.textContent=d0.getDate()+' '+MESES[d0.getMonth()]+' — '+d5.getDate()+' '+MESES[d5.getMonth()];
+  if(st)st.textContent=d0.getDate()+' '+MESES[d0.getMonth()]+' - '+d5.getDate()+' '+MESES[d5.getMonth()];
   var sesSem=PS.sesiones.filter(function(s){return dias.some(function(d){return d.f===s.fecha;});});
   var kpiEl=document.getElementById('semKpi');
   if(kpiEl){
@@ -2203,11 +2203,11 @@ function renderSemana(){
   // Días que trabaja: si PS.diasSemana no está definido, mostrar los 6 días
   var diasTrabajo=(PS.diasSemana&&PS.diasSemana.length)?dias.filter(function(d){return PS.diasSemana.indexOf(d.d.getDay())>-1;}):dias;
   if(!diasTrabajo.length)diasTrabajo=dias;
-  // Slots según su horario real de trabajo (PS.inicio–PS.fin, cada 45min),
+  // Slots según su horario real de trabajo (PS.inicio-PS.fin, cada 45min),
   // más cualquier hora de sesión real fuera de ese rango
   var slots=new Set();
   var iniM=horaAMin(PS.inicio)||(13*60+15), finM=horaAMin(PS.fin)||(20*60);
-  // Si tiene uno o más "días completos", ese día empieza a las 08:00 —
+  // Si tiene uno o más "días completos", ese día empieza a las 08:00 -
   // se amplía el rango de horas de la cuadrícula para que esas filas
   // tempranas se vean (los demás días simplemente quedan vacíos ahí).
   if(PS.diaEspecial)iniM=Math.min(iniM,horaAMin('08:00'));
@@ -2259,7 +2259,7 @@ function renderClinico(){
     .sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora));
   const asistCnt=sesiones.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   // pac.paq es heredado del esquema viejo y no refleja el paquete real
-  // (vive en programas_paciente/sesiones) — se calcula de las sesiones.
+  // (vive en programas_paciente/sesiones) - se calcula de las sesiones.
   const sesPaqCl=sesiones.filter(s=>s.tipo==='paquete'&&s.totalPaq);
   const paqTotalCl=sesPaqCl.length?Math.max.apply(null,sesPaqCl.map(function(s){return s.totalPaq||0;})):0;
   const pct=paqTotalCl>0?Math.min(100,Math.round((asistCnt/paqTotalCl)*100)):0;
@@ -2278,7 +2278,7 @@ function renderClinico(){
         var fichasPac=d.fichas.filter(function(f){
           return (f.pac||f.pacNombre||f.paciente||'').toLowerCase()===pacNom.toLowerCase();
         });
-        // Solo re-renderizar si realmente cambió algo — si no, el usuario
+        // Solo re-renderizar si realmente cambió algo - si no, el usuario
         // pierde el tab/click que acaba de hacer porque el DOM se reconstruye
         // de nuevo por debajo (esto causaba el "parpadeo" del apartado clínico).
         if(fichasPac.length>0&&JSON.stringify(fichasPac)!==JSON.stringify(fichas)){
@@ -2290,7 +2290,7 @@ function renderClinico(){
       }
     }).catch(function(){});
 
-  // Cargar datos clínicos (objetivos, notas, ánimos) — caché en memoria
+  // Cargar datos clínicos (objetivos, notas, ánimos) - caché en memoria
   const key='psicoluz_cl_'+PS.sede+'_'+PS.nombre+'_'+pacNom.replace(/\s/g,'_');
   let datos=_clinicoCache[key]||{};
   const objetivos=datos.objetivos||[];
@@ -2310,7 +2310,7 @@ function renderClinico(){
       var nuevosAnimos=r[1].map(function(a){return{fecha:a.fecha,val:a.valor};});
       if(JSON.stringify(nuevosAnimos)!==JSON.stringify(datos.animos||[])){datos.animos=nuevosAnimos;cambio=true;}
     }
-    // Solo re-renderizar si los datos realmente cambiaron — evita que el
+    // Solo re-renderizar si los datos realmente cambiaron - evita que el
     // clínico se reconstruya solo por refrescar, tapando el tab que el
     // usuario acababa de abrir (era la causa del "parpadeo").
     if(cambio){
@@ -2398,7 +2398,7 @@ function renderClinico(){
     </div>
     <!-- Registro rápido ánimo hoy -->
     <div class="card">
-      <div class="ch">⚡ Registro rápido — Hoy</div>
+      <div class="ch">⚡ Registro rápido - Hoy</div>
       <div class="cb">
         <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Estado de ánimo al inicio (1=Muy mal · 5=Muy bien)</div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -2447,7 +2447,7 @@ function renderClinico(){
           <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px;font-size:11px;opacity:.9">
             <span>👤 ${f.pac}</span>
             <span>📅 ${fmtF(f.fecha)}${f.hora?' · '+normHora(f.hora):''}</span>
-            <span>🧠 ${f.terapia||'—'}</span>
+            <span>🧠 ${f.terapia||'-'}</span>
             <span>👩‍⚕️ ${f.psNombre||PS.nombre}</span>
           </div>
         </div>
@@ -2464,10 +2464,10 @@ function renderClinico(){
             </thead>
             <tbody>
               <tr>
-                <td>${f.objetivo||'—'}</td>
-                <td>${f.actividad||'—'}</td>
-                <td>${f.resultados||'—'}</td>
-                <td>${f.proxSesion||'—'}</td>
+                <td>${f.objetivo||'-'}</td>
+                <td>${f.actividad||'-'}</td>
+                <td>${f.resultados||'-'}</td>
+                <td>${f.proxSesion||'-'}</td>
               </tr>
             </tbody>
           </table>
@@ -2689,7 +2689,7 @@ function mostrarTodasSesiones(){
     return;
   }
   var h='<div style="font-size:12px;color:var(--muted);padding:8px;text-align:center;background:#fef3c7;border-radius:8px;margin-bottom:10px">'+
-    '📋 Mostrando todas las sesiones ('+todas.length+') — no solo de hoy</div>';
+    '📋 Mostrando todas las sesiones ('+todas.length+') - no solo de hoy</div>';
   h+=todas.map(cardSes).join('');
   el.innerHTML=h;
 }
@@ -2759,8 +2759,8 @@ function renderPacsPs(){
     var valActual=sel.value;
     var noms=new Set([...PS.pacientes.map(function(p){return p.nombre;}),
       ...PS.sesiones.map(function(s){return s.pacNombre;}).filter(Boolean)]);
-    var opts='<option value="">— Selecciona un paciente —</option>';
-    [...noms].filter(function(n){return n&&n!=='—';}).sort()
+    var opts='<option value="">- Selecciona un paciente -</option>';
+    [...noms].filter(function(n){return n&&n!=='-';}).sort()
       .forEach(function(n){opts+='<option value="'+n+'">'+n+'</option>';});
     sel.innerHTML=opts;
     if(valActual)sel.value=valActual;
@@ -2831,12 +2831,12 @@ function renderPerfil(){
   [['prTotal',tot],['prAsist',asist],['prPacs',pacs]].forEach(function(pair){
     var el=document.getElementById(pair[0]);if(el)el.textContent=pair[1];
   });
-  var elNom=document.getElementById('perNom');if(elNom)elNom.textContent=PS.nombre||'—';
+  var elNom=document.getElementById('perNom');if(elNom)elNom.textContent=PS.nombre||'-';
   var elCop=document.getElementById('perCop');if(elCop)elCop.textContent=PS.cop?'CPSP: '+PS.cop:'Sin CPSP';
-  var elEsp=document.getElementById('perEsp');if(elEsp)elEsp.textContent=PS.esp||'—';
-  var elEmail=document.getElementById('perEmailLabel');if(elEmail)elEmail.textContent=PS.email||'—';
+  var elEsp=document.getElementById('perEsp');if(elEsp)elEsp.textContent=PS.esp||'-';
+  var elEmail=document.getElementById('perEmailLabel');if(elEmail)elEmail.textContent=PS.email||'-';
   var elHor=document.getElementById('perHorario');
-  if(elHor)elHor.textContent=normHora(PS.inicio||'13:15')+' — '+normHora(PS.fin||'20:00');
+  if(elHor)elHor.textContent=normHora(PS.inicio||'13:15')+' - '+normHora(PS.fin||'20:00');
   var elSN=document.getElementById('ps-sidebar-nombre');if(elSN&&PS.nombre)elSN.textContent=PS.nombre;
   // No pisar la foto si ya existe (evita el parpadeo foto→inicial→foto)
   if(!PS.foto){
@@ -2907,7 +2907,7 @@ function enviarMensajeChat(){
   fetch(API+'?action=enviarChat',{method:'POST',
     body:JSON.stringify({action:'enviarChat',sede:sede,nombre:PS.nombre,tipo:'psicologa',msg:texto})
   }).then(function(){return recargarChat();})
-    .catch(function(){toast('Sin conexión — mensaje no enviado','err');});
+    .catch(function(){toast('Sin conexión - mensaje no enviado','err');});
 }
 
 function recargarChat(){
@@ -2961,7 +2961,7 @@ function abrirFichaSeguimiento(pacNom,terapia,fecha,hora){
   var elPac=document.getElementById('fichaPacNom');if(elPac)elPac.textContent=pacNom;
   var elFecha=document.getElementById('fichaFecha');if(elFecha)elFecha.textContent=fmtF(fecha||today());
   var elTer=document.getElementById('fichaTerapia');if(elTer)elTer.textContent=terapia||'No especificada';
-  var elPs=document.getElementById('fichaPsicologa');if(elPs)elPs.textContent=PS.nombre||'—';
+  var elPs=document.getElementById('fichaPsicologa');if(elPs)elPs.textContent=PS.nombre||'-';
   var elSub=document.getElementById('fichaSubtitulo');if(elSub)elSub.textContent=(hora||'')+' · '+(terapia||'Sesión');
   // Cargar ficha guardada
   var key='ficha_'+PS.sede+'_'+PS.nombre+'_'+(pacNom.replace(/\s/g,'_'))+'_'+(fecha||today())+'_'+((terapia||'').replace(/\s/g,'_').substring(0,20))+'_'+((hora||'').replace(':',''));
@@ -3010,7 +3010,7 @@ function guardarFichaSeguimiento(){
   var idx=fichas.findIndex(function(f){return f.fecha===ficha.fecha&&f.terapia===ficha.terapia&&f.hora===ficha.hora;});
   if(idx>=0)fichas[idx]=ficha;else fichas.unshift(ficha);
   _clinicoCache[listKey]=fichas;
-  // Guardar en Supabase (tabla fichas_seguimiento) — directo, sin pasar por el
+  // Guardar en Supabase (tabla fichas_seguimiento) - directo, sin pasar por el
   // interceptor de Apps Script (que esperaba campos planos y no un objeto anidado)
   sbPost('fichas_seguimiento',{
     fecha:ficha.fecha,
@@ -3110,7 +3110,7 @@ function configurarAlarmasSesiones(){
       _alarmaTimers.push(setTimeout(function(){
         crearToneAlarma('sesion');
         mostrarNotifToast('⏰','Sesión en 58 min',(s.pacNombre||'')+' · '+s.hora,15000);
-        dispararNotificacionNativa('⏰ Sesión en 58 min — Psicoluz',(s.pacNombre||'')+' a las '+s.hora);
+        dispararNotificacionNativa('⏰ Sesión en 58 min - Psicoluz',(s.pacNombre||'')+' a las '+s.hora);
         if(navigator.vibrate)navigator.vibrate([300,100,300]);
       },diff58));
     }
@@ -3122,7 +3122,7 @@ function configurarAlarmasSesiones(){
       _alarmaTimers.push(setTimeout(function(){
         crearToneAlarma('sesion');
         mostrarNotifToast('⏰','Sesión en 5 min',(s.pacNombre||'')+'·'+s.hora,15000);
-        dispararNotificacionNativa('⏰ Sesión en 5 min — Psicoluz',(s.pacNombre||'')+' a las '+s.hora);
+        dispararNotificacionNativa('⏰ Sesión en 5 min - Psicoluz',(s.pacNombre||'')+' a las '+s.hora);
         if(navigator.vibrate)navigator.vibrate([300,100,300]);
       },diff5));
     }
@@ -3137,8 +3137,8 @@ function configurarAlarmasSesiones(){
         var actual=(PS.sesiones||[]).find(function(x){return x.fecha===s.fecha&&x.hora===s.hora&&x.pacNombre===s.pacNombre;});
         if(actual&&actual.estado==='programado'){
           crearToneAlarma('sesion');
-          mostrarNotifToast('⚠️','Asistencia sin marcar',(s.pacNombre||'')+' · '+s.hora+' — avisa a recepción',20000);
-          dispararNotificacionNativa('⚠️ Asistencia sin marcar — Psicoluz',(s.pacNombre||'')+' ('+s.hora+') sigue como programado');
+          mostrarNotifToast('⚠️','Asistencia sin marcar',(s.pacNombre||'')+' · '+s.hora+' - avisa a recepción',20000);
+          dispararNotificacionNativa('⚠️ Asistencia sin marcar - Psicoluz',(s.pacNombre||'')+' ('+s.hora+') sigue como programado');
           if(navigator.vibrate)navigator.vibrate([200,80,200,80,200]);
         }
       },diffSinMarcar));
@@ -3336,7 +3336,7 @@ async function guardarFirmaContrato(){
     await sbUpload(bucket,decodeURIComponent(path),new Blob([firmadoBytes],{type:'application/pdf'}),'application/pdf');
     // 5. Marcar como firmado en la tabla contratos
     // Sin fallback "solo por nombre": con varias sedes, una trabajadora puede
-    // compartir nombre con otra en otra sede — parchear sin filtrar por sede
+    // compartir nombre con otra en otra sede - parchear sin filtrar por sede
     // podría firmar el contrato equivocado.
     await sbPatch('contratos',{estado:'firmado',firmado_el:new Date().toISOString(),
       notas:'Firmado digitalmente el '+hoyStr},{trabajadora:'eq.'+(PS.nombre||''),sede:'eq.'+(PS.sede||'')});
@@ -3348,7 +3348,7 @@ async function guardarFirmaContrato(){
 }
 
 // ══ AUTO-REFRESH ════════════════════════════════════════════
-// (el intervalo de 30s ya se arma en finalizarLogin() vía _psAutoSync —
+// (el intervalo de 30s ya se arma en finalizarLogin() vía _psAutoSync -
 // había un segundo setInterval duplicado aquí, corriendo sync() dos veces
 // cada 30s en paralelo. Se quitó para no duplicar carga ni carreras.)
 
@@ -3462,7 +3462,7 @@ window.cambiarFoto=function(input){
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-//  PSICOLUZ — NOTIFICACIONES UNIVERSALES v2
+//  PSICOLUZ - NOTIFICACIONES UNIVERSALES v2
 //  Sonido + notificación del sistema + banner en la app
 // ═══════════════════════════════════════════════════════════════
 (function(){
@@ -3534,7 +3534,7 @@ window.cambiarFoto=function(input){
       Notification.requestPermission().catch(function(){});
     }
     // La mayoría de navegadores bloquea el audio hasta que haya un gesto
-    // real del usuario (click/touch) — si sonidoNotif() recién crea el
+    // real del usuario (click/touch) - si sonidoNotif() recién crea el
     // AudioContext cuando llega la primera notificación (por un
     // setInterval, sin gesto de por medio), el navegador la deja
     // "suspended" para siempre y no suena nunca, sin ningún error visible.
@@ -3644,7 +3644,7 @@ async function renderMetas(){
     if(!totalAsistidas)frase='🌱 Nuevo mes, nuevas oportunidades. ¡Tú puedes, '+nombreCorto+'!';
     else if(pct>=85)frase='🎉 ¡Excelente, '+nombreCorto+'! Meta de puntualidad cumplida.';
     else if(pct>=60)frase='💪 ¡Vas muy bien, '+nombreCorto+'! Estás a '+(85-pct)+'% de la meta. ¡Un empujón más!';
-    else frase='🚀 ¡Ánimo, '+nombreCorto+'! Vas '+pct+'% de puntualidad — sigue construyendo constancia.';
+    else frase='🚀 ¡Ánimo, '+nombreCorto+'! Vas '+pct+'% de puntualidad - sigue construyendo constancia.';
     msg.innerHTML=frase+'<div style="margin-top:6px;font-size:11px;color:var(--muted);font-weight:600">👥 Pacientes atendidos: <b style="color:var(--acc)">'+nPacs+'</b> · 🕐 Tardanzas: <b>'+tarde+'</b> · ❌ No asistió: <b>'+noAsis+'</b> · 🟡 Permiso: <b>'+permiso+'</b></div>';
   }
   // Bonos diarios (Supabase)
@@ -3680,14 +3680,14 @@ async function renderMetas(){
 
 window.refrescarAvatares=async function(){
   var foto=PS.foto||PS.fotoUrl||'';
-  // Siempre confirmar contra Supabase (fuente real) — un caché local viejo
+  // Siempre confirmar contra Supabase (fuente real) - un caché local viejo
   // (ej. login con contraseña guardada) puede traer una foto desactualizada.
   if(PS.email){
     try{
       var r=await sbGet('psicologas',{email:'eq.'+PS.email,select:'foto_url'});
       if(r&&r.length){
         // Supabase es la fuente real: si foto_url viene vacío (se borró la
-        // foto), hay que limpiarla también aquí y en el caché local — antes
+        // foto), hay que limpiarla también aquí y en el caché local - antes
         // solo se actualizaba cuando venía un valor, así que una foto
         // borrada en Supabase "revivía" sola desde el caché viejo.
         foto=r[0].foto_url||'';
@@ -3716,7 +3716,7 @@ window.refrescarAvatares=async function(){
 async function cargarPerfilExtra(){
   // Horario y día completo
   var eh=document.getElementById('perHorario');
-  if(eh&&PS.inicio&&PS.fin)eh.textContent=PS.inicio+' — '+PS.fin;
+  if(eh&&PS.inicio&&PS.fin)eh.textContent=PS.inicio+' - '+PS.fin;
   var ed=document.getElementById('perDiaEspLabel');
   if(ed)ed.textContent=PS.diaEspecial?PS.diaEspecial.split(',').map(function(s){return s.trim();}).join(' y '):'Ninguno';
   refrescarAvatares();
@@ -3745,7 +3745,7 @@ async function cargarPerfilExtra(){
         var a=rows[0];
         el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center">'
           +'<span style="font-weight:800;color:#059669">✅ '+(a.estado==='presente'?'Presente':a.estado)+'</span>'
-          +'<span style="font-weight:700">Entrada: '+(a.entrada||'—')+'</span></div>'
+          +'<span style="font-weight:700">Entrada: '+(a.entrada||'-')+'</span></div>'
           +(a.registrado_por?'<div style="font-size:10px;color:var(--muted);margin-top:4px">Registrado por '+a.registrado_por+'</div>':'');
       }else{
         el.innerHTML='<div style="color:var(--muted)">Sin registro de asistencia (lo marca Recepción)</div>';

@@ -31,7 +31,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* ── APP LAYOUT ── */
 #app{display:none;height:100vh;overflow:hidden}
 .sidebar{width:220px;background:var(--sidebar);color:#fff;flex-shrink:0;display:flex;flex-direction:column;
-  transition:transform .3s;z-index:100}
+  transition:transform .3s,width .2s;z-index:100}
+@media(min-width:701px){.sidebar.collapsed{width:0;min-width:0;overflow:hidden}}
 .sidebar-logo{padding:16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:12px}
 .sidebar-logo img{width:48px;height:48px;border-radius:10px;object-fit:cover;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 .sidebar-logo span{font-size:14px;font-weight:800;line-height:1.2}
@@ -52,7 +53,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .reloj-top{font-size:14px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
 .fecha-top{font-size:12px;color:var(--muted)}
 .user-top{font-size:12px;color:var(--muted);background:var(--bg);padding:4px 10px;border-radius:20px}
-.hamburger{display:none;background:none;border:none;cursor:pointer;font-size:20px}
+.hamburger{display:block;background:none;border:none;cursor:pointer;font-size:20px}
 
 .content{flex:1;overflow-y:auto;padding:20px}
 .page{display:none}.page.active{display:block}
@@ -143,7 +144,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* ── AGENDA GRILLA ── */
 /* La grilla se desplaza dentro de su propia caja (alto acotado) para que
-   la fila de días quede pegada arriba con position:sticky — si el que
+   la fila de días quede pegada arriba con position:sticky - si el que
    se desplaza es toda la página, el sticky no tiene de qué "colgarse"
    y la fila desaparece al bajar. */
 .agenda-scroll-box{flex:1;min-height:200px;overflow:auto;border-radius:10px;border:1px solid var(--border)}
@@ -204,7 +205,7 @@ tbody td{padding:8px 10px;border-bottom:1px solid var(--border)}
 <link rel="manifest" href="manifest.json">
 <script>try{Neutralino.init();Neutralino.events.on("windowClose",function(){Neutralino.app.exit();});}catch(e){console.log("no neutralino")}</script>
 <script>
-// Controles de ventana (minimizar/cerrar) — de respaldo, por si la barra
+// Controles de ventana (minimizar/cerrar) - de respaldo, por si la barra
 // de título nativa de Windows no se ve bien en alguna PC. Solo aparece
 // dentro del ejecutable de escritorio (no en el navegador/PWA).
 try{
@@ -307,7 +308,7 @@ try{
 <!-- MAIN -->
 <div class="main">
   <div class="topbar">
-    <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+    <button class="hamburger" onclick="toggleSidebarRec()">☰</button>
     <div class="topbar-title" id="pageTitle">Inicio</div>
     <div class="fecha-top" id="fechaTop"></div>
     <div class="reloj-top" id="relojTop">00:00:00</div>
@@ -327,7 +328,7 @@ try{
   <!-- ASISTENCIA RÁPIDA en INICIO -->
   <div class="card" style="margin-bottom:16px">
     <div class="card-header">
-      <div class="card-title">🕐 Asistencia del Personal — Hoy</div>
+      <div class="card-title">🕐 Asistencia del Personal - Hoy</div>
       <button class="btn btn-outline btn-sm" onclick="showPage('asistPersonal',null)">Ver completo →</button>
     </div>
     <div style="padding:12px" id="dashAsistPersonal"></div>
@@ -367,7 +368,7 @@ try{
         </select>
         <input type="date" class="form-control" id="agFechaVista" style="width:148px;padding:6px 10px" onchange="_agFechaSel=this.value;renderAgenda()">
         <select class="form-control" id="agPs" style="width:175px;padding:6px 10px" onchange="renderAgenda()">
-          <option value="">— Todas las psicólogas —</option>
+          <option value="">- Todas las psicólogas -</option>
         </select>
       </div>
       <div style="display:flex;gap:8px">
@@ -399,7 +400,7 @@ try{
     <div style="padding:12px;display:flex;gap:8px;flex-wrap:wrap">
       <input class="form-control" id="searchPac" placeholder="Buscar por nombre, DNI, teléfono..." style="max-width:280px" oninput="renderPacientes()">
       <select class="form-control" id="filtTer" style="max-width:200px" onchange="renderPacientes()">
-        <option value="">— Todas las terapias —</option>
+        <option value="">- Todas las terapias -</option>
       </select>
     </div>
     <div style="padding:0 12px 12px" id="listaPacientes"></div>
@@ -419,7 +420,7 @@ try{
   <div style="background:linear-gradient(135deg,var(--sidebar),var(--accent));border-radius:14px;padding:18px 20px;margin-bottom:16px;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
     <div>
       <div style="font-size:11px;opacity:.8;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Caja del Día</div>
-      <div style="font-size:24px;font-weight:900" id="cajaTituloFecha">—</div>
+      <div style="font-size:24px;font-weight:900" id="cajaTituloFecha">-</div>
     </div>
     <div style="text-align:center">
       <div style="font-size:36px;font-weight:900" id="efTotal">S/0</div>
@@ -499,7 +500,7 @@ try{
       <div class="card-title">🧠 Tipos de Terapia</div>
     </div>
     <div style="background:#eff6ff;margin:12px;border-radius:10px;padding:10px;font-size:12px;color:#1e40af">
-      ℹ️ Solo lectura — muestra las terapias disponibles en tu sede. Para agregar, editar o eliminar, contacta a <strong>Administración</strong>.
+      ℹ️ Solo lectura - muestra las terapias disponibles en tu sede. Para agregar, editar o eliminar, contacta a <strong>Administración</strong>.
     </div>
     <div class="grid g3" style="padding:0 12px 12px" id="gridTer"></div>
   </div>
@@ -525,12 +526,12 @@ try{
 <div id="page-whatsapp" class="page">
   <div class="card">
     <div class="card-header">
-      <div class="card-title">📱 WhatsApp — Recordatorios</div>
+      <div class="card-title">📱 WhatsApp - Recordatorios</div>
     </div>
     <div style="padding:12px">
       <div class="form-group">
         <div class="form-label">Plantilla de mensaje</div>
-        <textarea class="form-control" id="waTemplate" rows="3">¡Hola {nombre}! 💜 Te escribimos de Psicoluz para recordarte tu sesión de {terapia} de hoy a las {hora}, en la sede {sede}. Te esperamos con mucho gusto — si necesitas reprogramar, avísanos por este medio. ¡Que tengas un lindo día! ✨</textarea>
+        <textarea class="form-control" id="waTemplate" rows="3">¡Hola {nombre}! 💜 Te escribimos de Psicoluz para recordarte tu sesión de {terapia} de hoy a las {hora}, en la sede {sede}. Te esperamos con mucho gusto - si necesitas reprogramar, avísanos por este medio. ¡Que tengas un lindo día! ✨</textarea>
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:4px">
         ℹ️ WhatsApp no permite enviar mensajes automáticamente sin su API de pago:
@@ -555,7 +556,7 @@ try{
 <div id="page-solicitudesWeb" class="page">
   <div class="card">
     <div class="card-header"><div class="card-title">📥 Solicitudes desde el sitio web</div></div>
-    <div style="padding:0 16px;font-size:11px;color:var(--muted,#64748b)">Pacientes que escribieron desde psicoluz.pe pidiendo cita o información — solo de tu sede.</div>
+    <div style="padding:0 16px;font-size:11px;color:var(--muted,#64748b)">Pacientes que escribieron desde psicoluz.pe pidiendo cita o información - solo de tu sede.</div>
     <div style="padding:12px;overflow-x:auto" id="solicWebGrid">Cargando…</div>
   </div>
 </div>
@@ -589,7 +590,7 @@ try{
       <div class="card-title">📚 Historial Clínico</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <select class="form-control" id="histPac" style="width:200px" onchange="onCambioHistPac()">
-          <option value="">— Selecciona paciente —</option>
+          <option value="">- Selecciona paciente -</option>
         </select>
         <select class="form-control" id="histFiltro" style="width:190px" onchange="renderHistorial()">
           <option value="todo">Ver todo el historial</option>
@@ -615,7 +616,7 @@ try{
 
   <div class="page" id="page-chat" style="padding:14px">
     <div class="card" style="display:flex;flex-direction:column;height:calc(100vh - 140px)">
-      <div class="card-header"><div class="card-title">💬 Chat — <span id="chatSedeTituloRec"></span></div></div>
+      <div class="card-header"><div class="card-title">💬 Chat - <span id="chatSedeTituloRec"></span></div></div>
       <div id="chatMensajesRec" style="flex:1;overflow-y:auto;padding:14px"></div>
       <div style="display:flex;gap:8px;padding:10px;border-top:1px solid var(--border)">
         <input class="form-control" id="chatInputRec" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter'){event.preventDefault();enviarMensajeChatRec();}" style="flex:1">
@@ -644,11 +645,11 @@ try{
     <label class="form-label" style="margin-top:12px">Aplicar el cambio a:</label>
     <label style="display:flex;gap:8px;align-items:flex-start;background:var(--bg);border-radius:10px;padding:10px;margin-bottom:6px;cursor:pointer">
       <input type="radio" name="cpsAlcance" value="proxima" checked style="margin-top:2px">
-      <span style="font-size:12px"><b>Solo la próxima sesión</b><br><span style="color:var(--muted);font-size:11px">Ej: la licenciada faltó un día — reemplazo puntual</span></span>
+      <span style="font-size:12px"><b>Solo la próxima sesión</b><br><span style="color:var(--muted);font-size:11px">Ej: la licenciada faltó un día - reemplazo puntual</span></span>
     </label>
     <label style="display:flex;gap:8px;align-items:flex-start;background:var(--bg);border-radius:10px;padding:10px;cursor:pointer">
       <input type="radio" name="cpsAlcance" value="todas" style="margin-top:2px">
-      <span style="font-size:12px"><b>Todas las sesiones futuras</b><br><span style="color:var(--muted);font-size:11px">Ej: la licenciada dejó de laborar — cambio definitivo</span></span>
+      <span style="font-size:12px"><b>Todas las sesiones futuras</b><br><span style="color:var(--muted);font-size:11px">Ej: la licenciada dejó de laborar - cambio definitivo</span></span>
     </label>
     <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="guardarCambioPs()">Aplicar cambio</button>
   </div>
@@ -699,11 +700,11 @@ try{
       <div class="form-group" id="ag-grp-servicio" style="grid-column:1/-1;display:none">
         <label class="form-label">Seleccionar Servicio</label>
         <select class="form-control" id="ag-servId" onchange="agOnServ()">
-          <option value="">— Selecciona el servicio —</option>
+          <option value="">- Selecciona el servicio -</option>
         </select>
       </div>
       <!-- Precio exclusivo: precio negociado para ESTE paciente, no viene
-           del catálogo — el costo se escribe a mano (queda registrado en
+           del catálogo - el costo se escribe a mano (queda registrado en
            precio_paciente para auditoría). -->
       <div class="grid g2" id="ag-grp-exclusivo" style="grid-column:1/-1;display:none;gap:8px">
         <div class="form-group" style="margin-bottom:0">
@@ -755,7 +756,7 @@ try{
         <div class="form-group" id="ag-grp-paq">
           <label class="form-label">Seleccionar Paquete</label>
           <select class="form-control" id="ag-paqId" onchange="agOnPaq()">
-            <option value="">— Selecciona el paquete —</option>
+            <option value="">- Selecciona el paquete -</option>
           </select>
         </div>
         <div class="grid g2" style="margin-top:10px">
@@ -861,7 +862,7 @@ try{
       <div class="form-group">
         <label class="form-label">Género</label>
         <select class="form-control" id="p-genero">
-          <option value="">— Seleccionar —</option>
+          <option value="">- Seleccionar -</option>
           <option value="F">Femenino</option>
           <option value="M">Masculino</option>
           <option value="O">Otro</option>
@@ -1162,7 +1163,7 @@ let _tickTimer=null;
 let _agFechaSel='';
 let _paqFiltro='';
 
-// Texto en mayúscula inicial para el estado de una sesión — ya no existe
+// Texto en mayúscula inicial para el estado de una sesión - ya no existe
 // "tardanza" como estado propio (era un cambio automático al marcar
 // "Asistió" después de la hora programada, y terminaba apareciendo en
 // casi todas las sesiones marcadas realmente a tiempo). Solo quedan
@@ -1174,7 +1175,7 @@ const diaFull=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sába
 const mesES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
 // ── UTILS ──
-// Perú usa GMT-5 todo el año (no tiene horario de verano) — se calcula
+// Perú usa GMT-5 todo el año (no tiene horario de verano) - se calcula
 // restando 5 horas al instante UTC y leyendo los componentes UTC del
 // resultado, en vez de usar la zona horaria del equipo/navegador (que
 // puede estar mal configurada) o Date#toISOString (que siempre da la
@@ -1185,13 +1186,13 @@ function _limaMs(d){return(d instanceof Date?d:new Date()).getTime()-5*3600000;}
 function fechaLima(d){const l=new Date(_limaMs(d));return l.getUTCFullYear()+'-'+String(l.getUTCMonth()+1).padStart(2,'0')+'-'+String(l.getUTCDate()).padStart(2,'0');}
 function horaLima(d){const l=new Date(_limaMs(d));return String(l.getUTCHours()).padStart(2,'0')+':'+String(l.getUTCMinutes()).padStart(2,'0');}
 function today(){return fechaLima();}
-function fmtF(f){if(!f)return'—';const p=String(f).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f;}
+function fmtF(f){if(!f)return'-';const p=String(f).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f;}
 function nextId(arr){return arr.length?Math.max(0,...arr.map(x=>x.id||0))+1:1;}
-function getPac(id){return DB.pacientes.find(p=>p.id===id||p.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'—',tel:'',terId:null,mod:'sesion',paq:0};}
-function getPs(id){return DB.psicologas.find(p=>p.id===id||p.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'—',color:'bk'};}
+function getPac(id){return DB.pacientes.find(p=>p.id===id||p.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'-',tel:'',terId:null,mod:'sesion',paq:0};}
+function getPs(id){return DB.psicologas.find(p=>p.id===id||p.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'-',color:'bk'};}
 // Cada psicóloga tiene un color propio (elegido en la ficha, o uno fijo
 // por defecto si nunca lo cambiaron) para diferenciar sus sesiones en la
-// agenda semanal — antes todas se veían del mismo morado.
+// agenda semanal - antes todas se veían del mismo morado.
 const PALETA_PS_AGENDA=['#7c3aed','#059669','#dc2626','#2563eb','#d97706','#db2777','#0891b2','#65a30d','#9333ea','#ea580c','#0d9488','#4f46e5'];
 function colorPsAgenda(ps){
   if(ps&&ps.colorAgenda)return ps.colorAgenda;
@@ -1199,7 +1200,7 @@ function colorPsAgenda(ps){
   let h=0;for(let i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0;}
   return PALETA_PS_AGENDA[h%PALETA_PS_AGENDA.length];
 }
-function getTer(id){return DB.terapias.find(t=>t.id===id||t.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'—',color:'bk'};}
+function getTer(id){return DB.terapias.find(t=>t.id===id||t.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'-',color:'bk'};}
 function getPaq(id){return DB.paquetes.find(p=>p.id===id)||null;}
 
 function showToast(msg,tipo){
@@ -1296,16 +1297,16 @@ function _fillPreservando(id,optionsHtml){
   el.value=v;
 }
 function fillSelects(){
-  const psO='<option value="">— Selecciona —</option>'+DB.psicologas.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join('');
-  const terO='<option value="">— Selecciona —</option>'+DB.terapias.map(t=>'<option value="'+t.id+'">'+t.nombre+'</option>').join('');
-  const pacO='<option value="">— Selecciona —</option>'+DB.pacientes.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join('');
+  const psO='<option value="">- Selecciona -</option>'+DB.psicologas.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join('');
+  const terO='<option value="">- Selecciona -</option>'+DB.terapias.map(t=>'<option value="'+t.id+'">'+t.nombre+'</option>').join('');
+  const pacO='<option value="">- Selecciona -</option>'+DB.pacientes.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join('');
   ['ag-ps','pg-ps'].forEach(id=>_fillPreservando(id,psO));
   ['ag-ter'].forEach(id=>_fillPreservando(id,terO));
   ['pg-pac'].forEach(id=>_fillPreservando(id,pacO));
   const hpEl=document.getElementById('histPac');
-  if(hpEl)hpEl.innerHTML='<option value="">— Selecciona paciente —</option>'+DB.pacientes.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join('');
-  _fillPreservando('agPs','<option value="">— Todas —</option>'+DB.psicologas.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join(''));
-  _fillPreservando('filtTer','<option value="">— Todas —</option>'+DB.terapias.map(t=>'<option value="'+t.id+'">'+t.nombre+'</option>').join(''));
+  if(hpEl)hpEl.innerHTML='<option value="">- Selecciona paciente -</option>'+DB.pacientes.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join('');
+  _fillPreservando('agPs','<option value="">- Todas -</option>'+DB.psicologas.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join(''));
+  _fillPreservando('filtTer','<option value="">- Todas -</option>'+DB.terapias.map(t=>'<option value="'+t.id+'">'+t.nombre+'</option>').join(''));
   // Tipos de servicio reales de tarifas_sede (Consulta, Campaña, Informe, etc.),
   // "Paquete" y "Adelanto" van fijos primero/último.
   const tiposReales=Array.from(new Set(DB.paquetes.map(p=>p.tipo).filter(function(t){return t&&t!=='Paquete';}))).sort();
@@ -1390,7 +1391,7 @@ function _slotsDesde(ini,fin){
 function horasPsEnDia(ps,diaNombre){
   if(!ps||!diaNombre)return[];
   // Día con horario propio (ej. Sábado 08:00-13:15 en vez del horario
-  // general) — distinto de "día completo" (mismo horario pero empieza
+  // general) - distinto de "día completo" (mismo horario pero empieza
   // 08:00 y termina igual que siempre).
   const diasHorEsp=parseDiasTexto(ps.diaHorarioEsp,[]);
   if(diasHorEsp.indexOf(diaNombre)>-1&&ps.horaInicioEsp&&ps.horaFinEsp){
@@ -1429,6 +1430,23 @@ const _PAGE_TITULOS={dashboard:'Inicio',agenda:'Agenda',pacientes:'Pacientes',pa
   asistPersonal:'Asistencia Personal',psicologas:'Psicólogas',terapias:'Terapias',
   paquetes:'Servicios y Tarifas',reportes:'Reporte del Día',whatsapp:'WhatsApp',alertas:'Alertas',
   solicitudesWeb:'Solicitudes Web',historial:'Historial Clínico',cumpleanos:'Cumpleaños',chat:'Chat'};
+// El botón ☰ colapsa el sidebar fijo en escritorio (más espacio de
+// pantalla, se recuerda con localStorage) y abre/cierra el drawer en móvil.
+function toggleSidebarRec(){
+  var sb=document.getElementById('sidebar');if(!sb)return;
+  if(window.innerWidth<=700){
+    sb.classList.toggle('open');
+  }else{
+    var col=sb.classList.toggle('collapsed');
+    try{localStorage.setItem('recSidebarCollapsed',col?'1':'0');}catch(e){}
+  }
+}
+window.addEventListener('DOMContentLoaded',function(){
+  var sb=document.getElementById('sidebar');
+  if(sb&&window.innerWidth>700){
+    try{if(localStorage.getItem('recSidebarCollapsed')==='1')sb.classList.add('collapsed');}catch(e){}
+  }
+});
 function showPage(name,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   const pg=document.getElementById('page-'+name);if(pg)pg.classList.add('active');
@@ -1541,7 +1559,7 @@ function renderAgenda(){
   }
   const d0=dias[0].d,d5=dias[5].d;
   const st=document.getElementById('semTit');
-  if(st)st.textContent=d0.getDate()+' '+mesES[d0.getMonth()]+' — '+d5.getDate()+' '+mesES[d5.getMonth()];
+  if(st)st.textContent=d0.getDate()+' '+mesES[d0.getMonth()]+' - '+d5.getDate()+' '+mesES[d5.getMonth()];
 
   // Calcular todos los slots de la semana considerando días especiales de cada psicóloga
   const allSlots=new Set();
@@ -1593,7 +1611,7 @@ function renderAgenda(){
       if(sesList.length){
         sesList.forEach(s=>{
           const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
-          // Una sesión "reprogramada" ya no ocupa ese horario de verdad —
+          // Una sesión "reprogramada" ya no ocupa ese horario de verdad -
           // se pinta en gris, sin el color de la psicóloga, para
           // diferenciarla de un cupo realmente activo.
           const esReprog=s.estado==='reprogramado';
@@ -1644,7 +1662,7 @@ function mostrarResumenCelda(sesList,fecha,hora){
   const det=document.getElementById('agendaDetalle');if(!det)return;
   det.style.display='block';
   det.innerHTML='<div style="font-size:13px;font-weight:800;color:var(--muted);margin-bottom:10px">'+
-    '📅 '+fmtF(fecha)+' — '+hora+'</div>'+
+    '📅 '+fmtF(fecha)+' - '+hora+'</div>'+
     sesList.map(s=>{
       const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
       const pago=DB.pagos.find(p=>p.pacId===s.pacId&&p.fecha===s.fecha&&p.hora===s.hora);
@@ -1727,9 +1745,9 @@ function renderDiaSel(){
 
 // El progreso de paquete se calcula de las sesiones reales (tipo:'paquete',
 // totalPaq), no de pacientes.paq (campo heredado del esquema viejo que ya
-// no se llena — un paquete ahora vive en programas_paciente/sesiones).
+// no se llena - un paquete ahora vive en programas_paciente/sesiones).
 // pacientes.saldo es un caché que no se limpia solo cuando se borran sus
-// pagos/sesiones/paquete (a mano en Supabase o desde otra app) — por eso
+// pagos/sesiones/paquete (a mano en Supabase o desde otra app) - por eso
 // quedaban alertas "fantasma" de pacientes ya regularizados. El saldo real
 // de la alerta se calcula de sus paquetes activos (programas_paciente),
 // que sí se mantienen al día con cada pago.
@@ -1737,7 +1755,7 @@ function _saldoRealPac(pac){
   const saldoPaquetes=(DB.programas||[]).filter(function(pr){return pr.paciente_nombre===pac.nombre&&pr.estado==='activo';})
     .reduce(function(a,pr){return a+(pr.saldo||0);},0);
   // pacientes.saldo es ahora el saldo corriente de sesiones/consultas
-  // sueltas (fuera de paquete) — puede ser negativo (crédito a favor).
+  // sueltas (fuera de paquete) - puede ser negativo (crédito a favor).
   return saldoPaquetes+(pac.saldo||0);
 }
 // Estado del saldo de un paciente para pintar la alerta del color correcto:
@@ -1755,20 +1773,20 @@ function _estadoSaldoPac(pac){
     return (s.saldo||0)>0&&s._sb&&s._sb.programa_id&&progIds[s._sb.programa_id];
   });
   // Un saldo suelto (fuera de paquete, pac.saldo>0) no tiene una fecha
-  // futura asociada — ya se considera vencido en cuanto existe. Una
+  // futura asociada - ya se considera vencido en cuanto existe. Una
   // cuota de paquete solo se considera vencida si su sesión-checkpoint
   // ya pasó de fecha.
   const hayVencida=(pac.saldo||0)>0||checkpointsPendientes.some(function(s){return s.fecha<=hoy;});
   return{tipo:hayVencida?'vencido':'pendiente',saldo:saldo};
 }
-// HTML de la alerta de saldo, ya coloreada según el estado real — mismo
+// HTML de la alerta de saldo, ya coloreada según el estado real - mismo
 // criterio en toda la app (tarjeta de paciente, dashboard de alertas e
 // Historial Clínico) para no mostrar cosas distintas en cada pantalla.
 function _saldoAlertaHTML(pac,extraStyle){
   const st=_estadoSaldoPac(pac);if(!st)return'';
   const style=extraStyle||'';
   if(st.tipo==='credito')return '<div class="alert al-ok" style="'+style+'">✅ Saldo a favor: S/'+Math.abs(st.saldo)+'</div>';
-  if(st.tipo==='vencido')return '<div class="alert al-danger" style="'+style+'">🔴 Cuota vencida — Saldo pendiente: S/'+st.saldo+'</div>';
+  if(st.tipo==='vencido')return '<div class="alert al-danger" style="'+style+'">🔴 Cuota vencida - Saldo pendiente: S/'+st.saldo+'</div>';
   return '<div class="alert al-warn" style="'+style+'">⚠️ Saldo pendiente: S/'+st.saldo+' (aún no vence)</div>';
 }
 function _paqInfoPac(pac){
@@ -1792,7 +1810,7 @@ function progresoPac(pac){
 
 let _reprogDe=null;
 // Sesión sobre la que se abrió "Cobrar" (si el pago se registró desde el
-// botón de una fila puntual) — permite atar el pago a ESA sesión exacta
+// botón de una fila puntual) - permite atar el pago a ESA sesión exacta
 // en vez de adivinar por fecha, y decrementar solo su saldo.
 let _pagoSesionId=null;
 function reprogramar(sesId){
@@ -1800,7 +1818,7 @@ function reprogramar(sesId){
   _reprogDe=ses;
   // El cambio a "reprogramado" solo se guarda en Supabase cuando la
   // reprogramación se CONFIRMA de verdad (ver guardarSesion, rama
-  // _esReprog) — marcarlo aquí mismo, apenas se abre el modal, dejaba la
+  // _esReprog) - marcarlo aquí mismo, apenas se abre el modal, dejaba la
   // sesión huérfana (estado reprogramado sin ninguna sesión de reemplazo)
   // si el usuario cerraba el modal sin completarlo. En memoria sí se marca
   // de una vez, solo para que la fila oculte sus botones mientras se elige
@@ -1828,7 +1846,7 @@ function abrirModalPermiso(sesId){
   _permisoSesId=sesId;
   const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
   const info=document.getElementById('permiso-info');
-  if(info)info.innerHTML='<b>'+pac.nombre+'</b> — '+terBadge(ter)+' con '+ps.nombre.replace('Lic.','').trim()+
+  if(info)info.innerHTML='<b>'+pac.nombre+'</b> - '+terBadge(ter)+' con '+ps.nombre.replace('Lic.','').trim()+
     '<br>Sesión original: '+fmtF(s.fecha)+' '+s.hora+(s.tipo==='paquete'?' (Paq '+s.nroSes+'/'+s.totalPaq+')':'');
   const evInp=document.getElementById('permiso-evidencia');if(evInp)evInp.value='';
   const notaInp=document.getElementById('permiso-nota');if(notaInp)notaInp.value='';
@@ -1869,7 +1887,7 @@ async function confirmarPermiso(){
     const urlEv=await sbUpload('evidencias',sedeC+'/'+pacC+'/permiso_'+Date.now()+'.'+extEv,file,file.type||'application/pdf');
     const sbId=(s._sb&&s._sb.id)||s.id;
     // La sesión original queda con saldo 0: el checkpoint de cuota (si esta
-    // sesión tenía uno) se MUEVE a la sesión nueva, no se duplica — si no
+    // sesión tenía uno) se MUEVE a la sesión nueva, no se duplica - si no
     // se limpia aquí, la fila del permiso (con fecha ya pasada) sigue
     // contando como "cuota vencida" para siempre, aunque la deuda real ya
     // se haya reubicado a la sesión que sí va a ocurrir.
@@ -1907,7 +1925,7 @@ async function confirmarPermiso(){
       url_evidencia:urlEv,tipo:'permiso',nota:nota});
     s.estado='permiso';s.saldo=0;
     closeModal('modalPermiso');
-    showToast('✅ Permiso registrado — nueva sesión el '+fmtF(nuevaFecha));
+    showToast('✅ Permiso registrado - nueva sesión el '+fmtF(nuevaFecha));
     await cargarDesdeSB();
     const a=document.querySelector('.page.active');if(a&&typeof showPage==='function')showPage(a.id.replace('page-',''));
   }catch(e){showToast('Error al registrar permiso: '+e.message,'error');console.error('[confirmarPermiso]',e);}
@@ -1975,7 +1993,7 @@ function abrirModalAgendar(fecha,hora,sesOrig){
 
 function renovarPaquete(pacId){
   const pac=getPac(pacId);
-  if(!pac||pac.nombre==='—'){showToast('Paciente no encontrado','error');return;}
+  if(!pac||pac.nombre==='-'){showToast('Paciente no encontrado','error');return;}
   abrirModalAgendar(today(),null,null);
   const elP=document.getElementById('ag-pac');if(elP)elP.value=pacId;
   const elPS=document.getElementById('ag-pac-search');if(elPS)elPS.value=pac.nombre;
@@ -2012,11 +2030,11 @@ async function agCargarProgramasActivos(){
     todosActivos=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:'eq.'+DB.sede,estado:'eq.activo',select:'*,programa_terapias(*)'})||[];
   }catch(e){todosActivos=[];}
   // Un paquete que ya asignó todas sus sesiones contratadas no debe poder
-  // elegirse para seguir metiéndole sesiones/pagos NUEVOS encima — eso fue
+  // elegirse para seguir metiéndole sesiones/pagos NUEVOS encima - eso fue
   // lo que dejó paquetes de "2 sesiones" con 4 sesiones y el doble
   // cobrado. Pero "asignadas" se llena de una sola vez al generar todo el
   // calendario (modo "generar"), mucho antes de que esas sesiones se
-  // atiendan de verdad — si igual tiene sesiones en estado "Programado"
+  // atiendan de verdad - si igual tiene sesiones en estado "Programado"
   // (aún no realizadas), el paquete sigue activo y debe seguir apareciendo
   // aquí, aunque sea solo para poder cambiarles el horario/terapia/
   // psicóloga (nunca para agregarle sesiones nuevas, eso ya lo bloquea
@@ -2039,8 +2057,8 @@ async function agCargarProgramasActivos(){
         const libres=Math.max(0,(p.nro_sesiones_total||0)-asignadas);
         const pendientes=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===p.id&&s.estado==='programado';}).length;
         const detalle=libres>0?(libres+' de '+p.nro_sesiones_total+' sesiones sin asignar'):
-          (pendientes+' de '+p.nro_sesiones_total+' pendiente(s) — sin cupo para agregar más');
-        return '<option value="'+p.id+'">'+(p.paquete_nombre||'Paquete')+' — '+detalle+'</option>';
+          (pendientes+' de '+p.nro_sesiones_total+' pendiente(s) - sin cupo para agregar más');
+        return '<option value="'+p.id+'">'+(p.paquete_nombre||'Paquete')+' - '+detalle+'</option>';
       }).join('');
   }
   if(grp)grp.style.display=_agProgramasActivos.length?'block':'none';
@@ -2054,12 +2072,12 @@ function agOnProgExist(){
   const esExclusivo=tipo==='exclusivo'&&exclusivoModo==='paquete';
   const grpPaq=document.getElementById('ag-grp-paq');
   // El selector de paquetes del catálogo (con precios ya establecidos) no
-  // aplica para "Precio exclusivo" — ahí el costo/sesiones se escriben a
+  // aplica para "Precio exclusivo" - ahí el costo/sesiones se escriben a
   // mano, así que nunca debe reaparecer aunque no haya un paquete activo
   // elegido en "ag-progExist".
   if(grpPaq)grpPaq.style.display=(!progId&&!esExclusivo)?'block':'none';
   // "Categoría" (Niños/Adultos) solo aplica al REGISTRAR un paquete nuevo
-  // — un paquete ya activo (progId elegido) ya quedó fijado con su
+  // - un paquete ya activo (progId elegido) ya quedó fijado con su
   // categoría desde que se creó, no tiene sentido volver a preguntarla.
   const grpCategoria=document.getElementById('ag-grp-categoria');
   if(grpCategoria)grpCategoria.style.display=progId?'none':'block';
@@ -2067,7 +2085,7 @@ function agOnProgExist(){
   if(grpCuotas)grpCuotas.style.display=progId?'none':'block';
   // "Cambiar terapia/horario/psicóloga de las sesiones pendientes" solo
   // tiene sentido si ya existe un paquete activo con sesiones por delante
-  // — un paquete nuevo todavía no tiene nada pendiente que reemplazar.
+  // - un paquete nuevo todavía no tiene nada pendiente que reemplazar.
   const optReemplazar=document.getElementById('ag-opt-reemplazar');
   if(optReemplazar){
     optReemplazar.disabled=!progId;
@@ -2102,13 +2120,13 @@ function agOnModoPaq(){
   const grpFilas=document.getElementById('ag-grp-terapiaRows');
   if(grpFilas)grpFilas.style.display=modo==='soloPago'?'none':'block';
   // "Cambiar terapia/horario/psicóloga de las sesiones pendientes" no
-  // registra ningún pago — el costo y las cuotas del paquete no cambian,
+  // registra ningún pago - el costo y las cuotas del paquete no cambian,
   // solo se reprograman las sesiones que aún no se realizaron.
   const grpAdelanto=document.getElementById('ag-grp-adelanto');
   if(grpAdelanto)grpAdelanto.style.display=esReemplazo?'none':'block';
   const grpMetodos=document.getElementById('ag-grp-metodos');
   if(grpMetodos)grpMetodos.style.display=esReemplazo?'none':'block';
-  // "Solo registrar paquete y pago" también necesita la fecha — para
+  // "Solo registrar paquete y pago" también necesita la fecha - para
   // regularizar pagos/adelantos que se recibieron en una fecha pasada
   // (el paciente vino solo a dejar su adelanto, sin agendar todavía).
   const lbl=document.getElementById('ag-lbl-fechaInicio');
@@ -2119,7 +2137,7 @@ function agOnModoPaq(){
   }else if(esReemplazo){
     if(lbl)lbl.textContent='Buscar la(s) nueva(s) sesión(es) a partir de *';
     if(help)help.textContent='Solo aplica a lo que agregues o quites: las asistencias que dejes tal cual NO se tocan ni cambian de fecha. Deja esta fecha en HOY salvo que quieras que lo nuevo empiece más adelante.';
-    // Se resetea a HOY cada vez que se entra a este modo — así nunca
+    // Se resetea a HOY cada vez que se entra a este modo - así nunca
     // queda pegada una fecha futura de un uso anterior del modal que
     // empuje el horario más adelante de lo que la receptionista espera.
     const elFI=document.getElementById('ag-fechaInicio');if(elFI)elFI.value=today();
@@ -2128,7 +2146,7 @@ function agOnModoPaq(){
     if(help)help.textContent='La primera sesión de cada día será la próxima fecha con ese día de la semana, a partir de aquí.';
   }
   // En "Cambiar pendientes" se edita a mano (botones + / ✕), no por
-  // cantidad de veces por semana — el selector de frecuencia regenera
+  // cantidad de veces por semana - el selector de frecuencia regenera
   // TODAS las filas en blanco y borraría lo que ya se precargó.
   const grpFrecuencia=document.getElementById('ag-grp-frecuencia');
   if(grpFrecuencia)grpFrecuencia.style.display=esReemplazo?'none':'block';
@@ -2144,7 +2162,7 @@ function agOnModoPaq(){
 // pendientes", precarga las filas con el horario semanal ACTUAL del
 // paquete (agrupando las sesiones pendientes por día+hora+terapia+
 // psicóloga, ya que se repiten cada semana) para que se vea y se edite
-// como una modificación de lo ya armado, en vez de partir de cero — y
+// como una modificación de lo ya armado, en vez de partir de cero - y
 // muestra abajo, con fechas reales, exactamente qué sesiones se van a
 // reemplazar.
 function agCargarFilasDesdeProgPendiente(){
@@ -2162,14 +2180,14 @@ function agCargarFilasDesdeProgPendiente(){
   if(!pendientes.length){
     if(preview){
       preview.style.display='block';
-      preview.innerHTML='⚠️ Este paquete no tiene ninguna sesión pendiente por cambiar — ya se realizaron todas o no se ha agendado ninguna.';
+      preview.innerHTML='⚠️ Este paquete no tiene ninguna sesión pendiente por cambiar - ya se realizaron todas o no se ha agendado ninguna.';
     }
     cont.innerHTML='';agAgregarFilaTerapia();
     return;
   }
   // Agrupar por combinación única (día de semana + hora + terapia +
   // psicóloga) para mostrar el patrón semanal actual, una fila por
-  // asistencia — no una fila por cada fecha suelta.
+  // asistencia - no una fila por cada fecha suelta.
   const combosVistos={};
   const filasPre=[];
   pendientes.forEach(function(s){
@@ -2198,20 +2216,20 @@ function agCargarFilasDesdeProgPendiente(){
   if(preview){
     preview.style.display='block';
     preview.innerHTML='📋 <b>'+pendientes.length+' sesión(es) pendiente(s)</b> (N.º '+
-      pendientes[0].nroSes+'–'+pendientes[pendientes.length-1].nroSes+' de '+(progRow.nro_sesiones_total||'?')+
+      pendientes[0].nroSes+'-'+pendientes[pendientes.length-1].nroSes+' de '+(progRow.nro_sesiones_total||'?')+
       '). Lo que no edites abajo se mantiene igual; solo se ajusta lo que agregues o quites con ✕.';
   }
 }
 
 // Llena "Seleccionar Paquete" solo con los paquetes de catálogo de la
-// categoría elegida (Niños/Adultos) — así nunca se mezclan precios de
+// categoría elegida (Niños/Adultos) - así nunca se mezclan precios de
 // una categoría con la otra al armar un paquete nuevo.
 function agPoblarPaqCatalogo(){
   const sel=document.getElementById('ag-paqId');if(!sel)return;
   const categoria=document.getElementById('ag-paqCategoria')?.value||'ninos';
-  sel.innerHTML='<option value="">— Elige el paquete —</option>'+
+  sel.innerHTML='<option value="">- Elige el paquete -</option>'+
     DB.paquetes.filter(function(p){return p.tipo==='Paquete'&&(p.categoria||'ninos')===categoria;}).map(function(p){
-      return '<option value="'+p.id+'">'+p.nombre+' — S/'+p.costoTotal+'</option>';
+      return '<option value="'+p.id+'">'+p.nombre+' - S/'+p.costoTotal+'</option>';
     }).join('');
   agOnPaq();
 }
@@ -2258,14 +2276,14 @@ function agOnTipo(){
     if(grpBuilder)grpBuilder.style.display='none';
     document.getElementById('ag-costo').value='';
     // "Adelanto / Reserva": el paciente solo deja un pago para separar su
-    // cupo, sin comprometer un horario todavía — no pide Hora, solo la
+    // cupo, sin comprometer un horario todavía - no pide Hora, solo la
     // fecha en la que se dejó el adelanto (para poder regularizar).
     const grpHora=document.getElementById('ag-grp-hora');
     const lblFecha=document.getElementById('ag-lbl-fecha');
     if(tipo==='adelanto'){
       if(grpHora)grpHora.style.display='none';
       if(lblFecha)lblFecha.textContent='Fecha del adelanto *';
-      // El adelanto es solo un depósito — no tiene costo propio todavía
+      // El adelanto es solo un depósito - no tiene costo propio todavía
       // (eso se define cuando se agende/registre la sesión real).
       if(grpCostoSimple)grpCostoSimple.style.display='none';
     }else{
@@ -2277,9 +2295,9 @@ function agOnTipo(){
       // ej. "Consulta pagada" y "Consultas psicológica" son ambos tipo Consulta)
       const selServ=document.getElementById('ag-servId');
       if(selServ){
-        selServ.innerHTML='<option value="">— Selecciona el servicio —</option>'+
+        selServ.innerHTML='<option value="">- Selecciona el servicio -</option>'+
           DB.paquetes.filter(p=>p.tipo===tipo).map(p=>
-            '<option value="'+p.id+'">'+p.nombre+' — S/'+p.costoTotal+'</option>'
+            '<option value="'+p.id+'">'+p.nombre+' - S/'+p.costoTotal+'</option>'
           ).join('');
       }
     }
@@ -2295,7 +2313,7 @@ function agOnPaq(){
   const paqId=document.getElementById('ag-paqId').value||'';
   const paq=getPaq(paqId);
   document.getElementById('ag-costo').value=paq?paq.costoTotal:'';
-  // El número de cuotas y su monto vienen del catálogo (tarifas_sede) —
+  // El número de cuotas y su monto vienen del catálogo (tarifas_sede) -
   // no se inventan, cada paquete ya trae definido en cuántas cuotas se cobra.
   const elCuotas=document.getElementById('ag-cuotas');
   if(elCuotas)elCuotas.value=paq?(paq.cuotas||1):1;
@@ -2311,7 +2329,7 @@ function agOnServ(){
 
 // ── Filas de terapia del paquete (terapia + psicóloga + día + hora) ──
 function _agTerOpts(){
-  return '<option value="">— Selecciona —</option>'+DB.terapias.map(t=>'<option value="'+t.id+'">'+t.nombre+'</option>').join('');
+  return '<option value="">- Selecciona -</option>'+DB.terapias.map(t=>'<option value="'+t.id+'">'+t.nombre+'</option>').join('');
 }
 // Cada fila = un día de asistencia. La cantidad de filas la fija
 // "¿Cuántas veces por semana?"; cada fila elige su propio día, terapia,
@@ -2337,14 +2355,14 @@ function agAgregarFilaTerapia(){
     '<div class="form-group" style="margin-bottom:0"><label class="form-label">Terapia</label>'+
     '<select class="form-control ag-row-ter">'+_agTerOpts()+'</select></div>'+
     '<div class="form-group" style="margin-bottom:0"><label class="form-label">Psicóloga</label>'+
-    '<select class="form-control ag-row-ps" onchange="agOnRowPs(this)"><option value="">— Elige un día —</option></select></div>'+
+    '<select class="form-control ag-row-ps" onchange="agOnRowPs(this)"><option value="">- Elige un día -</option></select></div>'+
     '<div class="form-group" style="margin-bottom:0"><label class="form-label">Horario</label>'+
-    '<select class="form-control ag-row-hora"><option value="">—</option></select></div>'+
+    '<select class="form-control ag-row-hora"><option value="">-</option></select></div>'+
     '</div>';
   cont.appendChild(div);
   agRefrescarDiasFilas();
 }
-// Quita SOLO esa asistencia (fila) — así se puede "editar" el horario ya
+// Quita SOLO esa asistencia (fila) - así se puede "editar" el horario ya
 // armado (agregar una nueva terapia, quitar una que ya no corresponde)
 // sin tener que rehacer todo desde "¿Cuántas veces por semana?", que
 // borraba y regeneraba TODAS las filas en blanco.
@@ -2360,7 +2378,7 @@ function _agDiaOptsSinRepetir(selActual){
   // o incluso hermanos/pacientes que comparten paquete el mismo día). No se
   // deshabilita ningún día; el único caso inválido (misma psicóloga+hora+día
   // repetida) se valida al guardar.
-  return '<option value="">— Selecciona —</option>'+diaFull.slice(1).map(function(d){
+  return '<option value="">- Selecciona -</option>'+diaFull.slice(1).map(function(d){
     return '<option value="'+d+'">'+d+'</option>';
   }).join('');
 }
@@ -2377,10 +2395,10 @@ function agOnRowDia(selDia){
   const selPs=row.querySelector('.ag-row-ps');
   const dia=selDia.value;
   if(!dia){
-    selPs.innerHTML='<option value="">— Elige un día —</option>';
+    selPs.innerHTML='<option value="">- Elige un día -</option>';
   }else{
     const psDelDia=DB.psicologas.filter(function(p){return diasTrabajaPs(p).indexOf(dia)>-1;});
-    selPs.innerHTML=psDelDia.length?('<option value="">— Selecciona —</option>'+psDelDia.map(function(p){return '<option value="'+p.id+'">'+p.nombre+'</option>';}).join('')):
+    selPs.innerHTML=psDelDia.length?('<option value="">- Selecciona -</option>'+psDelDia.map(function(p){return '<option value="'+p.id+'">'+p.nombre+'</option>';}).join('')):
       '<option value="">Ninguna psicóloga trabaja este día</option>';
   }
   agOnRowPs(selPs);
@@ -2392,7 +2410,7 @@ function agOnRowPs(selPs){
   const ps=getPs(selPs.value);
   const dia=selDia.value;
   const horas=(selPs.value&&dia)?horasPsEnDia(ps,dia):[];
-  selHora.innerHTML=horas.length?horas.map(function(h){return '<option value="'+h+'">'+h+'</option>';}).join(''):'<option value="">—</option>';
+  selHora.innerHTML=horas.length?horas.map(function(h){return '<option value="'+h+'">'+h+'</option>';}).join(''):'<option value="">-</option>';
 }
 
 // ── Método(s) de pago del adelanto/pago (soporta pago dividido: parte
@@ -2436,12 +2454,12 @@ function _agActualizarBotonesQuitar(){
   });
 }
 // El total pagado (#ag-adelanto) se recalcula a partir de la suma de los
-// métodos SIEMPRE, incluso con una sola fila — antes solo se hacía con 2+
+// métodos SIEMPRE, incluso con una sola fila - antes solo se hacía con 2+
 // filas (pago dividido), así que si alguien escribía el monto directo en
 // la fila de método (en vez del campo "Adelanto" de arriba) con un solo
 // método, #ag-adelanto se quedaba en 0/vacío. El pago sí se guardaba bien
 // (se lee de las filas de método), pero el cálculo de la cuota 1 usa
-// #ag-adelanto — por eso una cuota ya cobrada seguía saliendo pendiente.
+// #ag-adelanto - por eso una cuota ya cobrada seguía saliendo pendiente.
 function agSincronizarMetodos(){
   const rows=document.querySelectorAll('#ag-metodos-rows .ag-met-row');
   let total=0;
@@ -2469,7 +2487,7 @@ function agObtenerMetodosPago(){
   });
   return out;
 }
-// Filas listas para crear en "pagos" (una fila por método) — si por algún
+// Filas listas para crear en "pagos" (una fila por método) - si por algún
 // motivo las filas de método no cuadran con el monto total pagado, cae a
 // un solo pago en Efectivo por el total, para no perder el registro.
 function agFilasPagoParaGuardar(montoTotal){
@@ -2497,12 +2515,12 @@ function agActualizarResumen(){
       const libres=Math.max(0,(prog.nro_sesiones_total||0)-asignadas);
       const saldoActual=Math.max(0,(prog.costo_total||0)-(prog.adelanto_acumulado||0));
       const saldoNuevo=Math.max(0,saldoActual-adelanto);
-      txt='Paquete existente: '+(prog.paquete_nombre||'')+' — Quedan '+libres+' de '+prog.nro_sesiones_total+' sin asignar | Saldo actual: S/'+saldoActual+
+      txt='Paquete existente: '+(prog.paquete_nombre||'')+' - Quedan '+libres+' de '+prog.nro_sesiones_total+' sin asignar | Saldo actual: S/'+saldoActual+
         (adelanto>0?' | Nuevo adelanto: S/'+adelanto+' | Saldo tras este pago: S/'+saldoNuevo:'');
     }
   } else if(tipo==='paquete'&&!_reprogDe&&paq){
     const saldo=Math.max(0,paq.costoTotal-adelanto);
-    txt=paq.nombre+' — S/'+paq.costoTotal+' total | Adelanto: S/'+adelanto+' | Saldo: S/'+saldo;
+    txt=paq.nombre+' - S/'+paq.costoTotal+' total | Adelanto: S/'+adelanto+' | Saldo: S/'+saldo;
   } else if(tipo==='adelanto'){
     const pacId2=document.getElementById('ag-pac')?.value||'';
     const pac2=pacId2?getPac(pacId2):null;
@@ -2637,7 +2655,7 @@ function agGuardarDesdeModal(){
 // Cambia terapia/horario/psicóloga de las sesiones AÚN NO REALIZADAS
 // (estado 'programado') de un paquete activo, sin tocar lo ya asistido,
 // no asistido, con permiso o reprogramado, y sin alterar el costo total
-// ni las cuotas ya pactadas del paquete — solo se reprograma el resto.
+// ni las cuotas ya pactadas del paquete - solo se reprograma el resto.
 let _reemplazoPendientesEnCurso=false;
 async function reemplazarPendientesPaquete(){
   // Candado contra doble clic en "Guardar": sin esto, dos llamadas casi
@@ -2676,7 +2694,7 @@ async function reemplazarPendientesPaquete(){
     combosVistos[k]=true;
   }
 
-  // Ordenadas por nro_en_paquete — el nro de cada sesión pendiente se
+  // Ordenadas por nro_en_paquete - el nro de cada sesión pendiente se
   // conserva siempre tal cual (nunca se recalcula), porque una sesión
   // "reprogramada" deja su fila vieja en la base con el mismo nro que su
   // reemplazo pendiente, y recontar "no programadas" duplicaría/saltaría
@@ -2684,7 +2702,7 @@ async function reemplazarPendientesPaquete(){
   const pendientes=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===progRow.id&&s.estado==='programado';})
     .sort(function(a,b){return(a.nroSes||0)-(b.nroSes||0);});
   if(!pendientes.length){
-    showToast('Este paquete no tiene sesiones pendientes por cambiar — todas ya se realizaron o no se han agendado','error');return;
+    showToast('Este paquete no tiene sesiones pendientes por cambiar - todas ya se realizaron o no se han agendado','error');return;
   }
   const totalSesiones=progRow.nro_sesiones_total||0;
 
@@ -2712,13 +2730,13 @@ async function reemplazarPendientesPaquete(){
   const combosNuevos=combosForm.filter(function(c){return!gruposActuales[c.key];}).map(function(c){return c.fila;});
 
   if(!sesionesALiberar.length&&!combosNuevos.length){
-    showToast('No hay ningún cambio que aplicar — es el mismo horario que ya tenía.','info');return;
+    showToast('No hay ningún cambio que aplicar - es el mismo horario que ya tenía.','info');return;
   }
-  // Se agregó una asistencia nueva sin quitar ninguna — como el paquete no
+  // Se agregó una asistencia nueva sin quitar ninguna - como el paquete no
   // puede tener más sesiones de las contratadas, no hay de dónde "sacar"
   // esa sesión nueva sin tocar el resto. En vez de bloquear (el caso más
   // común es justo este: sumar un día más), se reparte TODO el pendiente
-  // de nuevo entre todas las asistencias vigentes — al partir de HOY, las
+  // de nuevo entre todas las asistencias vigentes - al partir de HOY, las
   // que no cambiaron caen prácticamente en la misma fecha que ya tenían.
   let reflowCompleto=false;
   if(combosNuevos.length&&!sesionesALiberar.length){
@@ -2739,18 +2757,18 @@ async function reemplazarPendientesPaquete(){
   try{
     // Guardar el saldo (cuota) de cada sesión que se libera, por número
     // de sesión, para no perder el cobro pactado al recrearla con el
-    // nuevo horario — el checkpoint de cuota sigue cayendo en la misma
+    // nuevo horario - el checkpoint de cuota sigue cayendo en la misma
     // sesión N del paquete, solo cambia día/hora/terapia/psicóloga.
     const saldoPorNro={};
     sesionesALiberar.forEach(function(s){saldoPorNro[s.nroSes]=s.saldo||0;});
     const nrosLiberados=sesionesALiberar.map(function(s){return s.nroSes;}).sort(function(a,b){return a-b;});
 
     // Restar del programa_terapias de origen únicamente las sesiones que
-    // se liberan — lo que se mantiene igual, y lo ya realizado, se queda
+    // se liberan - lo que se mantiene igual, y lo ya realizado, se queda
     // intacto. Se mantiene un mapa en memoria del valor "vigente" de cada
     // fila (ptAsignadasActual) porque más abajo, si la nueva combinación
     // reutiliza la MISMA terapia+psicóloga, hay que sumarle al valor YA
-    // restado aquí — no al original leído de progRow.
+    // restado aquí - no al original leído de progRow.
     const ptExistentes=progRow.programa_terapias||[];
     const ptAsignadasActual={};
     ptExistentes.forEach(function(pt){ptAsignadasActual[pt.id]=pt.sesiones_asignadas||0;});
@@ -2765,7 +2783,7 @@ async function reemplazarPendientesPaquete(){
       await sbPatch('programa_terapias',{sesiones_asignadas:nuevoAsignadas,sesiones_realizadas:nuevoAsignadas},{id:'eq.'+ptId});
     }
 
-    // Borrar SOLO las sesiones que se liberan — las que no cambiaron
+    // Borrar SOLO las sesiones que se liberan - las que no cambiaron
     // (mismo día+hora+terapia+psicóloga) nunca se tocan.
     const idsALiberar=sesionesALiberar.map(function(s){return s._sb.id;}).filter(Boolean);
     for(const sbId of idsALiberar){
@@ -2775,7 +2793,7 @@ async function reemplazarPendientesPaquete(){
     // ya exista en DB.sesiones (en memoria): esto es justo lo que hace que
     // las asistencias SIN cambios (que se dejan en la base) bloqueen su
     // propio horario y el round-robin caiga naturalmente en la siguiente
-    // fecha libre — pero hay que quitar del array en memoria las que
+    // fecha libre - pero hay que quitar del array en memoria las que
     // recién se borraron, para no marcarlas ocupadas a sí mismas.
     const liberadasIds={};
     sesionesALiberar.forEach(function(s){liberadasIds[s.id]=true;});
@@ -2783,7 +2801,7 @@ async function reemplazarPendientesPaquete(){
 
     // Generar SOLO las sesiones necesarias para llenar lo liberado,
     // repartidas entre TODAS las filas del formulario (las que ya
-    // existían y absorben más, y/o las nuevas) — nunca se regenera lo
+    // existían y absorben más, y/o las nuevas) - nunca se regenera lo
     // que ya estaba correcto.
     const sim=simularCalendarioPaquete(filas,fechaDesde,cantidadALiberar);
 
@@ -2816,7 +2834,7 @@ async function reemplazarPendientesPaquete(){
     }
 
     // Cada evento generado toma EXACTAMENTE el nro_en_paquete de una de
-    // las sesiones liberadas (en orden), no un número recalculado — así
+    // las sesiones liberadas (en orden), no un número recalculado - así
     // el checkpoint de cuota (saldoPorNro) sigue cayendo donde debía.
     for(let idx=0;idx<sim.eventos.length;idx++){
       const ev=sim.eventos[idx];
@@ -2835,7 +2853,7 @@ async function reemplazarPendientesPaquete(){
       showToast('⚠️ Solo se pudieron reprogramar '+sim.eventos.length+' de '+cantidadALiberar+' sesión(es). '+
         (sim.saltadas.length?'Revisa: '+sim.saltadas.slice(0,3).join(', '):'Agenda el resto manualmente.'),'error');
     }else{
-      showToast('✅ '+sim.eventos.length+' sesión(es) reprogramada(s) para '+pac.nombre+' — el resto de su horario se mantuvo igual');
+      showToast('✅ '+sim.eventos.length+' sesión(es) reprogramada(s) para '+pac.nombre+' - el resto de su horario se mantuvo igual');
     }
     closeModal('modalAgendar');
     await cargarDesdeSB();
@@ -2845,7 +2863,7 @@ async function reemplazarPendientesPaquete(){
 
 // Arma, para cada fila de terapia, sus fechas semanales (mismo día/hora)
 // desde fechaInicio, y las va intercalando en orden cronológico real
-// entre todas las filas hasta juntar exactamente totalSesiones — así el
+// entre todas las filas hasta juntar exactamente totalSesiones - así el
 // paquete se reparte solo entre las terapias, sin pedir cuántas sesiones
 // le tocan a cada una. Salta feriados no laborables y horarios ya
 // ocupados de esa psicóloga (corriendo esa fila una semana más).
@@ -2871,9 +2889,9 @@ function simularCalendarioPaquete(filas,fechaInicioStr,totalSesiones){
     const key=f.psicologa.nombre+'|'+fStr+'|'+f.hora;
     const fer=feriadoDe(fStr);
     if(fer&&fer.tipo_gestion==='no_laborable'){
-      saltadas.push(fmtF(fStr)+' '+f.hora+' — '+f.terapia+' (feriado)');
+      saltadas.push(fmtF(fStr)+' '+f.hora+' - '+f.terapia+' (feriado)');
     }else if(ocupados[key]){
-      saltadas.push(fmtF(fStr)+' '+f.hora+' — '+f.terapia+' (horario ocupado)');
+      saltadas.push(fmtF(fStr)+' '+f.hora+' - '+f.terapia+' (horario ocupado)');
     }else{
       eventos.push({filaIdx:minIdx,fecha:fStr,hora:f.hora});
       ocupados[key]=true;porFila[minIdx]++;total++;
@@ -2932,14 +2950,14 @@ async function guardarPaqueteFlujo(){
       costoTotal=progRow.costo_total||0;
       totalSesiones=progRow.nro_sesiones_total||0;
       // El paquete ya tiene sus propias cuotas definidas desde que se
-      // registró — usar SIEMPRE ese valor al continuar (agregar otra
+      // registró - usar SIEMPRE ese valor al continuar (agregar otra
       // terapia/sesiones), nunca forzar 1, porque eso rompía el cálculo
       // de las cuotas 2+ (todo el saldo restante terminaba amontonado en
       // una sola sesión en vez de repartirse en las cuotas ya pactadas).
       nroCuotas=Math.max(1,parseInt(progRow.nro_cuotas)||1);
       yaAsignadas=(progRow.programa_terapias||[]).reduce(function(a,t){return a+(t.sesiones_asignadas||0);},0);
       // No se puede seguir metiendo sesiones ni pagos a un paquete que ya
-      // asignó todas sus sesiones contratadas — hay que cerrarlo (o ya
+      // asignó todas sus sesiones contratadas - hay que cerrarlo (o ya
       // está cerrado) antes de registrar uno nuevo.
       if(yaAsignadas>=totalSesiones){
         showToast('❌ Este paquete ya completó sus '+totalSesiones+' sesiones contratadas. Registra un paquete nuevo en vez de seguir usando este.','error');
@@ -2981,7 +2999,7 @@ async function guardarPaqueteFlujo(){
     }
 
     // Dos filas (días distintos) pueden compartir la misma terapia+psicóloga
-    // (ej. Lenguaje con la Lic. Ana los lunes Y los jueves) — se consolidan
+    // (ej. Lenguaje con la Lic. Ana los lunes Y los jueves) - se consolidan
     // en un solo programa_terapias, sumando sus sesiones.
     function _agConsolidarCombos(porFilaSesiones){
       const combos={};
@@ -3011,7 +3029,7 @@ async function guardarPaqueteFlujo(){
       for(const key in combos){
         const c=combos[key];
         // Si el paquete YA tenía esta misma terapia+psicóloga (de un guardado
-        // anterior), sumar ahí en vez de crear una fila duplicada — si no,
+        // anterior), sumar ahí en vez de crear una fila duplicada - si no,
         // el total asignado del paquete termina superando sus sesiones
         // contratadas (ej. 21/20).
         const ptPrevio=ptExistentes.find(function(pt){return pt.terapia===c.terapia&&pt.psicologa===c.psicologaNombre;});
@@ -3035,14 +3053,14 @@ async function guardarPaqueteFlujo(){
       // ya se cobró al registrar el paquete (no genera alerta). Las demás
       // cuotas se cobran EN la sesión exacta que ya está fijada por tamaño
       // de paquete (igual en todas las sedes, solo cambian los montos según
-      // el costo de cada sede) — el cobro es en esa sesión, no antes.
+      // el costo de cada sede) - el cobro es en esa sesión, no antes.
       // Si el tamaño de paquete no está en la tabla, se reparte uniforme.
       const CUOTAS_CHECKPOINTS={8:[1],12:[1,3],16:[1,4,9],20:[1,5,12],30:[1,7,16,24]};
       const cortes={};
       if(nroCuotas>=2){
         const montoBase=montoCuotaCatalogo||Math.round((costoTotal/nroCuotas)*100)/100;
         const checkpoints=CUOTAS_CHECKPOINTS[totalSesiones];
-        // Lista de (sesión de cobro, monto de esa cuota) en orden — con las
+        // Lista de (sesión de cobro, monto de esa cuota) en orden - con las
         // posiciones fijas de la tabla, o repartidas uniforme si el tamaño
         // de paquete no está en ella.
         let posiciones;
@@ -3059,12 +3077,12 @@ async function guardarPaqueteFlujo(){
             posiciones.push({sesion:Math.max(1,sesionesPorCuota*j),monto:montoBase});
           }
         }
-        // Cada checkpoint se estampa con su monto COMPLETO — el adelanto NO
+        // Cada checkpoint se estampa con su monto COMPLETO - el adelanto NO
         // se resta aquí. Se aplica después, en cascada, con la misma función
         // que usan los pagos posteriores (aplicarCascadaCheckpoints), sobre
         // las sesiones-checkpoint REALES ya guardadas en Supabase. Antes
         // este cálculo se hacía en memoria con las cuotas recién armadas EN
-        // ESTA LLAMADA nada más — si el paquete ya tenía checkpoints de un
+        // ESTA LLAMADA nada más - si el paquete ya tenía checkpoints de un
         // registro anterior (agregar otra terapia/sesiones a un paquete
         // activo), el adelanto de esta llamada nunca los tocaba y quedaban
         // pendientes aunque ya estuvieran pagados.
@@ -3104,7 +3122,7 @@ async function guardarPaqueteFlujo(){
     if(adelanto>0){
       // Cascada del adelanto sobre TODAS las cuotas-checkpoint pendientes
       // del paquete (las recién creadas arriba y cualquiera de un registro
-      // anterior), trayéndolas frescas de Supabase — nunca fiarse de lo que
+      // anterior), trayéndolas frescas de Supabase - nunca fiarse de lo que
       // ya está en memoria en este punto.
       await aplicarCascadaCheckpoints(progRow.id,adelanto);
       const n=new Date();
@@ -3116,7 +3134,7 @@ async function guardarPaqueteFlujo(){
           paciente_nombre:pac.nombre,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||'',
           programa_id:progRow.id};
         // "Solo registrar el paquete y el pago" (modo=soloPago) no crea
-        // ninguna sesión todavía — ahí no hay sesion_id que asignar, pero
+        // ninguna sesión todavía - ahí no hay sesion_id que asignar, pero
         // el pago SIGUE atado al paquete (programa_id) para que el
         // Historial lo pueda mostrar en cuanto exista al menos una sesión
         // de ese paquete, en vez de quedar huérfano y nunca visible.
@@ -3171,7 +3189,7 @@ async function guardarSesion(){
   if(_esReprog&&(!_evInp||!_evInp.files||!_evInp.files[0])){
     showToast('Adjunta la evidencia del paciente para reprogramar','error');return;
   }
-  // Reprogramar mueve UNA sesión puntual — nunca dispara la generación
+  // Reprogramar mueve UNA sesión puntual - nunca dispara la generación
   // semanal automática ni el modo "solo paquete y pago".
   const modoPaqEfectivo=_esReprog?'unica':modoPaq;
   const sinSesionHoyEfectivo=_esReprog?false:sinSesionHoy;
@@ -3191,7 +3209,7 @@ async function guardarSesion(){
     // 3) No hay paquete activo elegido → se crea un paquete nuevo (y esta
     //    terapia queda como la primera dentro de él).
     if(_esReprog){
-      // Reprogramar solo mueve la sesión a otra fecha/hora — sigue siendo
+      // Reprogramar solo mueve la sesión a otra fecha/hora - sigue siendo
       // la MISMA sesión del paquete, no una nueva. No debe sumarse al
       // conteo de sesiones realizadas (ya se contó cuando se creó la
       // primera vez) ni inventarse un cobro nuevo: hereda el programa,
@@ -3209,7 +3227,7 @@ async function guardarSesion(){
       if(progIdOrig){filaSesion.programa_id=progIdOrig;if(ptIdOrig)filaSesion.programa_terapia_id=ptIdOrig;}
       {const rSes=await sbPost('sesiones',filaSesion);sesionIdCreada=(rSes&&rSes[0]&&rSes[0].id)||null;}
       // La sesión original recién se marca "reprogramado" AQUÍ, cuando la
-      // reprogramación se concreta de verdad (no al abrir el modal) — así,
+      // reprogramación se concreta de verdad (no al abrir el modal) - así,
       // si se cancela a medio camino, la sesión nunca queda huérfana en
       // Supabase. El saldo (cuota-checkpoint) ya se heredó en la sesión
       // nueva de arriba, así que aquí se limpia para que no quede
@@ -3220,7 +3238,7 @@ async function guardarSesion(){
     } else if((progInfo=(tipo==='paquete')?await obtenerProgramaActivo(pac.nombre,ter.nombre,ps.nombre):null)){
       const prog=progInfo.programa,pt=progInfo.terapiaRow;
       // El nro_en_paquete/total_paquete deben reflejar el paquete COMPLETO
-      // (todas sus terapias juntas), no solo esta terapia — si no, el
+      // (todas sus terapias juntas), no solo esta terapia - si no, el
       // contador que se ve en la agenda/historial ("Paq X/Y") sale mal
       // (ej. mostraba el sub-total de una sola terapia en vez de las
       // sesiones totales contratadas).
@@ -3275,7 +3293,7 @@ async function guardarSesion(){
       // corriente por paciente (pacientes.saldo): un adelanto que sobra
       // queda como crédito y se aplica solo a la siguiente sesión que se
       // registre, en vez de volver a pedir el pago completo cada vez.
-      // "Adelanto/Reserva" es solo el depósito — no suma un costo todavía.
+      // "Adelanto/Reserva" es solo el depósito - no suma un costo todavía.
       if(tipo==='paquete'){
         saldo=Math.max(0,costoTotal-adelanto);
       }else if(tipo==='adelanto'){
@@ -3349,7 +3367,7 @@ async function guardarSesion(){
     // Actualizar paciente en Supabase
     if(pac._sb&&pac._sb.id){
       const upd={psicologa:ps.nombre,terapia:ter.nombre};
-      // El saldo de paquete vive en programas_paciente, no aquí — mezclarlo
+      // El saldo de paquete vive en programas_paciente, no aquí - mezclarlo
       // pisaría el saldo corriente (crédito/deuda) de sesiones sueltas.
       if(tipo==='paquete'&&paq){upd.paquete=String(paq.sesiones||totalPaq);}
       else{upd.saldo=saldo;}
@@ -3357,18 +3375,18 @@ async function guardarSesion(){
     }
     if(tipo==='exclusivo'){
       promesas.push(sbPost('precio_paciente',{paciente_nombre:pac.nombre,dni:pac.dni||'',sede:DB.sede,
-        nombre_servicio:'Precio exclusivo — '+ter.nombre,precio_especial:costoRaw,
+        nombre_servicio:'Precio exclusivo - '+ter.nombre,precio_especial:costoRaw,
         motivo:document.getElementById('ag-exclusivoMotivo')?.value||'',
         fecha_aplicacion:fecha||today(),aprobado_por:DB.usuario||''}).catch(function(){}));
     }
     await Promise.all(promesas);
     closeModal('modalAgendar');
     if(sinSesionHoyEfectivo)showToast('✅ Paquete registrado para '+pac.nombre+(adelanto>0?' (con adelanto de S/'+adelanto+')':''));
-    else if(modoPaqEfectivo==='generar')showToast('✅ Sesiones generadas para '+pac.nombre+' — desde '+fmtF(fecha)+' '+hora);
-    else showToast('✅ Sesión agendada: '+pac.nombre+' — '+hora);
+    else if(modoPaqEfectivo==='generar')showToast('✅ Sesiones generadas para '+pac.nombre+' - desde '+fmtF(fecha)+' '+hora);
+    else showToast('✅ Sesión agendada: '+pac.nombre+' - '+hora);
     await cargarDesdeSB();
     // Un paciente puede llevar varias terapias con distintas psicólogas al
-    // mismo tiempo (igual que en el app temporal) — en vez de un formulario
+    // mismo tiempo (igual que en el app temporal) - en vez de un formulario
     // con varias filas a la vez, se ofrece agregar la siguiente terapia/
     // psicóloga al toque, ya con el mismo paciente seleccionado.
     if(tipo==='paquete'&&confirm('✅ Guardado.\n\n¿Deseas agregar OTRA terapia o psicóloga para '+pac.nombre+' (del mismo paquete o uno nuevo)?')){
@@ -3416,7 +3434,7 @@ function renderPacientes(){
       (paqInfo?'<span class="badge bb" style="font-size:10px">Paquete '+paqInfo.total+' ses.</span>':'')+
       '</div>'+
       '<div style="font-size:12px;color:var(--muted)">'+
-      (ps.nombre!=='—'?'🩺 '+ps.nombre:'')+
+      (ps.nombre!=='-'?'🩺 '+ps.nombre:'')+
       (p.tel?' · 📱 '+p.tel:'')+
       '</div>'+
       prog+
@@ -3571,10 +3589,10 @@ function abrirPago(sesId){
   const elP=document.getElementById('pg-ps');if(elP)elP.value=ses.psId;
   document.getElementById('pg-fecha').value=ses.fecha;
   document.getElementById('pg-monto').value=ses.saldo||ses.costoTotal||0;
-  document.getElementById('pg-concepto').value=(ses.tipo==='paquete'?'Paquete '+ses.totalPaq+' ses.':'Sesión')+' — '+getPac(ses.pacId).nombre;
+  document.getElementById('pg-concepto').value=(ses.tipo==='paquete'?'Paquete '+ses.totalPaq+' ses.':'Sesión')+' - '+getPac(ses.pacId).nombre;
   const elPgNotas=document.getElementById('pg-notas');if(elPgNotas)elPgNotas.value='';
   const elDeudaInfo=document.getElementById('pg-deuda-info');if(elDeudaInfo)elDeudaInfo.style.display='none';
-  document.getElementById('modalPagoTit').textContent='💰 Cobrar — '+getPac(ses.pacId).nombre;
+  document.getElementById('modalPagoTit').textContent='💰 Cobrar - '+getPac(ses.pacId).nombre;
   openModal('modalPago');
 }
 // "+ Registrar Pago" genérico (no viene de una fila de sesión puntual):
@@ -3594,7 +3612,7 @@ function abrirModalPagoGenerico(){
 // Al elegir un paciente en "+ Registrar Pago" (genérico, no desde una fila
 // puntual): busca si tiene un paquete activo con una cuota pendiente, o si
 // arrastra deuda de sesiones sueltas, y precompleta Concepto/Monto con esa
-// info — así la recepcionista no tiene que ir a mirar el Historial aparte
+// info - así la recepcionista no tiene que ir a mirar el Historial aparte
 // ni escribir el concepto a mano cada vez.
 async function pgOnPaciente(){
   if(_pagoSesionId)return;
@@ -3608,7 +3626,7 @@ async function pgOnPaciente(){
   // Se consulta Supabase directo (no DB.programas/DB.sesiones, que pueden
   // estar desactualizados si el paquete se acaba de crear hace segundos)
   // para no sugerir "Adelanto" cuando en realidad ya hay una cuota
-  // pendiente — eso hacía que el pago se registrara sin ligar a ninguna
+  // pendiente - eso hacía que el pago se registrara sin ligar a ninguna
   // cuota y la cascada no encontrara nada que descontar.
   let prog=null;
   try{
@@ -3625,12 +3643,12 @@ async function pgOnPaciente(){
     info.style.display='block';
     if(cuotaPend){
       info.style.background='#fff7ed';info.style.color='#9a3412';
-      info.innerHTML='📦 Paquete activo: <b>'+(prog.paquete_nombre||'Paquete')+'</b> — Cuota pendiente: <b>S/'+cuotaPend.saldo+'</b> (sesión del '+fmtF(cuotaPend.fecha)+')';
+      info.innerHTML='📦 Paquete activo: <b>'+(prog.paquete_nombre||'Paquete')+'</b> - Cuota pendiente: <b>S/'+cuotaPend.saldo+'</b> (sesión del '+fmtF(cuotaPend.fecha)+')';
       elConcepto.value='Cuota '+(prog.paquete_nombre||'paquete');
       elMonto.value=cuotaPend.saldo;
     }else{
       info.style.background='#f0fdf4';info.style.color='#166534';
-      info.innerHTML='📦 Paquete activo: <b>'+(prog.paquete_nombre||'Paquete')+'</b> — sin cuota pendiente por ahora.';
+      info.innerHTML='📦 Paquete activo: <b>'+(prog.paquete_nombre||'Paquete')+'</b> - sin cuota pendiente por ahora.';
       elConcepto.value='Adelanto '+(prog.paquete_nombre||'paquete');
       elMonto.value='';
     }
@@ -3641,7 +3659,7 @@ async function pgOnPaciente(){
   if(deudaSuelta>0){
     info.style.background='#fff7ed';info.style.color='#9a3412';
     info.innerHTML='⚠️ Debe actualmente: <b>S/'+deudaSuelta+'</b> (sesiones sueltas, sin paquete)';
-    elConcepto.value='Pago sesión — '+pac.nombre;
+    elConcepto.value='Pago sesión - '+pac.nombre;
     elMonto.value=deudaSuelta;
   }else if(deudaSuelta<0){
     info.style.background='#eff6ff';info.style.color='#1e40af';
@@ -3655,11 +3673,11 @@ async function pgOnPaciente(){
 }
 
 // Aplica `montoDisponible` en cascada sobre las cuotas-checkpoint
-// pendientes de un paquete (de la más antigua a la más nueva) — si el
+// pendientes de un paquete (de la más antigua a la más nueva) - si el
 // pago supera lo que debía esa cuota, el excedente pasa a la siguiente
 // en vez de perderse del seguimiento por sesión. Usada tanto por
 // guardarPago() (pagos posteriores) como por guardarPaqueteFlujo() (el
-// adelanto pagado al registrar el paquete) — un solo camino para que el
+// adelanto pagado al registrar el paquete) - un solo camino para que el
 // dinero SIEMPRE quede reflejado en la sesión-checkpoint correcta.
 //
 // SIEMPRE trae las sesiones pendientes DIRECTO de Supabase (nunca de
@@ -3699,7 +3717,7 @@ async function guardarPago(){
   const n=new Date();
   const hora=horaLima(n);
   // Si "Cobrar" se abrió desde una fila puntual, sabemos EXACTAMENTE qué
-  // sesión/cuota se está pagando — evita adivinar por fecha o, peor,
+  // sesión/cuota se está pagando - evita adivinar por fecha o, peor,
   // aplicar el pago a todas las cuotas pendientes del paquete a la vez.
   const sesPagada=_pagoSesionId?DB.sesiones.find(s=>s.id===_pagoSesionId):null;
   showToast('⏳ Registrando pago...');
@@ -3712,12 +3730,12 @@ async function guardarPago(){
     const pagoId=pagoInsertado&&pagoInsertado[0]&&pagoInsertado[0].id;
     const promesas=[];
     // pacientes.saldo es SOLO el saldo corriente de sesiones/consultas
-    // SUELTAS (fuera de paquete) — la deuda de un paquete vive aparte, en
+    // SUELTAS (fuera de paquete) - la deuda de un paquete vive aparte, en
     // programas_paciente.saldo + el checkpoint de cada sesión. Si el pago
     // se aplica a un paquete, pacientes.saldo NO debe tocarse (antes SÍ
     // se restaba siempre, así que la misma plata se descontaba dos veces:
     // de programas_paciente Y de pacientes.saldo, dejando este último
-    // negativo — un "crédito" que no existía de verdad y que, sumado al
+    // negativo - un "crédito" que no existía de verdad y que, sumado al
     // saldo del paquete en el Historial, mostraba menos deuda de la real).
     let pagoAtadoAPaquete=false;
     if(sesPagada&&sesPagada._sb&&sesPagada._sb.id){
@@ -3769,7 +3787,7 @@ async function guardarPago(){
         }
       }catch(eProg){console.error('[pago->programa]',eProg);}
     }
-    // Reducir saldo del paciente en Supabase — SOLO si el pago no se ató a
+    // Reducir saldo del paciente en Supabase - SOLO si el pago no se ató a
     // un paquete (arriba). Puede quedar en negativo (crédito a favor) si
     // el pago suelto supera lo que debía; ese crédito se aplica solo
     // cuando registre su siguiente sesión suelta.
@@ -3779,7 +3797,7 @@ async function guardarPago(){
     await Promise.all(promesas);
     _pagoSesionId=null;
     closeModal('modalPago');
-    showToast('✅ Pago S/'+monto+' ('+metodo+') — '+pac.nombre);
+    showToast('✅ Pago S/'+monto+' ('+metodo+') - '+pac.nombre);
     await cargarDesdeSB();
   }catch(e){showToast('Error en pago: '+e.message,'error');console.error('[pago SB]',e);}
 }
@@ -3814,7 +3832,7 @@ function renderPagos(){
 // ══════════════════════════════════════════════════
 function _asistFromSB(){
   // Traduce DB.asistPersonal (Supabase, tabla asistencia_personal) al formato
-  // que usa esta pantalla. Supabase es la única fuente — no hay Sheet ni localStorage.
+  // que usa esta pantalla. Supabase es la única fuente - no hay Sheet ni localStorage.
   return (DB.asistPersonal||[]).map(function(a){
     const nom=a.psicologa||a.psicologa_nombre||'';
     const ps=DB.psicologas.find(function(p){return p.nombre===nom;});
@@ -3846,7 +3864,7 @@ async function renderAsistPersonal(){
     const borderC=reg?(reg.estado==='presente'?'var(--green)':'var(--red)'):'var(--border)';
     const estado=reg
       ?'<div style="font-size:12px;font-weight:700;color:'+(reg.estado==='presente'?'var(--green)':'var(--red)')+'">'+
-        (reg.estado==='presente'?'✅ Llegó a las '+reg.horaLlegada:'❌ Ausente — '+reg.horaLlegada)+'</div>'+
+        (reg.estado==='presente'?'✅ Llegó a las '+reg.horaLlegada:'❌ Ausente - '+reg.horaLlegada)+'</div>'+
         (reg.motivoTardanza?'<div style="font-size:11px;color:var(--orange);margin-top:2px">⏰ Tardanza: '+reg.motivoTardanza+'</div>':'')
       :'<div style="font-size:12px;color:var(--muted)">⏳ Sin registrar</div>';
     const btns=reg
@@ -3895,12 +3913,12 @@ async function marcarP(btn){
   const n=new Date();
   const hora=horaLima(n);
   // Si llega presente después de su horario de entrada, se pide el motivo
-  // antes de guardar — el motivo se muestra luego en el Reporte del Día.
+  // antes de guardar - el motivo se muestra luego en el Reporte del Día.
   const horaInicio=(ps.inicio||'').substring(0,5);
   if(estado==='presente'&&horaInicio&&hora>horaInicio){
     _tardanzaPend={psId:psId,fecha:fecha,estado:estado,hora:hora,ps:ps};
     const info=document.getElementById('tardanza-info');
-    if(info)info.innerHTML='<b>'+ps.nombre+'</b> — entrada '+hora+' (horario: '+horaInicio+')';
+    if(info)info.innerHTML='<b>'+ps.nombre+'</b> - entrada '+hora+' (horario: '+horaInicio+')';
     const motInp=document.getElementById('tardanza-motivo');if(motInp)motInp.value='';
     openModal('modalTardanza');
     return;
@@ -3922,7 +3940,7 @@ async function _guardarAsistPersonal(ps,fecha,estado,hora,motivoTardanza){
     const rows=await sbPost('asistencia_personal',{fecha:fecha,sede:DB.sede,psicologa:ps.nombre,entrada:hora,estado:estado,registrado_por:DB.usuario||'',motivo_tardanza:motivoTardanza||null});
     if(rows&&rows[0]){DB.asistPersonal=(DB.asistPersonal||[]).concat([rows[0]]);}
     renderAsistPersonal();
-    showToast(estado==='presente'?(motivoTardanza?'⏰ '+ps.nombre+' llegó tarde — motivo registrado':'✅ '+ps.nombre+' marcada presente'):'❌ '+ps.nombre+' ausente');
+    showToast(estado==='presente'?(motivoTardanza?'⏰ '+ps.nombre+' llegó tarde - motivo registrado':'✅ '+ps.nombre+' marcada presente'):'❌ '+ps.nombre+' ausente');
   }catch(e){showToast('Error al guardar: '+e.message,'error');console.error('[asistencia SB]',e);}
 }
 
@@ -4069,7 +4087,7 @@ function filtrarPaq(tipo,btn){
 // ══════════════════════════════════════════════════
 function contarAlertas(){
   let c=0;const hoy=today();
-  // Solo cuenta como alerta la deuda ya VENCIDA — un saldo a favor no es
+  // Solo cuenta como alerta la deuda ya VENCIDA - un saldo a favor no es
   // una alerta, y una cuota que todavía no llega a su fecha tampoco
   // debería generar ruido en la lista de pendientes por cobrar.
   DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{const st=_estadoSaldoPac(p);if(st&&st.tipo==='vencido')c++;});
@@ -4083,23 +4101,23 @@ function contarAlertas(){
 
 function renderAlertas(){
   let h='';
-  // Aquí solo aparece la deuda ya VENCIDA (en rojo) — el saldo a favor y
+  // Aquí solo aparece la deuda ya VENCIDA (en rojo) - el saldo a favor y
   // las cuotas que todavía no llegan a su fecha se ven en la ficha del
   // paciente/Historial, pero no ensucian esta lista de "hay que cobrar ya".
   DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{
     const st=_estadoSaldoPac(p);
-    if(st&&st.tipo==='vencido')h+='<div class="alert al-danger">🔴 <strong>'+p.nombre+'</strong> — Cuota vencida: S/'+st.saldo+'</div>';
+    if(st&&st.tipo==='vencido')h+='<div class="alert al-danger">🔴 <strong>'+p.nombre+'</strong> - Cuota vencida: S/'+st.saldo+'</div>';
   });
   DB.pacientes.filter(p=>p.activo!==false).forEach(p=>{
     const info=_paqInfoPac(p);if(!info)return;
     const rest=info.total-info.hechas;
     if(rest<=1&&rest>=0)h+='<div class="alert al-info" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
-      '<span>🔄 <strong>'+p.nombre+'</strong> — '+(rest===0?'Paquete TERMINADO':'Última sesión')+'  ('+info.hechas+'/'+info.total+')</span>'+
+      '<span>🔄 <strong>'+p.nombre+'</strong> - '+(rest===0?'Paquete TERMINADO':'Última sesión')+'  ('+info.hechas+'/'+info.total+')</span>'+
       '<button class="btn btn-primary btn-sm" onclick="renovarPaquete(\''+p.id+'\')">Renovar paquete</button></div>';
   });
   DB.sesiones.filter(s=>s.saldo>0&&s.estado==='programado'&&s.fecha>=today()).forEach(s=>{
     const pac=getPac(s.pacId);
-    h+='<div class="alert al-info">💰 <strong>'+pac.nombre+'</strong> — Saldo por cobrar: S/'+s.saldo+' — '+fmtF(s.fecha)+' '+s.hora+'</div>';
+    h+='<div class="alert al-info">💰 <strong>'+pac.nombre+'</strong> - Saldo por cobrar: S/'+s.saldo+' - '+fmtF(s.fecha)+' '+s.hora+'</div>';
   });
   const empty='<div style="color:var(--muted);padding:14px;text-align:center">Sin alertas ✅</div>';
   ['alertasPage','alertasDash'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=h||empty;});
@@ -4128,7 +4146,7 @@ async function cargarSolicitudesWeb(){
           '<td style="padding:6px;border-top:1px solid #eee">'+(r.tipo||'')+'</td>'+
           '<td style="padding:6px;border-top:1px solid #eee">'+r.nombre+'</td>'+
           '<td style="padding:6px;border-top:1px solid #eee">'+r.telefono+'</td>'+
-          '<td style="padding:6px;border-top:1px solid #eee">'+(r.motivo||'—')+'</td>'+
+          '<td style="padding:6px;border-top:1px solid #eee">'+(r.motivo||'-')+'</td>'+
           '<td style="padding:6px;border-top:1px solid #eee;white-space:nowrap">'+
           '<a class="btn btn-outline btn-sm" href="'+wa+'" target="_blank">💬 WhatsApp</a> '+
           '<button class="btn btn-primary btn-sm" onclick="atenderSolicitudWeb(\''+r.id+'\')">✅ Atendida</button></td></tr>';
@@ -4247,7 +4265,7 @@ function exportarPDF(){
   doc.text('Generado: '+new Date().toLocaleString('es-PE'),47+2,y+28);
   y+=38;
 
-  // ── RESUMEN ESTADÍSTICO — las 6 cifras deben sumar el Total exacto
+  // ── RESUMEN ESTADÍSTICO - las 6 cifras deben sumar el Total exacto
   // (antes faltaban Permiso y Reprogramado, y el total no cuadraba) ──
   const colores=[[26,31,94],[16,185,129],[239,68,68],[59,130,246],[100,116,139],[245,158,11]];
   const stats=[['Total',ses.length],['Asistieron',asist],['No asistieron',noAs],['Permiso',permi],['Reprogramado',repro],['Pendientes',pend]];
@@ -4302,12 +4320,12 @@ function exportarPDF(){
     y+=6;
   }
 
-  // ── DETALLE POR PSICÓLOGA — tarjeta agrupada, igual estilo que la vista
+  // ── DETALLE POR PSICÓLOGA - tarjeta agrupada, igual estilo que la vista
   // en pantalla del Reporte del Día (nombre + contadores arriba, sesiones
   // con hora, paciente, terapia, paquete y estado como chips debajo) ──
   const porPs={};
   ses.forEach(function(s){
-    const nombrePs=getPs(s.psId).nombre||'—';
+    const nombrePs=getPs(s.psId).nombre||'-';
     if(!porPs[nombrePs])porPs[nombrePs]={sesiones:[],asist:0};
     porPs[nombrePs].sesiones.push(s);
     if(s.estado==='asistio')porPs[nombrePs].asist++;
@@ -4364,7 +4382,7 @@ function exportarPDF(){
         doc.text(estTxt,M+187,y+5);
         doc.setTextColor(...(pg?[16,185,129]:[180,180,180]));
         doc.setFont('helvetica','bold');doc.setFontSize(7.5);
-        doc.text(pg?'S/'+pg.monto:'—',W-M-2,y+5.5,{align:'right'});
+        doc.text(pg?'S/'+pg.monto:'-',W-M-2,y+5.5,{align:'right'});
         y+=rowH;
       });
       y+=6;
@@ -4445,7 +4463,7 @@ function exportarAgendaPDF(){
       .forEach(function(s){if(s.hora)allSlots.add(s.hora);});
     const slots=[...allSlots].sort();
 
-    // Psicólogas con sesiones esta semana — solo se usan para la leyenda
+    // Psicólogas con sesiones esta semana - solo se usan para la leyenda
     // cuando no se filtró por una psicóloga puntual.
     const psicoPresentes=[];
     if(!filtPs){
@@ -4464,7 +4482,7 @@ function exportarAgendaPDF(){
 
     function dibujarCabeceraCols(yy){
       // OJO: doc.setTextColor(...) también cambia el color de "relleno"
-      // interno de jsPDF (usa el mismo operador PDF que setFillColor) — si
+      // interno de jsPDF (usa el mismo operador PDF que setFillColor) - si
       // se intercala texto entre un rect y el siguiente, el siguiente rect
       // hereda sin querer el blanco del texto anterior y sale invisible
       // (fue justo el bug: la fila de días salía en blanco sobre blanco).
@@ -4493,7 +4511,7 @@ function exportarAgendaPDF(){
     doc.text(d0.getDate()+' '+mesES[d0.getMonth()]+' - '+d5.getDate()+' '+mesES[d5.getMonth()]+' de '+d5.getFullYear(),M+4,y+13);
     y+=20;
 
-    // ── LEYENDA — solo si se exporta "Todas las psicólogas" ──
+    // ── LEYENDA - solo si se exporta "Todas las psicólogas" ──
     if(!filtPs&&psicoPresentes.length){
       doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(60,60,60);
       doc.text('Leyenda:',M,y+3.3);
@@ -4560,7 +4578,7 @@ function exportarAgendaPDF(){
       doc.text('Sin horarios/sesiones para esta semana.',W/2,y+10,{align:'center'});
     }
 
-    // ── DISPONIBILIDAD — hoja(s) aparte, vertical, por psicóloga: qué días
+    // ── DISPONIBILIDAD - hoja(s) aparte, vertical, por psicóloga: qué días
     // y horarios de SU horario laboral quedaron sin ningún paciente
     // agendado esta semana (para saber dónde se puede meter más gente) ──
     const psicoParaDisp=filtPsObj?[filtPsObj]:DB.psicologas.slice().sort(function(a,b){return a.nombre.localeCompare(b.nombre);});
@@ -4592,7 +4610,7 @@ function exportarAgendaPDF(){
       librePorDia.forEach(function(x){
         if(!x.trabaja)return;
         const etiquetaDia=diaES[x.dia.d.getDay()]+' '+String(x.dia.d.getDate()).padStart(2,'0')+'/'+String(x.dia.d.getMonth()+1).padStart(2,'0');
-        const txt=x.libres.length?x.libres.join('   ·   '):'— Sin horarios libres (agenda completa) —';
+        const txt=x.libres.length?x.libres.join('   ·   '):'- Sin horarios libres (agenda completa) -';
         doc.setFont(x.libres.length?'helvetica':'helvetica','normal');doc.setFontSize(7.5);
         const lineas=doc.splitTextToSize(txt,W2-M2*2-44);
         const rowH=Math.max(6,lineas.length*4+2);
@@ -4622,7 +4640,7 @@ function exportarAgendaPDF(){
 // ══════════════════════════════════════════════════
 //  WHATSAPP
 // ══════════════════════════════════════════════════
-var _waEnviados={}; // sesionId -> {enviado_por, enviado_el} — recordatorios ya marcados hoy
+var _waEnviados={}; // sesionId -> {enviado_por, enviado_el} - recordatorios ya marcados hoy
 
 async function renderWA(){
   const hoy=today();
@@ -4660,7 +4678,7 @@ async function renderWA(){
 }
 
 function enviarWA(sesionId,tel,nombre,terapia,hora){
-  const tpl=document.getElementById('waTemplate')?.value||'¡Hola {nombre}! 💜 Te escribimos de Psicoluz para recordarte tu sesión de {terapia} de hoy a las {hora}, en la sede {sede}. Te esperamos con mucho gusto — si necesitas reprogramar, avísanos por este medio. ¡Que tengas un lindo día! ✨';
+  const tpl=document.getElementById('waTemplate')?.value||'¡Hola {nombre}! 💜 Te escribimos de Psicoluz para recordarte tu sesión de {terapia} de hoy a las {hora}, en la sede {sede}. Te esperamos con mucho gusto - si necesitas reprogramar, avísanos por este medio. ¡Que tengas un lindo día! ✨';
   const msg=tpl.replace(/{nombre}/g,nombre).replace(/{terapia}/g,terapia).replace(/{hora}/g,hora).replace(/{sede}/g,DB.sede);
   const num=tel.replace(/\D/g,'');
   window.open('https://wa.me/'+(num.startsWith('51')?num:'51'+num)+'?text='+encodeURIComponent(msg),'_blank');
@@ -4677,7 +4695,7 @@ function enviarWA(sesionId,tel,nombre,terapia,hora){
 // ══════════════════════════════════════════════════
 //  PALETA DE COLORES / TEMA
 // ══════════════════════════════════════════════════
-function loadTema(){} // tema fijo rosa (ver :root en <style>) — ya no es configurable
+function loadTema(){} // tema fijo rosa (ver :root en <style>) - ya no es configurable
 
 // ══════════════════════════════════════════════════
 //  VISTA DÍA / SEMANA en Agenda
@@ -4707,7 +4725,7 @@ function renderAgendaViaDia(fecha){
       '<div style="padding:30px 20px;text-align:center">'+
       '<div style="font-size:32px;margin-bottom:10px">🎉</div>'+
       '<div style="font-weight:800;font-size:14px;margin-bottom:4px">Hoy es feriado: '+(fer.descripcion||'')+'</div>'+
-      '<div style="color:var(--muted);font-size:12px">No se trabaja este día — no hay agenda ni sesiones para agendar.</div>'+
+      '<div style="color:var(--muted);font-size:12px">No se trabaja este día - no hay agenda ni sesiones para agendar.</div>'+
       '</div>';
     return;
   }
@@ -4779,7 +4797,7 @@ async function renderHistorial(){
   const pac2=getPac(pacId);const ps2=getPs(pac2.psId);const ter2=getTer(pac2.terId);
   let sesPac=DB.sesiones.filter(s=>s.pacId===pac2.nombre).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
   // "Solo el último paquete": con el tiempo la lista de un paciente crece
-  // mucho (varios paquetes ya terminados) — este filtro deja ver solo el
+  // mucho (varios paquetes ya terminados) - este filtro deja ver solo el
   // paquete más reciente en vez de todo el historial acumulado.
   const filtroHist=document.getElementById('histFiltro')?.value||'todo';
   let ultimoProgIdFiltro=null;
@@ -4792,12 +4810,12 @@ async function renderHistorial(){
     }
   }
   // Cada pago aparece como su propia fila de "💰 Pago registrado", en SU
-  // fecha real — nunca dentro de la fila de una sesión. Aunque un pago
+  // fecha real - nunca dentro de la fila de una sesión. Aunque un pago
   // tenga sesion_id (sirve para la contabilidad interna: a qué sesión/
   // cuota corresponde), la fecha en que se cobró puede ser distinta a la
   // fecha de esa sesión (ej. un adelanto pagado el 29/08 para una sesión
   // agendada recién el 03/09, o una cuota pagada días antes de la sesión
-  // a la que corresponde) — mostrarlo dentro de la fila de la sesión
+  // a la que corresponde) - mostrarlo dentro de la fila de la sesión
   // hacía parecer que el pago había sido ese día, cuando no era así.
   let pagosDelPaciente=(DB.pagos||[]).filter(function(p){return p.pacId===pac2.nombre;});
   if(filtroHist==='ultimo'&&ultimoProgIdFiltro){
@@ -4815,7 +4833,7 @@ async function renderHistorial(){
   });
   const filasTabla=sesPac.concat(filasHuerfanas).sort(function(a,b){return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
   // Si tiene un paquete, las tarjetas de arriba deben reflejar SOLO el
-  // paquete (igual que "Progreso paquete") — mezclar una consulta suelta
+  // paquete (igual que "Progreso paquete") - mezclar una consulta suelta
   // ahí confunde el conteo real del paquete. Una sesión "reprogramada"
   // (movida a otra fecha) no debe sumar como una sesión más: se cuenta
   // solo una vez, en su fecha nueva.
@@ -4854,42 +4872,42 @@ async function renderHistorial(){
           const total=s.pagosGrupo.reduce(function(a,p){return a+(p.monto||0);},0);
           const metodosTxt=s.pagosGrupo.map(function(p){return '<div>'+p.metodo+' S/'+p.monto+'</div>';}).join('');
           const notasPagoSuelto=s.pagosGrupo.map(function(p){return p.notas||'';}).filter(Boolean).join(' · ');
-          return '<tr style="background:#f0fdf4"><td>'+fmtF(s.fecha)+'</td><td>—</td><td>—</td><td>—</td>'+
+          return '<tr style="background:#f0fdf4"><td>'+fmtF(s.fecha)+'</td><td>-</td><td>-</td><td>-</td>'+
             '<td><span style="color:var(--green);font-weight:700">Pago registrado</span></td>'+
             '<td><span class="badge bk" style="font-size:10px">'+s.concepto+'</span></td>'+
             '<td style="white-space:nowrap"><span style="color:var(--green);font-weight:700">S/'+total+'</span></td>'+
             '<td style="white-space:nowrap">'+metodosTxt+'</td>'+
             '<td style="font-size:11px;color:var(--muted)">'+(notasPagoSuelto||'')+'</td>'+
-            '<td><span style="font-size:11px;color:var(--muted)">—</span></td></tr>';
+            '<td><span style="font-size:11px;color:var(--muted)">-</span></td></tr>';
         }
         const psH=getPs(s.psId);const terH=getTer(s.terId);
         const esReprogFila=s.estado==='reprogramado';
         const ec=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':esReprogFila?'var(--muted)':'var(--orange)';
         // El costo/saldo se toma de la propia sesión (lo que ya mantiene al
         // día toda la lógica de paquetes/cuotas y saldo corriente), no de
-        // buscar un pago con la misma fecha+hora exacta de la sesión — casi
+        // buscar un pago con la misma fecha+hora exacta de la sesión - casi
         // nunca coincidía (un adelanto se registra con la hora en que se
         // recibe, no la hora de la sesión) y por eso Costo salía casi
         // siempre vacío aunque el paciente sí hubiera pagado.
         let costoCelda;
-        if(esReprogFila){costoCelda='—';}
+        if(esReprogFila){costoCelda='-';}
         else if(s.tipo==='paquete'){
           costoCelda=s.saldo>0?'<span style="color:var(--orange);font-weight:700">⚠️ Cuota S/'+s.saldo+'</span>':
-            (s.costoTotal>0?'<span style="color:var(--green);font-weight:700">✅ Al día</span>':'—');
-        }else if(!s.costoTotal){costoCelda='—';}
+            (s.costoTotal>0?'<span style="color:var(--green);font-weight:700">✅ Al día</span>':'-');
+        }else if(!s.costoTotal){costoCelda='-';}
         else{
           costoCelda='S/'+s.costoTotal+(s.saldo>0?' <span style="color:var(--orange);font-weight:700">⚠️ Pend. S/'+s.saldo+'</span>':' <span style="color:var(--green)">✅</span>');
         }
-        // El pago nunca se muestra dentro de la fila de una sesión — sale
+        // El pago nunca se muestra dentro de la fila de una sesión - sale
         // como su propia fila de "💰 Pago registrado" en su fecha real
         // (ver pagosDelPaciente/gruposHuerfanos), para no dar a entender
         // que el pago ocurrió el mismo día que la sesión cuando puede no
         // ser así.
-        const pagoCelda='—';
+        const pagoCelda='-';
         const notasPago='';
         // Si esta fila es donde ocurrió un permiso o una reprogramación, se
         // le pega aquí mismo (en SU fecha real) la evidencia y la nota que
-        // se adjuntaron al registrarlo — buscando por paciente+fecha+hora
+        // se adjuntaron al registrarlo - buscando por paciente+fecha+hora
         // original en lo que se trajo de la tabla reprogramaciones.
         const evReg=(s.estado==='permiso'||esReprogFila)?(DB.reprogramaciones||[]).find(function(r){
           return r.paciente_nombre===s.pacId&&r.fecha_original===s.fecha&&(r.hora_original||'').slice(0,5)===s.hora;
@@ -4900,18 +4918,18 @@ async function renderHistorial(){
         ].filter(Boolean).join('<br>'):'';
         const notasCelda=[s.notas||'',notasPago?'💳 '+notasPago:'',evCelda].filter(Boolean).join('<br>');
         // Reprogramada o con permiso: queda solo como registro de que ese
-        // cupo se movió — no cuenta como una sesión más, así que no muestra
+        // cupo se movió - no cuenta como una sesión más, así que no muestra
         // el contador "Paq X/Y", y la fila reprogramada se pinta distinta
         // para diferenciarla de un cupo activo.
         return '<tr'+(esReprogFila?' style="background:var(--bg);opacity:.65"':'')+'><td>'+fmtF(s.fecha)+'</td><td>'+s.hora+'</td><td>'+psH.nombre.replace('Lic.','').trim()+'</td>'+
           '<td>'+terBadge(terH)+'</td>'+
           '<td><span style="color:'+ec+';font-weight:700">'+estadoLabel(s.estado)+'</span></td>'+
-          '<td><span class="badge bk" style="font-size:10px">'+((esReprogFila||s.estado==='permiso')?'—':s.tipo==='paquete'?'Paq '+s.nroSes+'/'+s.totalPaq:s.tipo)+'</span></td>'+
+          '<td><span class="badge bk" style="font-size:10px">'+((esReprogFila||s.estado==='permiso')?'-':s.tipo==='paquete'?'Paq '+s.nroSes+'/'+s.totalPaq:s.tipo)+'</span></td>'+
           '<td style="white-space:nowrap">'+costoCelda+'</td>'+
           '<td style="white-space:nowrap">'+pagoCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
           '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s):
-            '<span style="font-size:11px;color:var(--muted)">—</span>')+'</td></tr>';
+            '<span style="font-size:11px;color:var(--muted)">-</span>')+'</td></tr>';
       }).join('')+
       '</tbody></table></div>'
       :'<div style="color:var(--muted);padding:14px;text-align:center">Sin sesiones registradas para este paciente.</div>');
@@ -4923,7 +4941,7 @@ async function renderHistorial(){
 function initHistorial(){
   const el=document.getElementById('histPac');
   if(!el)return;
-  el.innerHTML='<option value="">— Selecciona paciente —</option>'+
+  el.innerHTML='<option value="">- Selecciona paciente -</option>'+
     DB.pacientes.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join('');
 }
 
@@ -5007,7 +5025,7 @@ async function subirPDF(){
 }
 
 // El historial de un paciente puede tener sesiones fuera de los últimos
-// 45 días (la ventana que carga cargarDesdeSB por defecto) — se trae
+// 45 días (la ventana que carga cargarDesdeSB por defecto) - se trae
 // completo directo de Supabase, sin esperar a que lo pidan aparte.
 async function cargarHistorialCompletoPac(pacNombre){
   const [rows,progs,pagosPac,reprogsPac]=await Promise.all([
@@ -5026,7 +5044,7 @@ async function cargarHistorialCompletoPac(pacNombre){
   rows.forEach(function(r){
     // Comparar por id "pelado" (no solo x._sb.id): una sesión recién creada
     // en el mismo registro de paquete queda en memoria como copia optimista
-    // SIN _sb (para pintarla de inmediato) — si aquí solo se buscaba por
+    // SIN _sb (para pintarla de inmediato) - si aquí solo se buscaba por
     // x._sb.id, esa copia optimista nunca calzaba con la fila real que
     // llega de Supabase y se terminaba agregando dos veces (una desfasada,
     // "programado", y otra con el estado real).
@@ -5036,7 +5054,7 @@ async function cargarHistorialCompletoPac(pacNombre){
         psId:r.psicologa,psNom:r.psicologa,terId:r.terapia,terNom:r.terapia,estado:r.estado,tipo:r.tipo||'sesion',notas:r.notas||'',
         saldo:r.saldo||0,nroSes:r.nro_en_paquete,totalPaq:r.total_paquete,costo:r.costo_total||0,costoTotal:r.costo_total||0,tel:r.paciente_tel||'',_sb:r});
     }else{
-      // Ya estaba en memoria — refrescar con los datos reales por si era
+      // Ya estaba en memoria - refrescar con los datos reales por si era
       // la copia optimista desactualizada (sin _sb) de un registro reciente.
       existing.fecha=r.fecha;existing.hora=normHoraRec(r.hora);existing.estado=r.estado;
       existing.tipo=r.tipo||'sesion';existing.notas=r.notas||'';existing.saldo=r.saldo||0;
@@ -5209,7 +5227,7 @@ async function cargarDesdeSB(silencioso) {
       pacId:s.paciente_nombre,pacNom:s.paciente_nombre,psId:s.psicologa,psNom:s.psicologa,
       terId:s.terapia,terNom:s.terapia,estado:s.estado,saldo:s.saldo||0,tipo:s.tipo||'sesion',notas:s.notas||'',
       nroSes:s.nro_en_paquete,totalPaq:s.total_paquete,costo:s.costo_total||0,costoTotal:s.costo_total||0,tel:s.paciente_tel||'',_sb:s};});
-    // La carga normal solo trae los últimos 45 días — "Cargar historial
+    // La carga normal solo trae los últimos 45 días - "Cargar historial
     // completo" trae sesiones más antiguas de un paciente puntual y las
     // agrega en memoria. Sin esto, el refresco automático de cada 30s
     // reemplazaba DB.sesiones entero y las volvía a perder.
@@ -5258,12 +5276,12 @@ async function cargarDesdeSB(silencioso) {
 }
 function syncAgenda(){cargarDesdeSB();}
 function syncPacientes(){cargarDesdeSB();}
-// Botones de asistencia — un solo lugar para las 4 vistas que los usan
+// Botones de asistencia - un solo lugar para las 4 vistas que los usan
 // (Dashboard, Agenda, Próximos días, Historial), para que no queden
 // desactualizadas por separado como pasaba antes.
 function botonesAsistenciaHTML(s){
   if(s.estado!=='programado')return '';
-  // Permiso y Reprogramar van juntos al costado de Asistió/No Asistió — ambos
+  // Permiso y Reprogramar van juntos al costado de Asistió/No Asistió - ambos
   // exigen evidencia (foto/sustento) y mueven la sesión: Permiso la reubica
   // sola, siguiendo la misma secuencia de día/hora/terapia; Reprogramar deja
   // elegir la fecha/hora nueva a mano.
@@ -5281,7 +5299,7 @@ async function marcarAs(sesRef,nuevoEst){
   // acepta id (UUID) o índice
   var s=DB.sesiones.find(function(x){return x.id===sesRef;})||DB.sesiones[sesRef];
   if(!s){showToast('Sesión no encontrada','error');return;}
-  // Ya no existe "tardanza" como estado — antes se sustituía "asistió" por
+  // Ya no existe "tardanza" como estado - antes se sustituía "asistió" por
   // "tardanza" automáticamente si se marcaba después de la hora programada,
   // pero en la práctica la asistencia casi nunca se marca al segundo exacto,
   // así que terminaba apareciendo en casi todas las sesiones aunque el
@@ -5298,11 +5316,11 @@ async function marcarAs(sesRef,nuevoEst){
     try{
       await sbPatch('sesiones',{estado:nuevoEst},{id:'eq.'+sbId});
       var msgs={asistio:'✅ '+(s.pacNom||'Paciente')+' asistió',
-        noasistio:'⚠️ No asistió — sesión contabilizada',permiso:'🟡 '+(s.pacNom||'Paciente')+' — con permiso'};
+        noasistio:'⚠️ No asistió - sesión contabilizada',permiso:'🟡 '+(s.pacNom||'Paciente')+' - con permiso'};
       showToast(msgs[nuevoEst]||'✅ Actualizado');
     }catch(e){showToast('Error al guardar: '+e.message,'error');console.error('[marcarAs]',e);}
   }else{
-    showToast('⚠️ Sesión sin ID de Supabase — recarga los datos','error');
+    showToast('⚠️ Sesión sin ID de Supabase - recarga los datos','error');
   }
   var a=document.querySelector('.page.active');if(a&&typeof showPage==='function')showPage(a.id.replace('page-',''));
 }
@@ -5363,7 +5381,7 @@ async function enviarMensajeChatRec(){
   try{
     await sbPost('chat_sede',{sede:DB.sede,nombre:DB.usuario||'Recepción',tipo:'recepcion',mensaje:texto,hora:hora});
     await cargarMensajesChatRec();
-  }catch(e){showToast('Sin conexión — mensaje no enviado','error');}
+  }catch(e){showToast('Sin conexión - mensaje no enviado','error');}
 }
 
 </script>
@@ -5375,7 +5393,7 @@ async function enviarMensajeChatRec(){
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-//  PSICOLUZ — NOTIFICACIONES UNIVERSALES v2
+//  PSICOLUZ - NOTIFICACIONES UNIVERSALES v2
 //  Sonido + notificación del sistema + banner en la app
 // ═══════════════════════════════════════════════════════════════
 (function(){
@@ -5447,7 +5465,7 @@ async function enviarMensajeChatRec(){
       Notification.requestPermission().catch(function(){});
     }
     // La mayoría de navegadores bloquea el audio hasta que haya un gesto
-    // real del usuario (click/touch) — si sonidoNotif() recién crea el
+    // real del usuario (click/touch) - si sonidoNotif() recién crea el
     // AudioContext cuando llega la primera notificación (por un
     // setInterval, sin gesto de por medio), el navegador la deja
     // "suspended" para siempre y no suena nunca, sin ningún error visible.
@@ -5533,7 +5551,7 @@ let _cpsPacId=null;
 function abrirCambioPs(pacId){
   const pac=getPac(pacId);if(!pac)return;
   _cpsPacId=pacId;
-  document.getElementById('cpsPacNombre').textContent='Paciente: '+pac.nombre+' · Actual: '+(getPs(pac.psId).nombre||'—');
+  document.getElementById('cpsPacNombre').textContent='Paciente: '+pac.nombre+' · Actual: '+(getPs(pac.psId).nombre||'-');
   const sel=document.getElementById('cpsNueva');
   sel.innerHTML=DB.psicologas.filter(function(x){return x.estado!=='inactiva';})
     .map(function(x){return '<option value="'+x.nombre+'">'+x.nombre+'</option>';}).join('');
