@@ -2941,6 +2941,17 @@ async function guardarPaqueteFlujo(){
     showToast('Indica la fecha en la que se recibió el pago','error');return;
   }
 
+  // Con una cuota vencida no se puede seguir agendando sesiones nuevas -
+  // primero se regulariza el pago. "Solo pago/adelanto" queda exento
+  // porque es justamente lo que hace falta para destrabar esto.
+  if(modo!=='soloPago'){
+    const stCuota=_estadoSaldoPac(pac);
+    if(stCuota&&stCuota.tipo==='vencido'){
+      showToast('No se puede agendar: '+pac.nombre+' tiene una cuota vencida (S/'+stCuota.saldo+'). Registra el pago antes de agendar una sesión nueva.','error');
+      return;
+    }
+  }
+
   showToast('⏳ Registrando paquete...');
   try{
     let progRow,costoTotal,totalSesiones,saldo,adelantoAcum,yaAsignadas=0,montoCuotaCatalogo=null;
@@ -3193,6 +3204,18 @@ async function guardarSesion(){
   // semanal automática ni el modo "solo paquete y pago".
   const modoPaqEfectivo=_esReprog?'unica':modoPaq;
   const sinSesionHoyEfectivo=_esReprog?false:sinSesionHoy;
+
+  // Con una cuota vencida no se puede seguir agendando sesiones nuevas -
+  // primero se regulariza el pago. Reprogramar (mueve una sesión que YA
+  // existía, no crea deuda nueva) y "solo pago/adelanto" (que es
+  // justamente lo que hace falta para destrabar esto) quedan exentos.
+  if(!_esReprog&&!sinSesionHoyEfectivo){
+    const stCuota=_estadoSaldoPac(pac);
+    if(stCuota&&stCuota.tipo==='vencido'){
+      showToast('No se puede agendar: '+pac.nombre+' tiene una cuota vencida (S/'+stCuota.saldo+'). Registra el pago antes de agendar una sesión nueva.','error');
+      return;
+    }
+  }
 
   showToast('⏳ Agendando...');
   try{
@@ -4831,7 +4854,18 @@ async function renderHistorial(){
     const g=gruposHuerfanos[k];
     return {id:'pago-'+k,fecha:g.fecha,hora:'',esPagoSuelto:true,concepto:g.concepto,pagosGrupo:g.pagos};
   });
-  const filasTabla=sesPac.concat(filasHuerfanas).sort(function(a,b){return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
+  // Entre dos sesiones de paquete (con número asignado) se ordena SIEMPRE
+  // por ese número, no por fecha - una sesión reprogramada conserva su
+  // mismo nro_en_paquete (ver reprogramar/guardarSesion) pero su fecha
+  // puede caer mucho antes o después que sus vecinas, y antes eso la hacía
+  // "saltar" al final o a mitad de la lista según a qué día se movió. Solo
+  // se usa fecha como criterio cuando al menos una de las dos filas no
+  // tiene número de paquete (pago suelto, consulta suelta).
+  const filasTabla=sesPac.concat(filasHuerfanas).sort(function(a,b){
+    const naOk=a.tipo==='paquete'&&a.nroSes>0,nbOk=b.tipo==='paquete'&&b.nroSes>0;
+    if(naOk&&nbOk)return a.nroSes-b.nroSes;
+    return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));
+  });
   // Si tiene un paquete, las tarjetas de arriba deben reflejar SOLO el
   // paquete (igual que "Progreso paquete") - mezclar una consulta suelta
   // ahí confunde el conteo real del paquete. Una sesión "reprogramada"
@@ -4892,8 +4926,12 @@ async function renderHistorial(){
         let costoCelda;
         if(esReprogFila){costoCelda='-';}
         else if(s.tipo==='paquete'){
-          costoCelda=s.saldo>0?'<span style="color:var(--orange);font-weight:700">⚠️ Cuota S/'+s.saldo+'</span>':
-            (s.costoTotal>0?'<span style="color:var(--green);font-weight:700">✅ Al día</span>':'-');
+          // Solo la sesión-checkpoint de una cuota tiene algo que decir a
+          // nivel de fila - el resto no es "al día", simplemente no le
+          // tocaba cobrar nada en esa sesión. El estado real de las cuotas
+          // del paciente (vencida/pendiente/al día) ya se muestra una sola
+          // vez arriba, con _saldoAlertaHTML.
+          costoCelda=s.saldo>0?'<span style="color:var(--orange);font-weight:700">⚠️ Cuota S/'+s.saldo+'</span>':'-';
         }else if(!s.costoTotal){costoCelda='-';}
         else{
           costoCelda='S/'+s.costoTotal+(s.saldo>0?' <span style="color:var(--orange);font-weight:700">⚠️ Pend. S/'+s.saldo+'</span>':' <span style="color:var(--green)">✅</span>');
