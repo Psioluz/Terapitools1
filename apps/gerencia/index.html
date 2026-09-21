@@ -283,13 +283,15 @@ select.fsel{
 .stat{background:var(--bg);border-radius:10px;padding:10px;text-align:center}
 .stat-v{font-size:20px;font-weight:900;color:var(--acc)}
 .stat-l{font-size:11px;color:#475569;font-weight:700;text-transform:uppercase;margin-top:3px;line-height:1.3}
-.ag-grid{display:grid;gap:0;border:1px solid var(--border);border-radius:10px;overflow:hidden}
-.ag-head{background:var(--dark);color:#fff;padding:8px 4px;text-align:center;font-size:12.5px;font-weight:800;cursor:pointer}
+.ag-scroll-box{max-height:70vh;overflow:auto;border-radius:10px;border:1px solid var(--border)}
+.ag-grid{display:grid;gap:0;min-width:640px}
+.ag-head{background:var(--dark);color:#fff;padding:9px 4px;text-align:center;font-size:12.5px;font-weight:800;cursor:pointer;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 rgba(0,0,0,.15)}
 .ag-head.hoy{background:var(--acc)}
-.ag-hora{background:#f8faff;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted);padding:2px}
-.ag-celda{border-top:1px solid var(--border);border-left:1px solid var(--border);min-height:54px;padding:2px;display:flex;flex-direction:column;gap:2px}
-.ag-chip{border-radius:4px;padding:3px 5px;font-size:10.5px;font-weight:700;color:#000;line-height:1.25}
-.ag-mas{color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100%;font-size:18px}
+.ag-hora{background:#f8faff;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;color:var(--muted);padding:2px;min-height:52px;position:sticky;left:0;z-index:1}
+.ag-celda{border-top:1px solid var(--border);border-left:1px solid var(--border);min-height:52px;padding:3px;display:flex;flex-direction:column;gap:3px;background:#fff;transition:background .15s}
+.ag-celda:hover{background:#f8fafc}
+.ag-chip{border-radius:5px;padding:4px 6px;font-size:10.5px;font-weight:700;color:#000;line-height:1.3;box-shadow:0 1px 2px rgba(0,0,0,.18)}
+.ag-mas{color:#cbd5e1;display:flex;align-items:center;justify-content:center;height:100%;font-size:16px;font-weight:900}
 </style>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png" type="image/png">
@@ -634,8 +636,10 @@ select.fsel{
     <div style="padding:0 16px 12px;font-size:13px;font-weight:800;color:var(--muted)" id="agendaSemTit"></div>
     <div style="padding:0 16px 12px;font-size:11px;color:var(--muted)">Réplica de la agenda de recepción, con el filtro de sede propio de este panel — los filtros globales de arriba no aplican aquí. Los colores respetan los que cada recepcionista asignó a cada psicóloga.</div>
   </div>
-  <div class="card" style="overflow-x:auto">
-    <div class="ag-grid" id="agendaGrid"></div>
+  <div class="card" style="padding:0">
+    <div class="ag-scroll-box">
+      <div class="ag-grid" id="agendaGrid"></div>
+    </div>
   </div>
   <div class="card" id="agendaDetalleCard" style="display:none">
     <div class="ch"><div class="ct" id="agendaResumenTit">Sesiones del día</div></div>
@@ -2360,6 +2364,27 @@ function colorEstadoAgGer(estado){
     estado==='permiso'?'#f59e0b':'rgba(0,0,0,.45)';
 }
 function agSelDiaGer(fecha){_agDiaSelGer=fecha;renderAgendaGer();}
+function _slotsDesdeGer(ini,fin){
+  var slots=[];
+  var p=(ini||'08:00').split(':').map(Number),hh=p[0],mm=p[1];
+  var f=(fin||'20:00').split(':').map(Number),fh=f[0],fm=f[1];
+  while(hh*60+mm<fh*60+fm){
+    slots.push(String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0'));
+    mm+=45;if(mm>=60){hh+=Math.floor(mm/60);mm%=60;}
+  }
+  return slots;
+}
+// Horario real de cada psicóloga ese día (dias_trabajo/hora_inicio/hora_fin,
+// más el día especial si lo tiene) — igual que horasPs() en recepción, para
+// que la grilla arranque desde la mañana (08:00) y no solo desde la tarde.
+function horasPsGer(ps,fecha){
+  if(!ps)return[];
+  var d=new Date(fecha+'T12:00:00');
+  var diaNom=DIA_FULL_GER[d.getDay()];
+  var trabaja=(ps.diasSemana||[]).indexOf(d.getDay())>-1||ps.diaEspecial===diaNom;
+  if(!trabaja)return[];
+  return _slotsDesdeGer(ps.inicio,ps.fin);
+}
 function renderAgendaGer(){
   if(!_agendaSelectsListos){
     var selSede=document.getElementById('agendaSedeSel');
@@ -2397,8 +2422,18 @@ function renderAgendaGer(){
     return true;
   });
 
+  var psFiltradas=(G.psicologas||[]).filter(function(p){
+    if(sedeSel&&p.sede!==sedeSel)return false;
+    if(psSel&&p.nombre!==psSel)return false;
+    return true;
+  });
   var allSlots={};
   ['13:15','14:00','14:45','15:30','16:15','17:00','17:45','18:30','19:15'].forEach(function(s){allSlots[s]=1;});
+  dias.forEach(function(dia){
+    psFiltradas.forEach(function(ps){
+      horasPsGer(ps,dia.f).forEach(function(s){allSlots[s]=1;});
+    });
+  });
   todasSes.filter(function(s){return dias.some(function(d){return d.f===s.fecha;});}).forEach(function(s){if(s.hora)allSlots[s.hora]=1;});
   var slots=Object.keys(allSlots).sort();
 
@@ -2418,8 +2453,11 @@ function renderAgendaGer(){
     h+='<div class="ag-hora">'+slot+'</div>';
     dias.forEach(function(dia){
       var sesList=todasSes.filter(function(s){return s.fecha===dia.f&&s.hora===slot;});
+      var hayHorario=psFiltradas.some(function(ps){return horasPsGer(ps,dia.f).indexOf(slot)>-1;});
       var bgCelda=dia.f===_agDiaSelGer?'#eff6ff':dia.f===hoy?'#f0fdf4':'#fff';
-      h+='<div class="ag-celda" style="background:'+bgCelda+'">';
+      var sinNada=!hayHorario&&!sesList.length;
+      h+='<div class="ag-celda" style="background:'+bgCelda+';'+(sinNada?'opacity:.35':'')+'">';
+      if(!sesList.length&&hayHorario)h+='<div class="ag-mas">+</div>';
       sesList.forEach(function(s){
         var esReprog=s.estado==='reprogramado';
         var bc=esReprog?'#94a3b8':colorPsAgendaGer(s.psNombre);
