@@ -3103,16 +3103,45 @@ async function guardarPaqueteFlujo(){
             posiciones.push({sesion:Math.max(1,sesionesPorCuota*j),monto:montoBase});
           }
         }
-        // Cada checkpoint se estampa con su monto COMPLETO - el adelanto NO
-        // se resta aquí. Se aplica después, en cascada, con la misma función
-        // que usan los pagos posteriores (aplicarCascadaCheckpoints), sobre
-        // las sesiones-checkpoint REALES ya guardadas en Supabase. Antes
-        // este cálculo se hacía en memoria con las cuotas recién armadas EN
-        // ESTA LLAMADA nada más - si el paquete ya tenía checkpoints de un
-        // registro anterior (agregar otra terapia/sesiones a un paquete
-        // activo), el adelanto de esta llamada nunca los tocaba y quedaban
-        // pendientes aunque ya estuvieran pagados.
-        posiciones.forEach(function(p){cortes[p.sesion]=p.monto;});
+        // Cada checkpoint se estampa con su monto COMPLETO - el adelanto de
+        // ESTA llamada no se resta aquí, se aplica después en cascada (ver
+        // más abajo). Pero un pago genérico registrado desde Caja/Pagos
+        // ENTRE dos generaciones de sesiones (ej. el paciente pagó la
+        // cuota 2 cuando todavía solo existía la sesión-checkpoint de la
+        // cuota 1) cascadea sobre lo que exista EN ESE MOMENTO - si el
+        // monto sobra, ese sobrante se pierde en silencio porque el
+        // checkpoint de la cuota 2 ni existía aún para recibirlo. El
+        // resultado: al generar después las sesiones que faltaban, la
+        // cuota 2 se estampa con su monto COMPLETO otra vez, como si nunca
+        // se hubiera cobrado nada de ella - aunque programas_paciente.saldo
+        // (la verdad real del paquete) sí refleja el pago correctamente.
+        // Se corrige buscando ese sobrante no aplicado (lo ya cobrado en
+        // todo el paquete, menos lo que sí quedó reflejado en checkpoints
+        // que ya existían) y descontándolo, en cascada, de los checkpoints
+        // NUEVOS que se están por crear ahora - así nunca se vuelve a
+        // cobrar de más por una cuota que el paciente ya pagó.
+        const posicionesExistentes=posiciones.filter(function(p){return p.sesion<=yaAsignadas;});
+        const posicionesNuevas=posiciones.filter(function(p){return p.sesion>yaAsignadas;});
+        let yaAplicadoAExistentes=0;
+        posicionesExistentes.forEach(function(p){
+          const fila=DB.sesiones.find(function(s){return s._sb&&s._sb.programa_id===progRow.id&&s.nroSes===p.sesion;});
+          const saldoActual=fila?(fila.saldo||0):p.monto;
+          yaAplicadoAExistentes+=Math.max(0,p.monto-saldoActual);
+        });
+        // Un paquete NUEVO ya nace con el adelanto de ESTA transacción
+        // metido en progRow.adelanto_acumulado (se creó así, arriba) - hay
+        // que descontarlo aquí para no aplicarlo dos veces (la cascada de
+        // más abajo ya se encarga de él). Un paquete que CONTINÚA no tiene
+        // ese problema: progRow es el objeto cargado antes de esta llamada,
+        // todavía sin el adelanto de ahora.
+        const adelantoYaContadoAparte=progId?0:adelanto;
+        let sobranteSinAplicar=Math.max(0,Math.round(((progRow.adelanto_acumulado||0)-adelantoYaContadoAparte-yaAplicadoAExistentes)*100)/100);
+        posicionesNuevas.forEach(function(p){
+          const aplicado=Math.min(sobranteSinAplicar,p.monto);
+          p.monto=Math.round((p.monto-aplicado)*100)/100;
+          sobranteSinAplicar=Math.round((sobranteSinAplicar-aplicado)*100)/100;
+        });
+        posicionesNuevas.forEach(function(p){cortes[p.sesion]=p.monto;});
       }else if(saldo>0){
         cortes[totalSesiones]=saldo;
       }
