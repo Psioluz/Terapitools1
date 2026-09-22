@@ -5306,6 +5306,12 @@ async function cargarDesdeSB(silencioso) {
     if(typeof fillSelects==='function')fillSelects();
     var ap=document.querySelector('.page.active');
     if(ap&&typeof showPage==='function')showPage(ap.id.replace('page-',''));
+    // Historial Clínico no está en el mapa de showPage (no es una pestaña
+    // con un solo render fijo - depende de qué paciente esté elegido), así
+    // que el refresco automático cada 30s nunca la actualizaba: quien
+    // dejaba esa pantalla abierta veía datos viejos (ej. una sesión nueva
+    // recién agendada no aparecía) hasta que volvía a tocar el selector.
+    if(ap&&ap.id==='page-historial'&&_histPacId&&typeof renderHistorial==='function')renderHistorial();
     if(!silencioso&&typeof showToast==='function')showToast('✅ Datos actualizados');
     if(typeof renderAlertas==='function')renderAlertas();
     if(typeof renderCumpleanos==='function')renderCumpleanos();
