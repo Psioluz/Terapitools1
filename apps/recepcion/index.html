@@ -2956,17 +2956,10 @@ async function guardarPaqueteFlujo(){
     showToast('Indica la fecha en la que se recibió el pago','error');return;
   }
 
-  // Con una cuota vencida no se puede seguir agendando sesiones nuevas -
-  // primero se regulariza el pago. "Solo pago/adelanto" queda exento
-  // porque es justamente lo que hace falta para destrabar esto.
-  if(modo!=='soloPago'){
-    const stCuota=_estadoSaldoPac(pac);
-    if(stCuota&&stCuota.tipo==='vencido'){
-      showToast('No se puede agendar: '+pac.nombre+' tiene una cuota vencida (S/'+stCuota.saldo+'). Registra el pago antes de agendar una sesión nueva.','error');
-      return;
-    }
-  }
-
+  // Una cuota vencida NO bloquea agendar - el paciente puede seguir
+  // reservando su cupo. El bloqueo real está al marcar "Asistió" (ver
+  // marcarAs): no se confirma el servicio prestado si hay una cuota
+  // vencida sin pagar.
   showToast('⏳ Registrando paquete...');
   try{
     let progRow,costoTotal,totalSesiones,saldo,adelantoAcum,yaAsignadas=0,montoCuotaCatalogo=null;
@@ -3249,18 +3242,8 @@ async function guardarSesion(){
   const modoPaqEfectivo=_esReprog?'unica':modoPaq;
   const sinSesionHoyEfectivo=_esReprog?false:sinSesionHoy;
 
-  // Con una cuota vencida no se puede seguir agendando sesiones nuevas -
-  // primero se regulariza el pago. Reprogramar (mueve una sesión que YA
-  // existía, no crea deuda nueva) y "solo pago/adelanto" (que es
-  // justamente lo que hace falta para destrabar esto) quedan exentos.
-  if(!_esReprog&&!sinSesionHoyEfectivo){
-    const stCuota=_estadoSaldoPac(pac);
-    if(stCuota&&stCuota.tipo==='vencido'){
-      showToast('No se puede agendar: '+pac.nombre+' tiene una cuota vencida (S/'+stCuota.saldo+'). Registra el pago antes de agendar una sesión nueva.','error');
-      return;
-    }
-  }
-
+  // Una cuota vencida NO bloquea agendar - el bloqueo real está al marcar
+  // "Asistió" (ver marcarAs), no aquí.
   showToast('⏳ Agendando...');
   try{
     let filaSesion,totalPaq,saldo,progInfo=null,sesionIdCreada=null;
@@ -5384,6 +5367,18 @@ async function marcarAs(sesRef,nuevoEst){
   // acepta id (UUID) o índice
   var s=DB.sesiones.find(function(x){return x.id===sesRef;})||DB.sesiones[sesRef];
   if(!s){showToast('Sesión no encontrada','error');return;}
+  var pac=DB.pacientes.find(function(p){return p.id===s.pacId||p.nombre===s.pacId;});
+  // El bloqueo por cuota vencida va AQUÍ, no al agendar: se puede seguir
+  // reservando el cupo con toda tranquilidad, pero no se confirma el
+  // servicio como prestado ("Asistió") si el paciente tiene una cuota ya
+  // vencida sin pagar. Marcar "No Asistió" o "Permiso" nunca se bloquea.
+  if(nuevoEst==='asistio'&&pac){
+    var stCuota=_estadoSaldoPac(pac);
+    if(stCuota&&stCuota.tipo==='vencido'){
+      showToast('No se puede confirmar "Asistió": '+pac.nombre+' tiene una cuota vencida (S/'+stCuota.saldo+'). Registra el pago primero en Caja/Pagos.','error');
+      return;
+    }
+  }
   // Ya no existe "tardanza" como estado - antes se sustituía "asistió" por
   // "tardanza" automáticamente si se marcaba después de la hora programada,
   // pero en la práctica la asistencia casi nunca se marca al segundo exacto,
@@ -5391,9 +5386,8 @@ async function marcarAs(sesRef,nuevoEst){
   // paciente sí hubiera llegado a tiempo. "Asistió" ahora siempre queda
   // como "Asistió".
   s.estado=nuevoEst;
-  if(s.tipo==='paquete'){
-    var pac=DB.pacientes.find(function(p){return p.id===s.pacId||p.nombre===s.pacId;});
-    if(pac)pac.sesUsadas=DB.sesiones.filter(function(x){return x.pacId===s.pacId&&(x.estado==='asistio'||x.estado==='noasistio'||x.estado==='permiso');}).length;
+  if(s.tipo==='paquete'&&pac){
+    pac.sesUsadas=DB.sesiones.filter(function(x){return x.pacId===s.pacId&&(x.estado==='asistio'||x.estado==='noasistio'||x.estado==='permiso');}).length;
   }
   showToast('⏳ Guardando en Supabase...');
   var sbId=(s._sb&&s._sb.id)||((typeof s.id==='string'&&s.id.length>20)?s.id:null);
