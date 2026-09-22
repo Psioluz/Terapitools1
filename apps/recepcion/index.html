@@ -1912,36 +1912,25 @@ async function confirmarPermiso(){
     const extEv=file.name.split('.').pop();
     const urlEv=await sbUpload('evidencias',sedeC+'/'+pacC+'/permiso_'+Date.now()+'.'+extEv,file,file.type||'application/pdf');
     const sbId=(s._sb&&s._sb.id)||s.id;
-    // La sesión original queda con saldo 0: el checkpoint de cuota (si esta
-    // sesión tenía uno) se MUEVE a la sesión nueva, no se duplica - si no
-    // se limpia aquí, la fila del permiso (con fecha ya pasada) sigue
-    // contando como "cuota vencida" para siempre, aunque la deuda real ya
-    // se haya reubicado a la sesión que sí va a ocurrir.
-    await sbPatch('sesiones',{estado:'permiso',saldo:0},{id:'eq.'+sbId});
-    // El permiso no debe "robarse" el puesto que ocupaba en la secuencia:
-    // todas las sesiones del paquete con número mayor bajan un puesto, y la
-    // sesión de reposición se anexa AL FINAL (con el número que queda
-    // libre) en vez de quedarse con el mismo número de la original. Así,
-    // si mañana vuelven a dar permiso sobre lo que ahora es el nuevo
-    // "puesto 5", el mismo mecanismo se repite y todo sigue corriendo en
-    // cadena sin dejar huecos ni saltos en la numeración visible.
+    // La sesión original queda con saldo 0 y SIN número de paquete: un
+    // permiso ya no cuenta un cupo (nro_en_paquete=null la saca de la
+    // cuenta), queda solo como constancia de la fecha excusada - el
+    // checkpoint de cuota (si tenía uno) se MUEVE a la sesión nueva de
+    // abajo, no se duplica.
+    await sbPatch('sesiones',{estado:'permiso',saldo:0,nro_en_paquete:null},{id:'eq.'+sbId});
+    // La reposición toma EXACTAMENTE el número que dejó libre el permiso -
+    // nunca se corren los demás números ni se agrega uno nuevo al final.
+    // (Antes esto empujaba a todas las sesiones posteriores un puesto
+    // hacia abajo y anexaba la reposición al final; encadenado con varios
+    // permisos seguidos eso terminaba pisando números y desordenando fechas
+    // sin ningún beneficio real, porque el "Paq X/Y" que ve la
+    // recepcionista ya se calcula por fecha real, no por este número - ver
+    // _rankPaqSesion.)
     const nroOriginal=s.nroSes||0;
     const totalPaq=s.totalPaq||0;
-    let nroNuevaSesion=nroOriginal||1;
-    if(progId&&nroOriginal&&totalPaq){
-      const posteriores=DB.sesiones.filter(function(x){
-        return x._sb&&x._sb.programa_id===progId&&(x.nroSes||0)>nroOriginal;
-      }).sort(function(a,b){return (a.nroSes||0)-(b.nroSes||0);});
-      for(const x of posteriores){
-        const nuevoNro=(x.nroSes||0)-1;
-        await sbPatch('sesiones',{nro_en_paquete:nuevoNro},{id:'eq.'+x._sb.id});
-        x.nroSes=nuevoNro;
-      }
-      nroNuevaSesion=totalPaq;
-    }
     const filaSes={fecha:nuevaFecha,hora:s.hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
       psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:s.tipo,
-      nro_en_paquete:nroNuevaSesion,total_paquete:totalPaq||1,costo_total:s.costoTotal||0,
+      nro_en_paquete:nroOriginal||1,total_paquete:totalPaq||1,costo_total:s.costoTotal||0,
       adelanto:0,saldo:s.saldo||0,sede:DB.sede,registrado_por:DB.usuario||'',notas:s.notas||''};
     if(progId){filaSes.programa_id=progId;if(ptId)filaSes.programa_terapia_id=ptId;}
     await sbPost('sesiones',filaSes);
@@ -1949,7 +1938,7 @@ async function confirmarPermiso(){
       psicologa_nombre:ps.nombre,fecha_original:s.fecha,hora_original:s.hora,
       fecha_nueva:nuevaFecha,hora_nueva:s.hora,sede:DB.sede,reprogramado_por:DB.usuario||'',
       url_evidencia:urlEv,tipo:'permiso',nota:nota});
-    s.estado='permiso';s.saldo=0;
+    s.estado='permiso';s.saldo=0;s.nroSes=null;
     closeModal('modalPermiso');
     showToast('✅ Permiso registrado - nueva sesión el '+fmtF(nuevaFecha));
     await cargarDesdeSB();
