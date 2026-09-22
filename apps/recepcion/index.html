@@ -1619,12 +1619,12 @@ function renderAgenda(){
           const tc='#000';
           const bordeEstado=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':s.estado==='permiso'?'#f59e0b':'rgba(0,0,0,.45)';
           const esPaq=s.tipo==='paquete'&&s.totalPaq;
-          const progTxt=esPaq?(' '+s.nroSes+'/'+s.totalPaq):'';
+          const progTxt=esPaq?(' '+_paqLabel(s)):'';
           const titulo=pac.nombre+' · '+ter.nombre+(progTxt?' · Paq'+progTxt:'')+' · '+ps.nombre+(esReprog?' (reprogramado)':'');
           h+='<div class="ag-chip" style="background:'+bc+';color:'+tc+';border-left:3px solid '+bordeEstado+(esReprog?';opacity:.55;text-decoration:line-through':'')+'" title="'+titulo+'">'+
             '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:800">'+pac.nombre.split(' ')[0]+'</div>'+
             '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;opacity:.9">'+abrevTerapia(ter.nombre)+'</div>'+
-            (esPaq?'<div style="font-size:9.5px;opacity:.85">'+s.nroSes+'/'+s.totalPaq+'</div>':'')+
+            (esPaq?'<div style="font-size:9.5px;opacity:.85">'+_paqLabel(s)+'</div>':'')+
             '</div>';
         });
       } else if(hayHorario){
@@ -1677,7 +1677,7 @@ function mostrarResumenCelda(sesList,fecha,hora){
         '</div>'+
         '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">'+ps.nombre+
         ' · '+terBadge(ter)+
-        (s.tipo==='paquete'?' · Paquete '+s.nroSes+'/'+s.totalPaq:'')+'</div>'+
+        (s.tipo==='paquete'?' · Paquete '+_paqLabel(s):'')+'</div>'+
         (s.costoTotal?'<div style="font-size:12px;color:var(--green)">'+
         (s.tipo==='paquete'?'Paquete S/'+s.costoTotal:'S/'+s.costoTotal)+
         (s.adelanto?' | Adelanto: S/'+s.adelanto:'')+(s.saldo?' | Saldo: S/'+s.saldo:'')+'</div>':'')+
@@ -1725,7 +1725,7 @@ function renderDiaSel(){
         '<span class="badge '+(s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bb')+'" style="font-size:10px">'+estadoLabel(s.estado)+'</span>'+
         '</div>'+
         '<div style="font-size:12px;color:var(--muted)">'+ps.nombre+' · '+terBadge(ter)+
-        (s.tipo==='paquete'?' · Paquete '+s.nroSes+'/'+s.totalPaq:'')+'</div>'+
+        (s.tipo==='paquete'?' · Paquete '+_paqLabel(s):'')+'</div>'+
         (s.costoTotal?'<div style="font-size:12px;color:var(--green);margin-top:3px">'+
         (s.tipo==='paquete'?'Paquete S/'+s.costoTotal:'S/'+s.costoTotal)+
         (s.adelanto?' | Adelanto: S/'+s.adelanto:'')+(s.saldo?' | Saldo: S/'+s.saldo:'')+'</div>':'')+
@@ -1743,6 +1743,32 @@ function renderDiaSel(){
     }).join('');
 }
 
+// El "Paq X/Y" que se muestra NUNCA debe ser el número que quedó fijo en
+// Supabase al crear la sesión (nro_en_paquete) - ese número no se mueve
+// cuando la sesión se reprograma o se repone tras un permiso, así que
+// mostrarlo tal cual hacía que el orden visible saltara (una sesión movida
+// a octubre seguía figurando como "21" aunque cronológicamente ahora es la
+// última). nro_en_paquete se sigue usando puertas adentro (cuotas,
+// programa_terapias) porque ahí sí necesita ser un ancla fija - pero la
+// ETIQUETA que ve la recepcionista se recalcula siempre por fecha real:
+// el puesto de una sesión es simplemente su posición cronológica entre
+// las sesiones "reales" del mismo paquete (se excluyen los permisos, que
+// ya no cuentan un cupo, y la fila vieja de una reprogramación, que quedó
+// reemplazada por la nueva).
+function _rankPaqSesion(s){
+  const progId=s&&s._sb&&s._sb.programa_id;
+  if(!progId||s.tipo!=='paquete')return{rank:s.nroSes,total:s.totalPaq};
+  const delPrograma=DB.sesiones.filter(function(x){
+    return x._sb&&x._sb.programa_id===progId&&x.tipo==='paquete'&&x.estado!=='permiso'&&x.estado!=='reprogramado';
+  }).sort(function(a,b){return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
+  const idx=delPrograma.findIndex(function(x){return x.id===s.id;});
+  if(idx===-1)return{rank:s.nroSes,total:s.totalPaq};
+  return{rank:idx+1,total:delPrograma.length};
+}
+function _paqLabel(s){
+  const r=_rankPaqSesion(s);
+  return r.rank+'/'+r.total;
+}
 // El progreso de paquete se calcula de las sesiones reales (tipo:'paquete',
 // totalPaq), no de pacientes.paq (campo heredado del esquema viejo que ya
 // no se llena - un paquete ahora vive en programas_paciente/sesiones).
@@ -1847,7 +1873,7 @@ function abrirModalPermiso(sesId){
   const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
   const info=document.getElementById('permiso-info');
   if(info)info.innerHTML='<b>'+pac.nombre+'</b> - '+terBadge(ter)+' con '+ps.nombre.replace('Lic.','').trim()+
-    '<br>Sesión original: '+fmtF(s.fecha)+' '+s.hora+(s.tipo==='paquete'?' (Paq '+s.nroSes+'/'+s.totalPaq+')':'');
+    '<br>Sesión original: '+fmtF(s.fecha)+' '+s.hora+(s.tipo==='paquete'?' (Paq '+_paqLabel(s)+')':'');
   const evInp=document.getElementById('permiso-evidencia');if(evInp)evInp.value='';
   const notaInp=document.getElementById('permiso-nota');if(notaInp)notaInp.value='';
   openModal('modalPermiso');
@@ -4229,7 +4255,7 @@ function generarReporte(){
           '<div style="font-size:13px;font-weight:700">'+pac.nombre+'</div>'+
           '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">'+
           terBadge(ter,9)+
-          (s.tipo==='paquete'?'<span class="badge bb" style="font-size:9px">Paq '+s.nroSes+'/'+s.totalPaq+'</span>':'')+
+          (s.tipo==='paquete'?'<span class="badge bb" style="font-size:9px">Paq '+_paqLabel(s)+'</span>':'')+
           '</div></div>'+
           '<span class="badge '+bc+'" style="font-size:10px">'+estadoLabel(s.estado)+'</span>'+
           (pago?'<span class="badge bg" style="font-size:10px">S/'+pago.monto+' '+pago.metodo+'</span>':
@@ -4392,7 +4418,7 @@ function exportarPDF(){
         doc.setTextColor(255,255,255);doc.setFont('helvetica','normal');doc.setFontSize(6.6);
         doc.text((ter.nombre||'').substring(0,26),M+107,y+5);
         if(s.tipo==='paquete'){
-          const paqTxt='Paq '+s.nroSes+'/'+s.totalPaq;
+          const paqTxt='Paq '+_paqLabel(s);
           doc.setFillColor(224,231,255);doc.roundedRect(M+150,y+1.3,28,5,1,1,'F');
           doc.setTextColor(67,56,202);doc.setFont('helvetica','normal');doc.setFontSize(6.6);
           doc.text(paqTxt.substring(0,16),M+153,y+5);
@@ -4589,7 +4615,7 @@ function exportarAgendaPDF(){
           doc.text((pac.nombre||'').substring(0,20),dx+1.5,cy+3);
           doc.setFont('helvetica','normal');doc.setFontSize(5.8);
           const esPaq=s.tipo==='paquete'&&s.totalPaq;
-          const subTxt=abrevTerapia(ter.nombre)+(esPaq?' '+s.nroSes+'/'+s.totalPaq:'');
+          const subTxt=abrevTerapia(ter.nombre)+(esPaq?' '+_paqLabel(s):'');
           doc.text(subTxt.substring(0,26),dx+1.5,cy+5.6);
         });
       });
@@ -4782,7 +4808,7 @@ function renderAgendaViaDia(fecha){
           '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">'+
           terBadge(ter)+
           badgeEstadoAsistencia(s.estado)+
-          (s.tipo==='paquete'?'<span class="badge bb" style="font-size:10px">Paq '+s.nroSes+'/'+s.totalPaq+'</span>':'')+
+          (s.tipo==='paquete'?'<span class="badge bb" style="font-size:10px">Paq '+_paqLabel(s)+'</span>':'')+
           '</div>'+
           (s.costoTotal?'<div style="font-size:12px;color:var(--green)">'+(s.tipo==='paquete'?'Paq S/'+s.costoTotal:'S/'+s.costoTotal)+(s.saldo>0?' | Saldo S/'+s.saldo:'')+'</div>':'')+
           progresoPac(pac)+
@@ -4854,16 +4880,13 @@ async function renderHistorial(){
     const g=gruposHuerfanos[k];
     return {id:'pago-'+k,fecha:g.fecha,hora:'',esPagoSuelto:true,concepto:g.concepto,pagosGrupo:g.pagos};
   });
-  // Entre dos sesiones de paquete (con número asignado) se ordena SIEMPRE
-  // por ese número, no por fecha - una sesión reprogramada conserva su
-  // mismo nro_en_paquete (ver reprogramar/guardarSesion) pero su fecha
-  // puede caer mucho antes o después que sus vecinas, y antes eso la hacía
-  // "saltar" al final o a mitad de la lista según a qué día se movió. Solo
-  // se usa fecha como criterio cuando al menos una de las dos filas no
-  // tiene número de paquete (pago suelto, consulta suelta).
+  // El orden es siempre por fecha real - el "Paq X/Y" que se ve en cada
+  // fila (_paqLabel) también se calcula por fecha (ver _rankPaqSesion), así
+  // que orden visible y número visible SIEMPRE coinciden: la sesión que
+  // aparece primero en la lista es la "1/N", la que sigue es la "2/N", etc.
+  // nro_en_paquete (el campo fijo en Supabase) ya no se usa para ordenar -
+  // solo sigue existiendo puertas adentro para anclar cuotas/checkpoints.
   const filasTabla=sesPac.concat(filasHuerfanas).sort(function(a,b){
-    const naOk=a.tipo==='paquete'&&a.nroSes>0,nbOk=b.tipo==='paquete'&&b.nroSes>0;
-    if(naOk&&nbOk)return a.nroSes-b.nroSes;
     return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));
   });
   // Si tiene un paquete, las tarjetas de arriba deben reflejar SOLO el
@@ -4962,7 +4985,7 @@ async function renderHistorial(){
         return '<tr'+(esReprogFila?' style="background:var(--bg);opacity:.65"':'')+'><td>'+fmtF(s.fecha)+'</td><td>'+s.hora+'</td><td>'+psH.nombre.replace('Lic.','').trim()+'</td>'+
           '<td>'+terBadge(terH)+'</td>'+
           '<td><span style="color:'+ec+';font-weight:700">'+estadoLabel(s.estado)+'</span></td>'+
-          '<td><span class="badge bk" style="font-size:10px">'+((esReprogFila||s.estado==='permiso')?'-':s.tipo==='paquete'?'Paq '+s.nroSes+'/'+s.totalPaq:s.tipo)+'</span></td>'+
+          '<td><span class="badge bk" style="font-size:10px">'+((esReprogFila||s.estado==='permiso')?'-':s.tipo==='paquete'?'Paq '+_paqLabel(s):s.tipo)+'</span></td>'+
           '<td style="white-space:nowrap">'+costoCelda+'</td>'+
           '<td style="white-space:nowrap">'+pagoCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
