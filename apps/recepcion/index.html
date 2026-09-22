@@ -1800,9 +1800,12 @@ function _estadoSaldoPac(pac){
   });
   // Un saldo suelto (fuera de paquete, pac.saldo>0) no tiene una fecha
   // futura asociada - ya se considera vencido en cuanto existe. Una
-  // cuota de paquete solo se considera vencida si su sesión-checkpoint
-  // ya pasó de fecha.
-  const hayVencida=(pac.saldo||0)>0||checkpointsPendientes.some(function(s){return s.fecha<=hoy;});
+  // cuota de paquete se considera vencida recién AL DÍA SIGUIENTE de su
+  // sesión-checkpoint (fecha<hoy, no <=hoy) - el día de la sesión misma
+  // todavía no venció nada, es justo cuando corresponde cobrarla; antes
+  // esto marcaba "vencida" desde la madrugada del mismo día en que la
+  // familia recién iba a pagar.
+  const hayVencida=(pac.saldo||0)>0||checkpointsPendientes.some(function(s){return s.fecha<hoy;});
   return{tipo:hayVencida?'vencido':'pendiente',saldo:saldo};
 }
 // HTML de la alerta de saldo, ya coloreada según el estado real - mismo
