@@ -4471,8 +4471,17 @@ function generarReporte(){
   // de paquete/renovación, adelanto "solo reserva" sin sesión todavía) - no
   // se pierden en el total pero tampoco aparecen bajo ningún bloque de
   // psicóloga arriba, así que se listan aparte al final: fecha, paciente,
-  // concepto y monto.
-  const pagsSinPs=pags.filter(function(p){return!p.psId;});
+  // concepto y monto. OJO: un pago sin psicóloga puede IGUAL haberse
+  // mostrado ya dentro de una fila de sesión (el emparejamiento de arriba
+  // es por paciente+fecha, no exige psicóloga) - hay que excluir esos para
+  // no mostrarlo dos veces y que la suma de esta sección no descuadre con
+  // Caja del Día.
+  const idsPagosYaMostrados=new Set();
+  ses.forEach(function(s){
+    const pg=pags.find(function(p){return p.pacId===s.pacId&&p.fecha===s.fecha;});
+    if(pg)idsPagosYaMostrados.add(pg.id);
+  });
+  const pagsSinPs=pags.filter(function(p){return!p.psId&&!idsPagosYaMostrados.has(p.id);});
   if(pagsSinPs.length){
     rptHTML+='<div style="margin-bottom:16px;border:1px solid var(--border);border-radius:12px;overflow:hidden">'+
       '<div style="background:linear-gradient(135deg,#6b214d,#e91e8c);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'+
@@ -4671,8 +4680,16 @@ function exportarPDF(){
   // ── OTROS PAGOS DEL DÍA (sin psicóloga asignada) - adelantos de paquete/
   // renovación que no están atados a una sesión de hoy ni a una psicóloga
   // puntual, así que no aparecen en ningún bloque de arriba. Se listan
-  // aparte: hora, paciente, concepto y monto. ──
-  const pagsSinPsPDF=pags.filter(function(p){return!p.psId;});
+  // aparte: hora, paciente, concepto y monto. Se excluyen los que YA se
+  // mostraron pegados a una fila de sesión (mismo emparejamiento
+  // paciente+fecha que usa esa tabla) para no duplicarlos y que la suma
+  // de esta sección no descuadre con Caja del Día. ──
+  const idsPagosYaMostradosPDF=new Set();
+  ses.forEach(function(s){
+    const pg=pags.find(function(p){return p.pacId===s.pacId&&p.fecha===s.fecha;});
+    if(pg)idsPagosYaMostradosPDF.add(pg.id);
+  });
+  const pagsSinPsPDF=pags.filter(function(p){return!p.psId&&!idsPagosYaMostradosPDF.has(p.id);});
   if(pagsSinPsPDF.length){
     const rowH2=8,headerH2=12;
     if(y+headerH2+rowH2>190){doc.addPage();y=20;}
