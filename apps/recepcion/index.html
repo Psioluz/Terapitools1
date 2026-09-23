@@ -1396,6 +1396,23 @@ function _slotsDesde(ini,fin){
   }
   return slots;
 }
+// Misma lógica de horasPsEnDia pero devuelve solo la hora de INICIO
+// efectiva para un día puntual - se usa para saber si alguien llegó tarde
+// (marcarP). Usar directamente ps.inicio (el horario general) hacía que
+// una psicóloga con día especial (que empieza más temprano, ej. 08:00 en
+// vez de su 13:15 habitual) nunca disparara el aviso de tardanza: llegaba
+// tarde para SU horario real de ese día pero la hora de llegada seguía
+// siendo "antes" del horario general con el que se comparaba.
+function _horaInicioEfectiva(ps,fecha){
+  if(!ps)return'';
+  const d=new Date(fecha+'T12:00:00');
+  const diaNombre=diaFull[d.getDay()];
+  const diasHorEsp=parseDiasTexto(ps.diaHorarioEsp,[]);
+  if(diasHorEsp.indexOf(diaNombre)>-1&&ps.horaInicioEsp)return ps.horaInicioEsp.substring(0,5);
+  const diasEsp=parseDiasTexto(ps.diaEspecial,[]);
+  if(diasEsp.indexOf(diaNombre)>-1)return'08:00';
+  return(ps.inicio||'13:15').substring(0,5);
+}
 function horasPsEnDia(ps,diaNombre){
   if(!ps||!diaNombre)return[];
   // Día con horario propio (ej. Sábado 08:00-13:15 en vez del horario
@@ -1488,7 +1505,13 @@ function renderDashboard(){
   if(listEl){
     if(!sesH.length){listEl.innerHTML='<div style="color:var(--muted);font-size:13px;padding:8px">Sin sesiones para hoy.</div>';}
     else{
-      listEl.innerHTML=sesH.sort((a,b)=>a.hora.localeCompare(b.hora)).map(s=>{
+      const sesHOrdenadas=sesH.slice().sort((a,b)=>{
+        const pendA=a.estado==='programado'?0:1;
+        const pendB=b.estado==='programado'?0:1;
+        if(pendA!==pendB)return pendA-pendB;
+        return a.hora.localeCompare(b.hora);
+      });
+      listEl.innerHTML=sesHOrdenadas.map(s=>{
         const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
         const borderC=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':'var(--border)';
         const pago=DB.pagos.find(p=>p.pacId===s.pacId&&p.fecha===s.fecha&&p.hora===s.hora);
@@ -4023,7 +4046,7 @@ async function marcarP(btn){
   const hora=horaLima(n);
   // Si llega presente después de su horario de entrada, se pide el motivo
   // antes de guardar - el motivo se muestra luego en el Reporte del Día.
-  const horaInicio=(ps.inicio||'').substring(0,5);
+  const horaInicio=_horaInicioEfectiva(ps,fecha);
   if(estado==='presente'&&horaInicio&&hora>horaInicio){
     _tardanzaPend={psId:psId,fecha:fecha,estado:estado,hora:hora,ps:ps};
     const info=document.getElementById('tardanza-info');
