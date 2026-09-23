@@ -785,8 +785,8 @@ try{
         </div>
         <div class="form-group" id="ag-grp-cuotas" style="max-width:200px;margin-top:10px">
           <label class="form-label">Número de cuotas</label>
-          <input type="number" class="form-control" id="ag-cuotas" value="1" min="1" max="12" oninput="agActualizarResumen()">
-          <div style="font-size:10.5px;color:var(--muted);margin-top:3px">El costo se divide entre las cuotas. La alerta de cobro aparece 1 sesión antes de que corresponda cada cuota.</div>
+          <input type="number" class="form-control" id="ag-cuotas" value="1" min="1" max="12" readonly oninput="agActualizarResumen()">
+          <div id="ag-cuotas-nota" style="font-size:10.5px;color:var(--muted);margin-top:3px">Fijo según el paquete del catálogo - no se puede cambiar aquí.</div>
         </div>
         <div id="ag-grp-terapiaRows">
           <div class="form-group" id="ag-grp-frecuencia" style="max-width:320px">
@@ -2354,6 +2354,18 @@ function agOnTipo(){
     if(grpFH)grpFH.style.display='none';
     if(grpCostoSimple)grpCostoSimple.style.display=esExclusivo?'block':'none';
     if(grpBuilder)grpBuilder.style.display='block';
+    // El número de cuotas viene fijo del catálogo (evita que alguien meta
+    // "2 cuotas" en un paquete de 8 sesiones, que el sistema solo maneja
+    // en 1 - eso termina creando un segundo cobro en una sesión futura que
+    // no corresponde). La ÚNICA excepción real es el paquete exclusivo:
+    // ahí no hay catálogo que fije nada, así que el número de cuotas sí
+    // se negocia a mano.
+    const elCuotasInp=document.getElementById('ag-cuotas');
+    const elCuotasNota=document.getElementById('ag-cuotas-nota');
+    if(elCuotasInp)elCuotasInp.readOnly=!esExclusivo;
+    if(elCuotasNota)elCuotasNota.textContent=esExclusivo?
+      'Paquete exclusivo: el costo se divide entre las cuotas que definas aquí.':
+      'Fijo según el paquete del catálogo - no se puede cambiar aquí.';
     if(esExclusivo){
       // Precio negociado: no hay paquete de catálogo que elegir, el costo y
       // el número de sesiones se escriben a mano.
