@@ -3115,7 +3115,12 @@ async function guardarPaqueteFlujo(){
       const CUOTAS_CHECKPOINTS={8:[1],12:[1,3],16:[1,4,9],20:[1,5,12],30:[1,7,16,24]};
       const cortes={};
       if(nroCuotas>=2){
-        const montoBase=montoCuotaCatalogo||Math.round((costoTotal/nroCuotas)*100)/100;
+        // Cada cuota (salvo la última) se pide en soles ENTEROS - así se
+        // evitan residuos de centavos imposibles de cobrar en efectivo (ej.
+        // "S/0.75 pendiente"). Si el total no es múltiplo exacto del número
+        // de cuotas, el sobrante (los centavos + lo que falte) se acumula
+        // entero en la ÚLTIMA cuota, nunca se reparte en las intermedias.
+        const montoBase=montoCuotaCatalogo||Math.floor(costoTotal/nroCuotas);
         const checkpoints=CUOTAS_CHECKPOINTS[totalSesiones];
         // Lista de (sesión de cobro, monto de esa cuota) en orden - con las
         // posiciones fijas de la tabla, o repartidas uniforme si el tamaño
@@ -3129,9 +3134,12 @@ async function guardarPaqueteFlujo(){
           });
         }else{
           const sesionesPorCuota=Math.floor(totalSesiones/nroCuotas);
-          posiciones=[{sesion:1,monto:montoBase}];
-          for(let j=1;j<nroCuotas;j++){
-            posiciones.push({sesion:Math.max(1,sesionesPorCuota*j),monto:montoBase});
+          posiciones=[];
+          for(let j=0;j<nroCuotas;j++){
+            const esUltima=j===nroCuotas-1;
+            const sesionCobro=j===0?1:Math.max(1,sesionesPorCuota*j);
+            const monto=esUltima?Math.round((costoTotal-montoBase*(nroCuotas-1))*100)/100:montoBase;
+            posiciones.push({sesion:sesionCobro,monto:monto});
           }
         }
         // Cada checkpoint se estampa con su monto COMPLETO - el adelanto de
