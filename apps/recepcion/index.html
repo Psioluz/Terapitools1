@@ -1189,6 +1189,14 @@ function today(){return fechaLima();}
 function fmtF(f){if(!f)return'-';const p=String(f).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f;}
 function nextId(arr){return arr.length?Math.max(0,...arr.map(x=>x.id||0))+1:1;}
 function getPac(id){return DB.pacientes.find(p=>p.id===id||p.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'-',tel:'',terId:null,mod:'sesion',paq:0};}
+// DB.pacientes solo trae pacientes activos (cargarDesdeSB filtra
+// estado='activo') - un paciente que se marca inactivo no borra sus
+// sesiones futuras ya agendadas, así que sin este filtro seguían
+// apareciendo en la Agenda y en "Sesiones de Hoy" como si nada. Se usa
+// solo en las vistas operativas del día a día - el Historial Clínico de
+// un paciente inactivo (con "Ver pacientes inactivos") sigue mostrando
+// su registro completo tal cual.
+function _pacEstaActivo(pacId){return DB.pacientes.some(function(p){return p.id===pacId||p.nombre===pacId;});}
 function getPs(id){return DB.psicologas.find(p=>p.id===id||p.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'-',color:'bk'};}
 // Cada psicóloga tiene un color propio (elegido en la ficha, o uno fijo
 // por defecto si nunca lo cambiaron) para diferenciar sus sesiones en la
@@ -1467,7 +1475,7 @@ function showPage(name,el){
 // ══════════════════════════════════════════════════
 function renderDashboard(){
   const hoy=today();
-  const sesH=DB.sesiones.filter(s=>s.fecha===hoy);
+  const sesH=DB.sesiones.filter(s=>s.fecha===hoy&&_pacEstaActivo(s.pacId));
   const asistH=sesH.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   const cajaH=DB.pagos.filter(p=>p.fecha===hoy).reduce((a,p)=>a+p.monto,0);
   const nAl=contarAlertas();
@@ -1603,7 +1611,7 @@ function renderAgenda(){
         return horasPs(ps.id,dia.f).includes(slot);
       });
       const hayHorario=psEnSlot.length>0;
-      let sesList=DB.sesiones.filter(s=>s.fecha===dia.f&&s.hora===slot);
+      let sesList=DB.sesiones.filter(s=>s.fecha===dia.f&&s.hora===slot&&_pacEstaActivo(s.pacId));
       if(filtPsNom)sesList=sesList.filter(s=>s.psId===filtPsNom);
       const bgCelda=dia.f===_agFechaSel?'#eff6ff':dia.f===hoy?'#f0fdf4':'#fff';
       const noBordered=!hayHorario&&!sesList.length;
@@ -1646,7 +1654,7 @@ function selDia(fecha){
 
 function clickCelda(fecha,hora){
   _agFechaSel=fecha;
-  const sesList=DB.sesiones.filter(s=>s.fecha===fecha&&s.hora===hora);
+  const sesList=DB.sesiones.filter(s=>s.fecha===fecha&&s.hora===hora&&_pacEstaActivo(s.pacId));
   const det=document.getElementById('agendaDetalle');
   if(det)det.style.display='block';
   if(sesList.length>0){
@@ -1700,7 +1708,7 @@ function mostrarResumenCelda(sesList,fecha,hora){
 function renderDiaSel(){
   const fecha=_agFechaSel||today();
   const filtPs=document.getElementById('agPs')?.value||'';
-  let ses=DB.sesiones.filter(s=>s.fecha===fecha);
+  let ses=DB.sesiones.filter(s=>s.fecha===fecha&&_pacEstaActivo(s.pacId));
   if(filtPs)ses=ses.filter(s=>s.psId===getPs(filtPs).nombre);
   ses.sort((a,b)=>a.hora.localeCompare(b.hora));
   const el=document.getElementById('agendaDetalle');if(!el)return;
@@ -4560,16 +4568,25 @@ function exportarAgendaPDF(){
       });
     });
     ['13:15','14:00','14:45','15:30','16:15','17:00','17:45','18:30','19:15'].forEach(function(s){allSlots.add(s);});
-    DB.sesiones.filter(function(s){return dias.some(function(d){return d.f===s.fecha;})&&(!filtPsNom||s.psId===filtPsNom);})
+    DB.sesiones.filter(function(s){return dias.some(function(d){return d.f===s.fecha;})&&(!filtPsNom||s.psId===filtPsNom)&&_pacEstaActivo(s.pacId);})
       .forEach(function(s){if(s.hora)allSlots.add(s.hora);});
     const slots=[...allSlots].sort();
+
+    // Cuando se exporta la agenda de UNA sola psicóloga, marcamos qué
+    // horarios de cada día están fuera de su horario laboral: esas celdas
+    // se pintan de gris y sin borde para que no se confundan con horarios
+    // libres dentro de su jornada.
+    const trabajaEstaPs={};
+    if(filtPs){
+      dias.forEach(function(dia){trabajaEstaPs[dia.f]=new Set(horasPs(filtPs,dia.f));});
+    }
 
     // Psicólogas con sesiones esta semana - solo se usan para la leyenda
     // cuando no se filtró por una psicóloga puntual.
     const psicoPresentes=[];
     if(!filtPs){
       const vistos={};
-      DB.sesiones.filter(function(s){return dias.some(function(d){return d.f===s.fecha;});}).forEach(function(s){
+      DB.sesiones.filter(function(s){return dias.some(function(d){return d.f===s.fecha;})&&_pacEstaActivo(s.pacId);}).forEach(function(s){
         const ps=getPs(s.psId);
         if(ps&&ps.nombre&&!vistos[ps.nombre]){vistos[ps.nombre]=1;psicoPresentes.push(ps);}
       });
@@ -4639,7 +4656,7 @@ function exportarAgendaPDF(){
     slots.forEach(function(slot){
       let maxSes=1;
       dias.forEach(function(dia){
-        let n=DB.sesiones.filter(function(s){return s.fecha===dia.f&&s.hora===slot&&(!filtPsNom||s.psId===filtPsNom);}).length;
+        let n=DB.sesiones.filter(function(s){return s.fecha===dia.f&&s.hora===slot&&(!filtPsNom||s.psId===filtPsNom)&&_pacEstaActivo(s.pacId);}).length;
         if(n>maxSes)maxSes=n;
       });
       const rowH=Math.max(8,maxSes*7);
@@ -4654,9 +4671,14 @@ function exportarAgendaPDF(){
       doc.text(slot,M+horaW/2,y+rowH/2+1,{align:'center'});
       dias.forEach(function(dia,i){
         const dx=M+horaW+i*dayW;
-        let sesList=DB.sesiones.filter(function(s){return s.fecha===dia.f&&s.hora===slot;});
+        let sesList=DB.sesiones.filter(function(s){return s.fecha===dia.f&&s.hora===slot&&_pacEstaActivo(s.pacId);});
         if(filtPsNom)sesList=sesList.filter(function(s){return s.psId===filtPsNom;});
-        doc.setDrawColor(220);doc.rect(dx,y,dayW,rowH,'S');
+        const noLabora=filtPs&&trabajaEstaPs[dia.f]&&!trabajaEstaPs[dia.f].has(slot);
+        if(noLabora){
+          doc.setFillColor(225,225,228);doc.rect(dx,y,dayW,rowH,'F');
+        } else {
+          doc.setDrawColor(220);doc.rect(dx,y,dayW,rowH,'S');
+        }
         sesList.forEach(function(s,si){
           const pac=getPac(s.pacId),ps=getPs(s.psId),ter=getTer(s.terId);
           const esReprog=s.estado==='reprogramado';
@@ -4695,7 +4717,7 @@ function exportarAgendaPDF(){
       const librePorDia=dias.map(function(dia){
         const diaSlots=horasPs(ps.id,dia.f);
         const libres=diaSlots.filter(function(slot){
-          return !DB.sesiones.some(function(s){return s.fecha===dia.f&&s.hora===slot&&s.psId===ps.nombre;});
+          return !DB.sesiones.some(function(s){return s.fecha===dia.f&&s.hora===slot&&s.psId===ps.nombre&&_pacEstaActivo(s.pacId);});
         });
         return {dia:dia,libres:libres,trabaja:diaSlots.length>0};
       });
@@ -4838,7 +4860,7 @@ function renderAgendaViaDia(fecha){
     '<span style="font-size:14px;font-weight:800">📅 '+fmtF(fecha)+'</span>'+
     '<button class="btn btn-primary btn-sm" onclick="abrirModalAgendar(_agFechaSel,null)">+ Agendar</button></div>';
   psicologas.forEach(function(ps){
-    var sesPsic=DB.sesiones.filter(function(s){return s.fecha===fecha&&s.psId===ps.nombre;});
+    var sesPsic=DB.sesiones.filter(function(s){return s.fecha===fecha&&s.psId===ps.nombre&&_pacEstaActivo(s.pacId);});
     sesPsic.sort(function(a,b){return a.hora.localeCompare(b.hora);});
     var asistPsic=sesPsic.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
     h+='<div style="border-bottom:2px solid var(--accent)">'+
