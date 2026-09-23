@@ -376,6 +376,14 @@ try{
         <button class="btn btn-primary" onclick="abrirModalAgendar()">+ Agendar Sesión</button>
       </div>
     </div>
+    <!-- LEYENDA DE COLORES - explica los recuadros grises tachados que no
+         son el color normal de una psicóloga -->
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:6px 4px;font-size:11px;color:var(--muted);flex-shrink:0">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:13px;height:13px;border-radius:3px;background:#94a3b8;display:inline-block;position:relative"><span style="position:absolute;top:-1px;right:1px;font-size:7px;font-weight:900;color:#000">R</span></span> Reprogramado (horario libre)</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:13px;height:13px;border-radius:3px;background:#94a3b8;display:inline-block;position:relative"><span style="position:absolute;top:-1px;right:1px;font-size:7px;font-weight:900;color:#000">P</span></span> Permiso (horario libre)</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:13px;height:13px;border-radius:3px;background:#e2e8f0;display:inline-block;opacity:.5"></span> Fuera de horario de la psicóloga</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:13px;height:13px;border-radius:3px;background:#c4b5fd;display:inline-block;background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.25) 0 3px,transparent 3px 7px)"></span> Sesión suelta sin adelanto</span>
+    </div>
     <!-- GRILLA SEMANAL -->
     <div class="agenda-scroll-box">
       <div id="gridSemanal" class="agenda-grid"></div>
@@ -1642,22 +1650,42 @@ function renderAgenda(){
       if(sesList.length){
         sesList.forEach(s=>{
           const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
-          // Una sesión "reprogramada" ya no ocupa ese horario de verdad -
-          // se pinta en gris, sin el color de la psicóloga, para
-          // diferenciarla de un cupo realmente activo.
+          // Reprogramado y Permiso dejan de ocupar ese horario de verdad -
+          // el horario queda libre para que otro paciente lo tome, así que
+          // ambos se pintan igual: gris, tachado, sin el color de la
+          // psicóloga, con una letra (R/P) que indica el motivo. La
+          // diferencia entre ambos es solo informativa (para qué quedó
+          // libre), no de disponibilidad.
           const esReprog=s.estado==='reprogramado';
-          const bc=esReprog?'#94a3b8':colorPsAgenda(ps);
+          const esPermiso=s.estado==='permiso';
+          const esLibre=esReprog||esPermiso;
+          const letra=esReprog?'R':esPermiso?'P':'';
+          const bc=esLibre?'#94a3b8':colorPsAgenda(ps);
           const tc='#000';
-          const bordeEstado=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':s.estado==='permiso'?'#f59e0b':'rgba(0,0,0,.45)';
+          const bordeEstado=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':'rgba(0,0,0,.45)';
           const esPaq=s.tipo==='paquete'&&s.totalPaq;
           const progTxt=esPaq?(' '+_paqLabel(s)):'';
-          const titulo=pac.nombre+' · '+ter.nombre+(progTxt?' · Paq'+progTxt:'')+' · '+ps.nombre+(esReprog?' (reprogramado)':'');
-          h+='<div class="ag-chip" style="background:'+bc+';color:'+tc+';border-left:3px solid '+bordeEstado+(esReprog?';opacity:.55;text-decoration:line-through':'')+'" title="'+titulo+'">'+
+          // Sesión suelta (no paquete) sin ningún adelanto dejado - se marca
+          // con un patrón de rayas diagonales para que salte a la vista
+          // distinto de un paquete o de una sesión ya con depósito.
+          const sinAdelantoSesion=!esLibre&&s.tipo!=='paquete'&&!((s._sb&&s._sb.adelanto)>0);
+          const patronRayas=sinAdelantoSesion?';background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.16) 0 3px,transparent 3px 7px)':'';
+          const titulo=pac.nombre+' · '+ter.nombre+(progTxt?' · Paq'+progTxt:'')+' · '+ps.nombre+
+            (esReprog?' (reprogramado - horario libre)':esPermiso?' (permiso - horario libre)':'')+
+            (sinAdelantoSesion?' · sin adelanto':'');
+          h+='<div class="ag-chip" style="position:relative;background:'+bc+';color:'+tc+';border-left:3px solid '+bordeEstado+(esLibre?';opacity:.55;text-decoration:line-through':'')+patronRayas+'" title="'+titulo+'">'+
+            (letra?'<span style="position:absolute;top:1px;right:2px;font-size:9px;font-weight:900;text-decoration:none">'+letra+'</span>':'')+
             '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:800">'+pac.nombre.split(' ')[0]+'</div>'+
             '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;opacity:.9">'+abrevTerapia(ter.nombre)+'</div>'+
             (esPaq?'<div style="font-size:9.5px;opacity:.85">'+_paqLabel(s)+'</div>':'')+
             '</div>';
         });
+        // Si TODO lo que hay en la celda es horario liberado (reprogramado/
+        // permiso), sigue siendo un cupo disponible - se agrega el "+" para
+        // que quede claro que otro paciente puede tomarlo.
+        if(hayHorario&&sesList.every(s=>s.estado==='reprogramado'||s.estado==='permiso')){
+          h+='<div class="ag-mas" style="height:16px;font-size:13px">+</div>';
+        }
       } else if(hayHorario){
         h+='<div class="ag-mas">+</div>';
       }
@@ -1724,7 +1752,12 @@ function mostrarResumenCelda(sesList,fecha,hora){
         '</div></div></div>';
     }).join('')+
     '<div style="padding:8px 0;margin-top:6px">'+
-    '<button class="btn btn-primary btn-sm" data-f="X" onclick="abrirModalAgendar(this.dataset.f,null)">+ Agendar en este día</button>'.replace('X',fecha)+
+    // Si TODO lo que hay en esta celda es horario liberado (reprogramado/
+    // permiso), se precarga esa misma hora - es un cupo disponible de
+    // verdad, no hace falta que la recepcionista la vuelva a escribir.
+    (sesList.length&&sesList.every(function(s){return s.estado==='reprogramado'||s.estado==='permiso';})?
+      '<button class="btn btn-primary btn-sm" data-f="'+fecha+'" data-h="'+hora+'" onclick="abrirModalAgendar(this.dataset.f,this.dataset.h)">+ Agendar en este horario liberado</button>':
+      '<button class="btn btn-primary btn-sm" data-f="X" onclick="abrirModalAgendar(this.dataset.f,null)">+ Agendar en este día</button>'.replace('X',fecha))+
     '</div>';
 }
 
@@ -3223,7 +3256,12 @@ async function guardarPaqueteFlujo(){
       const horaPago=horaLima(n);
       const filasPago=agFilasPagoParaGuardar(adelanto);
       for(const fp of filasPago){
-        const pagoRow={fecha:fechaInicio||today(),hora:horaPago,
+        // El pago se registra con la fecha de HOY (cuando el dinero
+        // realmente entra a caja) - no con fechaInicio (la fecha en que
+        // arranca el paquete, que puede ser a futuro). Si no, un adelanto
+        // cobrado hoy para un paquete que empieza la próxima semana no
+        // aparecía en el Reporte del Día de hoy, sino en el de esa fecha.
+        const pagoRow={fecha:today(),hora:horaPago,
           monto:fp.monto,metodo:fp.metodo,concepto:'Adelanto '+(progRow.paquete_nombre||'paquete'),
           paciente_nombre:pac.nombre,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||'',
           programa_id:progRow.id};
@@ -3266,7 +3304,10 @@ async function guardarSesion(){
     showToast('Completa: paciente, psicóloga, terapia, fecha'+(requiereHora?' y hora':''),'error');return;
   }
   if(!sinSesionHoy){
-    if(DB.sesiones.find(s=>s.psId===getPs(psId).nombre&&s.fecha===fecha&&s.hora===hora)){
+    // Reprogramado y Permiso dejan libre ese horario (por eso se pintan en
+    // gris tachado en la agenda) - no deben contar como "ocupado" o nunca
+    // se podría agendar a otro paciente en el cupo que quedó liberado.
+    if(DB.sesiones.find(s=>s.psId===getPs(psId).nombre&&s.fecha===fecha&&s.hora===hora&&s.estado!=='reprogramado'&&s.estado!=='permiso')){
       showToast('Ese horario ya está ocupado para esta psicóloga','error');return;
     }
     const fer=feriadoDe(fecha);
@@ -3457,7 +3498,10 @@ async function guardarSesion(){
       const horaPago=horaLima(n);
       const filasPago=agFilasPagoParaGuardar(adelanto);
       filasPago.forEach(function(fp){
-        const pagoRow={fecha:fecha||today(),hora:horaPago,
+        // Igual que en guardarPaqueteFlujo: el pago se fecha con HOY (día
+        // real del cobro), no con la fecha de la sesión que puede ser a
+        // futuro.
+        const pagoRow={fecha:today(),hora:horaPago,
           monto:fp.monto,metodo:fp.metodo,concepto:'Adelanto '+(tipo==='paquete'&&paq?(paq.nombre||'paquete'):'sesión'),
           paciente_nombre:pac.nombre,psicologa_nombre:ps.nombre,terapia_nombre:ter.nombre,
           sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
@@ -4318,7 +4362,7 @@ function generarReporte(){
     const el=document.getElementById(id);if(el)el.textContent=v;
   });
   const el=document.getElementById('rptDetalle');if(!el)return;
-  if(!ses.length){el.innerHTML='<div style="color:var(--muted);padding:14px;text-align:center">Sin sesiones para esta fecha.</div>';return;}
+  if(!ses.length&&!pags.length){el.innerHTML='<div style="color:var(--muted);padding:14px;text-align:center">Sin sesiones ni pagos para esta fecha.</div>';return;}
   // Agrupar por psicóloga
   const psicoIds=[...new Set(ses.map(s=>s.psId))];
   let rptHTML='';
@@ -4355,6 +4399,29 @@ function generarReporte(){
       }).join('')+
       '</div>';
   });
+  // Pagos del día que no van atados a una psicóloga en particular (adelanto
+  // de paquete/renovación, adelanto "solo reserva" sin sesión todavía) - no
+  // se pierden en el total pero tampoco aparecen bajo ningún bloque de
+  // psicóloga arriba, así que se listan aparte al final: fecha, paciente,
+  // concepto y monto.
+  const pagsSinPs=pags.filter(function(p){return!p.psId;});
+  if(pagsSinPs.length){
+    rptHTML+='<div style="margin-bottom:16px;border:1px solid var(--border);border-radius:12px;overflow:hidden">'+
+      '<div style="background:linear-gradient(135deg,#6b214d,#e91e8c);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'+
+      '<span style="font-size:14px;font-weight:800">💰 Otros pagos del día (sin psicóloga asignada)</span>'+
+      '<span style="font-size:11px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:10px">'+pagsSinPs.length+' pago(s)</span>'+
+      '</div>'+
+      pagsSinPs.map(function(p){
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);background:#fff;flex-wrap:wrap">'+
+          '<span style="font-size:13px;font-weight:900;color:var(--accent);min-width:50px">'+(p.hora||'')+'</span>'+
+          '<div style="flex:1;min-width:140px">'+
+          '<div style="font-size:13px;font-weight:700">'+(p.pacId||'-')+'</div>'+
+          '<div style="font-size:11px;color:var(--muted)">'+(p.concepto||'')+'</div></div>'+
+          '<span class="badge bg" style="font-size:10px">S/'+p.monto+' '+p.metodo+'</span>'+
+          '</div>';
+      }).join('')+
+      '</div>';
+  }
   el.innerHTML=rptHTML||'<div style="color:var(--muted);padding:14px;text-align:center">Sin sesiones para esta fecha.</div>';
 }
 
@@ -4533,6 +4600,38 @@ function exportarPDF(){
     y+=20;
   }
 
+  // ── OTROS PAGOS DEL DÍA (sin psicóloga asignada) - adelantos de paquete/
+  // renovación que no están atados a una sesión de hoy ni a una psicóloga
+  // puntual, así que no aparecen en ningún bloque de arriba. Se listan
+  // aparte: hora, paciente, concepto y monto. ──
+  const pagsSinPsPDF=pags.filter(function(p){return!p.psId;});
+  if(pagsSinPsPDF.length){
+    const rowH2=8,headerH2=12;
+    if(y+headerH2+rowH2>190){doc.addPage();y=20;}
+    doc.setFillColor(107,33,77);doc.roundedRect(M,y,W-M*2,headerH2,2,2,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont('helvetica','bold');
+    doc.text('OTROS PAGOS DEL DÍA (sin psicóloga asignada)',M+4,y+7.5);
+    doc.setFontSize(8);doc.setFont('helvetica','normal');
+    doc.text(pagsSinPsPDF.length+' pago(s)',W-M-4,y+7.5,{align:'right'});
+    y+=headerH2+1;
+    pagsSinPsPDF.forEach(function(p,i){
+      if(y>188){doc.addPage();y=20;}
+      doc.setFillColor(i%2?248:255,i%2?250:255,i%2?255:255);
+      doc.rect(M,y,W-M*2,rowH2,'F');
+      doc.setDrawColor(230);doc.line(M,y+rowH2,W-M,y+rowH2);
+      doc.setTextColor(219,39,119);doc.setFont('helvetica','bold');doc.setFontSize(8);
+      doc.text(p.hora||'',M+3,y+5.5);
+      doc.setTextColor(30,30,30);doc.setFont('helvetica','bold');doc.setFontSize(8);
+      doc.text((p.pacId||'-').substring(0,45),M+16,y+5.5);
+      doc.setTextColor(100,100,100);doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+      doc.text((p.concepto||'').substring(0,40),M+130,y+5.5);
+      doc.setTextColor(16,185,129);doc.setFont('helvetica','bold');doc.setFontSize(7.5);
+      doc.text('S/'+p.monto,W-M-2,y+5.5,{align:'right'});
+      y+=rowH2;
+    });
+    y+=6;
+  }
+
   // ── FIRMA ──
   y+=10;
   if(y>185){doc.addPage();y=20;}
@@ -4660,7 +4759,9 @@ function exportarAgendaPDF(){
     doc.text(d0.getDate()+' '+mesES[d0.getMonth()]+' - '+d5.getDate()+' '+mesES[d5.getMonth()]+' de '+d5.getFullYear(),M+4,y+13);
     y+=20;
 
-    // ── LEYENDA - solo si se exporta "Todas las psicólogas" ──
+    // ── LEYENDA - colores por psicóloga solo si se exporta "Todas las
+    // psicólogas"; R (reprogramado) / P (permiso) siempre, porque ambos
+    // pueden aparecer en cualquier vista (indican horario liberado) ──
     if(!filtPs&&psicoPresentes.length){
       doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(60,60,60);
       doc.text('Leyenda:',M,y+3.3);
@@ -4676,6 +4777,13 @@ function exportarAgendaPDF(){
         doc.text(nombreCorto,lx+7,y+2.6);
         lx+=txtW+16;
       });
+      y+=9;
+    }
+    {
+      const rgbLibre=hexToRgbPDF('#94a3b8');
+      doc.setFillColor(...rgbLibre);doc.roundedRect(M,y-0.7,5,4,1,1,'F');
+      doc.setTextColor(50,50,50);doc.setFont('helvetica','normal');doc.setFontSize(8);
+      doc.text('R = Reprogramado (horario libre)   ·   P = Permiso (horario libre)',M+7,y+2.6);
       y+=9;
     }
 
@@ -4713,11 +4821,19 @@ function exportarAgendaPDF(){
         sesList.forEach(function(s,si){
           const pac=getPac(s.pacId),ps=getPs(s.psId),ter=getTer(s.terId);
           const esReprog=s.estado==='reprogramado';
-          const rgb=hexToRgbPDF(esReprog?'#94a3b8':colorPsAgenda(ps));
+          const esPermiso=s.estado==='permiso';
+          const esLibre=esReprog||esPermiso;
+          const rgb=hexToRgbPDF(esLibre?'#94a3b8':colorPsAgenda(ps));
           const cy=y+si*7;
           doc.setFillColor(...rgb);doc.rect(dx+0.4,cy+0.4,dayW-0.8,6.2,'F');
           doc.setTextColor(0,0,0);doc.setFont('helvetica','bold');doc.setFontSize(6.6);
           doc.text((pac.nombre||'').substring(0,20),dx+1.5,cy+3);
+          if(esLibre){
+            doc.setFontSize(6.6);
+            doc.text(esReprog?'R':'P',dx+dayW-3,cy+3,{align:'center'});
+            doc.setDrawColor(0,0,0);doc.setLineWidth(0.15);
+            doc.line(dx+0.6,cy+3.5,dx+dayW-0.6,cy+3.5);
+          }
           doc.setFont('helvetica','normal');doc.setFontSize(5.8);
           const esPaq=s.tipo==='paquete'&&s.totalPaq;
           const subTxt=abrevTerapia(ter.nombre)+(esPaq?' '+_paqLabel(s):'');
@@ -5204,7 +5320,7 @@ async function cargarHistorialCompletoPac(pacNombre){
   (pagosPac||[]).forEach(function(p){
     if(!(DB.pagos||[]).some(function(x){return x.id===p.id;})){
       (DB.pagos=DB.pagos||[]).push({id:p.id,fecha:p.fecha,hora:p.hora||'',pacId:p.paciente_nombre,
-        concepto:p.concepto||'',monto:p.monto||0,metodo:p.metodo||'efectivo',notas:p.notas||'',_sb:p});
+        psId:p.psicologa_nombre||'',concepto:p.concepto||'',monto:p.monto||0,metodo:p.metodo||'efectivo',notas:p.notas||'',_sb:p});
     }
   });
   rows.forEach(function(r){
@@ -5406,7 +5522,7 @@ async function cargarDesdeSB(silencioso) {
       colegio:p.colegio||'',grado:p.grado||'',
       paq:parseInt(p.paquete)||12,saldo:p.saldo||0,estado:p.estado||'activo',_sb:p};});
     const pagosVentana=(res[2]||[]).map(function(p){return{id:p.id,fecha:p.fecha,hora:p.hora||'',pacId:p.paciente_nombre,
-      concepto:p.concepto||'',monto:p.monto||0,metodo:p.metodo||'efectivo',notas:p.notas||'',_sb:p};});
+      psId:p.psicologa_nombre||'',concepto:p.concepto||'',monto:p.monto||0,metodo:p.metodo||'efectivo',notas:p.notas||'',_sb:p};});
     const idsPagosVentana=new Set(pagosVentana.map(function(p){return p.id;}));
     const pagosHistoricosPreservados=(DB.pagos||[]).filter(function(p){return p.fecha<desde&&!idsPagosVentana.has(p.id);});
     DB.pagos=pagosHistoricosPreservados.concat(pagosVentana);
@@ -5493,13 +5609,32 @@ async function marcarAs(sesRef,nuevoEst){
   if(s.tipo==='paquete'&&pac){
     pac.sesUsadas=DB.sesiones.filter(function(x){return x.pacId===s.pacId&&(x.estado==='asistio'||x.estado==='noasistio'||x.estado==='permiso');}).length;
   }
+  // Una sesión SUELTA (no paquete) que no se llega a dar nunca se cobra -
+  // si quedaba un saldo pendiente por lo que faltaba pagar de esa sesión
+  // puntual, se perdona al marcar "No Asistió" (no se va a prestar el
+  // servicio, no hay nada que cobrar). El paquete es distinto: ahí el
+  // compromiso es por el paquete completo, no por sesión individual, así
+  // que su saldo/checkpoints no se tocan aquí.
+  var patchSesion={estado:nuevoEst};
+  var noCobrado=0;
+  if(nuevoEst==='noasistio'&&s.tipo!=='paquete'){
+    var yaAdelantado=(s._sb&&s._sb.adelanto)||0;
+    noCobrado=Math.max(0,Math.round(((s.costoTotal||0)-yaAdelantado)*100)/100);
+    if(noCobrado>0){
+      s.saldo=0;
+      patchSesion.saldo=0;
+      if(pac)pac.saldo=Math.round(((pac.saldo||0)-noCobrado)*100)/100;
+    }
+  }
   showToast('⏳ Guardando en Supabase...');
   var sbId=(s._sb&&s._sb.id)||((typeof s.id==='string'&&s.id.length>20)?s.id:null);
   if(sbId){
     try{
-      await sbPatch('sesiones',{estado:nuevoEst},{id:'eq.'+sbId});
+      await sbPatch('sesiones',patchSesion,{id:'eq.'+sbId});
+      if(noCobrado>0&&pac&&pac._sb&&pac._sb.id)await sbPatch('pacientes',{saldo:pac.saldo},{id:'eq.'+pac._sb.id});
       var msgs={asistio:'✅ '+(s.pacNom||'Paciente')+' asistió',
-        noasistio:'⚠️ No asistió - sesión contabilizada',permiso:'🟡 '+(s.pacNom||'Paciente')+' - con permiso'};
+        noasistio:'⚠️ No asistió'+(noCobrado>0?' - no se cobra (sin servicio prestado)':' - sesión contabilizada'),
+        permiso:'🟡 '+(s.pacNom||'Paciente')+' - con permiso'};
       showToast(msgs[nuevoEst]||'✅ Actualizado');
     }catch(e){showToast('Error al guardar: '+e.message,'error');console.error('[marcarAs]',e);}
   }else{
