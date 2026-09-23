@@ -5234,6 +5234,13 @@ async function renderHistorial(){
     '<div class="stat-card sc-red"><div class="stat-value">'+noAs+'</div><div class="stat-label">No Asistió</div></div>'+
     '</div>'+
     _saldoAlertaHTML(pac2,'margin-top:8px')+
+    // Un solo botón "Cancelar paquete" arriba (no uno por cada fila de
+    // sesión, que hacía la tabla angosta e ilegible) - solo tiene sentido
+    // si hay un paquete VIGENTE (activo) que cancelar.
+    (_progVigHist&&_progVigHist.estado==='activo'?
+      '<div style="margin-top:10px;text-align:right">'+
+      '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="cancelarPaquete(\''+_progVigHist.id+'\',\''+(pac2.nombre||'').replace(/'/g,"\\'")+'\')">🚫 Cancelar paquete</button>'+
+      '</div>':'')+
     '</div>'+
     '<div style="font-size:13px;font-weight:800;color:var(--muted);margin-bottom:8px">📋 Registro de Sesiones</div>'+
     (filasTabla.length?
@@ -5303,10 +5310,9 @@ async function renderHistorial(){
           '<td style="white-space:nowrap">'+costoCelda+'</td>'+
           '<td style="white-space:nowrap">'+pagoCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
-          '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s)+' '+
-            (s.tipo==='paquete'?
-              '<button class="btn btn-outline btn-sm" style="color:var(--red)" data-prog="'+((s._sb&&s._sb.programa_id)||'')+'" onclick="cancelarPaquete(this.dataset.prog,\''+(s.pacNom||'').replace(/'/g,"\\'")+'\')">🚫 Cancelar paquete</button>':
-              '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="cancelarSesionSuelta(\''+s.id+'\')">🚫 Cancelar sesión</button>'):
+          '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s)+
+            (s.tipo==='paquete'?'':
+              ' <button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="cancelarSesionSuelta(\''+s.id+'\')">🚫 Cancelar sesión</button>'):
             '<span style="font-size:11px;color:var(--muted)">-</span>')+'</td></tr>';
       }).join('')+
       '</tbody></table></div>'
