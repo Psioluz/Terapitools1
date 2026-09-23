@@ -1891,8 +1891,27 @@ function _saldoAlertaHTML(pac,extraStyle){
   if(st.tipo==='vencido')return '<div class="alert al-danger" style="'+style+'">🔴 Cuota vencida - Saldo pendiente: S/'+st.saldo+'</div>';
   return '<div class="alert al-warn" style="'+style+'">⚠️ Saldo pendiente: S/'+st.saldo+' (aún no vence)</div>';
 }
+// El paquete más reciente del paciente (por fecha de creación) - un
+// paciente que renovó puede tener varios programas_paciente (uno o más
+// "completado", uno "activo"); esto siempre resuelve al vigente, para no
+// mezclar sesiones de un paquete anterior ya cerrado con las del actual.
+function _progVigentePac(pacNombre){
+  const progsPac=(DB.programas||[]).filter(function(p){return p.paciente_nombre===pacNombre;})
+    .sort(function(a,b){return(b.created_at||'').localeCompare(a.created_at||'');});
+  return progsPac[0]||null;
+}
 function _paqInfoPac(pac){
-  const ses=DB.sesiones.filter(s=>s.pacId===pac.nombre&&s.tipo==='paquete'&&s.totalPaq);
+  // Debe reflejar SOLO el paquete VIGENTE - antes sumaba las sesiones de
+  // TODOS los paquetes que el paciente tuvo alguna vez, así que un
+  // paciente que renovó terminaba mostrando algo como "9/8 (113%)" porque
+  // las sesiones ya atendidas del paquete anterior (completado) se sumaban
+  // a las del paquete nuevo.
+  const progActual=_progVigentePac(pac.nombre);
+  const ses=DB.sesiones.filter(function(s){
+    if(!(s.tipo==='paquete'&&s.totalPaq))return false;
+    if(progActual)return s._sb&&s._sb.programa_id===progActual.id;
+    return s.pacId===pac.nombre;
+  });
   if(!ses.length)return null;
   const total=Math.max.apply(null,ses.map(function(s){return s.totalPaq||0;}));
   const hechas=ses.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio';}).length;
@@ -5165,11 +5184,17 @@ async function renderHistorial(){
     return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));
   });
   // Si tiene un paquete, las tarjetas de arriba deben reflejar SOLO el
-  // paquete (igual que "Progreso paquete") - mezclar una consulta suelta
-  // ahí confunde el conteo real del paquete. Una sesión "reprogramada"
+  // paquete VIGENTE (igual que "Progreso paquete") - mezclar sesiones de
+  // un paquete anterior ya renovado/completado, o una consulta suelta,
+  // confunde el conteo real del paquete actual. Una sesión "reprogramada"
   // (movida a otra fecha) no debe sumar como una sesión más: se cuenta
   // solo una vez, en su fecha nueva.
-  const sesPaqHist=sesPac.filter(s=>s.tipo==='paquete'&&s.estado!=='reprogramado');
+  const _progVigHist=_progVigentePac(pac2.nombre);
+  const sesPaqHist=sesPac.filter(function(s){
+    if(!(s.tipo==='paquete'&&s.estado!=='reprogramado'))return false;
+    if(_progVigHist)return s._sb&&s._sb.programa_id===_progVigHist.id;
+    return true;
+  });
   const sesParaStats=sesPaqHist.length?sesPaqHist:sesPac.filter(s=>s.estado!=='reprogramado');
   const paqInfoHist=_paqInfoPac(pac2);
   const totalSesionesCard=paqInfoHist?paqInfoHist.total:sesParaStats.length;
