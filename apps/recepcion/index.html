@@ -2122,7 +2122,7 @@ async function agCargarProgramasActivos(){
   const pac=getPac(pacId);
   let todosActivos=[];
   try{
-    todosActivos=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:'eq.'+DB.sede,estado:'eq.activo',select:'*,programa_terapias(*)'})||[];
+    todosActivos=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:_filtroSedeSb(pac.nombre),estado:'eq.activo',select:'*,programa_terapias(*)'})||[];
   }catch(e){todosActivos=[];}
   // Un paquete que ya asignó todas sus sesiones contratadas no debe poder
   // elegirse para seguir metiéndole sesiones/pagos NUEVOS encima - eso fue
@@ -2652,11 +2652,31 @@ function _progLocal(pacNombre,terNombre,psNombre){
   }
   return null;
 }
+// Un paciente normal solo tiene datos en SU sede - pero un paciente
+// puntual puede llevar una terapia en una sede y otra terapia (del MISMO
+// paquete) en otra (ej. ve T.Psicológica en Ovalo Zapallal y T.Lenguaje
+// en Flecha, con cada recepcionista cobrando/marcando asistencia de su
+// propia sesión). Eso se marca a mano en pacientes.sedes_compartidas
+// (lista separada por comas) - sin ese campo, todo sigue exactamente
+// igual que antes: cada sede ve solo lo suyo. Con él, las consultas que
+// necesitan encontrar "el paquete activo de este paciente" buscan en
+// todas las sedes listadas, no solo en la sede actual.
+function _filtroSedeSb(pacNombre){
+  var pac=DB.pacientes.find(function(p){return p.nombre===pacNombre;});
+  var lista=[DB.sede];
+  if(pac&&pac.sedesCompartidas){
+    pac.sedesCompartidas.split(',').map(function(s){return s.trim();}).filter(Boolean).forEach(function(sd){
+      if(lista.indexOf(sd)===-1)lista.push(sd);
+    });
+  }
+  if(lista.length===1)return 'eq.'+lista[0];
+  return 'in.('+lista.map(function(sd){return '"'+sd+'"';}).join(',')+')';
+}
 async function obtenerProgramaActivo(pacNombre,terNombre,psNombre){
   var local=_progLocal(pacNombre,terNombre,psNombre);
   if(local)return local;
   try{
-    var rows=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,estado:'eq.activo',select:'*,programa_terapias(*)'});
+    var rows=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pacNombre,sede:_filtroSedeSb(pacNombre),estado:'eq.activo',select:'*,programa_terapias(*)'});
     for(var i=0;i<(rows||[]).length;i++){
       var prog=rows[i];
       var pt=(prog.programa_terapias||[]).find(function(x){return x.terapia===terNombre&&x.psicologa===psNombre;});
@@ -3785,7 +3805,7 @@ async function pgOnPaciente(){
   // cuota y la cascada no encontrara nada que descontar.
   let prog=null;
   try{
-    const progs=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:'eq.'+DB.sede,estado:'eq.activo',select:'*'});
+    const progs=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:_filtroSedeSb(pac.nombre),estado:'eq.activo',select:'*'});
     prog=(progs||[]).sort(function(a,b){return(b.created_at||'').localeCompare(a.created_at||'');})[0];
   }catch(e){console.error('[pgOnPaciente]',e);}
   if(document.getElementById('pg-pac')?.value!==pacId)return; // cambió de paciente mientras cargaba
@@ -3959,7 +3979,7 @@ async function guardarPago(){
       // más antigua a la más nueva), o si no tiene paquete, a su sesión
       // suelta pendiente más antigua.
       try{
-        const progs=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:'eq.'+DB.sede,estado:'eq.activo',select:'*'});
+        const progs=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:_filtroSedeSb(pac.nombre),estado:'eq.activo',select:'*'});
         const prog=(progs||[]).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))[0];
         if(prog&&prog.id){
           pagoAtadoAPaquete=true;
@@ -5335,11 +5355,17 @@ async function subirPDF(){
 // 45 días (la ventana que carga cargarDesdeSB por defecto) - se trae
 // completo directo de Supabase, sin esperar a que lo pidan aparte.
 async function cargarHistorialCompletoPac(pacNombre){
+  // Para un paciente marcado como compartido entre sedes (ver
+  // _filtroSedeSb), el Historial Clínico trae sesiones/pagos/programas de
+  // TODAS sus sedes, no solo la actual - así cualquiera de las dos
+  // recepcionistas ve el cuadro completo, aunque cada una solo pueda
+  // marcar asistencia/cobrar lo que pasa en la suya.
+  const filtroSede=_filtroSedeSb(pacNombre);
   const [rows,progs,pagosPac,reprogsPac]=await Promise.all([
-    sbGet('sesiones',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*',order:'fecha.desc',limit:'500'}),
-    sbGet('programas_paciente',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*'}).catch(function(){return[];}),
-    sbGet('pagos',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*',order:'fecha.desc',limit:'500'}).catch(function(){return[];}),
-    sbGet('reprogramaciones',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,select:'*'}).catch(function(){return[];})
+    sbGet('sesiones',{paciente_nombre:'eq.'+pacNombre,sede:filtroSede,select:'*',order:'fecha.desc',limit:'500'}),
+    sbGet('programas_paciente',{paciente_nombre:'eq.'+pacNombre,sede:filtroSede,select:'*'}).catch(function(){return[];}),
+    sbGet('pagos',{paciente_nombre:'eq.'+pacNombre,sede:filtroSede,select:'*',order:'fecha.desc',limit:'500'}).catch(function(){return[];}),
+    sbGet('reprogramaciones',{paciente_nombre:'eq.'+pacNombre,sede:filtroSede,select:'*'}).catch(function(){return[];})
   ]);
   DB.reprogramaciones=reprogsPac||[];
   (pagosPac||[]).forEach(function(p){
@@ -5534,22 +5560,32 @@ async function cargarDesdeSB(silencioso) {
       pacId:s.paciente_nombre,pacNom:s.paciente_nombre,psId:s.psicologa,psNom:s.psicologa,
       terId:s.terapia,terNom:s.terapia,estado:s.estado,saldo:s.saldo||0,tipo:s.tipo||'sesion',notas:s.notas||'',
       nroSes:s.nro_en_paquete,totalPaq:s.total_paquete,costo:s.costo_total||0,costoTotal:s.costo_total||0,tel:s.paciente_tel||'',_sb:s};});
-    // La carga normal solo trae los últimos 45 días - "Cargar historial
-    // completo" trae sesiones más antiguas de un paciente puntual y las
-    // agrega en memoria. Sin esto, el refresco automático de cada 30s
-    // reemplazaba DB.sesiones entero y las volvía a perder.
+    // La carga normal solo trae los últimos 45 días de ESTA sede -
+    // "Cargar historial completo" trae sesiones más antiguas de un
+    // paciente puntual, y para un paciente compartido entre sedes (ver
+    // _filtroSedeSb) también trae sesiones recientes de la OTRA sede, que
+    // esta ventana nunca vuelve a pedir. Ambos casos se agregan en
+    // memoria y hay que preservarlos aquí explícitamente - si no, el
+    // refresco automático de cada 30s reemplaza DB.sesiones entero
+    // (con solo lo de esta ventana+sede) y los vuelve a perder.
     const idsVentana=new Set(sesionesVentana.map(function(s){return s.id;}));
-    const historicasPreservadas=(DB.sesiones||[]).filter(function(s){return s.fecha<desde&&!idsVentana.has(s.id);});
+    const historicasPreservadas=(DB.sesiones||[]).filter(function(s){
+      const esOtraSede=s._sb&&s._sb.sede&&s._sb.sede!==DB.sede;
+      return(s.fecha<desde||esOtraSede)&&!idsVentana.has(s.id);
+    });
     DB.sesiones=historicasPreservadas.concat(sesionesVentana);
     DB.pacientes=(res[1]||[]).map(function(p){return{id:p.id||p.nombre,nombre:p.nombre,
       tel:p.telefono||'',nac:p.fecha_nac||'',dni:p.dni||'',diagnostico:p.diagnostico||'',
       psId:p.psicologa,terId:p.terapia,terapias:p.terapias||p.terapia||'',apoderado:p.apoderado||'',
-      colegio:p.colegio||'',grado:p.grado||'',
+      colegio:p.colegio||'',grado:p.grado||'',sedesCompartidas:p.sedes_compartidas||'',
       paq:parseInt(p.paquete)||12,saldo:p.saldo||0,estado:p.estado||'activo',_sb:p};});
     const pagosVentana=(res[2]||[]).map(function(p){return{id:p.id,fecha:p.fecha,hora:p.hora||'',pacId:p.paciente_nombre,
       psId:p.psicologa_nombre||'',concepto:p.concepto||'',monto:p.monto||0,metodo:p.metodo||'efectivo',notas:p.notas||'',_sb:p};});
     const idsPagosVentana=new Set(pagosVentana.map(function(p){return p.id;}));
-    const pagosHistoricosPreservados=(DB.pagos||[]).filter(function(p){return p.fecha<desde&&!idsPagosVentana.has(p.id);});
+    const pagosHistoricosPreservados=(DB.pagos||[]).filter(function(p){
+      const esOtraSede=p._sb&&p._sb.sede&&p._sb.sede!==DB.sede;
+      return(p.fecha<desde||esOtraSede)&&!idsPagosVentana.has(p.id);
+    });
     DB.pagos=pagosHistoricosPreservados.concat(pagosVentana);
     DB.psicologas=(res[3]||[]).map(function(p){return{id:p.id||p.nombre,nombre:p.nombre,
       cpsp:p.cpsp||'',cop:p.cpsp||'',esp:p.especialidad||'',tel:p.telefono||'',nac:p.fecha_nac||'',
@@ -5570,7 +5606,13 @@ async function cargarDesdeSB(silencioso) {
       costoTotal:t.costo_total||0,precio:t.costo_total||0,
       cuotas:t.cantidad_cuotas||1,montoCuota:t.monto_cuota||((t.costo_total||0)/(t.cantidad_cuotas||1)),
       categoria:t.categoria||'ninos',_sb:t};});
-    DB.programas=res[7]||[];
+    // Igual que con sesiones/pagos: un paquete cargado de la OTRA sede de
+    // un paciente compartido (ver _filtroSedeSb) no vuelve a traerlo esta
+    // ventana normal (filtrada solo a DB.sede) - si no se preserva aquí,
+    // el refresco de cada 30s lo bota de DB.programas.
+    const idsProgVentana=new Set((res[7]||[]).map(function(p){return p.id;}));
+    const progsOtraSedePreservados=(DB.programas||[]).filter(function(p){return p.sede&&p.sede!==DB.sede&&!idsProgVentana.has(p.id);});
+    DB.programas=(res[7]||[]).concat(progsOtraSedePreservados);
     DB.feriados=res[8]||[];
     if(typeof fillSelects==='function')fillSelects();
     var ap=document.querySelector('.page.active');
