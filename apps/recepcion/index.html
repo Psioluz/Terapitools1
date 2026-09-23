@@ -5030,8 +5030,18 @@ function renderAgendaViaDia(fecha){
       sesPsic.forEach(function(s){
         var pac=getPac(s.pacId);var ter=getTer(s.terId);
         var pago=DB.pagos.find(function(p){return p.pacId===s.pacId&&p.fecha===s.fecha&&p.hora===s.hora;});
+        // Misma lógica que la vista semanal: Reprogramado/Permiso quedan
+        // gris y tachados con letra R/P (horario libre), y una sesión
+        // suelta sin adelanto se marca con rayas diagonales.
+        var esReprogDia=s.estado==='reprogramado';
+        var esPermisoDia=s.estado==='permiso';
+        var esLibreDia=esReprogDia||esPermisoDia;
+        var letraDia=esReprogDia?'R':esPermisoDia?'P':'';
+        var sinAdelantoDia=!esLibreDia&&s.tipo!=='paquete'&&!((s._sb&&s._sb.adelanto)>0);
+        var patronRayasDia=sinAdelantoDia?';background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.08) 0 3px,transparent 3px 7px)':'';
         var borderC=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':'var(--accent)';
-        h+='<div style="padding:12px 16px;border-bottom:1px solid var(--border);border-left:5px solid '+borderC+';display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;background:#fff">'+
+        h+='<div style="position:relative;padding:12px 16px;border-bottom:1px solid var(--border);border-left:5px solid '+borderC+';display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;background:#fff'+(esLibreDia?';opacity:.6;text-decoration:line-through':'')+patronRayasDia+'">'+
+          (letraDia?'<span style="position:absolute;top:4px;right:8px;font-size:11px;font-weight:900;text-decoration:none;background:#94a3b8;color:#000;border-radius:4px;padding:1px 5px">'+letraDia+'</span>':'')+
           '<div style="min-width:50px;font-size:18px;font-weight:900;color:var(--accent)">'+s.hora+'</div>'+
           '<div style="flex:1;min-width:160px">'+
           '<div style="font-size:14px;font-weight:800;margin-bottom:4px">'+pac.nombre+'</div>'+
@@ -5047,6 +5057,9 @@ function renderAgendaViaDia(fecha){
           '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'+
           botonesAsistenciaHTML(s)+
           ((s.estado==='asistio'||s.estado==='tardanza')&&!pago?'<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="btnAbrirPago(this)">💰 Cobrar</button>':'')+
+          (s.estado==='programado'?(s.tipo==='paquete'?
+            '<button class="btn btn-outline btn-sm" style="color:var(--red)" data-prog="'+((s._sb&&s._sb.programa_id)||'')+'" onclick="cancelarPaquete(this.dataset.prog,\''+(pac.nombre||'').replace(/'/g,"\\'")+'\')">🚫 Cancelar paquete</button>':
+            '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="cancelarSesionSuelta(\''+s.id+'\')">🚫 Cancelar sesión</button>'):'')+
           '</div></div>';
       });
     }
