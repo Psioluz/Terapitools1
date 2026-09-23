@@ -1176,7 +1176,7 @@ let _paqFiltro='';
 // "Asistió" después de la hora programada, y terminaba apareciendo en
 // casi todas las sesiones marcadas realmente a tiempo). Solo quedan
 // estos 5 estados.
-const ESTADO_LABELS={programado:'Programado',asistio:'Asistió',noasistio:'No asistió',permiso:'Permiso',reprogramado:'Reprogramado'};
+const ESTADO_LABELS={programado:'Programado',asistio:'Asistió',noasistio:'No asistió',permiso:'Permiso',reprogramado:'Reprogramado',cancelado:'Cancelado'};
 function estadoLabel(estado){return ESTADO_LABELS[estado]||(estado?estado.charAt(0).toUpperCase()+estado.slice(1):'');}
 const diaES=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const diaFull=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -1205,6 +1205,12 @@ function getPac(id){return DB.pacientes.find(p=>p.id===id||p.nombre===id)||{nomb
 // un paciente inactivo (con "Ver pacientes inactivos") sigue mostrando
 // su registro completo tal cual.
 function _pacEstaActivo(pacId){return DB.pacientes.some(function(p){return p.id===pacId||p.nombre===pacId;});}
+// Una sesión "cancelada" (Cancelar sesión/Cancelar paquete) tampoco debe
+// seguir apareciendo en las vistas operativas del día a día - el horario
+// queda simplemente libre, sin marcador permanente (a diferencia de
+// Reprogramado/Permiso, que sí se muestran en gris con R/P porque avisan
+// algo útil). El registro sigue completo en el Historial Clínico.
+function _sesEsVisibleEnAgenda(s){return _pacEstaActivo(s.pacId)&&s.estado!=='cancelado';}
 function getPs(id){return DB.psicologas.find(p=>p.id===id||p.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'-',color:'bk'};}
 // Cada psicóloga tiene un color propio (elegido en la ficha, o uno fijo
 // por defecto si nunca lo cambiaron) para diferenciar sus sesiones en la
@@ -1500,7 +1506,7 @@ function showPage(name,el){
 // ══════════════════════════════════════════════════
 function renderDashboard(){
   const hoy=today();
-  const sesH=DB.sesiones.filter(s=>s.fecha===hoy&&_pacEstaActivo(s.pacId));
+  const sesH=DB.sesiones.filter(s=>s.fecha===hoy&&_sesEsVisibleEnAgenda(s));
   const asistH=sesH.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   const cajaH=DB.pagos.filter(p=>p.fecha===hoy).reduce((a,p)=>a+p.monto,0);
   const nAl=contarAlertas();
@@ -1642,7 +1648,7 @@ function renderAgenda(){
         return horasPs(ps.id,dia.f).includes(slot);
       });
       const hayHorario=psEnSlot.length>0;
-      let sesList=DB.sesiones.filter(s=>s.fecha===dia.f&&s.hora===slot&&_pacEstaActivo(s.pacId));
+      let sesList=DB.sesiones.filter(s=>s.fecha===dia.f&&s.hora===slot&&_sesEsVisibleEnAgenda(s));
       if(filtPsNom)sesList=sesList.filter(s=>s.psId===filtPsNom);
       const bgCelda=dia.f===_agFechaSel?'#eff6ff':dia.f===hoy?'#f0fdf4':'#fff';
       const noBordered=!hayHorario&&!sesList.length;
@@ -1705,7 +1711,7 @@ function selDia(fecha){
 
 function clickCelda(fecha,hora){
   _agFechaSel=fecha;
-  const sesList=DB.sesiones.filter(s=>s.fecha===fecha&&s.hora===hora&&_pacEstaActivo(s.pacId));
+  const sesList=DB.sesiones.filter(s=>s.fecha===fecha&&s.hora===hora&&_sesEsVisibleEnAgenda(s));
   const det=document.getElementById('agendaDetalle');
   if(det)det.style.display='block';
   if(sesList.length>0){
@@ -1749,6 +1755,9 @@ function mostrarResumenCelda(sesList,fecha,hora){
           '<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="btnAbrirPago(this)">💰 Cobrar</button>':'')+
         (s.estado==='noasistio'||s.estado==='permiso'?
           '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':'')+
+        (s.estado==='programado'?(s.tipo==='paquete'?
+          '<button class="btn btn-outline btn-sm" style="color:var(--red)" data-prog="'+((s._sb&&s._sb.programa_id)||'')+'" onclick="cancelarPaquete(this.dataset.prog,\''+(pac.nombre||'').replace(/'/g,"\\'")+'\')">🚫 Cancelar paquete</button>':
+          '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="cancelarSesionSuelta(\''+s.id+'\')">🚫 Cancelar sesión</button>'):'')+
         '</div></div></div>';
     }).join('')+
     '<div style="padding:8px 0;margin-top:6px">'+
@@ -1764,7 +1773,7 @@ function mostrarResumenCelda(sesList,fecha,hora){
 function renderDiaSel(){
   const fecha=_agFechaSel||today();
   const filtPs=document.getElementById('agPs')?.value||'';
-  let ses=DB.sesiones.filter(s=>s.fecha===fecha&&_pacEstaActivo(s.pacId));
+  let ses=DB.sesiones.filter(s=>s.fecha===fecha&&_sesEsVisibleEnAgenda(s));
   if(filtPs)ses=ses.filter(s=>s.psId===getPs(filtPs).nombre);
   ses.sort((a,b)=>a.hora.localeCompare(b.hora));
   const el=document.getElementById('agendaDetalle');if(!el)return;
@@ -1823,7 +1832,7 @@ function _rankPaqSesion(s){
   const progId=s&&s._sb&&s._sb.programa_id;
   if(!progId||s.tipo!=='paquete')return{rank:s.nroSes,total:s.totalPaq};
   const delPrograma=DB.sesiones.filter(function(x){
-    return x._sb&&x._sb.programa_id===progId&&x.tipo==='paquete'&&x.estado!=='permiso'&&x.estado!=='reprogramado';
+    return x._sb&&x._sb.programa_id===progId&&x.tipo==='paquete'&&x.estado!=='permiso'&&x.estado!=='reprogramado'&&x.estado!=='cancelado';
   }).sort(function(a,b){return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
   const idx=delPrograma.findIndex(function(x){return x.id===s.id;});
   if(idx===-1)return{rank:s.nroSes,total:s.totalPaq};
@@ -3307,7 +3316,7 @@ async function guardarSesion(){
     // Reprogramado y Permiso dejan libre ese horario (por eso se pintan en
     // gris tachado en la agenda) - no deben contar como "ocupado" o nunca
     // se podría agendar a otro paciente en el cupo que quedó liberado.
-    if(DB.sesiones.find(s=>s.psId===getPs(psId).nombre&&s.fecha===fecha&&s.hora===hora&&s.estado!=='reprogramado'&&s.estado!=='permiso')){
+    if(DB.sesiones.find(s=>s.psId===getPs(psId).nombre&&s.fecha===fecha&&s.hora===hora&&s.estado!=='reprogramado'&&s.estado!=='permiso'&&s.estado!=='cancelado')){
       showToast('Ese horario ya está ocupado para esta psicóloga','error');return;
     }
     const fer=feriadoDe(fecha);
@@ -3867,7 +3876,7 @@ async function reconciliarCheckpoints(programaId){
   try{
     vivas=await sbGet('sesiones',{programa_id:'eq.'+programaId,select:'*',order:'fecha.asc,hora.asc'});
   }catch(e){console.error('[reconciliar checkpoints]',e);return;}
-  vivas=(vivas||[]).filter(function(s){return s.estado!=='permiso'&&s.estado!=='reprogramado';});
+  vivas=(vivas||[]).filter(function(s){return s.estado!=='permiso'&&s.estado!=='reprogramado'&&s.estado!=='cancelado';});
   const porRank={};
   vivas.forEach(function(s,i){porRank[i+1]=s;});
   const patches=[];
@@ -4698,7 +4707,7 @@ function exportarAgendaPDF(){
       });
     });
     ['13:15','14:00','14:45','15:30','16:15','17:00','17:45','18:30','19:15'].forEach(function(s){allSlots.add(s);});
-    DB.sesiones.filter(function(s){return dias.some(function(d){return d.f===s.fecha;})&&(!filtPsNom||s.psId===filtPsNom)&&_pacEstaActivo(s.pacId);})
+    DB.sesiones.filter(function(s){return dias.some(function(d){return d.f===s.fecha;})&&(!filtPsNom||s.psId===filtPsNom)&&_sesEsVisibleEnAgenda(s);})
       .forEach(function(s){if(s.hora)allSlots.add(s.hora);});
     const slots=[...allSlots].sort();
 
@@ -4716,7 +4725,7 @@ function exportarAgendaPDF(){
     const psicoPresentes=[];
     if(!filtPs){
       const vistos={};
-      DB.sesiones.filter(function(s){return dias.some(function(d){return d.f===s.fecha;})&&_pacEstaActivo(s.pacId);}).forEach(function(s){
+      DB.sesiones.filter(function(s){return dias.some(function(d){return d.f===s.fecha;})&&_sesEsVisibleEnAgenda(s);}).forEach(function(s){
         const ps=getPs(s.psId);
         if(ps&&ps.nombre&&!vistos[ps.nombre]){vistos[ps.nombre]=1;psicoPresentes.push(ps);}
       });
@@ -4795,7 +4804,7 @@ function exportarAgendaPDF(){
     slots.forEach(function(slot){
       let maxSes=1;
       dias.forEach(function(dia){
-        let n=DB.sesiones.filter(function(s){return s.fecha===dia.f&&s.hora===slot&&(!filtPsNom||s.psId===filtPsNom)&&_pacEstaActivo(s.pacId);}).length;
+        let n=DB.sesiones.filter(function(s){return s.fecha===dia.f&&s.hora===slot&&(!filtPsNom||s.psId===filtPsNom)&&_sesEsVisibleEnAgenda(s);}).length;
         if(n>maxSes)maxSes=n;
       });
       const rowH=Math.max(8,maxSes*7);
@@ -4810,7 +4819,7 @@ function exportarAgendaPDF(){
       doc.text(slot,M+horaW/2,y+rowH/2+1,{align:'center'});
       dias.forEach(function(dia,i){
         const dx=M+horaW+i*dayW;
-        let sesList=DB.sesiones.filter(function(s){return s.fecha===dia.f&&s.hora===slot&&_pacEstaActivo(s.pacId);});
+        let sesList=DB.sesiones.filter(function(s){return s.fecha===dia.f&&s.hora===slot&&_sesEsVisibleEnAgenda(s);});
         if(filtPsNom)sesList=sesList.filter(function(s){return s.psId===filtPsNom;});
         const noLabora=filtPs&&trabajaEstaPs[dia.f]&&!trabajaEstaPs[dia.f].has(slot);
         if(noLabora){
@@ -4864,7 +4873,7 @@ function exportarAgendaPDF(){
       const librePorDia=dias.map(function(dia){
         const diaSlots=horasPs(ps.id,dia.f);
         const libres=diaSlots.filter(function(slot){
-          return !DB.sesiones.some(function(s){return s.fecha===dia.f&&s.hora===slot&&s.psId===ps.nombre&&_pacEstaActivo(s.pacId);});
+          return !DB.sesiones.some(function(s){return s.fecha===dia.f&&s.hora===slot&&s.psId===ps.nombre&&_sesEsVisibleEnAgenda(s);});
         });
         return {dia:dia,libres:libres,trabaja:diaSlots.length>0};
       });
@@ -5007,7 +5016,7 @@ function renderAgendaViaDia(fecha){
     '<span style="font-size:14px;font-weight:800">📅 '+fmtF(fecha)+'</span>'+
     '<button class="btn btn-primary btn-sm" onclick="abrirModalAgendar(_agFechaSel,null)">+ Agendar</button></div>';
   psicologas.forEach(function(ps){
-    var sesPsic=DB.sesiones.filter(function(s){return s.fecha===fecha&&s.psId===ps.nombre&&_pacEstaActivo(s.pacId);});
+    var sesPsic=DB.sesiones.filter(function(s){return s.fecha===fecha&&s.psId===ps.nombre&&_sesEsVisibleEnAgenda(s);});
     sesPsic.sort(function(a,b){return a.hora.localeCompare(b.hora);});
     var asistPsic=sesPsic.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
     h+='<div style="border-bottom:2px solid var(--accent)">'+
@@ -5210,7 +5219,10 @@ async function renderHistorial(){
           '<td style="white-space:nowrap">'+costoCelda+'</td>'+
           '<td style="white-space:nowrap">'+pagoCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
-          '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s):
+          '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s)+' '+
+            (s.tipo==='paquete'?
+              '<button class="btn btn-outline btn-sm" style="color:var(--red)" data-prog="'+((s._sb&&s._sb.programa_id)||'')+'" onclick="cancelarPaquete(this.dataset.prog,\''+(s.pacNom||'').replace(/'/g,"\\'")+'\')">🚫 Cancelar paquete</button>':
+              '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="cancelarSesionSuelta(\''+s.id+'\')">🚫 Cancelar sesión</button>'):
             '<span style="font-size:11px;color:var(--muted)">-</span>')+'</td></tr>';
       }).join('')+
       '</tbody></table></div>'
@@ -5642,6 +5654,55 @@ async function marcarAs(sesRef,nuevoEst){
   }
   var a=document.querySelector('.page.active');if(a&&typeof showPage==='function')showPage(a.id.replace('page-',''));
 }
+
+// ══════════════════════════════════════════════════
+//  CANCELAR (paciente que ya no continúa)
+// ══════════════════════════════════════════════════
+// "Cancelar sesión" es SOLO para una sesión suelta (no paquete): una sola
+// cita contratada que el paciente ya no va a tomar. Se marca cancelada y
+// se perdona lo pendiente de cobrar (mismo criterio que No Asistió en
+// sesión suelta) - no se presta el servicio, no se cobra, y el horario
+// queda libre para otro paciente.
+async function cancelarSesionSuelta(sesRef){
+  var s=DB.sesiones.find(function(x){return x.id===sesRef;});
+  if(!s){showToast('Sesión no encontrada','error');return;}
+  if(s.tipo==='paquete'){showToast('Esta sesión es parte de un paquete - usa "Cancelar paquete"','error');return;}
+  var pac=DB.pacientes.find(function(p){return p.id===s.pacId||p.nombre===s.pacId;});
+  if(!confirm('¿Cancelar la sesión de '+(s.pacNom||'este paciente')+' del '+fmtF(s.fecha)+' '+s.hora+'? El horario quedará libre y no se cobrará nada pendiente de esta sesión.'))return;
+  var sbId=(s._sb&&s._sb.id)||((typeof s.id==='string'&&s.id.length>20)?s.id:null);
+  if(!sbId){showToast('⚠️ Sesión sin ID de Supabase - recarga los datos','error');return;}
+  var yaAdelantado=(s._sb&&s._sb.adelanto)||0;
+  var noCobrado=Math.max(0,Math.round(((s.costoTotal||0)-yaAdelantado)*100)/100);
+  showToast('⏳ Cancelando...');
+  try{
+    await sbPatch('sesiones',{estado:'cancelado',saldo:0},{id:'eq.'+sbId});
+    if(noCobrado>0&&pac&&pac._sb&&pac._sb.id){
+      pac.saldo=Math.round(((pac.saldo||0)-noCobrado)*100)/100;
+      await sbPatch('pacientes',{saldo:pac.saldo},{id:'eq.'+pac._sb.id});
+    }
+    s.estado='cancelado';s.saldo=0;
+    showToast('✅ Sesión cancelada');
+    await cargarDesdeSB();
+  }catch(e){showToast('Error al cancelar: '+e.message,'error');console.error('[cancelarSesionSuelta]',e);}
+}
+// "Cancelar paquete" es para cuando el paciente NO continúa el
+// tratamiento: se cancelan TODAS las sesiones futuras (estado
+// "programado") de ese paquete de una sola vez, se liberan esos
+// horarios, y se anula la deuda restante del paquete completo (lo ya
+// asistido y pagado no se toca). Después de esto la psicóloga se encarga
+// de marcar al paciente como inactivo.
+async function cancelarPaquete(programaId,pacienteNombre){
+  if(!programaId){showToast('No se encontró el paquete de esta sesión','error');return;}
+  if(!confirm('¿Cancelar TODO el paquete de '+(pacienteNombre||'este paciente')+'? Se cancelan todas sus sesiones futuras pendientes, se liberan esos horarios y se anula el saldo restante del paquete. Esta acción no se puede deshacer.'))return;
+  showToast('⏳ Cancelando paquete...');
+  try{
+    await sbPatch('sesiones',{estado:'cancelado',saldo:0},{programa_id:'eq.'+programaId,estado:'eq.programado'});
+    await sbPatch('programas_paciente',{estado:'cancelado',saldo:0},{id:'eq.'+programaId});
+    showToast('✅ Paquete cancelado - horarios liberados');
+    await cargarDesdeSB();
+  }catch(e){showToast('Error al cancelar el paquete: '+e.message,'error');console.error('[cancelarPaquete]',e);}
+}
+
 function normHoraRec(h){
   h=String(h||'').trim();
   var m=h.match(/^(\d{1,2}):(\d{2})/);
