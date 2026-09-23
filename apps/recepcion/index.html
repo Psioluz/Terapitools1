@@ -3316,12 +3316,17 @@ async function guardarPaqueteFlujo(){
       const horaPago=horaLima(n);
       const filasPago=agFilasPagoParaGuardar(adelanto);
       for(const fp of filasPago){
-        // El pago se registra con la fecha de HOY (cuando el dinero
-        // realmente entra a caja) - no con fechaInicio (la fecha en que
-        // arranca el paquete, que puede ser a futuro). Si no, un adelanto
-        // cobrado hoy para un paquete que empieza la próxima semana no
-        // aparecía en el Reporte del Día de hoy, sino en el de esa fecha.
-        const pagoRow={fecha:today(),hora:horaPago,
+        // El pago se fecha con la MÁS TEMPRANA entre hoy y fechaInicio -
+        // cubre los dos casos reales: (1) un adelanto cobrado HOY para un
+        // paquete que arranca a futuro (fechaInicio>hoy) debe fecharse
+        // HOY, el día real del cobro, no en la fecha futura del paquete;
+        // (2) un registro con fecha RETROACTIVA (fechaInicio en el
+        // pasado, porque así ocurrió de verdad) debe fecharse con esa
+        // fecha pasada, no con hoy - si no, un paquete que en la realidad
+        // empezó el 19/08 aparecía cobrado hoy en el Reporte del Día,
+        // como si el dinero hubiera entrado recién ahora.
+        const fechaPago=(fechaInicio&&fechaInicio<today())?fechaInicio:today();
+        const pagoRow={fecha:fechaPago,hora:horaPago,
           monto:fp.monto,metodo:fp.metodo,concepto:'Adelanto '+(progRow.paquete_nombre||'paquete'),
           paciente_nombre:pac.nombre,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||'',
           programa_id:progRow.id};
@@ -3558,10 +3563,13 @@ async function guardarSesion(){
       const horaPago=horaLima(n);
       const filasPago=agFilasPagoParaGuardar(adelanto);
       filasPago.forEach(function(fp){
-        // Igual que en guardarPaqueteFlujo: el pago se fecha con HOY (día
-        // real del cobro), no con la fecha de la sesión que puede ser a
-        // futuro.
-        const pagoRow={fecha:today(),hora:horaPago,
+        // Igual que en guardarPaqueteFlujo: el pago se fecha con la más
+        // temprana entre hoy y la fecha de la sesión - cubre tanto un
+        // adelanto cobrado hoy para una sesión a futuro (se fecha hoy)
+        // como un registro retroactivo con fecha pasada (se fecha con esa
+        // fecha real, no con hoy).
+        const fechaPagoSes=(fecha&&fecha<today())?fecha:today();
+        const pagoRow={fecha:fechaPagoSes,hora:horaPago,
           monto:fp.monto,metodo:fp.metodo,concepto:'Adelanto '+(tipo==='paquete'&&paq?(paq.nombre||'paquete'):'sesión'),
           paciente_nombre:pac.nombre,psicologa_nombre:ps.nombre,terapia_nombre:ter.nombre,
           sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
