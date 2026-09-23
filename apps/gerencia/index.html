@@ -646,6 +646,10 @@ select.fsel{
     </div>
     <div style="padding:0 16px 12px;font-size:13px;font-weight:800;color:var(--muted)" id="agendaSemTit"></div>
     <div style="padding:0 16px 12px;font-size:11px;color:var(--muted)">Réplica de la agenda de recepción, con el filtro de sede propio de este panel - los filtros globales de arriba no aplican aquí. Los colores respetan los que cada recepcionista asignó a cada psicóloga.</div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:0 16px 12px;font-size:11px;color:var(--muted)">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:13px;height:13px;border-radius:3px;background:#94a3b8;display:inline-block;position:relative"><span style="position:absolute;top:-1px;right:1px;font-size:7px;font-weight:900;color:#000">R</span></span> Reprogramado (horario libre)</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:13px;height:13px;border-radius:3px;background:#94a3b8;display:inline-block;position:relative"><span style="position:absolute;top:-1px;right:1px;font-size:7px;font-weight:900;color:#000">P</span></span> Permiso (horario libre)</span>
+    </div>
   </div>
   <div class="card" style="padding:0">
     <div class="ag-scroll-box">
@@ -2426,6 +2430,7 @@ function renderAgendaGer(){
   var todasSes=(G.sesiones||[]).filter(function(s){
     if(sedeSel&&(s.sede||'')!==sedeSel)return false;
     if(psSel&&s.psNombre!==psSel)return false;
+    if(s.estado==='cancelado')return false;
     return true;
   });
 
@@ -2466,12 +2471,20 @@ function renderAgendaGer(){
       h+='<div class="ag-celda" style="background:'+bgCelda+';'+(sinNada?'opacity:.35':'')+'">';
       if(!sesList.length&&hayHorario)h+='<div class="ag-mas">+</div>';
       sesList.forEach(function(s){
+        // Igual que en Recepción: Reprogramado y Permiso dejan libre ese
+        // horario, así que ambos se pintan igual (gris, tachado, sin el
+        // color de la psicóloga) con una letra R/P que indica el motivo.
         var esReprog=s.estado==='reprogramado';
-        var bc=esReprog?'#94a3b8':colorPsAgendaGer(s.psNombre);
-        var bordeEstado=colorEstadoAgGer(s.estado);
+        var esPermiso=s.estado==='permiso';
+        var esLibre=esReprog||esPermiso;
+        var letra=esReprog?'R':esPermiso?'P':'';
+        var bc=esLibre?'#94a3b8':colorPsAgendaGer(s.psNombre);
+        var bordeEstado=esLibre?'rgba(0,0,0,.45)':colorEstadoAgGer(s.estado);
         var progTxt=(s.tipo==='paquete'&&s.totalPaq)?(' '+s.nroEnPaq+'/'+s.totalPaq):'';
-        var titulo=(s.pacNombre||'')+' · '+(s.terNombre||'')+progTxt+' · '+(s.psNombre||'')+(sedeSel?'':' · '+(s.sede||''))+(esReprog?' (reprogramado)':'');
-        h+='<div class="ag-chip" style="background:'+bc+';border-left:3px solid '+bordeEstado+(esReprog?';opacity:.55;text-decoration:line-through':'')+'" title="'+titulo.replace(/"/g,'')+'">'+
+        var titulo=(s.pacNombre||'')+' · '+(s.terNombre||'')+progTxt+' · '+(s.psNombre||'')+(sedeSel?'':' · '+(s.sede||''))+
+          (esReprog?' (reprogramado - horario libre)':esPermiso?' (permiso - horario libre)':'');
+        h+='<div class="ag-chip" style="position:relative;background:'+bc+';border-left:3px solid '+bordeEstado+(esLibre?';opacity:.55;text-decoration:line-through':'')+'" title="'+titulo.replace(/"/g,'')+'">'+
+          (letra?'<span style="position:absolute;top:1px;right:2px;font-size:9px;font-weight:900;text-decoration:none">'+letra+'</span>':'')+
           '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:800">'+(s.pacNombre||'').split(' ')[0]+'</div>'+
           '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;opacity:.9">'+abrevTerapiaGer(s.terNombre)+(sedeSel?'':' · '+(s.sede||''))+'</div>'+
           '</div>';
