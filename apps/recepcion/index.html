@@ -580,6 +580,7 @@ try{
         <button class="btn btn-success btn-sm" onclick="compartirReporteWA()">📱 WA (PDF)</button>
       </div>
     </div>
+    <div id="rptAvisoPendientes" style="padding:14px 14px 0"></div>
     <div class="grid g4" style="padding:14px">
       <div class="stat-card"><div class="stat-label">Total Sesiones</div><div class="stat-value" id="rptTotal">0</div></div>
       <div class="stat-card sc-green"><div class="stat-label">Asistieron</div><div class="stat-value" id="rptAsist">0</div></div>
@@ -4406,11 +4407,36 @@ function contarAlertas(){
     if(info&&info.total-info.hechas<=1)c++;
   });
   DB.sesiones.filter(s=>s.saldo>0&&s.estado==='programado'&&s.fecha>=hoy).forEach(()=>c++);
+  // Sesiones de DÍAS ANTERIORES que se quedaron sin marcar asistencia -
+  // las de HOY no cuentan porque todavía es normal que sigan en
+  // "programado" hasta que ocurran.
+  DB.sesiones.filter(s=>s.estado==='programado'&&s.fecha<hoy).forEach(()=>c++);
   return c;
+}
+// Sesiones "programado" con fecha ANTERIOR a hoy - se le quedaron sin
+// marcar asistencia a la recepcionista. Se excluyen las de hoy a propósito
+// (todavía no pasaron, es normal que sigan pendientes).
+function _sesionesPendientesAnteriores(){
+  const hoy=today();
+  return DB.sesiones.filter(s=>s.estado==='programado'&&s.fecha<hoy)
+    .sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora));
+}
+function irAReporteFecha(fecha){
+  showPage('reportes');
+  const el=document.getElementById('rptFecha');if(el)el.value=fecha;
+  generarReporte();
 }
 
 function renderAlertas(){
   let h='';
+  // Sesiones de días anteriores sin marcar asistencia - lo primero que
+  // debe verse, para que no se acumulen sin que nadie se dé cuenta.
+  _sesionesPendientesAnteriores().forEach(function(s){
+    const pac=getPac(s.pacId);
+    h+='<div class="alert al-danger" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
+      '<span>⏰ <strong>'+pac.nombre+'</strong> - Sesión del '+fmtF(s.fecha)+' '+s.hora+' sin marcar asistencia</span>'+
+      '<button class="btn btn-outline btn-sm" onclick="irAReporteFecha(\''+s.fecha+'\')">Ver e ir al Reporte</button></div>';
+  });
   // Aquí solo aparece la deuda ya VENCIDA (en rojo) - el saldo a favor y
   // las cuotas que todavía no llegan a su fecha se ven en la ficha del
   // paciente/Historial, pero no ensucian esta lista de "hay que cobrar ya".
@@ -4477,8 +4503,27 @@ async function atenderSolicitudWeb(id){
 // ══════════════════════════════════════════════════
 //  REPORTE
 // ══════════════════════════════════════════════════
+// Aviso fijo en Reporte del Día (independiente de la fecha que se esté
+// viendo) con las sesiones de días anteriores sin marcar asistencia - el
+// momento en que la recepcionista entra aquí es, en la práctica, cuando
+// cierra caja del día, así que es el lugar donde más seguro es que lo vea.
+function _renderAvisoPendientesReporte(){
+  const el=document.getElementById('rptAvisoPendientes');if(!el)return;
+  const pend=_sesionesPendientesAnteriores();
+  if(!pend.length){el.innerHTML='';return;}
+  el.innerHTML='<div class="alert al-danger" style="display:flex;flex-direction:column;gap:6px">'+
+    '<strong>⏰ '+pend.length+' sesión(es) de días anteriores sin marcar asistencia:</strong>'+
+    pend.map(function(s){
+      const pac=getPac(s.pacId);
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:4px 0;border-top:1px solid rgba(0,0,0,.06)">'+
+        '<span>'+pac.nombre+' - '+fmtF(s.fecha)+' '+s.hora+'</span>'+
+        '<button class="btn btn-outline btn-sm" onclick="irAReporteFecha(\''+s.fecha+'\')">Ir a esa fecha</button></div>';
+    }).join('')+
+    '</div>';
+}
 function generarReporte(){
   const fecha=document.getElementById('rptFecha')?.value||today();
+  _renderAvisoPendientesReporte();
   const ses=DB.sesiones.filter(s=>s.fecha===fecha);
   const pags=DB.pagos.filter(p=>p.fecha===fecha);
   const asist=ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
