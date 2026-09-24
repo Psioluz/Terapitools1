@@ -5091,7 +5091,13 @@ var _waEnviados={}; // sesionId -> {enviado_por, enviado_el} - recordatorios ya 
 
 async function renderWA(){
   const hoy=today();
-  const ses=DB.sesiones.filter(s=>s.fecha===hoy&&s.estado!=='cancelado');
+  // Solo sesiones que TODAVÍA van a pasar hoy ("programado") - una
+  // reprogramada o con permiso no tiene cita real ese día (ocupa el
+  // horario pero no hay paciente esperado), y una ya marcada
+  // asistió/no asistió/cancelada no necesita recordatorio. Se ordena por
+  // hora para que la lista siga el mismo orden que la agenda del día.
+  const ses=DB.sesiones.filter(s=>s.fecha===hoy&&s.estado==='programado')
+    .sort((a,b)=>a.hora.localeCompare(b.hora));
   const el=document.getElementById('waList');if(!el)return;
   if(!ses.length){el.innerHTML='<div style="color:var(--muted);padding:14px">Sin sesiones hoy.</div>';return;}
   try{
@@ -5128,7 +5134,9 @@ function enviarWA(sesionId,tel,nombre,terapia,hora){
   const tpl=document.getElementById('waTemplate')?.value||'¡Hola {nombre}! 💜 Te escribimos de Psicoluz para recordarte tu sesión de {terapia} de hoy a las {hora}, en la sede {sede}. Te esperamos con mucho gusto - si necesitas reprogramar, avísanos por este medio. ¡Que tengas un lindo día! ✨';
   const msg=tpl.replace(/{nombre}/g,nombre).replace(/{terapia}/g,terapia).replace(/{hora}/g,hora).replace(/{sede}/g,DB.sede);
   const num=tel.replace(/\D/g,'');
-  window.open('https://wa.me/'+(num.startsWith('51')?num:'51'+num)+'?text='+encodeURIComponent(msg),'_blank');
+  // api.whatsapp.com/send maneja mejor los emojis que wa.me en varios
+  // Android/WhatsApp - con wa.me algunos celulares los reciben como "?".
+  window.open('https://api.whatsapp.com/send?phone='+(num.startsWith('51')?num:'51'+num)+'&text='+encodeURIComponent(msg),'_blank');
   sbPost('recordatorios_enviados',{sesion_id:sesionId,sede:DB.sede,paciente_nombre:nombre,
     fecha:today(),hora:hora,terapia:terapia,enviado_por:DB.usuario||''})
     .then(()=>renderWA())
@@ -5629,7 +5637,7 @@ function compartirReporteWA(){
     });
   }
   msg+='\n_(Descarga el PDF por separado y adjúntalo al mensaje)_';
-  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+  window.open('https://api.whatsapp.com/send?text='+encodeURIComponent(msg),'_blank');
   exportarPDF();
 }
 
