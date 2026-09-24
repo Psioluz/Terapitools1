@@ -919,12 +919,23 @@ try{
   </div>
   <div class="modal-body">
     <div class="grid g2">
-      <div class="form-group" style="grid-column:1/-1">
+      <div class="form-group" style="grid-column:1/-1;background:#fff7ed;border-radius:10px;padding:10px 12px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;cursor:pointer">
+          <input type="checkbox" id="pg-esAjuste" onchange="pgToggleAjuste()" style="width:16px;height:16px">
+          🔄 Es un ajuste de caja (ej. vuelto cubierto por Coordinación por Yape), no un paciente
+        </label>
+        <div style="font-size:10.5px;color:var(--muted);margin-top:3px">Úsalo para que la caja física cuadre sin inventarle un saldo a favor a ningún paciente - queda registrado aparte, en "Otros pagos del día".</div>
+      </div>
+      <div class="form-group" id="pg-grp-pac" style="grid-column:1/-1">
         <label class="form-label">Paciente</label>
         <select class="form-control" id="pg-pac" onchange="pgOnPaciente()"></select>
         <div id="pg-deuda-info" style="display:none;margin-top:6px;font-size:11.5px;padding:8px 10px;border-radius:8px"></div>
       </div>
-      <div class="form-group">
+      <div class="form-group" id="pg-grp-ajusteConcepto" style="grid-column:1/-1;display:none">
+        <label class="form-label">Concepto del ajuste *</label>
+        <input class="form-control" id="pg-ajusteConcepto" placeholder="Ej: Vuelto de S/62 - Wilfredo Díaz - cubierto por Coordinación (Yape)">
+      </div>
+      <div class="form-group" id="pg-grp-ps">
         <label class="form-label">Psicóloga</label>
         <select class="form-control" id="pg-ps"></select>
       </div>
@@ -3807,7 +3818,24 @@ function abrirPago(sesId){
   const elPgNotas=document.getElementById('pg-notas');if(elPgNotas)elPgNotas.value='';
   const elDeudaInfo=document.getElementById('pg-deuda-info');if(elDeudaInfo)elDeudaInfo.style.display='none';
   document.getElementById('modalPagoTit').textContent='💰 Cobrar - '+getPac(ses.pacId).nombre;
+  const elAjuste=document.getElementById('pg-esAjuste');if(elAjuste)elAjuste.checked=false;
+  pgToggleAjuste();
   openModal('modalPago');
+}
+// El checkbox "Es un ajuste de caja" reemplaza Paciente/Psicóloga por un
+// campo de concepto libre - sirve para cuadrar la caja física (ej. el
+// vuelto que Coordinación termina cubriendo por Yape cuando no hay
+// cambio) sin inventarle un saldo a favor a ningún paciente real. Al no
+// llevar sesion_id ni psicologa_nombre, cae solo en "Otros pagos del
+// día" del Reporte, nunca en la fila de un paciente.
+function pgToggleAjuste(){
+  const esAjuste=!!document.getElementById('pg-esAjuste')?.checked;
+  const grpPac=document.getElementById('pg-grp-pac');
+  const grpPs=document.getElementById('pg-grp-ps');
+  const grpConcepto=document.getElementById('pg-grp-ajusteConcepto');
+  if(grpPac)grpPac.style.display=esAjuste?'none':'block';
+  if(grpPs)grpPs.style.display=esAjuste?'none':'block';
+  if(grpConcepto)grpConcepto.style.display=esAjuste?'block':'none';
 }
 // "+ Registrar Pago" genérico (no viene de una fila de sesión puntual):
 // no hay sesión que decrementar directamente, se aplica al paquete activo
@@ -3821,6 +3849,9 @@ function abrirModalPagoGenerico(){
   const elPgNotas=document.getElementById('pg-notas');if(elPgNotas)elPgNotas.value='';
   const elDeudaInfo=document.getElementById('pg-deuda-info');if(elDeudaInfo)elDeudaInfo.style.display='none';
   document.getElementById('modalPagoTit').textContent='💰 Registrar Pago';
+  const elAjuste=document.getElementById('pg-esAjuste');if(elAjuste)elAjuste.checked=false;
+  const elAjusteConcepto=document.getElementById('pg-ajusteConcepto');if(elAjusteConcepto)elAjusteConcepto.value='';
+  pgToggleAjuste();
   openModal('modalPago');
 }
 // Al elegir un paciente en "+ Registrar Pago" (genérico, no desde una fila
@@ -3957,13 +3988,34 @@ async function reconciliarCheckpoints(programaId){
 }
 
 async function guardarPago(){
-  const pacId=document.getElementById('pg-pac').value||'';
-  const psId=document.getElementById('pg-ps').value||'';
   const fecha=document.getElementById('pg-fecha').value||today();
   const monto=parseFloat(document.getElementById('pg-monto').value)||0;
   const metodo=document.getElementById('pg-metodo').value;
-  const concepto=document.getElementById('pg-concepto').value||'Pago';
   const notas=document.getElementById('pg-notas')?.value||'';
+  // Ajuste de caja (ej. vuelto que Coordinación cubre por Yape cuando no
+  // hay cambio): no es plata de ningún paciente, así que NO pasa por
+  // pacientes/sesiones/paquetes - solo se guarda en pagos con un concepto
+  // libre, sin sesion_id ni psicologa_nombre, para que quede en "Otros
+  // pagos del día" y la caja física cuadre sin generarle a nadie un saldo
+  // a favor falso.
+  if(document.getElementById('pg-esAjuste')?.checked){
+    const conceptoAjuste=(document.getElementById('pg-ajusteConcepto')?.value||'').trim();
+    if(!conceptoAjuste||monto<=0){showToast('Describe el concepto del ajuste y el monto','error');return;}
+    showToast('⏳ Registrando ajuste de caja...');
+    try{
+      const n=new Date();const hora=horaLima(n);
+      await sbPost('pagos',{fecha:fecha,hora:hora,monto:monto,metodo:metodo,
+        concepto:'[Ajuste de caja] '+conceptoAjuste,paciente_nombre:'[Ajuste de caja] '+conceptoAjuste,
+        notas:notas,sede:DB.sede,registrado_por:DB.usuario||''});
+      closeModal('modalPago');
+      showToast('✅ Ajuste de caja registrado');
+      await cargarDesdeSB();
+    }catch(e){showToast('Error al registrar el ajuste: '+e.message,'error');console.error('[guardarPago ajuste]',e);}
+    return;
+  }
+  const pacId=document.getElementById('pg-pac').value||'';
+  const psId=document.getElementById('pg-ps').value||'';
+  const concepto=document.getElementById('pg-concepto').value||'Pago';
   if(!pacId||monto<=0){showToast('Paciente y monto son obligatorios','error');return;}
   const pac=getPac(pacId);const ps=getPs(psId);
   const n=new Date();
