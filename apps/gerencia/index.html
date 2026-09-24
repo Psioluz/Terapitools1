@@ -2087,6 +2087,12 @@ function _pagosFlatSorted(d){
 // nativo de Excel al abrir HTML - no hace falta ninguna librería, y cada
 // <table> de nivel superior en el body se vuelve una hoja, en el mismo
 // orden que <x:ExcelWorksheet><x:Name> declarado abajo.
+// El truco de "una <table> por hoja" en un .xls HTML solo funciona cuando
+// Excel exporta varios archivos MHTML enlazados - en un único HTML inline
+// como este, Excel ignora los <x:ExcelWorksheet> declarados y vuelca TODO
+// el body en una sola hoja. Por eso el detalle aparecía mezclado en
+// "Resumen" y la hoja "Detalle" quedaba vacía. El formato que sí abre con
+// hojas reales en un solo archivo es SpreadsheetML (el XML de Excel 2003).
 function exportarIngresosExcel(){
   var d=_prepIngresosExport();
   if(!d.totalPagos){alert('No hay pagos en el período/sede filtrados para exportar.');return;}
@@ -2094,42 +2100,55 @@ function exportarIngresosExcel(){
   var totYp=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].yape;},0);
   var totTr=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].transferencia;},0);
   var totAll=totEf+totYp+totTr;
-  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
-  var thSt='background:#2d1a3d;color:#fff;padding:9px 10px;text-align:left;font-weight:700;font-size:11px';
-  var tdSt='padding:7px 10px;border-bottom:1px solid #e2e8f0';
-  var resumenTabla='<table><tr><th style="'+thSt+'">Fecha</th><th style="'+thSt+'">Efectivo</th><th style="'+thSt+'">Yape/Plin</th><th style="'+thSt+'">Transferencia</th><th style="'+thSt+'">Total</th></tr>'+
-    d.diasOrd.map(function(f,i){
-      var r=d.porDia[f];var tot=r.efectivo+r.yape+r.transferencia;
-      var bg=i%2?'background:#f8faff':'';
-      return '<tr><td style="'+tdSt+';'+bg+'">'+fmtF(f)+'</td><td style="'+tdSt+';'+bg+'">'+r.efectivo+'</td>'+
-        '<td style="'+tdSt+';'+bg+'">'+r.yape+'</td><td style="'+tdSt+';'+bg+'">'+r.transferencia+'</td>'+
-        '<td style="'+tdSt+';'+bg+';font-weight:800">'+tot+'</td></tr>';
-    }).join('')+
-    '<tr><td style="'+tdSt+';background:#fdf2f8;font-weight:900">TOTAL</td><td style="'+tdSt+';background:#fdf2f8;font-weight:900">'+totEf+'</td>'+
-    '<td style="'+tdSt+';background:#fdf2f8;font-weight:900">'+totYp+'</td><td style="'+tdSt+';background:#fdf2f8;font-weight:900">'+totTr+'</td>'+
-    '<td style="'+tdSt+';background:#fdf2f8;font-weight:900">'+totAll+'</td></tr></table>';
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function cT(val,style){return '<Cell'+(style?' ss:StyleID="'+style+'"':'')+'><Data ss:Type="String">'+esc(val)+'</Data></Cell>';}
+  function cN(val,style){return '<Cell'+(style?' ss:StyleID="'+style+'"':'')+'><Data ss:Type="Number">'+(val||0)+'</Data></Cell>';}
+  function row(cells){return '<Row>'+cells.join('')+'</Row>';}
+
+  var filasResumen=d.diasOrd.map(function(f,i){
+    var r=d.porDia[f];var tot=r.efectivo+r.yape+r.transferencia;
+    var sT=i%2?'sRowAlt':'sRow',sM=i%2?'sMoneyAlt':'sMoney',sMB=i%2?'sMoneyBoldAlt':'sMoneyBold';
+    return row([cT(fmtF(f),sT),cN(r.efectivo,sM),cN(r.yape,sM),cN(r.transferencia,sM),cN(tot,sMB)]);
+  }).join('')+row([cT('TOTAL','sTotal'),cN(totEf,'sTotalMoney'),cN(totYp,'sTotalMoney'),cN(totTr,'sTotalMoney'),cN(totAll,'sTotalMoney')]);
+
   var flat=_pagosFlatSorted(d);
-  var detalleTabla='<table><tr><th style="'+thSt+'">Fecha</th><th style="'+thSt+'">Hora</th><th style="'+thSt+'">Psicóloga</th><th style="'+thSt+'">Paciente</th>'+
-    '<th style="'+thSt+'">Concepto</th><th style="'+thSt+'">Método</th><th style="'+thSt+'">Notas</th><th style="'+thSt+'">Monto</th></tr>'+
-    flat.map(function(p,i){
-      var bg=i%2?'background:#f8faff':'';
-      return '<tr><td style="'+tdSt+';'+bg+'">'+fmtF(p.fecha)+'</td><td style="'+tdSt+';'+bg+'">'+esc(p.hora)+'</td>'+
-        '<td style="'+tdSt+';'+bg+'">'+esc(p.psicologa_nombre||'Sin psicóloga / Solo pago')+'</td>'+
-        '<td style="'+tdSt+';'+bg+'">'+esc(p.paciente_nombre)+'</td><td style="'+tdSt+';'+bg+'">'+esc(p.concepto)+'</td>'+
-        '<td style="'+tdSt+';'+bg+'">'+esc(p.metodo)+'</td><td style="'+tdSt+';'+bg+'">'+esc(p.notas)+'</td>'+
-        '<td style="'+tdSt+';'+bg+';font-weight:700">'+(p.monto||0)+'</td></tr>';
-    }).join('')+'</table>';
-  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">'+
-    '<head><meta charset="UTF-8">'+
-    '<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets>'+
-    '<x:ExcelWorksheet><x:Name>Resumen</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet>'+
-    '<x:ExcelWorksheet><x:Name>Detalle</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet>'+
-    '</x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'+
-    '<style>table{border-collapse:collapse;font-family:Calibri,Arial,sans-serif} td,th{'+tdSt+'} h1,h2{font-family:Calibri,Arial,sans-serif}</style></head><body>'+
-    '<h1>Ingresos - '+esc(d.sedeLbl)+' - '+esc(d.mesLbl)+'</h1>'+resumenTabla+
-    '<h1>Detalle de pagos - '+esc(d.sedeLbl)+' - '+esc(d.mesLbl)+'</h1>'+detalleTabla+
-    '</body></html>';
-  var blob=new Blob(['﻿'+html],{type:'application/vnd.ms-excel;charset=utf-8;'});
+  var filasDetalle=flat.map(function(p,i){
+    var sT=i%2?'sRowAlt':'sRow',sMB=i%2?'sMoneyBoldAlt':'sMoneyBold';
+    return row([cT(fmtF(p.fecha),sT),cT(p.hora||'',sT),cT(p.psicologa_nombre||'Sin psicóloga / Solo pago',sT),
+      cT(p.paciente_nombre||'',sT),cT(p.concepto||'',sT),cT(p.metodo||'',sT),cT(p.notas||'',sT),cN(p.monto,sMB)]);
+  }).join('');
+
+  var xml='<?xml version="1.0"?>'+
+    '<?mso-application progid="Excel.Sheet"?>'+
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" '+
+    'xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'+
+    '<Styles>'+
+    '<Style ss:ID="sHead"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#2D1A3D" ss:Pattern="Solid"/></Style>'+
+    '<Style ss:ID="sRow"></Style>'+
+    '<Style ss:ID="sRowAlt"><Interior ss:Color="#F8FAFF" ss:Pattern="Solid"/></Style>'+
+    '<Style ss:ID="sMoney"><NumberFormat ss:Format="&quot;S/&quot;#,##0.00"/></Style>'+
+    '<Style ss:ID="sMoneyAlt"><Interior ss:Color="#F8FAFF" ss:Pattern="Solid"/><NumberFormat ss:Format="&quot;S/&quot;#,##0.00"/></Style>'+
+    '<Style ss:ID="sMoneyBold"><Font ss:Bold="1"/><NumberFormat ss:Format="&quot;S/&quot;#,##0.00"/></Style>'+
+    '<Style ss:ID="sMoneyBoldAlt"><Font ss:Bold="1"/><Interior ss:Color="#F8FAFF" ss:Pattern="Solid"/><NumberFormat ss:Format="&quot;S/&quot;#,##0.00"/></Style>'+
+    '<Style ss:ID="sTotal"><Font ss:Bold="1"/><Interior ss:Color="#FDF2F8" ss:Pattern="Solid"/></Style>'+
+    '<Style ss:ID="sTotalMoney"><Font ss:Bold="1"/><Interior ss:Color="#FDF2F8" ss:Pattern="Solid"/><NumberFormat ss:Format="&quot;S/&quot;#,##0.00"/></Style>'+
+    '</Styles>'+
+    '<Worksheet ss:Name="Resumen">'+
+      '<Table>'+
+      '<Column ss:Width="80"/><Column ss:Width="70"/><Column ss:Width="70"/><Column ss:Width="90"/><Column ss:Width="80"/>'+
+      row([cT('Fecha','sHead'),cT('Efectivo','sHead'),cT('Yape/Plin','sHead'),cT('Transferencia','sHead'),cT('Total','sHead')])+
+      filasResumen+
+      '</Table>'+
+    '</Worksheet>'+
+    '<Worksheet ss:Name="Detalle">'+
+      '<Table>'+
+      '<Column ss:Width="80"/><Column ss:Width="55"/><Column ss:Width="160"/><Column ss:Width="140"/><Column ss:Width="160"/><Column ss:Width="90"/><Column ss:Width="140"/><Column ss:Width="70"/>'+
+      row([cT('Fecha','sHead'),cT('Hora','sHead'),cT('Psicóloga','sHead'),cT('Paciente','sHead'),cT('Concepto','sHead'),cT('Método','sHead'),cT('Notas','sHead'),cT('Monto','sHead')])+
+      filasDetalle+
+      '</Table>'+
+    '</Worksheet>'+
+    '</Workbook>';
+  var blob=new Blob(['﻿'+xml],{type:'application/vnd.ms-excel;charset=utf-8;'});
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a');
   a.href=url;a.download='Ingresos_'+d.sedeLbl.replace(/\s+/g,'_')+'_'+d.mesLbl+'.xls';
