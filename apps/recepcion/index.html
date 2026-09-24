@@ -935,10 +935,6 @@ try{
         <label class="form-label">Paciente a quien se le dio el vuelto (opcional)</label>
         <select class="form-control" id="pg-ajustePaciente"></select>
       </div>
-      <div class="form-group" id="pg-grp-ajusteConcepto" style="grid-column:1/-1;display:none">
-        <label class="form-label">Concepto del ajuste *</label>
-        <input class="form-control" id="pg-ajusteConcepto" placeholder="Ej: Vuelto de S/62 cubierto por Coordinación (Yape)">
-      </div>
       <div class="form-group" id="pg-grp-ps">
         <label class="form-label">Psicóloga</label>
         <select class="form-control" id="pg-ps"></select>
@@ -960,7 +956,7 @@ try{
           <option value="Transferencia">🏦 Transferencia</option>
         </select>
       </div>
-      <div class="form-group" style="grid-column:1/-1">
+      <div class="form-group" id="pg-grp-concepto" style="grid-column:1/-1">
         <label class="form-label">Concepto</label>
         <input class="form-control" id="pg-concepto" list="pg-concepto-opciones" placeholder="Ej: Paquete 8 sesiones, Sesión, etc.">
         <datalist id="pg-concepto-opciones">
@@ -3838,11 +3834,11 @@ function pgToggleAjuste(){
   const grpPac=document.getElementById('pg-grp-pac');
   const grpPs=document.getElementById('pg-grp-ps');
   const grpAjustePac=document.getElementById('pg-grp-ajustePac');
-  const grpConcepto=document.getElementById('pg-grp-ajusteConcepto');
+  const grpConceptoNormal=document.getElementById('pg-grp-concepto');
   if(grpPac)grpPac.style.display=esAjuste?'none':'block';
   if(grpPs)grpPs.style.display=esAjuste?'none':'block';
   if(grpAjustePac)grpAjustePac.style.display=esAjuste?'block':'none';
-  if(grpConcepto)grpConcepto.style.display=esAjuste?'block':'none';
+  if(grpConceptoNormal)grpConceptoNormal.style.display=esAjuste?'none':'block';
 }
 // "+ Registrar Pago" genérico (no viene de una fila de sesión puntual):
 // no hay sesión que decrementar directamente, se aplica al paquete activo
@@ -3857,7 +3853,6 @@ function abrirModalPagoGenerico(){
   const elDeudaInfo=document.getElementById('pg-deuda-info');if(elDeudaInfo)elDeudaInfo.style.display='none';
   document.getElementById('modalPagoTit').textContent='💰 Registrar Pago';
   const elAjuste=document.getElementById('pg-esAjuste');if(elAjuste)elAjuste.checked=false;
-  const elAjusteConcepto=document.getElementById('pg-ajusteConcepto');if(elAjusteConcepto)elAjusteConcepto.value='';
   const elAjustePac=document.getElementById('pg-ajustePaciente');if(elAjustePac)elAjustePac.value='';
   pgToggleAjuste();
   openModal('modalPago');
@@ -4007,8 +4002,8 @@ async function guardarPago(){
   // pagos del día" y la caja física cuadre sin generarle a nadie un saldo
   // a favor falso.
   if(document.getElementById('pg-esAjuste')?.checked){
-    const conceptoAjuste=(document.getElementById('pg-ajusteConcepto')?.value||'').trim();
-    if(!conceptoAjuste||monto<=0){showToast('Describe el concepto del ajuste y el monto','error');return;}
+    const conceptoAjuste='Vuelto cubierto por Coordinación - Yape';
+    if(monto<=0){showToast('Indica el monto del ajuste','error');return;}
     const ajustePacId=document.getElementById('pg-ajustePaciente')?.value||'';
     const ajustePac=ajustePacId?getPac(ajustePacId):null;
     showToast('⏳ Registrando ajuste de caja...');
