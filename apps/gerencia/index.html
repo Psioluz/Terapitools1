@@ -505,7 +505,10 @@ select.fsel{
   <div class="card">
     <div class="ch" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div class="ct">📅 Ingresos por Día</div>
-      <button onclick="exportarIngresosMes()" style="border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 12px;font-weight:800;font-size:12px;cursor:pointer">📊 Exportar ingresos del mes</button>
+      <div style="display:flex;gap:8px">
+        <button onclick="exportarIngresosPDF()" style="border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 12px;font-weight:800;font-size:12px;cursor:pointer">📄 Exportar PDF</button>
+        <button onclick="exportarIngresosExcel()" style="border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 12px;font-weight:800;font-size:12px;cursor:pointer">📊 Exportar Excel</button>
+      </div>
     </div>
     <div class="cb" style="overflow-x:auto">
       <table id="tblIngDia"><thead><tr><th>Fecha</th><th>Efectivo</th><th>Yape/Plin</th><th>Transferencia</th><th>Total</th><th></th></tr></thead>
@@ -2022,25 +2025,165 @@ function verDetalleIngresosDia(fecha){
 // Exporta a CSV (se abre directo en Excel) el detalle de TODOS los pagos
 // del mes/sede actualmente filtrados en Finanzas - una fila por pago, no
 // solo el resumen por día, para que Gerencia pueda auditar cada uno.
-function exportarIngresosMes(){
-  var pagosMes=filtPagos(G.pagosLocal).slice().sort(function(a,b){return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
-  if(!pagosMes.length){alert('No hay pagos en el período/sede filtrados para exportar.');return;}
-  function csvEsc(s){s=String(s==null?'':s);return/[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
-  var filas=[['Fecha','Hora','Sede','Paciente','Psicóloga','Concepto','Método','Monto','Notas']];
+// Arma la misma agrupación que ya usa la tabla en pantalla (resumen por
+// día) MÁS el detalle por psicóloga/paciente/concepto de cada día - lo
+// comparten exportarIngresosExcel y exportarIngresosPDF para que ambos
+// exports muestren exactamente lo mismo que la web, resumen y detalle.
+function _prepIngresosExport(){
+  var pagosMes=filtPagos(G.pagosLocal);
+  var porDia={},porDiaPagos={};
   pagosMes.forEach(function(p){
-    filas.push([p.fecha||'',p.hora||'',p._sede||p.sede||'',p.paciente_nombre||'',p.psicologa_nombre||'',p.concepto||'',p.metodo||'',(p.monto||0),p.notas||'']);
+    var f=p.fecha;if(!f)return;
+    if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0};
+    if(!porDiaPagos[f])porDiaPagos[f]=[];
+    porDiaPagos[f].push(p);
+    var m2=p.metodo||'Efectivo';
+    if(m2==='Yape'||m2==='Plin')porDia[f].yape+=p.monto||0;
+    else if(m2==='Transferencia'||m2==='Tarjeta')porDia[f].transferencia+=p.monto||0;
+    else porDia[f].efectivo+=p.monto||0;
   });
-  var totalMes=pagosMes.reduce(function(a,p){return a+(p.monto||0);},0);
-  filas.push(['','','','','','','TOTAL',totalMes,'']);
-  var csv='﻿'+filas.map(function(f){return f.map(csvEsc).join(',');}).join('\r\n');
-  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  var url=URL.createObjectURL(blob);
+  var diasOrd=Object.keys(porDia).sort().reverse();
   var mesLbl=getFiltMes()||mesActual();
-  var sedeLbl=getFiltSede()||'TodasLasSedes';
+  var sedeLbl=getFiltSede()||'Todas las sedes';
+  return{porDia:porDia,porDiaPagos:porDiaPagos,diasOrd:diasOrd,mesLbl:mesLbl,sedeLbl:sedeLbl,totalPagos:pagosMes.length};
+}
+function _detalleDiaPorPs(pagosDia){
+  var porPs={};
+  pagosDia.forEach(function(p){
+    var key=p.psicologa_nombre||'Sin psicóloga / Solo pago';
+    (porPs[key]=porPs[key]||[]).push(p);
+  });
+  return Object.keys(porPs).sort(function(a,b){
+    if(a==='Sin psicóloga / Solo pago')return 1;
+    if(b==='Sin psicóloga / Solo pago')return -1;
+    return a.localeCompare(b);
+  }).map(function(k){return{psicologa:k,pagos:porPs[k].slice().sort(function(a,b){return(a.hora||'').localeCompare(b.hora||'');})};});
+}
+
+// Excel "tal cual se ve en la web": es un HTML con la misma tabla de
+// resumen (mismos colores de cabecera/zebra que la pantalla) más, abajo,
+// el detalle de cada día agrupado por psicóloga - Excel abre HTML con
+// estilos inline y los respeta como formato de celda, sin necesitar
+// ninguna librería.
+function exportarIngresosExcel(){
+  var d=_prepIngresosExport();
+  if(!d.totalPagos){alert('No hay pagos en el período/sede filtrados para exportar.');return;}
+  var totEf=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].efectivo;},0);
+  var totYp=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].yape;},0);
+  var totTr=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].transferencia;},0);
+  var totAll=totEf+totYp+totTr;
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+  var thSt='background:#2d1a3d;color:#fff;padding:9px 10px;text-align:left;font-weight:700;font-size:11px';
+  var tdSt='padding:8px 10px;border-bottom:1px solid #e2e8f0';
+  var html='<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8">'+
+    '<style>table{border-collapse:collapse;font-family:Calibri,Arial,sans-serif} td,th{'+tdSt+'} h1,h2{font-family:Calibri,Arial,sans-serif}</style></head><body>'+
+    '<h1>Ingresos - '+esc(d.sedeLbl)+' - '+esc(d.mesLbl)+'</h1>'+
+    '<h2>Resumen por día</h2>'+
+    '<table><tr><th style="'+thSt+'">Fecha</th><th style="'+thSt+'">Efectivo</th><th style="'+thSt+'">Yape/Plin</th><th style="'+thSt+'">Transferencia</th><th style="'+thSt+'">Total</th></tr>'+
+    d.diasOrd.map(function(f,i){
+      var r=d.porDia[f];var tot=r.efectivo+r.yape+r.transferencia;
+      var bg=i%2?'background:#f8faff':'';
+      return '<tr><td style="'+tdSt+';'+bg+'">'+fmtF(f)+'</td><td style="'+tdSt+';'+bg+'">'+r.efectivo+'</td>'+
+        '<td style="'+tdSt+';'+bg+'">'+r.yape+'</td><td style="'+tdSt+';'+bg+'">'+r.transferencia+'</td>'+
+        '<td style="'+tdSt+';'+bg+';font-weight:800">'+tot+'</td></tr>';
+    }).join('')+
+    '<tr><td style="'+tdSt+';background:#fdf2f8;font-weight:900">TOTAL</td><td style="'+tdSt+';background:#fdf2f8;font-weight:900">'+totEf+'</td>'+
+    '<td style="'+tdSt+';background:#fdf2f8;font-weight:900">'+totYp+'</td><td style="'+tdSt+';background:#fdf2f8;font-weight:900">'+totTr+'</td>'+
+    '<td style="'+tdSt+';background:#fdf2f8;font-weight:900">'+totAll+'</td></tr></table>'+
+    '<br><h2>Detalle día por día</h2>'+
+    d.diasOrd.map(function(f){
+      var grupos=_detalleDiaPorPs(d.porDiaPagos[f]);
+      return '<h3 style="background:#4a0e2e;color:#fff;padding:8px 12px;font-family:Calibri,Arial,sans-serif">'+fmtF(f)+'</h3>'+
+        grupos.map(function(g){
+          var subtotal=g.pagos.reduce(function(a,p){return a+(p.monto||0);},0);
+          return '<div style="font-weight:700;padding:6px 0;font-family:Calibri,Arial,sans-serif">'+esc(g.psicologa)+' - Subtotal: S/'+subtotal+'</div>'+
+            '<table><tr><th style="'+thSt+'">Hora</th><th style="'+thSt+'">Paciente</th><th style="'+thSt+'">Concepto</th><th style="'+thSt+'">Método</th><th style="'+thSt+'">Notas</th><th style="'+thSt+'">Monto</th></tr>'+
+            g.pagos.map(function(p){
+              return '<tr><td style="'+tdSt+'">'+esc(p.hora)+'</td><td style="'+tdSt+'">'+esc(p.paciente_nombre)+'</td>'+
+                '<td style="'+tdSt+'">'+esc(p.concepto)+'</td><td style="'+tdSt+'">'+esc(p.metodo)+'</td>'+
+                '<td style="'+tdSt+'">'+esc(p.notas)+'</td><td style="'+tdSt+';font-weight:700">'+(p.monto||0)+'</td></tr>';
+            }).join('')+'</table>';
+        }).join('');
+    }).join('')+
+    '</body></html>';
+  var blob=new Blob(['﻿'+html],{type:'application/vnd.ms-excel;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
   var a=document.createElement('a');
-  a.href=url;a.download='Ingresos_'+sedeLbl.replace(/\s+/g,'_')+'_'+mesLbl+'.csv';
+  a.href=url;a.download='Ingresos_'+d.sedeLbl.replace(/\s+/g,'_')+'_'+d.mesLbl+'.xls';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// PDF con el mismo resumen + detalle - usa jsPDF + autoTable (se cargan
+// dinámicamente la primera vez que se exporta, igual que en Recepción).
+function _cargarLibsPDF(cb){
+  if(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API.autoTable){cb();return;}
+  var s1=document.createElement('script');
+  s1.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+  s1.onload=function(){
+    var s2=document.createElement('script');
+    s2.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js';
+    s2.onload=cb;
+    s2.onerror=function(){alert('No se pudo cargar la librería de PDF - revisa tu conexión e intenta de nuevo.');};
+    document.head.appendChild(s2);
+  };
+  s1.onerror=function(){alert('No se pudo cargar la librería de PDF - revisa tu conexión e intenta de nuevo.');};
+  document.head.appendChild(s1);
+}
+function exportarIngresosPDF(){
+  var d=_prepIngresosExport();
+  if(!d.totalPagos){alert('No hay pagos en el período/sede filtrados para exportar.');return;}
+  _cargarLibsPDF(function(){
+    try{
+      var jsPDF=window.jspdf.jsPDF;
+      var doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+      var W=297,M=12;
+      doc.setFillColor(74,14,46);doc.rect(0,0,W,18,'F');
+      doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
+      doc.text('Ingresos - '+d.sedeLbl+' - '+d.mesLbl,M,11);
+      var totEf=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].efectivo;},0);
+      var totYp=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].yape;},0);
+      var totTr=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].transferencia;},0);
+      var totAll=totEf+totYp+totTr;
+      var filasResumen=d.diasOrd.map(function(f){
+        var r=d.porDia[f];var tot=r.efectivo+r.yape+r.transferencia;
+        return[fmtF(f),'S/'+r.efectivo.toLocaleString(),'S/'+r.yape.toLocaleString(),'S/'+r.transferencia.toLocaleString(),'S/'+tot.toLocaleString()];
+      });
+      filasResumen.push(['TOTAL','S/'+totEf.toLocaleString(),'S/'+totYp.toLocaleString(),'S/'+totTr.toLocaleString(),'S/'+totAll.toLocaleString()]);
+      doc.autoTable({startY:24,margin:{left:M,right:M},
+        head:[['Fecha','Efectivo','Yape/Plin','Transferencia','Total']],
+        body:filasResumen,
+        headStyles:{fillColor:[45,26,61],textColor:255,fontStyle:'bold'},
+        alternateRowStyles:{fillColor:[248,250,255]},
+        didParseCell:function(dt){if(dt.row.index===filasResumen.length-1&&dt.section==='body'){dt.cell.styles.fillColor=[253,242,248];dt.cell.styles.fontStyle='bold';}}
+      });
+      var y=doc.lastAutoTable.finalY+10;
+      d.diasOrd.forEach(function(f){
+        var grupos=_detalleDiaPorPs(d.porDiaPagos[f]);
+        if(y>180){doc.addPage('a4','landscape');y=16;}
+        doc.setFillColor(74,14,46);doc.rect(M,y,W-M*2,8,'F');
+        doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont('helvetica','bold');
+        doc.text(fmtF(f),M+3,y+5.5);
+        y+=11;
+        grupos.forEach(function(g){
+          var subtotal=g.pagos.reduce(function(a,p){return a+(p.monto||0);},0);
+          if(y>180){doc.addPage('a4','landscape');y=16;}
+          doc.setTextColor(60,60,60);doc.setFontSize(9);doc.setFont('helvetica','bold');
+          doc.text(g.psicologa+'  -  Subtotal: S/'+subtotal.toLocaleString(),M,y);
+          y+=3;
+          doc.autoTable({startY:y,margin:{left:M,right:M},
+            head:[['Hora','Paciente','Concepto','Método','Notas','Monto']],
+            body:g.pagos.map(function(p){return[p.hora||'-',p.paciente_nombre||'-',p.concepto||'-',p.metodo||'-',p.notas||'-','S/'+(p.monto||0).toLocaleString()];}),
+            headStyles:{fillColor:[124,58,237],textColor:255,fontStyle:'bold',fontSize:8},
+            bodyStyles:{fontSize:8},
+            styles:{cellPadding:2}
+          });
+          y=doc.lastAutoTable.finalY+6;
+        });
+      });
+      doc.save('Ingresos_'+d.sedeLbl.replace(/\s+/g,'_')+'_'+d.mesLbl+'.pdf');
+    }catch(e){console.error('[exportarIngresosPDF]',e);alert('Error al generar el PDF: '+e.message);}
+  });
 }
 
 // ════════════════════════════════════════════════════════════════════════════
