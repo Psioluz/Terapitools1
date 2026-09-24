@@ -503,9 +503,12 @@ select.fsel{
 
   <!-- Ingresos por día -->
   <div class="card">
-    <div class="ch"><div class="ct">📅 Ingresos por Día</div></div>
+    <div class="ch" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div class="ct">📅 Ingresos por Día</div>
+      <button onclick="exportarIngresosMes()" style="border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 12px;font-weight:800;font-size:12px;cursor:pointer">📊 Exportar ingresos del mes</button>
+    </div>
     <div class="cb" style="overflow-x:auto">
-      <table id="tblIngDia"><thead><tr><th>Fecha</th><th>Efectivo</th><th>Yape/Plin</th><th>Transferencia</th><th>Total</th></tr></thead>
+      <table id="tblIngDia"><thead><tr><th>Fecha</th><th>Efectivo</th><th>Yape/Plin</th><th>Transferencia</th><th>Total</th><th></th></tr></thead>
       <tbody id="tblIngDiaBody"></tbody>
       <tfoot id="tblIngDiaFoot"></tfoot></table>
     </div>
@@ -1934,23 +1937,28 @@ function renderFinanzas(){
   // Ingresos por día, con el mismo desglose de método (respeta los filtros
   // de mes/sede ya aplicados arriba en "pagos") - más reciente primero.
   var porDia={};
+  var porDiaPagos={};
   pagos.forEach(function(p){
     var f=p.fecha;if(!f)return;
     if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0};
+    if(!porDiaPagos[f])porDiaPagos[f]=[];
+    porDiaPagos[f].push(p);
     var m2=p.metodo||'Efectivo';
     if(m2==='Yape'||m2==='Plin')porDia[f].yape+=p.monto||0;
     else if(m2==='Transferencia'||m2==='Tarjeta')porDia[f].transferencia+=p.monto||0;
     else porDia[f].efectivo+=p.monto||0;
   });
   var diasOrd=Object.keys(porDia).sort().reverse();
+  window._ingDiaPagosPorFecha=porDiaPagos;
   var bodyDia=document.getElementById('tblIngDiaBody');
   if(bodyDia){
     bodyDia.innerHTML=diasOrd.length?diasOrd.map(function(f){
       var d=porDia[f];var tot=d.efectivo+d.yape+d.transferencia;
       return'<tr><td>'+fmtF(f)+'</td><td>S/'+d.efectivo.toLocaleString()+'</td>'+
         '<td>S/'+d.yape.toLocaleString()+'</td><td>S/'+d.transferencia.toLocaleString()+'</td>'+
-        '<td style="font-weight:800">S/'+tot.toLocaleString()+'</td></tr>';
-    }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px">Sin pagos en el período</td></tr>';
+        '<td style="font-weight:800">S/'+tot.toLocaleString()+'</td>'+
+        '<td><a href="#" onclick="verDetalleIngresosDia(\''+f+'\');return false" style="color:var(--acc);font-weight:700;font-size:11.5px;white-space:nowrap">Ver más detalle →</a></td></tr>';
+    }).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:14px">Sin pagos en el período</td></tr>';
   }
   var footDia=document.getElementById('tblIngDiaFoot');
   if(footDia){
@@ -1960,8 +1968,79 @@ function renderFinanzas(){
     var totAll=totEf+totYp+totTr;
     footDia.innerHTML=diasOrd.length?('<tr style="background:#fdf2f8;font-weight:900"><td>TOTAL</td>'+
       '<td>S/'+totEf.toLocaleString()+'</td><td>S/'+totYp.toLocaleString()+'</td>'+
-      '<td>S/'+totTr.toLocaleString()+'</td><td>S/'+totAll.toLocaleString()+'</td></tr>'):'';
+      '<td>S/'+totTr.toLocaleString()+'</td><td>S/'+totAll.toLocaleString()+'</td><td></td></tr>'):'';
   }
+}
+
+// Abre en una pestaña nueva el detalle de un día puntual de "Ingresos por
+// Día": agrupado por psicóloga (los pagos sin psicóloga - adelantos de
+// paquete, ajustes de caja, etc. - caen en "Sin psicóloga / Solo pago"),
+// con paciente, concepto, método y notas de cada uno. Usa los pagos que
+// ya se agruparon al renderizar la tabla (respetan el filtro de sede
+// actual), no hace falta volver a consultar nada.
+function verDetalleIngresosDia(fecha){
+  var pagosDia=(window._ingDiaPagosPorFecha&&window._ingDiaPagosPorFecha[fecha])||[];
+  var porPs={};
+  pagosDia.forEach(function(p){
+    var key=p.psicologa_nombre||'Sin psicóloga / Solo pago';
+    (porPs[key]=porPs[key]||[]).push(p);
+  });
+  var keys=Object.keys(porPs).sort(function(a,b){
+    if(a==='Sin psicóloga / Solo pago')return 1;
+    if(b==='Sin psicóloga / Solo pago')return -1;
+    return a.localeCompare(b);
+  });
+  var totalDia=pagosDia.reduce(function(a,p){return a+(p.monto||0);},0);
+  function esc(s){return String(s==null?'-':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+  var html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Detalle de ingresos - '+fmtF(fecha)+'</title>'+
+    '<style>body{font-family:system-ui,-apple-system,sans-serif;margin:0;padding:24px;background:#f8fafc;color:#1e293b}'+
+    'h1{font-size:20px;margin:0 0 4px}.sub{color:#64748b;font-size:13px;margin-bottom:20px}'+
+    '.grupo{background:#fff;border-radius:12px;margin-bottom:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}'+
+    '.gh{background:linear-gradient(135deg,#4a0e2e,#6b214d);color:#fff;padding:10px 16px;font-weight:800;display:flex;justify-content:space-between;font-size:14px}'+
+    'table{width:100%;border-collapse:collapse}th,td{padding:8px 16px;text-align:left;font-size:13px;border-bottom:1px solid #eee}'+
+    'th{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.3px}'+
+    '.monto{font-weight:800;color:#059669;text-align:right}'+
+    '.total{background:#fdf2f8;padding:14px 16px;border-radius:12px;font-weight:900;font-size:17px;text-align:right}</style></head><body>'+
+    '<h1>Detalle de ingresos - '+fmtF(fecha)+'</h1><div class="sub">Generado '+new Date().toLocaleString('es-PE')+'</div>'+
+    (keys.length?keys.map(function(k){
+      var lista=porPs[k].slice().sort(function(a,b){return(a.hora||'').localeCompare(b.hora||'');});
+      var subtotal=lista.reduce(function(a,p){return a+(p.monto||0);},0);
+      return '<div class="grupo"><div class="gh"><span>'+esc(k)+'</span><span>S/'+subtotal.toLocaleString()+'</span></div>'+
+        '<table><thead><tr><th>Hora</th><th>Paciente</th><th>Concepto</th><th>Método</th><th>Notas</th><th style="text-align:right">Monto</th></tr></thead><tbody>'+
+        lista.map(function(p){
+          return '<tr><td>'+esc(p.hora)+'</td><td>'+esc(p.paciente_nombre)+'</td><td>'+esc(p.concepto)+'</td>'+
+            '<td>'+esc(p.metodo)+'</td><td>'+esc(p.notas)+'</td><td class="monto">S/'+(p.monto||0).toLocaleString()+'</td></tr>';
+        }).join('')+'</tbody></table></div>';
+    }).join(''):'<div class="grupo"><table><tbody><tr><td style="text-align:center;color:#64748b;padding:20px">Sin pagos ese día.</td></tr></tbody></table></div>')+
+    '<div class="total">TOTAL DEL DÍA: S/'+totalDia.toLocaleString()+'</div>'+
+    '</body></html>';
+  var w=window.open('','_blank');
+  if(!w){alert('El navegador bloqueó la ventana emergente para el detalle - habilítala e intenta de nuevo.');return;}
+  w.document.open();w.document.write(html);w.document.close();
+}
+
+// Exporta a CSV (se abre directo en Excel) el detalle de TODOS los pagos
+// del mes/sede actualmente filtrados en Finanzas - una fila por pago, no
+// solo el resumen por día, para que Gerencia pueda auditar cada uno.
+function exportarIngresosMes(){
+  var pagosMes=filtPagos(G.pagosLocal).slice().sort(function(a,b){return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
+  if(!pagosMes.length){alert('No hay pagos en el período/sede filtrados para exportar.');return;}
+  function csvEsc(s){s=String(s==null?'':s);return/[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+  var filas=[['Fecha','Hora','Sede','Paciente','Psicóloga','Concepto','Método','Monto','Notas']];
+  pagosMes.forEach(function(p){
+    filas.push([p.fecha||'',p.hora||'',p._sede||p.sede||'',p.paciente_nombre||'',p.psicologa_nombre||'',p.concepto||'',p.metodo||'',(p.monto||0),p.notas||'']);
+  });
+  var totalMes=pagosMes.reduce(function(a,p){return a+(p.monto||0);},0);
+  filas.push(['','','','','','','TOTAL',totalMes,'']);
+  var csv='﻿'+filas.map(function(f){return f.map(csvEsc).join(',');}).join('\r\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var mesLbl=getFiltMes()||mesActual();
+  var sedeLbl=getFiltSede()||'TodasLasSedes';
+  var a=document.createElement('a');
+  a.href=url;a.download='Ingresos_'+sedeLbl.replace(/\s+/g,'_')+'_'+mesLbl+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ════════════════════════════════════════════════════════════════════════════
