@@ -1955,11 +1955,20 @@ function renderFinanzas(){
   window._ingDiaPagosPorFecha=porDiaPagos;
   var bodyDia=document.getElementById('tblIngDiaBody');
   if(bodyDia){
+    var maxTot=Math.max.apply(null,diasOrd.map(function(f){var d=porDia[f];return d.efectivo+d.yape+d.transferencia;}).concat([1]));
     bodyDia.innerHTML=diasOrd.length?diasOrd.map(function(f){
       var d=porDia[f];var tot=d.efectivo+d.yape+d.transferencia;
-      return'<tr><td>'+fmtF(f)+'</td><td>S/'+d.efectivo.toLocaleString()+'</td>'+
-        '<td>S/'+d.yape.toLocaleString()+'</td><td>S/'+d.transferencia.toLocaleString()+'</td>'+
-        '<td style="font-weight:800">S/'+tot.toLocaleString()+'</td>'+
+      var pct=Math.max(4,Math.round(tot/maxTot*100));
+      return'<tr><td style="font-weight:700">'+fmtF(f)+'</td>'+
+        '<td>💵 S/'+d.efectivo.toLocaleString()+'</td>'+
+        '<td>📱 S/'+d.yape.toLocaleString()+'</td>'+
+        '<td>🏦 S/'+d.transferencia.toLocaleString()+'</td>'+
+        '<td style="min-width:150px">'+
+          '<div style="display:flex;align-items:center;gap:8px">'+
+            '<div style="flex:1;background:#f1e9f5;border-radius:6px;height:8px;overflow:hidden">'+
+              '<div style="width:'+pct+'%;height:100%;background:linear-gradient(90deg,#7c3aed,#e91e8c);border-radius:6px"></div></div>'+
+            '<span style="font-weight:900;color:var(--dark);white-space:nowrap">S/'+tot.toLocaleString()+'</span>'+
+          '</div></td>'+
         '<td><a href="#" onclick="verDetalleIngresosDia(\''+f+'\');return false" style="color:var(--acc);font-weight:700;font-size:11.5px;white-space:nowrap">Ver más detalle →</a></td></tr>';
     }).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:14px">Sin pagos en el período</td></tr>';
   }
@@ -2059,12 +2068,25 @@ function _detalleDiaPorPs(pagosDia){
     return a.localeCompare(b);
   }).map(function(k){return{psicologa:k,pagos:porPs[k].slice().sort(function(a,b){return(a.hora||'').localeCompare(b.hora||'');})};});
 }
+// Detalle "plano": todos los pagos del período en UNA sola tabla, cada
+// fila con su propia fecha (no agrupado por día con encabezados) - lo
+// que pide Gerencia para poder filtrar/ordenar en Excel como cualquier
+// otra tabla de datos.
+function _pagosFlatSorted(d){
+  var todos=[];
+  d.diasOrd.forEach(function(f){(d.porDiaPagos[f]||[]).forEach(function(p){todos.push(p);});});
+  return todos.sort(function(a,b){
+    if(a.fecha!==b.fecha)return b.fecha.localeCompare(a.fecha);
+    return(a.hora||'').localeCompare(b.hora||'');
+  });
+}
 
-// Excel "tal cual se ve en la web": es un HTML con la misma tabla de
-// resumen (mismos colores de cabecera/zebra que la pantalla) más, abajo,
-// el detalle de cada día agrupado por psicóloga - Excel abre HTML con
-// estilos inline y los respeta como formato de celda, sin necesitar
-// ninguna librería.
+// Excel "tal cual se ve en la web", en DOS hojas separadas: "Resumen"
+// (la misma tabla de la pantalla) y "Detalle" (todos los pagos, cada
+// fila con su fecha). El truco de nombrar hojas via x:ExcelWorksheet es
+// nativo de Excel al abrir HTML - no hace falta ninguna librería, y cada
+// <table> de nivel superior en el body se vuelve una hoja, en el mismo
+// orden que <x:ExcelWorksheet><x:Name> declarado abajo.
 function exportarIngresosExcel(){
   var d=_prepIngresosExport();
   if(!d.totalPagos){alert('No hay pagos en el período/sede filtrados para exportar.');return;}
@@ -2074,12 +2096,8 @@ function exportarIngresosExcel(){
   var totAll=totEf+totYp+totTr;
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
   var thSt='background:#2d1a3d;color:#fff;padding:9px 10px;text-align:left;font-weight:700;font-size:11px';
-  var tdSt='padding:8px 10px;border-bottom:1px solid #e2e8f0';
-  var html='<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8">'+
-    '<style>table{border-collapse:collapse;font-family:Calibri,Arial,sans-serif} td,th{'+tdSt+'} h1,h2{font-family:Calibri,Arial,sans-serif}</style></head><body>'+
-    '<h1>Ingresos - '+esc(d.sedeLbl)+' - '+esc(d.mesLbl)+'</h1>'+
-    '<h2>Resumen por día</h2>'+
-    '<table><tr><th style="'+thSt+'">Fecha</th><th style="'+thSt+'">Efectivo</th><th style="'+thSt+'">Yape/Plin</th><th style="'+thSt+'">Transferencia</th><th style="'+thSt+'">Total</th></tr>'+
+  var tdSt='padding:7px 10px;border-bottom:1px solid #e2e8f0';
+  var resumenTabla='<table><tr><th style="'+thSt+'">Fecha</th><th style="'+thSt+'">Efectivo</th><th style="'+thSt+'">Yape/Plin</th><th style="'+thSt+'">Transferencia</th><th style="'+thSt+'">Total</th></tr>'+
     d.diasOrd.map(function(f,i){
       var r=d.porDia[f];var tot=r.efectivo+r.yape+r.transferencia;
       var bg=i%2?'background:#f8faff':'';
@@ -2089,22 +2107,27 @@ function exportarIngresosExcel(){
     }).join('')+
     '<tr><td style="'+tdSt+';background:#fdf2f8;font-weight:900">TOTAL</td><td style="'+tdSt+';background:#fdf2f8;font-weight:900">'+totEf+'</td>'+
     '<td style="'+tdSt+';background:#fdf2f8;font-weight:900">'+totYp+'</td><td style="'+tdSt+';background:#fdf2f8;font-weight:900">'+totTr+'</td>'+
-    '<td style="'+tdSt+';background:#fdf2f8;font-weight:900">'+totAll+'</td></tr></table>'+
-    '<br><h2>Detalle día por día</h2>'+
-    d.diasOrd.map(function(f){
-      var grupos=_detalleDiaPorPs(d.porDiaPagos[f]);
-      return '<h3 style="background:#4a0e2e;color:#fff;padding:8px 12px;font-family:Calibri,Arial,sans-serif">'+fmtF(f)+'</h3>'+
-        grupos.map(function(g){
-          var subtotal=g.pagos.reduce(function(a,p){return a+(p.monto||0);},0);
-          return '<div style="font-weight:700;padding:6px 0;font-family:Calibri,Arial,sans-serif">'+esc(g.psicologa)+' - Subtotal: S/'+subtotal+'</div>'+
-            '<table><tr><th style="'+thSt+'">Hora</th><th style="'+thSt+'">Paciente</th><th style="'+thSt+'">Concepto</th><th style="'+thSt+'">Método</th><th style="'+thSt+'">Notas</th><th style="'+thSt+'">Monto</th></tr>'+
-            g.pagos.map(function(p){
-              return '<tr><td style="'+tdSt+'">'+esc(p.hora)+'</td><td style="'+tdSt+'">'+esc(p.paciente_nombre)+'</td>'+
-                '<td style="'+tdSt+'">'+esc(p.concepto)+'</td><td style="'+tdSt+'">'+esc(p.metodo)+'</td>'+
-                '<td style="'+tdSt+'">'+esc(p.notas)+'</td><td style="'+tdSt+';font-weight:700">'+(p.monto||0)+'</td></tr>';
-            }).join('')+'</table>';
-        }).join('');
-    }).join('')+
+    '<td style="'+tdSt+';background:#fdf2f8;font-weight:900">'+totAll+'</td></tr></table>';
+  var flat=_pagosFlatSorted(d);
+  var detalleTabla='<table><tr><th style="'+thSt+'">Fecha</th><th style="'+thSt+'">Hora</th><th style="'+thSt+'">Psicóloga</th><th style="'+thSt+'">Paciente</th>'+
+    '<th style="'+thSt+'">Concepto</th><th style="'+thSt+'">Método</th><th style="'+thSt+'">Notas</th><th style="'+thSt+'">Monto</th></tr>'+
+    flat.map(function(p,i){
+      var bg=i%2?'background:#f8faff':'';
+      return '<tr><td style="'+tdSt+';'+bg+'">'+fmtF(p.fecha)+'</td><td style="'+tdSt+';'+bg+'">'+esc(p.hora)+'</td>'+
+        '<td style="'+tdSt+';'+bg+'">'+esc(p.psicologa_nombre||'Sin psicóloga / Solo pago')+'</td>'+
+        '<td style="'+tdSt+';'+bg+'">'+esc(p.paciente_nombre)+'</td><td style="'+tdSt+';'+bg+'">'+esc(p.concepto)+'</td>'+
+        '<td style="'+tdSt+';'+bg+'">'+esc(p.metodo)+'</td><td style="'+tdSt+';'+bg+'">'+esc(p.notas)+'</td>'+
+        '<td style="'+tdSt+';'+bg+';font-weight:700">'+(p.monto||0)+'</td></tr>';
+    }).join('')+'</table>';
+  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">'+
+    '<head><meta charset="UTF-8">'+
+    '<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets>'+
+    '<x:ExcelWorksheet><x:Name>Resumen</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet>'+
+    '<x:ExcelWorksheet><x:Name>Detalle</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet>'+
+    '</x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'+
+    '<style>table{border-collapse:collapse;font-family:Calibri,Arial,sans-serif} td,th{'+tdSt+'} h1,h2{font-family:Calibri,Arial,sans-serif}</style></head><body>'+
+    '<h1>Ingresos - '+esc(d.sedeLbl)+' - '+esc(d.mesLbl)+'</h1>'+resumenTabla+
+    '<h1>Detalle de pagos - '+esc(d.sedeLbl)+' - '+esc(d.mesLbl)+'</h1>'+detalleTabla+
     '</body></html>';
   var blob=new Blob(['﻿'+html],{type:'application/vnd.ms-excel;charset=utf-8;'});
   var url=URL.createObjectURL(blob);
@@ -2158,28 +2181,18 @@ function exportarIngresosPDF(){
         didParseCell:function(dt){if(dt.row.index===filasResumen.length-1&&dt.section==='body'){dt.cell.styles.fillColor=[253,242,248];dt.cell.styles.fontStyle='bold';}}
       });
       var y=doc.lastAutoTable.finalY+10;
-      d.diasOrd.forEach(function(f){
-        var grupos=_detalleDiaPorPs(d.porDiaPagos[f]);
-        if(y>180){doc.addPage('a4','landscape');y=16;}
-        doc.setFillColor(74,14,46);doc.rect(M,y,W-M*2,8,'F');
-        doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont('helvetica','bold');
-        doc.text(fmtF(f),M+3,y+5.5);
-        y+=11;
-        grupos.forEach(function(g){
-          var subtotal=g.pagos.reduce(function(a,p){return a+(p.monto||0);},0);
-          if(y>180){doc.addPage('a4','landscape');y=16;}
-          doc.setTextColor(60,60,60);doc.setFontSize(9);doc.setFont('helvetica','bold');
-          doc.text(g.psicologa+'  -  Subtotal: S/'+subtotal.toLocaleString(),M,y);
-          y+=3;
-          doc.autoTable({startY:y,margin:{left:M,right:M},
-            head:[['Hora','Paciente','Concepto','Método','Notas','Monto']],
-            body:g.pagos.map(function(p){return[p.hora||'-',p.paciente_nombre||'-',p.concepto||'-',p.metodo||'-',p.notas||'-','S/'+(p.monto||0).toLocaleString()];}),
-            headStyles:{fillColor:[124,58,237],textColor:255,fontStyle:'bold',fontSize:8},
-            bodyStyles:{fontSize:8},
-            styles:{cellPadding:2}
-          });
-          y=doc.lastAutoTable.finalY+6;
-        });
+      if(y>180){doc.addPage('a4','landscape');y=16;}
+      doc.setTextColor(45,26,61);doc.setFontSize(12);doc.setFont('helvetica','bold');
+      doc.text('Detalle de pagos',M,y);
+      y+=5;
+      var flat=_pagosFlatSorted(d);
+      doc.autoTable({startY:y,margin:{left:M,right:M},
+        head:[['Fecha','Hora','Psicóloga','Paciente','Concepto','Método','Notas','Monto']],
+        body:flat.map(function(p){return[fmtF(p.fecha),p.hora||'-',p.psicologa_nombre||'Sin psicóloga / Solo pago',p.paciente_nombre||'-',p.concepto||'-',p.metodo||'-',p.notas||'-','S/'+(p.monto||0).toLocaleString()];}),
+        headStyles:{fillColor:[45,26,61],textColor:255,fontStyle:'bold',fontSize:8},
+        bodyStyles:{fontSize:8},
+        alternateRowStyles:{fillColor:[248,250,255]},
+        styles:{cellPadding:2}
       });
       doc.save('Ingresos_'+d.sedeLbl.replace(/\s+/g,'_')+'_'+d.mesLbl+'.pdf');
     }catch(e){console.error('[exportarIngresosPDF]',e);alert('Error al generar el PDF: '+e.message);}
