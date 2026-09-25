@@ -875,7 +875,7 @@ function renderSueldos(){
   var mesStr=mesY();
   todos.forEach(function(p){p._diasHastaPago=_diasHastaPago(parseInt(p.dia_pago)||0);});
   todos.sort(function(a,b){return a._diasHastaPago-b._diasHastaPago;});
-  el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Trabajador(a)</th><th>Día de pago</th><th>Sueldo base</th><th>Costo/hora</th><th>❌ Faltas</th><th>🕐 Tardanzas</th><th>Descuento</th><th>Bonos</th><th>Total a pagar</th><th>Estado</th><th></th></tr></thead><tbody>'+
+  el.innerHTML='<div style="display:grid;gap:12px">'+
   todos.map(function(p){
     var hon=D.honorarios.find(function(h){return h.psicologa_nombre===p.nombre;});
     var rTard=hon?(hon.descuento_tardanza||0):0, rInas=hon?(hon.descuento_inasistencia||0):0;
@@ -890,30 +890,42 @@ function renderSueldos(){
     var bonos=(D.bonos||[]).filter(function(b){return (b.nombre||b.psicologa_nombre)===p.nombre;}).reduce(function(a,b){return a+(b.monto_bono||0);},0);
     var base=hon?hon.monto_base:(p.sueldo||0);var total=base+bonos-descuento;
     var yaPagado=hon&&hon.estado==='pagado';
+    var esHoy=p._diasHastaPago===0;
+    var col=esPs?'#4a0e2e':'#0369a1';
     var diaPagoTxt=p.dia_pago
-      ?(p._diasHastaPago===0?'<span class="badge br" style="font-weight:900">🔴 HOY (día '+p.dia_pago+')</span>'
-        :p._diasHastaPago<=3?'<span class="badge bo">🟡 En '+p._diasHastaPago+' día(s) (día '+p.dia_pago+')</span>'
-        :'<span style="font-size:12px;color:var(--muted)">Día '+p.dia_pago+' · en '+p._diasHastaPago+' días</span>')
-      :'<span style="font-size:11px;color:#dc2626">Sin día configurado</span>';
+      ?(esHoy?'🔴 HOY (día '+p.dia_pago+')'
+        :p._diasHastaPago<=3?'🟡 En '+p._diasHastaPago+' día(s) (día '+p.dia_pago+')'
+        :'Día '+p.dia_pago+' · en '+p._diasHastaPago+' días')
+      :'⚠️ Sin día configurado';
     var faltasTxt=esPs
-      ?asist.nFaltas+(asist.nFaltas?(asist.usaTasaFalta?' <span style="font-size:10px;color:var(--muted)">(S/'+rInas.toFixed(2)+' c/u)</span>':' <span style="font-size:10px;color:var(--muted)">(auto: día completo c/u)</span>'):'')
-      :'<span style="color:var(--muted);font-size:11px">sin registro</span>';
+      ?String(asist.nFaltas)+(asist.nFaltas?(asist.usaTasaFalta?' (S/'+rInas.toFixed(2)+' c/u)':' (auto: día completo c/u)'):'')
+      :'sin registro';
     var tardTxt=esPs
-      ?asist.nTard+(asist.nTard?' <span style="font-size:10px;color:var(--muted)">('+asist.minTardTotal+' min'+(asist.usaTasaTard?', S/'+rTard.toFixed(2)+' c/u':', auto por minuto')+')</span>':'')
-      :'<span style="color:var(--muted);font-size:11px">sin registro</span>';
-    return'<tr style="border-bottom:1px solid var(--border)'+(p._diasHastaPago===0?';background:#fff1f5':'')+'"><td style="padding:9px 10px;font-weight:700">'+p.nombre+' <span style="font-weight:600;font-size:10px;color:var(--acc)">'+p._rol+'</span></td>'
-      +'<td>'+diaPagoTxt+'</td>'
-      +'<td>S/'+base+'</td><td style="font-size:11px;color:var(--muted)">S/'+costoHora.toFixed(2)+'/h</td>'
-      +'<td style="text-align:center">'+faltasTxt+'</td>'
-      +'<td style="text-align:center">'+tardTxt+'</td>'
-      +'<td style="font-weight:700;color:'+(descuento>0?'#dc2626':'var(--muted)')+'">'+(descuento>0?'-S/'+descuento.toFixed(2):'-')+'</td>'
-      +'<td style="color:#15803d">S/'+bonos.toFixed(2)+'</td><td style="font-weight:900;color:var(--dark)">S/'+total.toFixed(2)+'</td><td>'+badge((hon&&hon.estado)||'pendiente')+'</td>'
-      +'<td style="white-space:nowrap">'
-      +'<button class="btn btn-sm" style="background:#eef2ff;color:#4338ca;font-weight:800" onclick="generarReciboHonorario('+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+_sq(mesStr)+','+base+','+descuento+','+bonos+','+total+')">📄 Recibo</button> '
-      +(yaPagado?'':'<button class="btn btn-sm" style="background:#dcfce7;color:#166534;font-weight:800" onclick="marcarHonorarioPagado('+_sq(p._tabla)+','+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+base+','+descuento+','+bonos+','+total+')">💾 Marcar pagado</button>')
-      +'</td></tr>';
-  }).join('')+'</tbody></table>'
-  +'<div style="font-size:10px;color:var(--muted);margin-top:8px">➖ Costo/hora = sueldo ÷ 30 días ÷ 8 horas. Si la trabajadora tiene una tasa fija configurada (botón "Descuentos"), el descuento usa esa tasa; si no, se calcula automático con los minutos reales tarde (o el día completo en una falta) sobre su costo/hora. La tabla se ordena por cercanía al día de pago. "📄 Recibo" genera el PDF en cualquier momento, sin necesidad de marcar el pago. "Marcar pagado" además lo suma a Gastos de la sede.</div>';
+      ?String(asist.nTard)+(asist.nTard?' ('+asist.minTardTotal+' min'+(asist.usaTasaTard?', S/'+rTard.toFixed(2)+' c/u':', auto por minuto')+')':'')
+      :'sin registro';
+    return '<div style="border:1px solid var(--border);border-radius:14px;overflow:hidden'+(esHoy?';box-shadow:0 0 0 2px #fecdd3':'')+'">'
+      +'<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:'+(esHoy?'linear-gradient(135deg,#be123c,#e11d48)':'linear-gradient(135deg,'+col+',#1e293b)')+'">'
+        +'<div style="width:38px;height:38px;flex:none;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:900">'+(p.nombre||'?').charAt(0)+'</div>'
+        +'<div style="flex:1;min-width:160px"><div style="color:#fff;font-weight:800;font-size:14px">'+p.nombre+'</div>'
+        +'<div style="color:rgba(255,255,255,.75);font-size:11px;font-weight:700">'+(esPs?'👩‍⚕️ Psicóloga':'💻 Recepción')+' · '+diaPagoTxt+'</div></div>'
+        +badge((hon&&hon.estado)||'pendiente')
+      +'</div>'
+      +'<div style="padding:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px">'
+        +'<div class="stat-card" style="padding:10px 6px"><div class="stat-value" style="font-size:16px">S/'+base+'</div><div class="stat-label" style="font-size:9.5px">Sueldo base</div></div>'
+        +'<div class="stat-card" style="padding:10px 6px"><div class="stat-value" style="font-size:16px;color:#0369a1">S/'+costoHora.toFixed(2)+'</div><div class="stat-label" style="font-size:9.5px">Costo/hora</div></div>'
+        +'<div class="stat-card" style="padding:10px 6px"><div class="stat-value" style="font-size:16px;color:'+(esPs&&asist.nFaltas?'#dc2626':'var(--muted)')+'">'+faltasTxt+'</div><div class="stat-label" style="font-size:9.5px">❌ Faltas</div></div>'
+        +'<div class="stat-card" style="padding:10px 6px"><div class="stat-value" style="font-size:16px;color:'+(esPs&&asist.nTard?'#d97706':'var(--muted)')+'">'+tardTxt+'</div><div class="stat-label" style="font-size:9.5px">🕐 Tardanzas</div></div>'
+        +'<div class="stat-card" style="padding:10px 6px"><div class="stat-value" style="font-size:16px;color:'+(descuento>0?'#dc2626':'var(--muted)')+'">'+(descuento>0?'-S/'+descuento.toFixed(2):'S/0.00')+'</div><div class="stat-label" style="font-size:9.5px">Descuento</div></div>'
+        +'<div class="stat-card" style="padding:10px 6px"><div class="stat-value" style="font-size:16px;color:#15803d">S/'+bonos.toFixed(2)+'</div><div class="stat-label" style="font-size:9.5px">Bonos</div></div>'
+        +'<div class="stat-card" style="padding:10px 6px;border-color:'+col+';grid-column:span 2"><div class="stat-value" style="font-size:20px;color:'+col+'">S/'+total.toFixed(2)+'</div><div class="stat-label" style="font-size:9.5px">Total a pagar</div></div>'
+      +'</div>'
+      +'<div style="display:flex;border-top:1px solid var(--border)">'
+      +'<button class="btn btn-sm" style="flex:1;border-radius:0;background:#eef2ff;color:#4338ca;font-weight:800" onclick="generarReciboHonorario('+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+_sq(mesStr)+','+base+','+descuento+','+bonos+','+total+')">📄 Recibo</button>'
+      +(yaPagado?'<div style="flex:1;text-align:center;padding:9px;font-size:12px;font-weight:800;color:#166534;background:#dcfce7">✅ Ya pagado este mes</div>':'<button class="btn btn-sm" style="flex:1;border-radius:0;background:#dcfce7;color:#166534;font-weight:800" onclick="marcarHonorarioPagado('+_sq(p._tabla)+','+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+base+','+descuento+','+bonos+','+total+')">💾 Marcar pagado</button>')
+      +'</div>'
+      +'</div>';
+  }).join('')+'</div>'
+  +'<div style="font-size:10px;color:var(--muted);margin-top:10px">➖ Costo/hora = sueldo ÷ 30 días ÷ 8 horas. Si la trabajadora tiene una tasa fija configurada (botón "Descuentos"), el descuento usa esa tasa; si no, se calcula automático con los minutos reales tarde (o el día completo en una falta) sobre su costo/hora. Las tarjetas se ordenan por cercanía al día de pago. "📄 Recibo" genera el PDF en cualquier momento, sin necesidad de marcar el pago. "Marcar pagado" además lo suma a Gastos de la sede.</div>';
 }
 // Deja el honorario (o el sueldo de una recepcionista, que no tiene fila
 // en "honorarios" todavía) como pagado y lo refleja en Gastos, para que
@@ -934,12 +946,23 @@ async function marcarHonorarioPagado(tabla,nombre,rol,sede,base,descuento,bonos,
     await recargar();
   }catch(e){toast('Error: '+e.message,'error');}
 }
+// Folio correlativo estable para el recibo: no hay una tabla de correlativos
+// en la base de datos, así que se arma un código reproducible (mismo
+// trabajador+mes siempre da el mismo folio) a partir de sus iniciales, el
+// mes y un hash corto del nombre - mejor que no tener ningún número de
+// referencia en el documento.
+function _folioRecibo(nombre,mes){
+  var h=0;for(var i=0;i<nombre.length;i++){h=(h*31+nombre.charCodeAt(i))>>>0;}
+  var iniciales=nombre.replace(/^Lic\.\s*/i,'').split(/\s+/).filter(Boolean).map(function(w){return w.charAt(0).toUpperCase();}).slice(0,3).join('');
+  return 'RH-'+mes.replace('-','')+'-'+iniciales+'-'+String(h%10000).padStart(4,'0');
+}
 // Recibo de pago en PDF - no existía ningún documento que dejara
 // constancia de un pago de honorarios/sueldo a una trabajadora.
 function generarReciboHonorario(nombre,rol,sede,mes,base,descuento,bonos,total){
   _getJsPDF(function(jsPDF){
     var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
     var W=210,M=14,y=10;
+    var folio=_folioRecibo(nombre,mes);
     var logo=_pdfLogoSrc();
     try{if(logo)doc.addImage(logo,'PNG',M,y,26,26);}catch(e){}
     doc.setFillColor(74,14,46);doc.rect(44,y,W-44-M,28,'F');
@@ -947,30 +970,56 @@ function generarReciboHonorario(nombre,rol,sede,mes,base,descuento,bonos,total){
     doc.text('CENTRO TERAPÉUTICO INTEGRAL PSICOLUZ',46,y+8);
     doc.setFontSize(11);doc.text('RECIBO DE PAGO',46,y+16);
     doc.setFontSize(8);doc.setFont('helvetica','normal');
-    doc.text('Generado: '+new Date().toLocaleString('es-PE')+' - Por: '+((typeof ADM!=='undefined'&&ADM&&ADM.nombre)||'Administración'),46,y+23);
-    y+=38;
+    doc.text('Folio: '+folio+'   ·   Emitido: '+new Date().toLocaleString('es-PE'),46,y+23);
+    y+=36;
     doc.setTextColor(30,30,30);
-    doc.setFontSize(11);doc.setFont('helvetica','bold');
-    doc.text('Trabajador(a): '+nombre,M,y);y+=7;
-    doc.setFont('helvetica','normal');doc.setFontSize(10);
-    doc.text('Cargo: '+rol+'   ·   Sede: '+sede+'   ·   Periodo: '+mes,M,y);y+=12;
-    var filas=[['Sueldo/Honorario base','S/'+base.toFixed(2)],
-      ['Descuento (tardanzas/faltas)',(descuento>0?'-S/'+descuento.toFixed(2):'S/0.00')],
-      ['Bonos',(bonos>0?'+S/'+bonos.toFixed(2):'S/0.00')]];
-    doc.setDrawColor(220,220,220);
-    filas.forEach(function(f){
-      doc.setFontSize(10);doc.text(f[0],M,y);doc.text(f[1],W-M,y,{align:'right'});
-      doc.line(M,y+2,W-M,y+2);y+=9;
+    doc.setDrawColor(230,230,230);doc.setFillColor(250,247,248);
+    doc.roundedRect(M,y,W-M*2,26,2,2,'FD');
+    doc.setFontSize(10);doc.setFont('helvetica','bold');
+    doc.text('Trabajador(a): '+nombre,M+4,y+8);
+    doc.setFont('helvetica','normal');
+    doc.text('Cargo: '+rol+'   ·   Sede: '+sede,M+4,y+15);
+    doc.text('Periodo: '+mes+'   ·   Emitido por: '+((typeof ADM!=='undefined'&&ADM&&ADM.nombre)||'Administración'),M+4,y+21.5);
+    y+=36;
+    // Tabla de conceptos con bordes reales (antes solo tenía una línea
+    // horizontal debajo de cada fila, sin lucir como un documento serio).
+    var colConcepto=W-M*2-40;
+    doc.setFillColor(74,14,46);doc.rect(M,y,W-M*2,8,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
+    doc.text('CONCEPTO',M+3,y+5.5);doc.text('MONTO',W-M-3,y+5.5,{align:'right'});
+    y+=8;
+    var filas=[['Sueldo/Honorario base','S/'+base.toFixed(2),false],
+      ['Descuento (tardanzas/faltas)',(descuento>0?'-S/'+descuento.toFixed(2):'S/0.00'),descuento>0],
+      ['Bonos',(bonos>0?'+S/'+bonos.toFixed(2):'S/0.00'),false]];
+    doc.setDrawColor(225,225,225);
+    filas.forEach(function(f,i){
+      var rowH=9;
+      doc.setFillColor(i%2===0?255:250,i%2===0?255:250,i%2===0?255:252);
+      doc.rect(M,y,W-M*2,rowH,'F');
+      doc.rect(M,y,W-M*2,rowH);
+      doc.setTextColor(f[2]?200:30,f[2]?30:30,f[2]?30:30);
+      doc.setFontSize(10);doc.setFont('helvetica','normal');
+      doc.text(f[0],M+3,y+6);doc.text(f[1],W-M-3,y+6,{align:'right'});
+      y+=rowH;
     });
-    y+=3;
-    doc.setFillColor(250,247,248);doc.roundedRect(M,y-6,W-M*2,12,2,2,'F');
-    doc.setFontSize(12);doc.setFont('helvetica','bold');
+    doc.setTextColor(30,30,30);
+    y+=6;
+    doc.setFillColor(74,14,46);doc.roundedRect(M,y-6,W-M*2,13,2,2,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(12);doc.setFont('helvetica','bold');
     doc.text('TOTAL PAGADO',M+4,y+2);doc.text('S/'+total.toFixed(2),W-M-4,y+2,{align:'right'});
-    y+=30;
+    doc.setTextColor(30,30,30);
+    y+=28;
     doc.setFontSize(9);doc.setFont('helvetica','normal');
-    doc.text('Recibí conforme:',M,y);
-    y+=18;doc.line(M,y,M+70,y);
-    doc.setFontSize(8);doc.text('Firma - '+nombre,M,y+5);
+    doc.text('Recibí conforme el monto detallado en este documento:',M,y);
+    y+=20;
+    doc.setDrawColor(150,150,150);
+    doc.line(M,y,M+75,y);
+    doc.line(W-M-75,y,W-M,y);
+    doc.setFontSize(8);
+    doc.text('Firma - '+nombre,M,y+5);
+    doc.text('Firma - Administración',W-M-75,y+5);
+    doc.setFontSize(7);doc.setTextColor(150,150,150);
+    doc.text('Documento generado por el sistema interno Psicoluz como constancia de pago - no es un comprobante tributario.',M,287);
     doc.save('Recibo_'+nombre.replace(/\s+/g,'_')+'_'+mes+'.pdf');
   });
 }
