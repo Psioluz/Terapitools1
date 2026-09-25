@@ -4373,6 +4373,30 @@ function _psCompatibleEnFechaHora(ps,fecha,hora){
   if(diasTrabajaPs(ps).indexOf(diaNombre)===-1)return false;
   return horasPsEnDia(ps,diaNombre).indexOf((hora||'').substring(0,5))>-1;
 }
+// Para una sesión en conflicto (la entrante no atiende ese día/hora), busca
+// si alguna OTRA psicóloga de la sede (que ya estaba ahí, no la saliente ni
+// la entrante elegidas) sí atiende justo ese horario - así se le puede dar
+// esa sesión puntual a ella en vez de tener que mover el horario del
+// paciente. Se ordena poniendo primero a quien ya atiende la misma terapia
+// del paciente, si acaso hay más de una opción.
+function _psAlternasParaSesion(s,salienteNombre,entranteNombre){
+  return DB.psicologas.filter(function(p){
+    return p.nombre!==salienteNombre&&p.nombre!==entranteNombre&&_psCompatibleEnFechaHora(p,s.fecha,s.hora);
+  }).sort(function(a,b){
+    var aMatch=a.nombre===s.psId?-1:0, bMatch=b.nombre===s.psId?-1:0;
+    return aMatch-bMatch;
+  });
+}
+async function reasignarSesionAAlterna(sesId,nombreAlterna){
+  const s=DB.sesiones.find(function(x){return x.id===sesId;});if(!s)return;
+  showToast('⏳ Asignando a '+nombreAlterna+'...');
+  try{
+    await sbPatch('sesiones',{psicologa:nombreAlterna},{id:'eq.'+(s._sb&&s._sb.id||s.id)});
+    showToast('✅ Sesión del '+fmtF(s.fecha)+' asignada a '+nombreAlterna);
+    await cargarDesdeSB();
+    analizarReasignoPs();
+  }catch(e){showToast('Error al asignar: '+e.message,'error');console.error('[reasigno alterna]',e);}
+}
 function analizarReasignoPs(){
   const salienteNombre=document.getElementById('reas-saliente')?.value||'';
   const entranteNombre=document.getElementById('reas-entrante')?.value||'';
@@ -4399,13 +4423,34 @@ function analizarReasignoPs(){
       '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>'+
       '</div>';
   }
+  // Para cada conflicto, antes de resignarse a llamar al paciente, se
+  // busca si otra psicóloga que YA atendía en esa sede (no la saliente ni
+  // la entrante elegida) trabaja justo ese día/hora - así se le puede
+  // asignar esa sesión puntual a ella, sin mover el horario del paciente.
+  function filaConflicto(s){
+    const pac=getPac(s.pacId);const ter=getTer(s.terId);
+    const alternas=_psAlternasParaSesion(s,salienteNombre,entranteNombre);
+    const selId='alt-'+s.id;
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">'+
+      '<span style="font-weight:700;min-width:150px">'+fmtF(s.fecha)+' '+s.hora+'</span>'+
+      '<span style="flex:1;min-width:140px">'+(pac?pac.nombre:s.pacId)+' · '+(ter?ter.nombre:s.terId)+'</span>'+
+      (pac&&pac.tel?'<a class="btn btn-outline btn-sm" href="https://wa.me/51'+pac.tel.replace(/\D/g,'')+'" target="_blank">💬</a>':'')+
+      (alternas.length?
+        '<select class="form-control" id="'+selId+'" style="width:auto;max-width:170px">'+
+        alternas.map(function(p){return '<option value="'+p.nombre+'">'+p.nombre+'</option>';}).join('')+
+        '</select>'+
+        '<button class="btn btn-success btn-sm" onclick="reasignarSesionAAlterna(\''+s.id+'\',document.getElementById(\''+selId+'\').value)">✅ Asignar</button>'
+        :'')+
+      '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>'+
+      '</div>';
+  }
   el.innerHTML=
     '<div class="alert al-info" style="margin-bottom:10px">✅ <strong>'+_reasignoCompatibles.length+'</strong> sesión(es) se pueden mover directo (mismo día/horario que atiende '+entranteNombre+').</div>'+
     (_reasignoCompatibles.length?'<div style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:14px">'+_reasignoCompatibles.map(filaSesion).join('')+'</div>':'')+
     (_reasignoCompatibles.length?'<button class="btn btn-success btn-sm" onclick="confirmarReasignoPs()">✅ Confirmar reasignación de '+_reasignoCompatibles.length+' sesión(es)</button>':'')+
     (_reasignoConflictos.length?
-      '<div class="alert al-danger" style="margin-top:16px;margin-bottom:10px">⚠️ <strong>'+_reasignoConflictos.length+'</strong> sesión(es) caen en un horario donde '+entranteNombre+' NO atiende - hay que llamar al paciente y reprogramar cada una a mano:</div>'+
-      '<div style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:10px">'+_reasignoConflictos.map(filaSesion).join('')+'</div>'
+      '<div class="alert al-danger" style="margin-top:16px;margin-bottom:10px">⚠️ <strong>'+_reasignoConflictos.length+'</strong> sesión(es) caen en un horario donde '+entranteNombre+' NO atiende. Si otra psicóloga que ya trabajaba ahí atiende justo ese día/hora, aparece para asignársela directo sin mover al paciente - si no hay ninguna disponible, solo queda reprogramar con el paciente:</div>'+
+      '<div style="max-height:280px;overflow:auto;border:1px solid var(--border);border-radius:10px">'+_reasignoConflictos.map(filaConflicto).join('')+'</div>'
       :'');
 }
 async function confirmarReasignoPs(){
