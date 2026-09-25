@@ -776,11 +776,74 @@ async function eliminarContrato(id){
 // El dato real de asistencia AL TRABAJO está en asistencia_personal
 // (D.asistencia): estado "ausente" = falta, estado "presente" con
 // motivo_tardanza = tardanza justificada.
-function _descuentoPorAsistencia(nombre,mesStr,rTard,rInas){
-  var regs=(D.asistencia||[]).filter(function(a){return a.psicologa===nombre&&(a.fecha||'').substring(0,7)===mesStr;});
-  var nFaltas=regs.filter(function(a){return a.estado==='ausente';}).length;
-  var nTard=regs.filter(function(a){return a.estado==='presente'&&a.motivo_tardanza;}).length;
-  return{nFaltas:nFaltas,nTard:nTard,descuento:nTard*rTard+nFaltas*rInas};
+// Sueldo mensual repartido en 30 días de 8 horas - la base para poder
+// descontar proporcionalmente cuando no hay una tasa fija en soles
+// configurada a mano para esa trabajadora (botón "Descuentos").
+function _costoPorHora(sueldo){return (sueldo||0)/30/8;}
+function _diaCompletoIncluye(diaCompletoStr,fecha){
+  var DOW=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  var dia=DOW[new Date(fecha+'T12:00:00').getDay()];
+  function norm(s){return(s||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+  var raw=(diaCompletoStr||'').trim();if(!raw)return false;
+  // Puede venir como lista ("Martes,Jueves") o como rango ("Miércoles-viernes")
+  // - igual que dias_trabajo en Recepción.
+  if(raw.indexOf(',')===-1&&raw.indexOf('-')!==-1){
+    var partes=raw.split('-').map(function(s){return s.trim();});
+    if(partes.length===2){
+      var DOW_NORM=DOW.map(norm);
+      var i1=DOW_NORM.indexOf(norm(partes[0])),i2=DOW_NORM.indexOf(norm(partes[1]));
+      if(i1!==-1&&i2!==-1){
+        var dias=[];var i=i1;
+        while(true){dias.push(DOW[i]);if(i===i2)break;i=(i+1)%7;}
+        return dias.map(norm).indexOf(norm(dia))>-1;
+      }
+    }
+  }
+  return raw.split(',').map(norm).indexOf(norm(dia))>-1;
+}
+function _horaEsperadaDia(p,fecha){
+  return _diaCompletoIncluye(p.dia_completo,fecha)?'08:00':(p.hora_inicio||'13:15').substring(0,5);
+}
+function _minutosTarde(entrada,esperada){
+  function toMin(s){var pp=(s||'').split(':');return(parseInt(pp[0])||0)*60+(parseInt(pp[1])||0);}
+  return Math.max(0,toMin(entrada)-toMin(esperada));
+}
+// Antes esto contaba SESIONES DE PACIENTES marcadas "tardanza"/"no
+// asistió" como si fueran faltas/tardanzas de la propia trabajadora - dos
+// cosas totalmente distintas (que un paciente no llegue a su cita no es
+// lo mismo que la psicóloga no haya ido a trabajar). Además "tardanza" ya
+// no existe como estado de sesión, así que ese contador siempre daba 0.
+// El dato real de asistencia AL TRABAJO está en asistencia_personal
+// (D.asistencia): estado "ausente" = falta, estado "presente" con
+// motivo_tardanza = tardanza justificada (con la hora real de entrada).
+//
+// Si la trabajadora tiene una tasa fija en soles configurada (botón
+// "Descuentos"), se usa esa. Si NO tiene tasa configurada, el descuento
+// se calcula solo con los minutos reales tarde (o el día completo perdido
+// en una falta) sobre su costo por hora - así nunca queda en "-" sin
+// explicación cuando sí hubo tardanzas/faltas reales.
+function _descuentoPorAsistencia(p,mesStr,rTard,rInas){
+  var regs=(D.asistencia||[]).filter(function(a){return a.psicologa===p.nombre&&(a.fecha||'').substring(0,7)===mesStr;});
+  var faltas=regs.filter(function(a){return a.estado==='ausente';});
+  var tardanzas=regs.filter(function(a){return a.estado==='presente'&&a.motivo_tardanza;});
+  var costoHora=_costoPorHora(p.sueldo);
+  var minTardTotal=tardanzas.reduce(function(a,r){return a+_minutosTarde(r.entrada,_horaEsperadaDia(p,r.fecha));},0);
+  var usaTasaTard=rTard>0, usaTasaFalta=rInas>0;
+  var descTard=usaTasaTard?tardanzas.length*rTard:Math.round((minTardTotal/60)*costoHora*100)/100;
+  var descFalta=usaTasaFalta?faltas.length*rInas:Math.round(faltas.length*8*costoHora*100)/100;
+  return{nFaltas:faltas.length,nTard:tardanzas.length,minTardTotal:minTardTotal,
+    descTard:descTard,descFalta:descFalta,descuento:descTard+descFalta,
+    usaTasaTard:usaTasaTard,usaTasaFalta:usaTasaFalta,costoHora:costoHora};
+}
+// Próxima fecha en que toca pagarle (día del mes fijo, dia_pago) - si ese
+// día de este mes ya pasó, se calcula la del mes siguiente. Se usa para
+// ordenar la tabla por urgencia y marcar "PAGAR HOY".
+function _diasHastaPago(diaPago){
+  if(!diaPago)return 999;
+  var hoy=new Date();var hoySinHora=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate());
+  var candidata=new Date(hoy.getFullYear(),hoy.getMonth(),diaPago);
+  if(candidata<hoySinHora)candidata=new Date(hoy.getFullYear(),hoy.getMonth()+1,diaPago);
+  return Math.round((candidata-hoySinHora)/86400000);
 }
 function renderSueldos(){
   var el=document.getElementById('listaSueldos');if(!el)return;
@@ -788,7 +851,9 @@ function renderSueldos(){
     .concat((D.recepcionistas||[]).map(function(p){return Object.assign({},p,{_tabla:'recepcionistas',_rol:'Recepción'});}));
   if(!todos.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin personal activo</p>';return;}
   var mesStr=mesY();
-  el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Trabajador(a)</th><th>Sueldo base</th><th>❌ Faltas</th><th>🕐 Tardanzas</th><th>Descuento</th><th>Bonos</th><th>Total a pagar</th><th>Estado</th><th></th></tr></thead><tbody>'+
+  todos.forEach(function(p){p._diasHastaPago=_diasHastaPago(parseInt(p.dia_pago)||0);});
+  todos.sort(function(a,b){return a._diasHastaPago-b._diasHastaPago;});
+  el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Trabajador(a)</th><th>Día de pago</th><th>Sueldo base</th><th>Costo/hora</th><th>❌ Faltas</th><th>🕐 Tardanzas</th><th>Descuento</th><th>Bonos</th><th>Total a pagar</th><th>Estado</th><th></th></tr></thead><tbody>'+
   todos.map(function(p){
     var hon=D.honorarios.find(function(h){return h.psicologa_nombre===p.nombre;});
     var rTard=hon?(hon.descuento_tardanza||0):0, rInas=hon?(hon.descuento_inasistencia||0):0;
@@ -797,19 +862,36 @@ function renderSueldos(){
     // que por ahora no se les puede calcular descuento (mejor mostrar
     // "sin registro" que inventar un número).
     var esPs=p._tabla==='psicologas';
-    var asist=esPs?_descuentoPorAsistencia(p.nombre,mesStr,rTard,rInas):null;
+    var asist=esPs?_descuentoPorAsistencia(p,mesStr,rTard,rInas):null;
     var descuento=asist?asist.descuento:0;
+    var costoHora=_costoPorHora(p.sueldo);
     var bonos=(D.bonos||[]).filter(function(b){return (b.nombre||b.psicologa_nombre)===p.nombre;}).reduce(function(a,b){return a+(b.monto_bono||0);},0);
     var base=hon?hon.monto_base:(p.sueldo||0);var total=base+bonos-descuento;
     var yaPagado=hon&&hon.estado==='pagado';
-    return'<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+p.nombre+' <span style="font-weight:600;font-size:10px;color:var(--acc)">'+p._rol+'</span></td><td>S/'+base+'</td>'
-      +'<td style="text-align:center">'+(esPs?asist.nFaltas+(rInas?' <span style="font-size:10px;color:var(--muted)">(S/'+rInas.toFixed(2)+' c/u)</span>':''):'<span style="color:var(--muted);font-size:11px">sin registro</span>')+'</td>'
-      +'<td style="text-align:center">'+(esPs?asist.nTard+(rTard?' <span style="font-size:10px;color:var(--muted)">(S/'+rTard.toFixed(2)+' c/u)</span>':''):'<span style="color:var(--muted);font-size:11px">sin registro</span>')+'</td>'
+    var diaPagoTxt=p.dia_pago
+      ?(p._diasHastaPago===0?'<span class="badge br" style="font-weight:900">🔴 HOY (día '+p.dia_pago+')</span>'
+        :p._diasHastaPago<=3?'<span class="badge bo">🟡 En '+p._diasHastaPago+' día(s) (día '+p.dia_pago+')</span>'
+        :'<span style="font-size:12px;color:var(--muted)">Día '+p.dia_pago+' · en '+p._diasHastaPago+' días</span>')
+      :'<span style="font-size:11px;color:#dc2626">Sin día configurado</span>';
+    var faltasTxt=esPs
+      ?asist.nFaltas+(asist.nFaltas?(asist.usaTasaFalta?' <span style="font-size:10px;color:var(--muted)">(S/'+rInas.toFixed(2)+' c/u)</span>':' <span style="font-size:10px;color:var(--muted)">(auto: día completo c/u)</span>'):'')
+      :'<span style="color:var(--muted);font-size:11px">sin registro</span>';
+    var tardTxt=esPs
+      ?asist.nTard+(asist.nTard?' <span style="font-size:10px;color:var(--muted)">('+asist.minTardTotal+' min'+(asist.usaTasaTard?', S/'+rTard.toFixed(2)+' c/u':', auto por minuto')+')</span>':'')
+      :'<span style="color:var(--muted);font-size:11px">sin registro</span>';
+    return'<tr style="border-bottom:1px solid var(--border)'+(p._diasHastaPago===0?';background:#fff1f5':'')+'"><td style="padding:9px 10px;font-weight:700">'+p.nombre+' <span style="font-weight:600;font-size:10px;color:var(--acc)">'+p._rol+'</span></td>'
+      +'<td>'+diaPagoTxt+'</td>'
+      +'<td>S/'+base+'</td><td style="font-size:11px;color:var(--muted)">S/'+costoHora.toFixed(2)+'/h</td>'
+      +'<td style="text-align:center">'+faltasTxt+'</td>'
+      +'<td style="text-align:center">'+tardTxt+'</td>'
       +'<td style="font-weight:700;color:'+(descuento>0?'#dc2626':'var(--muted)')+'">'+(descuento>0?'-S/'+descuento.toFixed(2):'-')+'</td>'
       +'<td style="color:#15803d">S/'+bonos.toFixed(2)+'</td><td style="font-weight:900;color:var(--dark)">S/'+total.toFixed(2)+'</td><td>'+badge((hon&&hon.estado)||'pendiente')+'</td>'
-      +'<td>'+(yaPagado?'':'<button class="btn btn-sm" style="background:#dcfce7;color:#166534;font-weight:800" onclick="marcarHonorarioPagado('+JSON.stringify(p._tabla)+','+JSON.stringify(p.nombre)+','+JSON.stringify(p._rol)+','+JSON.stringify(p.sede||D.sede)+','+base+','+descuento+','+bonos+','+total+')">💾 Marcar pagado</button>')+'</td></tr>';
+      +'<td style="white-space:nowrap">'
+      +'<button class="btn btn-sm" style="background:#eef2ff;color:#4338ca;font-weight:800" onclick="generarReciboHonorario('+JSON.stringify(p.nombre)+','+JSON.stringify(p._rol)+','+JSON.stringify(p.sede||D.sede)+','+JSON.stringify(mesStr)+','+base+','+descuento+','+bonos+','+total+')">📄 Recibo</button> '
+      +(yaPagado?'':'<button class="btn btn-sm" style="background:#dcfce7;color:#166534;font-weight:800" onclick="marcarHonorarioPagado('+JSON.stringify(p._tabla)+','+JSON.stringify(p.nombre)+','+JSON.stringify(p._rol)+','+JSON.stringify(p.sede||D.sede)+','+base+','+descuento+','+bonos+','+total+')">💾 Marcar pagado</button>')
+      +'</td></tr>';
   }).join('')+'</tbody></table>'
-  +'<div style="font-size:10px;color:var(--muted);margin-top:8px">➖ Los descuentos se aplican según la tasa en S/ configurada por trabajadora (botón "Descuentos") sobre su asistencia real al trabajo (tabla Asistencia del Personal), no sobre si sus pacientes fueron o no a sus citas. El bono se asigna manualmente. "Marcar pagado" registra el pago, lo suma a Gastos de la sede y genera el recibo en PDF.</div>';
+  +'<div style="font-size:10px;color:var(--muted);margin-top:8px">➖ Costo/hora = sueldo ÷ 30 días ÷ 8 horas. Si la trabajadora tiene una tasa fija configurada (botón "Descuentos"), el descuento usa esa tasa; si no, se calcula automático con los minutos reales tarde (o el día completo en una falta) sobre su costo/hora. La tabla se ordena por cercanía al día de pago. "📄 Recibo" genera el PDF en cualquier momento, sin necesidad de marcar el pago. "Marcar pagado" además lo suma a Gastos de la sede.</div>';
 }
 // Deja el honorario (o el sueldo de una recepcionista, que no tiene fila
 // en "honorarios" todavía) como pagado y lo refleja en Gastos, para que
