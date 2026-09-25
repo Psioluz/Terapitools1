@@ -14,7 +14,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .login-logo{width:220px;display:block;margin:0 auto 20px}
 .fc{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;margin-bottom:10px;transition:.2s}
 .fc:focus{outline:none;border-color:var(--acc)}
-.btn-primary{width:100%;padding:13px;background:linear-gradient(135deg,var(--dark),var(--acc));color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer}
+.btn-login{width:100%;padding:13px;background:linear-gradient(135deg,var(--dark),var(--acc));color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer}
 .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
 .bg{background:#dcfce7;color:#166534}.br{background:#fee2e2;color:#991b1b}.bb{background:#eff6ff;color:#1d4ed8}.bo{background:#fff7ed;color:#c2410c}.bgr{background:#f1f5f9;color:#64748b}
 #app{display:none;height:100vh;overflow:hidden;flex-direction:row}
@@ -94,7 +94,7 @@ try{
   <div style='margin-bottom:8px'><label style='font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px'>📧 Correo</label><input class='fc' type='email' id='lEmail' placeholder='admin@psicoluz.pe' onkeydown="if(event.key==='Enter')document.getElementById('lPass').focus()"></div>
   <div style='margin-bottom:10px'><label style='font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px'>🔐 Contraseña</label><input class='fc' type='password' id='lPass' placeholder='••••••••' onkeydown="if(event.key==='Enter')doLogin()"></div>
   <div id='lErr' style='display:none;background:#fee2e2;color:#991b1b;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;margin-bottom:10px'></div>
-  <button class='btn-primary' onclick='doLogin()'>Ingresar al Sistema →</button>
+  <button class='btn-login' onclick='doLogin()'>Ingresar al Sistema →</button>
   <div style='text-align:center;margin-top:14px;font-size:11px;color:#94a3b8'>© Todos los derechos reservados para Grupo Psicoluz 2026</div>
 </div>
 </div>
