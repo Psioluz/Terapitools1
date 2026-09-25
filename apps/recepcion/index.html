@@ -5554,6 +5554,7 @@ async function renderHistorial(){
           '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s)+
             (s.tipo==='paquete'?'':
               ' <button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="cancelarSesionSuelta(\''+s.id+'\')">🚫 Cancelar sesión</button>'):
+            s.estado==='permiso'?botonesAsistenciaHTML(s):
             '<span style="font-size:11px;color:var(--muted)">-</span>')+'</td></tr>';
       }).join('')+
       '</tbody></table></div>'
