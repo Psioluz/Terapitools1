@@ -493,12 +493,43 @@ try{
   <div class="card">
     <div class="card-header">
       <div class="card-title">👩‍⚕️ Psicólogas de la Sede</div>
+      <button class="btn btn-primary btn-sm" onclick="abrirReasignoPs()">🔄 Reasignar psicóloga (masivo)</button>
     </div>
     <div style="background:#eff6ff;margin:12px;border-radius:10px;padding:10px;font-size:12px;color:#1e40af">
       ℹ️ Solo lectura. Para agregar, editar o eliminar psicólogas, contacta a <strong>Administración</strong>.
     </div>
     <div style="padding:12px" id="gridPs"></div>
   </div>
+</div>
+
+<!-- MODAL REASIGNAR PSICÓLOGA (MASIVO) -->
+<div class="modal-overlay" id="modalReasignoPs">
+<div class="modal modal-lg">
+  <div class="modal-header">
+    <div class="modal-title">🔄 Reasignar psicóloga - cambio masivo</div>
+    <button class="modal-close" onclick="closeModal('modalReasignoPs')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div style="background:#fff7ed;border-radius:10px;padding:10px 12px;font-size:12px;color:#7c2d12;margin-bottom:14px">
+      Mueve TODAS las sesiones programadas de hoy en adelante de una psicóloga a otra. Las que ya pasaron o ya tienen asistencia marcada no se tocan. Las sesiones que caen en un horario donde la nueva psicóloga no atiende quedan aparte, para reprogramarlas a mano con el paciente.
+    </div>
+    <div class="grid g2">
+      <div class="form-group">
+        <label class="form-label">Psicóloga que se va</label>
+        <select class="form-control" id="reas-saliente"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Psicóloga que entra</label>
+        <select class="form-control" id="reas-entrante"></select>
+      </div>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="analizarReasignoPs()">🔍 Analizar</button>
+    <div id="reasignoPsResultado" style="margin-top:14px"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modalReasignoPs')">Cerrar</button>
+  </div>
+</div>
 </div>
 
 <!-- ═══ TERAPIAS ═══ -->
@@ -4302,6 +4333,100 @@ function cambiarColorPs(input){
   if(ps._sb&&ps._sb.id){
     sbPatch('psicologas',{color_agenda:color},{id:'eq.'+ps._sb.id}).catch(function(e){showToast('Error al guardar color: '+e.message,'error');});
   }
+}
+
+// ── REASIGNAR PSICÓLOGA (MASIVO) ──
+// Mueve de una sola vez todas las sesiones "programado" de hoy en
+// adelante de una psicóloga a otra (ej. cuando una licenciada se va y
+// otra toma su lugar). Solo se mueven las que caen en un horario donde
+// la nueva psicóloga SÍ atiende (mismo día de la semana y dentro de su
+// franja horaria real, incluyendo día completo/horario especial) - las
+// que no calzan quedan listadas aparte para que la recepcionista llame
+// al paciente y las reprograme a mano, nunca se les cambia el día/hora
+// sin que el paciente lo sepa.
+var _reasignoCompatibles=[];
+var _reasignoConflictos=[];
+function abrirReasignoPs(){
+  const hoy=today();
+  const nombresConPendientes=[...new Set(DB.sesiones
+    .filter(function(s){return s.estado==='programado'&&s.fecha>=hoy;})
+    .map(function(s){return s.psId;}))].sort();
+  const selSaliente=document.getElementById('reas-saliente');
+  const selEntrante=document.getElementById('reas-entrante');
+  if(!selSaliente||!selEntrante)return;
+  selSaliente.innerHTML=nombresConPendientes.length
+    ?nombresConPendientes.map(function(n){return '<option value="'+n+'">'+n+'</option>';}).join('')
+    :'<option value="">- Nadie tiene sesiones pendientes -</option>';
+  selEntrante.innerHTML=DB.psicologas.map(function(p){return '<option value="'+p.nombre+'">'+p.nombre+'</option>';}).join('');
+  document.getElementById('reasignoPsResultado').innerHTML='';
+  _reasignoCompatibles=[];_reasignoConflictos=[];
+  openModal('modalReasignoPs');
+}
+function _psCompatibleEnFechaHora(ps,fecha,hora){
+  const d=new Date(fecha+'T12:00:00');
+  const diaNombre=diaFull[d.getDay()];
+  if(diasTrabajaPs(ps).indexOf(diaNombre)===-1)return false;
+  return horasPsEnDia(ps,diaNombre).indexOf((hora||'').substring(0,5))>-1;
+}
+function analizarReasignoPs(){
+  const salienteNombre=document.getElementById('reas-saliente')?.value||'';
+  const entranteNombre=document.getElementById('reas-entrante')?.value||'';
+  const el=document.getElementById('reasignoPsResultado');
+  if(!el)return;
+  if(!salienteNombre||!entranteNombre){el.innerHTML='<div class="alert al-danger">Selecciona ambas psicólogas.</div>';return;}
+  if(salienteNombre===entranteNombre){el.innerHTML='<div class="alert al-danger">Son la misma psicóloga.</div>';return;}
+  const entrante=DB.psicologas.find(function(p){return p.nombre===entranteNombre;});
+  if(!entrante){el.innerHTML='<div class="alert al-danger">No se encontró a la psicóloga entrante.</div>';return;}
+  const hoy=today();
+  const pendientes=DB.sesiones.filter(function(s){return s.psId===salienteNombre&&s.estado==='programado'&&s.fecha>=hoy;})
+    .sort(function(a,b){return (a.fecha+a.hora).localeCompare(b.fecha+b.hora);});
+  if(!pendientes.length){el.innerHTML='<div class="alert al-info">'+salienteNombre+' no tiene sesiones programadas de hoy en adelante.</div>';return;}
+  _reasignoCompatibles=[];_reasignoConflictos=[];
+  pendientes.forEach(function(s){
+    (_psCompatibleEnFechaHora(entrante,s.fecha,s.hora)?_reasignoCompatibles:_reasignoConflictos).push(s);
+  });
+  function filaSesion(s){
+    const pac=getPac(s.pacId);const ter=getTer(s.terId);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">'+
+      '<span style="font-weight:700;min-width:150px">'+fmtF(s.fecha)+' '+s.hora+'</span>'+
+      '<span style="flex:1;min-width:140px">'+(pac?pac.nombre:s.pacId)+' · '+(ter?ter.nombre:s.terId)+'</span>'+
+      (pac&&pac.tel?'<a class="btn btn-outline btn-sm" href="https://wa.me/51'+pac.tel.replace(/\D/g,'')+'" target="_blank">💬</a>':'')+
+      '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>'+
+      '</div>';
+  }
+  el.innerHTML=
+    '<div class="alert al-info" style="margin-bottom:10px">✅ <strong>'+_reasignoCompatibles.length+'</strong> sesión(es) se pueden mover directo (mismo día/horario que atiende '+entranteNombre+').</div>'+
+    (_reasignoCompatibles.length?'<div style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:14px">'+_reasignoCompatibles.map(filaSesion).join('')+'</div>':'')+
+    (_reasignoCompatibles.length?'<button class="btn btn-success btn-sm" onclick="confirmarReasignoPs()">✅ Confirmar reasignación de '+_reasignoCompatibles.length+' sesión(es)</button>':'')+
+    (_reasignoConflictos.length?
+      '<div class="alert al-danger" style="margin-top:16px;margin-bottom:10px">⚠️ <strong>'+_reasignoConflictos.length+'</strong> sesión(es) caen en un horario donde '+entranteNombre+' NO atiende - hay que llamar al paciente y reprogramar cada una a mano:</div>'+
+      '<div style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:10px">'+_reasignoConflictos.map(filaSesion).join('')+'</div>'
+      :'');
+}
+async function confirmarReasignoPs(){
+  const entranteNombre=document.getElementById('reas-entrante')?.value||'';
+  const salienteNombre=document.getElementById('reas-saliente')?.value||'';
+  if(!_reasignoCompatibles.length||!entranteNombre)return;
+  showToast('⏳ Reasignando '+_reasignoCompatibles.length+' sesión(es)...');
+  try{
+    await Promise.all(_reasignoCompatibles.map(function(s){
+      return sbPatch('sesiones',{psicologa:entranteNombre},{id:'eq.'+(s._sb&&s._sb.id||s.id)});
+    }));
+    // También se actualiza el ancla de programa_terapias (a quién se le
+    // generan las sesiones futuras de un paquete al renovarlo/ampliarlo) -
+    // si no, un paquete que se renueve más adelante volvería a asignar a
+    // la psicóloga que ya se fue sin que nadie lo note.
+    const ptPatches=[];
+    (DB.programas||[]).forEach(function(prog){
+      (prog.programa_terapias||[]).forEach(function(pt){
+        if(pt.psicologa===salienteNombre)ptPatches.push(sbPatch('programa_terapias',{psicologa:entranteNombre},{id:'eq.'+pt.id}));
+      });
+    });
+    if(ptPatches.length)await Promise.all(ptPatches);
+    showToast('✅ '+_reasignoCompatibles.length+' sesión(es) reasignadas a '+entranteNombre);
+    await cargarDesdeSB();
+    analizarReasignoPs();
+  }catch(e){showToast('Error al reasignar: '+e.message,'error');console.error('[reasigno psicóloga]',e);}
 }
 
 // ══════════════════════════════════════════════════
