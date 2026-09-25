@@ -1796,7 +1796,7 @@ function mostrarResumenCelda(sesList,fecha,hora){
         botonesAsistenciaHTML(s)+
         ((s.estado==='asistio'||s.estado==='tardanza')&&!pago?
           '<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="btnAbrirPago(this)">💰 Cobrar</button>':'')+
-        (s.estado==='noasistio'||s.estado==='permiso'?
+        (s.estado==='noasistio'?
           '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':'')+
         (s.estado==='programado'?(s.tipo==='paquete'?
           '<button class="btn btn-outline btn-sm" style="color:var(--red)" data-prog="'+((s._sb&&s._sb.programa_id)||'')+'" onclick="cancelarPaquete(this.dataset.prog,\''+(pac.nombre||'').replace(/'/g,"\\'")+'\')">🚫 Cancelar paquete</button>':
@@ -1851,7 +1851,7 @@ function renderDiaSel(){
         '</div>'+
         '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">'+
         botonesAsistenciaHTML(s)+
-        (s.estado==='noasistio'||s.estado==='reprogramado'||s.estado==='permiso'?
+        (s.estado==='noasistio'||s.estado==='reprogramado'?
           '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':'') +
         ((s.estado==='asistio'||s.estado==='tardanza')&&!pago?
           '<button class="btn btn-primary btn-sm" onclick="abrirPago(\''+s.id+'\')">💰 Pago</button>':'') +
@@ -1986,16 +1986,21 @@ function reprogramar(sesId){
   // sesión huérfana (estado reprogramado sin ninguna sesión de reemplazo)
   // si el usuario cerraba el modal sin completarlo. En memoria sí se marca
   // de una vez, solo para que la fila oculte sus botones mientras se elige
-  // la fecha nueva.
+  // la fecha nueva. Se guarda el estado real de origen (puede venir de
+  // "permiso", no solo de "programado") para poder restaurarlo tal cual si
+  // se cancela el modal.
+  ses._estadoAntesDeReprog=ses.estado;
   ses.estado='reprogramado';
   abrirModalAgendar(null,null,ses);
   showToast('Selecciona nueva fecha/hora y adjunta la evidencia del paciente');
 }
 // Si se cancela el modal a medio camino de una reprogramación, la sesión
 // original vuelve a su estado real (nunca se llegó a guardar nada en
-// Supabase, así que solo hay que deshacer la marca en memoria).
+// Supabase, así que solo hay que deshacer la marca en memoria) - el que
+// tenía ANTES de abrir el modal, no siempre "programado" (puede venir de
+// "permiso").
 function cancelarModalAgendar(){
-  if(_reprogDe){_reprogDe.estado='programado';_reprogDe=null;}
+  if(_reprogDe){_reprogDe.estado=_reprogDe._estadoAntesDeReprog||'programado';delete _reprogDe._estadoAntesDeReprog;_reprogDe=null;}
   closeModal('modalAgendar');
 }
 
@@ -5928,6 +5933,10 @@ function syncPacientes(){cargarDesdeSB();}
 // (Dashboard, Agenda, Próximos días, Historial), para que no queden
 // desactualizadas por separado como pasaba antes.
 function botonesAsistenciaHTML(s){
+  // Ya se le dio permiso, pero el paciente puede después de todo querer
+  // reprogramar en vez de perder la sesión - se deja la opción visible en
+  // vez de dejar la fila sin ninguna acción.
+  if(s.estado==='permiso')return '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>';
   if(s.estado!=='programado')return '';
   // Permiso y Reprogramar van juntos al costado de Asistió/No Asistió - ambos
   // exigen evidencia (foto/sustento) y mueven la sesión: Permiso la reubica
