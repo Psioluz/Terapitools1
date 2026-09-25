@@ -838,7 +838,7 @@ async function eliminarPagoRecurrente(id){
 <!-- ════════ CUMPLEAÑOS ════════ -->
 <div class="page" id="tCumple" style="padding:14px">
   <div class="card">
-    <div class="ch"><div class="ct">🎂 Cumpleaños del equipo y pacientes</div>
+    <div class="ch"><div class="ct">🎂 Cumpleaños del equipo</div>
       <span id="nCumple2" style="font-size:11px;color:var(--orange);font-weight:700"></span></div>
     <div class="cb" id="listCumple2"><div style="text-align:center;padding:20px;color:var(--muted)">⏳ Cargando...</div></div>
   </div>
@@ -1047,8 +1047,8 @@ function _diasTrabajoANum(txt){
       if(action==='getData'){
         return Promise.all([
           _sb('sesiones',Object.assign({'select':'*','order':'fecha.asc,hora.asc','limit':'2000'},sedeFiltro(sede))),
-          _sb('psicologas',Object.assign({'select':'*'},sedeFiltro(sede))),
-          _sb('recepcionistas',Object.assign({'select':'*'},sedeFiltro(sede))),
+          _sb('psicologas',Object.assign({'estado':'eq.activa','select':'*'},sedeFiltro(sede))),
+          _sb('recepcionistas',Object.assign({'estado':'eq.activa','select':'*'},sedeFiltro(sede))),
           _sb('pacientes',Object.assign({'estado':'eq.activo','select':'*'},sedeFiltro(sede))),
           _sb('terapias',{'select':'*'}),
           _sb('fichas_seguimiento',Object.assign({'select':'*','order':'fecha.desc','limit':'500'},sedeFiltro(sede))),
@@ -1789,30 +1789,36 @@ function getPrevMes(mes){
 }
 
 function renderCumpleanos(){
-  var mesActualNum=new Date().getMonth()+1;
+  // Antes ignoraba el filtro de mes de arriba (siempre mostraba el mes
+  // calendario actual, cambiar el filtro no hacía nada aquí) y mezclaba
+  // pacientes con trabajadoras - esta pestaña es solo del equipo (que
+  // gerencia sí debe saludar/gestionar), los cumpleaños de pacientes no
+  // son responsabilidad de gerencia.
+  var filtroMes=getFiltMes();
+  var mesActualNum=(filtroMes&&filtroMes!=='todos')?parseInt(filtroMes.split('-')[1]):(new Date().getMonth()+1);
   var hoy=today();
   var elN=document.getElementById('nCumple');
   var el=document.getElementById('listCumple');
   if(!el)return;
 
   var cumples=[];
-  // Pacientes
-  G.pacientes.forEach(p=>{
-    if(!p.fechaNac&&!p.nac)return;
-    var fnac=p.fechaNac||p.nac;
-    var mes=parseInt((fnac||'').split('-')[1]);
-    var dia=parseInt((fnac||'').split('-')[2]);
-    if(mes===mesActualNum)
-      cumples.push({nombre:p.nombre,fecha:fnac,tipo:'paciente',dia,tel:p.tel||p.telefono});
-  });
-  // Trabajadoras (psicólogas)
+  // Trabajadoras (psicólogas y recepcionistas - antes solo salían las
+  // psicólogas, las recepcionistas ni aparecían)
   G.psicologas.forEach(ps=>{
     if(!ps.fechaNac&&!ps.nac)return;
     var fnac=ps.fechaNac||ps.nac;
     var mes=parseInt((fnac||'').split('-')[1]);
     var dia=parseInt((fnac||'').split('-')[2]);
     if(mes===mesActualNum)
-      cumples.push({nombre:ps.nombre,fecha:fnac,tipo:'trabajadora',dia,tel:ps.tel||ps.telefono});
+      cumples.push({nombre:ps.nombre,fecha:fnac,tipo:'trabajadora',rol:'👩‍⚕️ Psicóloga',dia,tel:ps.tel||ps.telefono});
+  });
+  (G.recepcionistas||[]).forEach(r=>{
+    if(!r.fechaNac&&!r.nac)return;
+    var fnac=r.fechaNac||r.nac;
+    var mes=parseInt((fnac||'').split('-')[1]);
+    var dia=parseInt((fnac||'').split('-')[2]);
+    if(mes===mesActualNum)
+      cumples.push({nombre:r.nombre,fecha:fnac,tipo:'trabajadora',rol:'💻 Recepción',dia,tel:r.tel||r.telefono});
   });
 
   cumples.sort((a,b)=>a.dia-b.dia);
@@ -1820,11 +1826,11 @@ function renderCumpleanos(){
   el.innerHTML=cumples.length?cumples.map(c=>{
     var esHoy=c.fecha&&c.fecha.split('-').slice(1).join('-')===hoy.split('-').slice(1).join('-');
     var anos=c.fecha?new Date().getFullYear()-parseInt(c.fecha.split('-')[0]):0;
-    return`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:${esHoy?'#fffbeb':'var(--bg)'};border-radius:10px;margin-bottom:6px;border-left:3px solid ${c.tipo==='trabajadora'?'var(--purple)':'var(--acc)'}">
+    return`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:${esHoy?'#fffbeb':'var(--bg)'};border-radius:10px;margin-bottom:6px;border-left:3px solid var(--purple)">
       <div>
         <div style="font-size:13px;font-weight:700">${esHoy?'🎂 ':''}<strong>${c.nombre}</strong>${esHoy?' - ¡HOY!':''}</div>
         <div style="display:flex;gap:6px;margin-top:3px">
-          <span class="badge ${c.tipo==='trabajadora'?'bp':'bt'}" style="font-size:10px">${c.tipo==='trabajadora'?'👩‍⚕️ Trabajadora':'👤 Paciente'}</span>
+          <span class="badge bp" style="font-size:10px">${c.rol||'Trabajadora'}</span>
           ${anos>0?`<span class="badge bk" style="font-size:10px">${anos} años</span>`:''}
           <span class="badge bk" style="font-size:10px">📅 ${c.dia} ${MESES[mesActualNum-1]}</span>
         </div>
@@ -2336,7 +2342,13 @@ function renderPersonal(){
   var hoy    = today();
   renderRendimientoRecepcionGer();
   var asistHoy = G.asistencia.filter(a=>a.fecha===hoy&&a.estado==='presente');
-  var hon    = G.honorarios.filter(h=>h.mes===mesActual());
+  // Los honorarios son otra tabla, sin relación directa al estado ACTUAL
+  // de la psicóloga (si ya cesó, pero su honorario del mes se generó
+  // antes de irse, seguía sumando a la planilla igual) - se cruza contra
+  // G.psicologas (ya filtrado solo a activas) para que una psicóloga que
+  // ya no está no siga apareciendo en el total a pagar.
+  var nombresPsActivas=new Set(G.psicologas.map(p=>p.nombre));
+  var hon    = G.honorarios.filter(h=>h.mes===mesActual()&&nombresPsActivas.has(h.nombre));
   // Los pagos no traen a qué psicóloga corresponden directamente - se
   // averigua a través de la sesión que el pago trae ligada (sesion_id).
   // Un pago de adelanto que todavía no tiene ninguna sesión ligada no se
