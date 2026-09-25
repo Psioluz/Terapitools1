@@ -1931,32 +1931,48 @@ async function verDetalleEvento(dia,idx){
 }
 
 // ══ METAS POR PSICÓLOGA (mes actual) ══
+// Antes la puntualidad se calculaba contando SESIONES con estado
+// "tardanza" - ese estado ya no existe (una sesión con el paciente
+// llegando tarde igual queda marcada "asistió", ver Recepción), así que
+// el denominador de "tarde" siempre daba 0 y todas las psicólogas
+// mostraban 100% sin importar la realidad. Ahora la puntualidad se calcula
+// con el dato real de asistencia AL TRABAJO (asistencia_personal, ya
+// cargado en D.asistencia - el mismo que usa Sueldos y Bonos), no con las
+// sesiones de sus pacientes.
 async function renderMetasPsicologas(){
   var el=document.getElementById('metasPsiContent');if(!el)return;
   el.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted)">⏳ Calculando...</div>';
   try{
     var mes=new Date();
     var desde=mes.getFullYear()+'-'+String(mes.getMonth()+1).padStart(2,'0')+'-01';
+    var mesStr=desde.substring(0,7);
     var ses=await sbGet('sesiones',Object.assign({select:'psicologa,estado,paciente_nombre,fecha',fecha:'gte.'+desde,limit:'2000'},sedeFiltro(D.sede||'')));
     var por={};
     (ses||[]).forEach(function(x){
-      var p=por[x.psicologa]=por[x.psicologa]||{t:0,aTiempo:0,tarde:0,pacs:{}};
+      var p=por[x.psicologa]=por[x.psicologa]||{t:0,pacs:{}};
       p.t++;
-      if(x.estado==='asistio'){p.aTiempo++;p.pacs[x.paciente_nombre]=1;}
-      else if(x.estado==='tardanza'){p.tarde++;p.pacs[x.paciente_nombre]=1;}
+      if(x.estado==='asistio')p.pacs[x.paciente_nombre]=1;
     });
     var noms=Object.keys(por);
     if(!noms.length){el.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted)">Sin sesiones este mes</div>';return;}
-    el.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#fdf2f8;color:#9d174d;font-size:10px"><th style="padding:8px;text-align:left">PSICÓLOGA</th><th>SESIONES</th><th>A TIEMPO</th><th>PUNTUALIDAD %</th><th>👥 PACIENTES</th><th>META 85%</th></tr></thead><tbody>'
+    el.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#fdf2f8;color:#9d174d;font-size:10px"><th style="padding:8px;text-align:left">PSICÓLOGA</th><th>SESIONES</th><th>👥 PACIENTES</th><th>DÍAS TRABAJADOS</th><th>PUNTUALIDAD %</th><th>META 85%</th></tr></thead><tbody>'
       +noms.map(function(n){
-        var p=por[n];var totalAsistidas=p.aTiempo+p.tarde;var pct=totalAsistidas?Math.round(p.aTiempo*100/totalAsistidas):0;var nP=Object.keys(p.pacs).length;
+        var p=por[n];var nP=Object.keys(p.pacs).length;
+        var regs=(D.asistencia||[]).filter(function(a){return a.psicologa===n&&(a.fecha||'').substring(0,7)===mesStr;});
+        var diasPresente=regs.filter(function(a){return a.estado==='presente';}).length;
+        var diasTarde=regs.filter(function(a){return a.estado==='presente'&&a.motivo_tardanza;}).length;
+        var diasATiempo=diasPresente-diasTarde;
+        var pct=diasPresente?Math.round(diasATiempo*100/diasPresente):null;
+        var pctTxt=pct===null?'<span style="color:var(--muted);font-size:11px">sin registro</span>':pct+'%';
+        var pctColor=pct===null?'var(--muted)':(pct>=85?'#059669':pct>=60?'#d97706':'#dc2626');
         return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:8px;font-weight:700">'+n+'</td>'
-          +'<td style="text-align:center;font-weight:800">'+p.t+'</td><td style="text-align:center;font-weight:800;color:#059669">'+p.aTiempo+'</td>'
-          +'<td style="text-align:center;font-weight:900;color:'+(pct>=85?'#059669':pct>=60?'#d97706':'#dc2626')+'">'+pct+'%</td>'
+          +'<td style="text-align:center;font-weight:800">'+p.t+'</td>'
           +'<td style="text-align:center;font-weight:800;color:var(--acc)">'+nP+'</td>'
-          +'<td style="text-align:center">'+(pct>=85?'🏆 Cumplida':'⏳ En curso')+'</td></tr>';
+          +'<td style="text-align:center;font-weight:800">'+diasPresente+(diasTarde?' <span style="font-size:10px;color:#d97706">('+diasTarde+' tarde)</span>':'')+'</td>'
+          +'<td style="text-align:center;font-weight:900;color:'+pctColor+'">'+pctTxt+'</td>'
+          +'<td style="text-align:center">'+(pct===null?'-':(pct>=85?'🏆 Cumplida':'⏳ En curso'))+'</td></tr>';
       }).join('')+'</tbody></table>'
-      +'<div style="font-size:10px;color:var(--muted);margin-top:8px">🎁 Los bonos se otorgan según la cantidad de pacientes atendidos en el mes.</div>';
+      +'<div style="font-size:10px;color:var(--muted);margin-top:8px">🎁 Los bonos se otorgan según la cantidad de pacientes atendidos en el mes. La puntualidad se mide con la asistencia real al trabajo (pestaña Asistencia), no con las sesiones de sus pacientes.</div>';
   }catch(e){el.innerHTML='<div style="color:#dc2626;padding:14px;font-size:12px">Error: '+e.message+'</div>';}
 }
 
