@@ -954,11 +954,52 @@ function generarReciboHonorario(nombre,rol,sede,mes,base,descuento,bonos,total){
 }
 
 // ASISTENCIA
+// Antes era una tabla plana (fecha, nombre, badge genérico "presente" sin
+// distinguir tardanza, entrada, salida) - no se notaba de un vistazo quién
+// llegó tarde, por qué, ni había ningún orden por día. Ahora se agrupa por
+// fecha (más reciente primero) y cada fila distingue con color e ícono si
+// llegó a tiempo, tarde (con el motivo que registró la recepcionista y los
+// minutos reales de atraso) o si faltó.
 function renderAsistencia(){
   var el=document.getElementById('listaAsistAdmin');if(!el)return;
   if(!D.asistencia.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin registros de asistencia</p>';return;}
-  el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Fecha</th><th>Psicóloga</th><th>Estado</th><th>Entrada</th><th>Salida</th></tr></thead><tbody>'+
-  D.asistencia.slice(0,100).map(function(a){return'<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-size:12px">'+fmtF(a.fecha)+'</td><td style="font-weight:700">'+a.psicologa+'</td><td>'+badge(a.estado||'presente')+'</td><td style="font-size:12px">'+(a.entrada||'-')+'</td><td style="font-size:12px">'+(a.salida||'-')+'</td></tr>';}).join('')+'</tbody></table>';
+  var porDia={};
+  D.asistencia.forEach(function(a){(porDia[a.fecha]=porDia[a.fecha]||[]).push(a);});
+  var fechas=Object.keys(porDia).sort().reverse();
+  el.innerHTML=fechas.map(function(f){
+    var regs=porDia[f].slice().sort(function(a,b){return(a.psicologa||'').localeCompare(b.psicologa||'');});
+    var nPres=regs.filter(function(a){return a.estado==='presente'&&!a.motivo_tardanza;}).length;
+    var nTard=regs.filter(function(a){return a.estado==='presente'&&a.motivo_tardanza;}).length;
+    var nAus=regs.filter(function(a){return a.estado==='ausente';}).length;
+    return '<div style="border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden">'+
+      '<div style="background:var(--sidebar);color:#fff;padding:9px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'+
+      '<span style="font-weight:800;font-size:13px">📅 '+fmtF(f)+'</span>'+
+      '<span style="font-size:11px;font-weight:700">'+
+      (nPres?'<span style="color:#86efac">✅ '+nPres+' a tiempo</span> ':'')+
+      (nTard?'<span style="color:#fde68a">🕐 '+nTard+' tarde</span> ':'')+
+      (nAus?'<span style="color:#fca5a5">❌ '+nAus+' faltó</span>':'')+
+      '</span></div>'+
+      regs.map(function(a){
+        var esAus=a.estado==='ausente';
+        var esTard=!esAus&&a.motivo_tardanza;
+        var color=esAus?'#dc2626':esTard?'#d97706':'#059669';
+        var bg=esAus?'#fef2f2':esTard?'#fffbeb':'#f0fdf4';
+        var icono=esAus?'❌':esTard?'🕐':'✅';
+        var etiqueta=esAus?'Faltó':esTard?'Llegó tarde':'A tiempo';
+        var ps=(D.psicologas||[]).find(function(p){return p.nombre===a.psicologa;});
+        var minTarde=(esTard&&ps)?_minutosTarde(a.entrada,_horaEsperadaDia(ps,a.fecha)):0;
+        return '<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid var(--border);background:'+bg+'">'+
+          '<span style="font-size:18px">'+icono+'</span>'+
+          '<div style="flex:1;min-width:160px">'+
+          '<div style="font-weight:700;font-size:13px">'+a.psicologa+'</div>'+
+          (esTard&&a.motivo_tardanza?'<div style="font-size:11px;color:var(--muted);margin-top:1px">Motivo: '+a.motivo_tardanza+'</div>':'')+
+          '</div>'+
+          '<span style="font-size:11px;font-weight:800;color:'+color+'">'+etiqueta+(minTarde?' ('+minTarde+' min)':'')+'</span>'+
+          '<span style="font-size:12px;color:var(--muted);min-width:60px;text-align:right">'+(a.entrada||'-')+'</span>'+
+          '</div>';
+      }).join('')+
+      '</div>';
+  }).join('');
 }
 
 // INVENTARIO
