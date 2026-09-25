@@ -120,8 +120,7 @@ try{
     <div class='nav-item' onclick="showPage('sedes',this)">🏥 Sedes</div>
     <div class='nav-item' onclick="showPage('feriados',this)">🎉 Feriados</div>
     <div class='nav-item' onclick="showPage('rendimiento',this)">📈 Rendimiento Recepción</div>
-    <div class='nav-item' onclick="showPage('gastos',this)">💸 Gastos</div>
-    <div class='nav-item' onclick="showPage('alquiler',this)">🏠 Alquiler y Pagos Fijos</div>
+    <div class='nav-item' onclick="showPage('gastos',this)">💸 Gastos y Pagos Fijos</div>
     <div class='nav-item' onclick="showPage('tarifas',this)">💲 Tarifas y Precios</div>
     <div class='nav-item' onclick="showPage('accesos',this)">🔐 Accesos</div>
     <div class='nav-item' onclick="showPage('auditoria',this)">📊 Auditoría</div>
@@ -286,17 +285,13 @@ try{
         <div style='padding:14px' id='metasPsiContent'></div></div>
     </div>
 
-    <!-- ALQUILER / PAGOS FIJOS -->
-    <div class='page' id='page-alquiler'>
-      <div class='card'>
-        <div class='card-header'><div class='card-title'>🏠 Alquiler y Pagos Fijos Mensuales</div>
+    <!-- GASTOS (fusiona Pagos Fijos Mensuales + Gastos del mes en una sola sección) -->
+    <div class='page' id='page-gastos'>
+      <div class='card' style='margin-bottom:14px'>
+        <div class='card-header'><div class='card-title'>🏠 Pagos Fijos Mensuales (alquiler, internet, servicios...)</div>
           <button class='btn btn-primary btn-sm' onclick='abrirModalRecurrente()'>+ Nuevo pago fijo</button></div>
         <div style='overflow-x:auto;padding:12px' id='listaAlquiler'></div>
       </div>
-    </div>
-
-    <!-- GASTOS -->
-    <div class='page' id='page-gastos'>
       <div class='card'>
         <div class='card-header'>
           <div><div class='card-title'>💸 Gastos del mes</div><div style='font-size:13px;font-weight:700;color:#dc2626;margin-top:2px' id='totalGastos'>S/0.00</div></div><button class='btn btn-sm' style='background:#dcfce7;color:#166534;font-weight:800;margin-left:auto' onclick='exportarSUNAT()'>📥 Exportar SUNAT (CSV)</button>
@@ -647,7 +642,7 @@ function showPage(name,el){
   var pg=document.getElementById('page-'+name);if(pg)pg.classList.add('active');
   if(el)el.classList.add('active');
   document.getElementById('pageTitle').textContent=PAGE_TITLES[name]||name;
-  var renders={dashboard:renderDashboard,contratos:renderContratos,sueldos:renderSueldos,asistencia:renderAsistencia,inventario:renderInventario,personal:renderPersonal,sedes:renderSedes,gastos:renderGastos,alquiler:renderAlquiler,auditoria:renderAuditoria,chat:renderChat,cumpleanos:renderCumpleanos,calendario:function(){renderCalendarioPagos('calendarioPagosContainer');},metas:renderMetasPsicologas,fichas:renderFichaPacSel,accesos:renderAccesos,feriados:renderFeriados,rendimiento:renderRendimiento};
+  var renders={dashboard:renderDashboard,contratos:renderContratos,sueldos:renderSueldos,asistencia:renderAsistencia,inventario:renderInventario,personal:renderPersonal,sedes:renderSedes,gastos:function(){renderAlquiler();renderGastos();},auditoria:renderAuditoria,chat:renderChat,cumpleanos:renderCumpleanos,calendario:function(){renderCalendarioPagos('calendarioPagosContainer');},metas:renderMetasPsicologas,fichas:renderFichaPacSel,accesos:renderAccesos,feriados:renderFeriados,rendimiento:renderRendimiento};
   if(renders[name])renders[name]();
   // Cerrar el menú lateral al elegir una sección (igual que las demás
   // apps) - en escritorio no afecta nada (el sidebar ya es fijo ahí),
@@ -673,7 +668,7 @@ window.addEventListener('DOMContentLoaded',function(){
 function cambiarSede(){
   var sel=document.getElementById('selectorSede');if(sel){D.sede=sel.value;recargar();}
 }
-var PAGE_TITLES={dashboard:'Dashboard',contratos:'Contratos',sueldos:'Sueldos y Bonos',asistencia:'Asistencia',inventario:'Inventario',personal:'Personal',sedes:'Sedes',feriados:'Feriados',rendimiento:'Rendimiento Recepción',gastos:'Gastos',alquiler:'Alquiler y Pagos Fijos',tarifas:'Tarifas y Precios',accesos:'Gestión de Accesos',auditoria:'Auditoría',chat:'Chat',cumpleanos:'Cumpleaños',calendario:'Calendario',metas:'Metas',fichas:'Fichas y Reportes'};
+var PAGE_TITLES={dashboard:'Dashboard',contratos:'Contratos',sueldos:'Sueldos y Bonos',asistencia:'Asistencia',inventario:'Inventario',personal:'Personal',sedes:'Sedes',feriados:'Feriados',rendimiento:'Rendimiento Recepción',gastos:'Gastos y Pagos Fijos',tarifas:'Tarifas y Precios',accesos:'Gestión de Accesos',auditoria:'Auditoría',chat:'Chat',cumpleanos:'Cumpleaños',calendario:'Calendario',metas:'Metas',fichas:'Fichas y Reportes'};
 
 // DASHBOARD
 function renderDashboard(){
@@ -1738,10 +1733,31 @@ function renderAlquiler(){
   var rows=D.pagosRecurrentes||[];
   if(!rows.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin pagos fijos registrados (alquiler, internet, servicios...)</p>';return;}
   var tot=rows.reduce(function(a,r){return a+(r.monto||0);},0);
+  var mesStr=mesY();
   el.innerHTML='<div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:8px">Total mensual fijo: S/'+tot.toFixed(2)+'</div>'+
     '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Concepto</th><th>Monto</th><th>Día de pago</th><th>Sede</th><th>Estado</th><th></th></tr></thead><tbody>'+
-    rows.map(function(r){return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(r.concepto||'-')+'</td><td style="font-weight:900;color:#dc2626">S/'+(r.monto||0)+'</td><td style="font-size:12px">Día '+(r.dia_pago||'-')+'</td><td style="font-size:12px">'+(r.sede||'Todas')+'</td><td>'+badge(r.activo===false?'inactivo':'activo')+'</td><td style="text-align:right"><button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarRecurrente(\''+r.id+'\')">🗑</button></td></tr>';}).join('')+
+    rows.map(function(r){
+      // Si ya existe un gasto de este mismo pago fijo registrado este mes
+      // (mismo concepto, categoría "Pago fijo"), ya está pagado - no tiene
+      // sentido dejar el botón para volver a registrarlo dos veces.
+      var yaPagado=(D.gastos||[]).some(function(g){return g.categoria==='Pago fijo'&&g.concepto===r.concepto&&(g.fecha||'').substring(0,7)===mesStr;});
+      return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(r.concepto||'-')+'</td><td style="font-weight:900;color:#dc2626">S/'+(r.monto||0)+'</td><td style="font-size:12px">Día '+(r.dia_pago||'-')+'</td><td style="font-size:12px">'+(r.sede||'Todas')+'</td><td>'+badge(r.activo===false?'inactivo':'activo')+'</td>'+
+        '<td style="text-align:right;white-space:nowrap">'+
+        (yaPagado?'<span class="badge bg">✅ Pagado este mes</span>':'<button class="btn btn-sm" style="background:#dcfce7;color:#166534;font-weight:800" onclick="marcarRecurrentePagado(\''+r.id+'\')">✅ Marcar pagado</button>')+
+        ' <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarRecurrente(\''+r.id+'\')">🗑</button></td></tr>';
+    }).join('')+
     '</tbody></table>';
+}
+// Registra de un clic el gasto del mes para este pago fijo (sin tener que
+// abrir el modal de gasto y elegirlo a mano de nuevo).
+async function marcarRecurrentePagado(id){
+  var r=(D.pagosRecurrentes||[]).find(function(x){return String(x.id)===String(id);});if(!r)return;
+  if(!confirm('¿Confirmas el pago de "'+r.concepto+'" por S/'+(r.monto||0).toFixed(2)+'? Se va a registrar como gasto del mes.'))return;
+  try{
+    await sbPost('gastos',{fecha:today(),sede:r.sede||D.sede,categoria:'Pago fijo',concepto:r.concepto,monto:r.monto||0,registrado_por:ADM.nombre});
+    toast('✅ Pago registrado en Gastos');
+    await recargar();
+  }catch(e){toast('Error: '+e.message,'error');}
 }
 function abrirModalRecurrente(){
   var modal=document.getElementById('modalRecurrente');
