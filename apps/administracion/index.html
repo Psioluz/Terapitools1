@@ -526,6 +526,12 @@ function mesY(){var d=new Date(Date.now()-5*3600000);return d.getFullYear()+'-'+
 function fmtF(s){if(!s)return'-';var p=s.toString().split('T')[0].split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:s;}
 function toast(msg,type){var el=document.getElementById('toast');if(!el)return;el.style.background=type==='error'?'#dc2626':type==='success'?'#15803d':'var(--dark)';el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('show');},4000);}
 function badge(e){var m={activo:'bg',activa:'bg',activo:'bg',firmado:'bg',presente:'bg',programado:'bb',pendiente:'bo',noasistio:'br',vencido:'br',cesada:'bgr'};return'<span class="badge '+(m[String(e||'').toLowerCase()]||'bgr')+'">'+e+'</span>';}
+// Para pasar un string como argumento de un onclick="..." (atributo con
+// comillas dobles): JSON.stringify() no sirve aquí porque mete comillas
+// dobles DENTRO del atributo y rompe el HTML (el botón queda inservible
+// con cualquier nombre) - se arma un literal JS entre comillas simples,
+// escapando barras y comillas simples.
+function _sq(v){return "'"+String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+"'";}
 
 var ADM={nombre:'',email:'',id:null};
 var D={sesiones:[],pacientes:[],pagos:[],psicologas:[],contratos:[],gastos:[],honorarios:[],asistencia:[],insumos:[],terapias:[],recepcionistas:[],usuariosGerencia:[],feriados:[],rendimiento:[],sede:''};
@@ -903,8 +909,8 @@ function renderSueldos(){
       +'<td style="font-weight:700;color:'+(descuento>0?'#dc2626':'var(--muted)')+'">'+(descuento>0?'-S/'+descuento.toFixed(2):'-')+'</td>'
       +'<td style="color:#15803d">S/'+bonos.toFixed(2)+'</td><td style="font-weight:900;color:var(--dark)">S/'+total.toFixed(2)+'</td><td>'+badge((hon&&hon.estado)||'pendiente')+'</td>'
       +'<td style="white-space:nowrap">'
-      +'<button class="btn btn-sm" style="background:#eef2ff;color:#4338ca;font-weight:800" onclick="generarReciboHonorario('+JSON.stringify(p.nombre)+','+JSON.stringify(p._rol)+','+JSON.stringify(p.sede||D.sede)+','+JSON.stringify(mesStr)+','+base+','+descuento+','+bonos+','+total+')">📄 Recibo</button> '
-      +(yaPagado?'':'<button class="btn btn-sm" style="background:#dcfce7;color:#166534;font-weight:800" onclick="marcarHonorarioPagado('+JSON.stringify(p._tabla)+','+JSON.stringify(p.nombre)+','+JSON.stringify(p._rol)+','+JSON.stringify(p.sede||D.sede)+','+base+','+descuento+','+bonos+','+total+')">💾 Marcar pagado</button>')
+      +'<button class="btn btn-sm" style="background:#eef2ff;color:#4338ca;font-weight:800" onclick="generarReciboHonorario('+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+_sq(mesStr)+','+base+','+descuento+','+bonos+','+total+')">📄 Recibo</button> '
+      +(yaPagado?'':'<button class="btn btn-sm" style="background:#dcfce7;color:#166534;font-weight:800" onclick="marcarHonorarioPagado('+_sq(p._tabla)+','+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+base+','+descuento+','+bonos+','+total+')">💾 Marcar pagado</button>')
       +'</td></tr>';
   }).join('')+'</tbody></table>'
   +'<div style="font-size:10px;color:var(--muted);margin-top:8px">➖ Costo/hora = sueldo ÷ 30 días ÷ 8 horas. Si la trabajadora tiene una tasa fija configurada (botón "Descuentos"), el descuento usa esa tasa; si no, se calcula automático con los minutos reales tarde (o el día completo en una falta) sobre su costo/hora. La tabla se ordena por cercanía al día de pago. "📄 Recibo" genera el PDF en cualquier momento, sin necesidad de marcar el pago. "Marcar pagado" además lo suma a Gastos de la sede.</div>';
@@ -1040,8 +1046,8 @@ function renderPersonal(){
     .concat((D.recepcionistas||[]).map(function(p){return Object.assign({},p,{_tabla:'recepcionistas',_rol:'💻 Recepción'});}));
   if(!todos.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin personal activo</p>';return;}
   el.innerHTML='<div style="display:grid;gap:10px">'+todos.map(function(p){return'<div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f8faff;border-radius:10px"><div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#4a0e2e,#e91e8c);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:900">'+p.nombre.charAt(0)+'</div><div style="flex:1"><div style="font-weight:800">'+p.nombre+' <span style="font-weight:600;font-size:11px;color:var(--acc)">'+p._rol+'</span></div><div style="font-size:11px;color:var(--muted)">'+(p.cpsp||'')+(p.especialidad?' · '+p.especialidad:'')+(p.grado_academico?' · '+p.grado_academico:'')+'</div><div style="font-size:11px;color:var(--muted)">'+(p.email||'')+(p.telefono?' · '+p.telefono:'')+'</div></div>'+badge(p.estado||'activa')+
-    (p._tabla==='psicologas'?'<button style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="editarPsicologa('+JSON.stringify(p.id)+')">✏️ Editar</button>':'')+
-    '<button style="padding:5px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="cesarPersonal('+JSON.stringify(p._tabla)+','+JSON.stringify(p.id)+')">Cesar</button></div>';}).join('')+'</div>';
+    (p._tabla==='psicologas'?'<button style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="editarPsicologa('+_sq(p.id)+')">✏️ Editar</button>':'')+
+    '<button style="padding:5px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="cesarPersonal('+_sq(p._tabla)+','+_sq(p.id)+')">Cesar</button></div>';}).join('')+'</div>';
 }
 async function cesarPersonal(tabla,id){
   if(!confirm('¿Confirmas cesar a esta persona?'))return;
@@ -1113,8 +1119,8 @@ function renderAccesos(){
         '<div style="flex:1;min-width:160px"><div style="font-weight:700;font-size:13px">'+(u.nombre||'-')+'</div>'+
         '<div style="font-size:11px;color:var(--muted)">'+(u.email||'-')+(u.sede?' · '+u.sede:'')+(u.rol?' · '+u.rol:'')+'</div></div>'+
         (u.estado?badge(u.estado):'')+
-        '<button style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="editarAcceso(\''+tabla+'\','+JSON.stringify(u.id)+')">✏️ Editar</button>'+
-        '<button style="padding:5px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="eliminarAcceso(\''+tabla+'\','+JSON.stringify(u.id)+')">🗑️</button>'+
+        '<button style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="editarAcceso('+_sq(tabla)+','+_sq(u.id)+')">✏️ Editar</button>'+
+        '<button style="padding:5px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="eliminarAcceso('+_sq(tabla)+','+_sq(u.id)+')">🗑️</button>'+
         '</div>';
     }).join('')+'</div>';
   });
