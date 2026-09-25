@@ -33,6 +33,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .card-title{font-size:16px;font-weight:800;color:var(--dark)}
 .page{display:none}
 .page.active{display:block}
+/* El chat necesita llenar el alto disponible de verdad (no un cálculo
+   fijo en vh, que se desajustaba y dejaba la fila de escribir mensaje
+   cortada según el alto real de la ventana) - se resuelve con flexbox en
+   vez de adivinar cuántos px ocupa la cabecera. */
+#page-chat.page.active{display:flex;flex-direction:column;height:100%}
 .grid{display:grid;gap:12px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}.g4{grid-template-columns:repeat(4,1fr)}
 .stat-card{background:#fff;border-radius:12px;border:1px solid var(--border);padding:20px 14px;text-align:center}
 .stat-card>div:first-child{font-size:28px!important;margin-bottom:4px}
@@ -309,7 +314,7 @@ try{
 
     <!-- CHAT -->
     <div class='page' id='page-chat'>
-      <div class='card' style='height:calc(100vh - 160px);display:flex;flex-direction:column'>
+      <div class='card' style='flex:1;min-height:0;display:flex;flex-direction:column'>
         <div class='card-header'><div class='card-title'>💬 Chat de la sede</div></div>
         <div id='chatBox' style='flex:1;overflow-y:auto;padding:14px;background:#f8faff'></div>
         <div style='padding:12px;border-top:1px solid var(--border);display:flex;gap:8px'>
