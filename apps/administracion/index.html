@@ -1689,29 +1689,37 @@ async function renderCalendarioPagos(contId){
     var diasMes=new Date(y,m+1,0).getDate();
     var hoyD=new Date();
     var esMesActual=(hoyD.getFullYear()===y&&hoyD.getMonth()===m);
-    var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-      +'<button onclick="calMesMover(-1)" style="border:none;background:#f1f5f9;border-radius:8px;padding:6px 12px;font-weight:900;cursor:pointer">‹</button>'
-      +'<div style="font-size:15px;font-weight:900;color:var(--dark)">'+meses[m]+' '+y+'</div>'
-      +'<button onclick="calMesMover(1)" style="border:none;background:#f1f5f9;border-radius:8px;padding:6px 12px;font-weight:900;cursor:pointer">›</button></div>';
-    html+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:10px;font-weight:800;color:var(--muted);text-align:center;margin-bottom:4px">'
-      +['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'].map(function(d){return '<div>'+d+'</div>';}).join('')+'</div>';
-    html+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">';
+    // Antes: celdas de 74px, texto de evento en 9px sin fondo (solo texto
+    // de color) y cabecera de días en 10px - muy chico y con poco contraste
+    // para leerlo de un vistazo. Ahora las celdas son más grandes, cada
+    // evento es una "píldora" con fondo de color (no solo texto de color,
+    // que se pierde) y todo el texto sube de tamaño.
+    var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+      +'<button onclick="calMesMover(-1)" style="border:none;background:var(--sidebar);color:#fff;border-radius:10px;padding:9px 16px;font-weight:900;font-size:16px;cursor:pointer">‹</button>'
+      +'<div style="font-size:20px;font-weight:900;color:var(--dark)">'+meses[m]+' '+y+'</div>'
+      +'<button onclick="calMesMover(1)" style="border:none;background:var(--sidebar);color:#fff;border-radius:10px;padding:9px 16px;font-weight:900;font-size:16px;cursor:pointer">›</button></div>';
+    html+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px">'
+      +['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'].map(function(d){return '<div style="text-align:center;background:var(--sidebar);color:#fff;border-radius:6px;padding:6px 0;font-size:12px;font-weight:800">'+d+'</div>';}).join('')+'</div>';
+    html+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">';
     for(var i=0;i<primerDia;i++)html+='<div></div>';
+    var COLOR_BG={'#059669':'#d1fae5','#d97706':'#fef3c7','#e91e8c':'#fce7f3'};
     for(var d=1;d<=diasMes;d++){
       var evs=eventos[d]||[];
       var esHoy=esMesActual&&hoyD.getDate()===d;
-      html+='<div onclick="verDetalleDiaCalendario('+d+')" style="cursor:pointer;min-height:74px;border:1.5px solid '+(esHoy?'var(--acc)':'var(--border)')+';border-radius:10px;padding:4px;transition:.12s;'
-        +(esHoy?'background:#fdf2f8;':'background:#fff;')+'overflow:hidden" onmouseover="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,.12)\'" onmouseout="this.style.boxShadow=\'none\'">'
-        +'<div style="font-size:11px;font-weight:900;color:'+(esHoy?'var(--acc)':'var(--dark)')+'">'+d+'</div>'
+      html+='<div onclick="verDetalleDiaCalendario('+d+')" style="cursor:pointer;min-height:108px;border:2px solid '+(esHoy?'var(--acc)':'var(--border)')+';border-radius:12px;padding:6px;transition:.12s;'
+        +(esHoy?'background:#fdf2f8;':'background:#fff;')+'overflow:hidden" onmouseover="this.style.boxShadow=\'0 3px 10px rgba(0,0,0,.15)\'" onmouseout="this.style.boxShadow=\'none\'">'
+        +'<div style="font-size:15px;font-weight:900;color:'+(esHoy?'var(--acc)':'var(--dark)')+';margin-bottom:3px">'+d+'</div>'
         +evs.slice(0,3).map(function(e){
-          return '<div title="'+e.t+(e.s?' ('+e.s+')':'')+'" style="font-size:9px;font-weight:700;color:'+e.c+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px">'+e.i+' '+e.t+'</div>';
+          return '<div title="'+e.t+(e.s?' ('+e.s+')':'')+'" style="font-size:11px;font-weight:800;color:'+e.c+';background:'+(COLOR_BG[e.c]||'#f1f5f9')+';border-radius:5px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">'+e.i+' '+e.t+'</div>';
         }).join('')
-        +(evs.length>3?'<div style="font-size:8px;color:var(--muted)">+'+(evs.length-3)+' más</div>':'')
+        +(evs.length>3?'<div style="font-size:10px;font-weight:700;color:var(--muted);margin-top:2px">+'+(evs.length-3)+' más</div>':'')
         +'</div>';
     }
     html+='</div>';
-    html+='<div style="display:flex;gap:14px;margin-top:10px;font-size:10px;font-weight:700;color:var(--muted);flex-wrap:wrap">'
-      +'<span>💵 Pago a trabajadora</span><span>🏠 Pago fijo (alquiler, internet...)</span><span>🎂 Cumpleaños</span></div>';
+    html+='<div style="display:flex;gap:16px;margin-top:16px;font-size:12px;font-weight:700;color:var(--dark);flex-wrap:wrap">'
+      +'<span style="background:#d1fae5;color:#059669;padding:4px 10px;border-radius:6px">💵 Pago a trabajadora</span>'
+      +'<span style="background:#fef3c7;color:#d97706;padding:4px 10px;border-radius:6px">🏠 Pago fijo (alquiler, internet...)</span>'
+      +'<span style="background:#fce7f3;color:#e91e8c;padding:4px 10px;border-radius:6px">🎂 Cumpleaños</span></div>';
     cont.innerHTML=html;
   }catch(e){cont.innerHTML='<div style="color:#dc2626;padding:16px;font-size:12px">Error: '+e.message+'</div>';}
 }

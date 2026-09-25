@@ -3849,15 +3849,19 @@ async function renderCalendarioPagos(contId){
     var diasMes=new Date(y,m+1,0).getDate();
     var hoyD=new Date();
     var esMesActual=(hoyD.getFullYear()===y&&hoyD.getMonth()===m);
-    var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-      +'<button onclick="calMesMover(-1)" style="border:none;background:linear-gradient(135deg,var(--dark),#ad1457);color:#fff;border-radius:8px;padding:7px 14px;font-weight:900;cursor:pointer">‹</button>'
-      +'<div style="font-size:16px;font-weight:900;color:var(--dark)">'+meses[m]+' '+y+'</div>'
-      +'<button onclick="calMesMover(1)" style="border:none;background:linear-gradient(135deg,var(--dark),#ad1457);color:#fff;border-radius:8px;padding:7px 14px;font-weight:900;cursor:pointer">›</button></div>';
-    html+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">'
+    // Antes: celdas de 82px, texto de evento en 8.5px - se leía apretado y
+    // chico. Se agranda todo (celdas, textos, botones de mes) igual que se
+    // hizo en el calendario de Administración, para que ambos sean
+    // consistentes y fáciles de leer de un vistazo.
+    var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+      +'<button onclick="calMesMover(-1)" style="border:none;background:linear-gradient(135deg,var(--dark),#ad1457);color:#fff;border-radius:10px;padding:9px 18px;font-weight:900;font-size:16px;cursor:pointer">‹</button>'
+      +'<div style="font-size:20px;font-weight:900;color:var(--dark)">'+meses[m]+' '+y+'</div>'
+      +'<button onclick="calMesMover(1)" style="border:none;background:linear-gradient(135deg,var(--dark),#ad1457);color:#fff;border-radius:10px;padding:9px 18px;font-weight:900;font-size:16px;cursor:pointer">›</button></div>';
+    html+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px">'
       +['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'].map(function(d,i){
-        return '<div style="text-align:center;font-size:10px;font-weight:800;color:#fff;background:'+(i===0||i===6?'#ad1457':'var(--dark)')+';border-radius:6px;padding:5px 0">'+d+'</div>';
+        return '<div style="text-align:center;font-size:12px;font-weight:800;color:#fff;background:'+(i===0||i===6?'#ad1457':'var(--dark)')+';border-radius:6px;padding:7px 0">'+d+'</div>';
       }).join('')+'</div>';
-    html+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">';
+    html+='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">';
     for(var i=0;i<primerDia;i++)html+='<div></div>';
     for(var d=1;d<=diasMes;d++){
       var evs=eventos[d]||[];
@@ -3865,21 +3869,21 @@ async function renderCalendarioPagos(contId){
       var diaSem=(primerDia+d-1)%7;
       var esFinde=diaSem===0||diaSem===6;
       var bgCelda=esHoy?'#fdf2f8':(esFinde?'#fbfaff':'#fff');
-      html+='<div onclick="verDetalleDiaCalendario('+d+')" style="cursor:pointer;min-height:82px;border:1.5px solid '+(esHoy?'var(--acc)':'var(--border)')+';border-radius:10px;padding:4px;transition:.12s;'
-        +'background:'+bgCelda+';overflow:hidden" onmouseover="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,.12)\'" onmouseout="this.style.boxShadow=\'none\'">'
-        +'<div style="font-size:12px;font-weight:900;color:'+(esHoy?'#fff':'var(--dark)')+(esHoy?';background:var(--acc);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center':'')+'">'+d+'</div>'
-        +'<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">'
+      html+='<div onclick="verDetalleDiaCalendario('+d+')" style="cursor:pointer;min-height:110px;border:2px solid '+(esHoy?'var(--acc)':'var(--border)')+';border-radius:12px;padding:6px;transition:.12s;'
+        +'background:'+bgCelda+';overflow:hidden" onmouseover="this.style.boxShadow=\'0 3px 10px rgba(0,0,0,.15)\'" onmouseout="this.style.boxShadow=\'none\'">'
+        +'<div style="font-size:14px;font-weight:900;color:'+(esHoy?'#fff':'var(--dark)')+(esHoy?';background:var(--acc);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center':'')+'">'+d+'</div>'
+        +'<div style="display:flex;flex-direction:column;gap:3px;margin-top:4px">'
         +evs.slice(0,3).map(function(e){
-          return '<div title="'+e.t+(e.s?' ('+e.s+')':'')+'" style="font-size:8.5px;font-weight:800;color:#fff;background:'+e.c+';border-radius:4px;padding:1.5px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 2px rgba(0,0,0,.15)">'+e.i+' '+e.t+'</div>';
+          return '<div title="'+e.t+(e.s?' ('+e.s+')':'')+'" style="font-size:11px;font-weight:800;color:#fff;background:'+e.c+';border-radius:5px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 2px rgba(0,0,0,.15)">'+e.i+' '+e.t+'</div>';
         }).join('')
-        +(evs.length>3?'<div style="font-size:8px;color:var(--muted);font-weight:800;padding-left:2px">+'+(evs.length-3)+' más</div>':'')
+        +(evs.length>3?'<div style="font-size:10px;color:var(--muted);font-weight:800;padding-left:2px">+'+(evs.length-3)+' más</div>':'')
         +'</div></div>';
     }
     html+='</div>';
-    html+='<div style="display:flex;gap:10px;margin-top:12px;font-size:10.5px;font-weight:800;color:#fff;flex-wrap:wrap">'
-      +'<span style="background:#059669;border-radius:20px;padding:4px 10px">💵 Pago a trabajadora</span>'
-      +'<span style="background:#d97706;border-radius:20px;padding:4px 10px">🧾 Pago recurrente (local, internet...)</span>'
-      +'<span style="background:#e91e8c;border-radius:20px;padding:4px 10px">🎂 Cumpleaños</span></div>';
+    html+='<div style="display:flex;gap:12px;margin-top:16px;font-size:13px;font-weight:800;color:#fff;flex-wrap:wrap">'
+      +'<span style="background:#059669;border-radius:20px;padding:5px 12px">💵 Pago a trabajadora</span>'
+      +'<span style="background:#d97706;border-radius:20px;padding:5px 12px">🧾 Pago recurrente (local, internet...)</span>'
+      +'<span style="background:#e91e8c;border-radius:20px;padding:5px 12px">🎂 Cumpleaños</span></div>';
     cont.innerHTML=html;
   }catch(e){cont.innerHTML='<div style="color:#dc2626;padding:16px;font-size:12px">Error: '+e.message+'</div>';}
 }
