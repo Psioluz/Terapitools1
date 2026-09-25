@@ -1291,14 +1291,53 @@ async function generarRendimientoMes(){
 }
 
 // SEDES
+var _COLORES_SEDE=['#be185d','#0369a1','#b45309','#15803d','#7c3aed','#c2410c'];
+function _irASede(s){
+  var sel=document.getElementById('selectorSede');
+  if(!sel)return;
+  sel.value=s;
+  cambiarSede();
+  showPage('dashboard');
+}
 function renderSedes(){
   var sedes=SEDES_ACTIVAS;
   var el=document.getElementById('listaSedes');if(!el)return;
-  el.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+sedes.map(function(s){
+  if(!sedes.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin sedes registradas</p>';return;}
+  var hoy=today();
+  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">'+sedes.map(function(s,i){
+    var col=_COLORES_SEDE[i%_COLORES_SEDE.length];
     var pacs=D.pacientes.filter(function(p){return p.sede===s;}).length;
     var psis=D.psicologas.filter(function(p){return p.sede===s;}).length;
+    var recs=(D.recepcionistas||[]).filter(function(r){return r.sede===s;}).length;
     var ingresos=D.pagos.filter(function(p){return p.sede===s;}).reduce(function(a,p){return a+(p.monto||0);},0);
-    return'<div class="card"><div class="card-header"><div class="card-title">🏥 '+s+'</div></div><div style="padding:12px"><div style="display:flex;gap:10px;flex-wrap:wrap"><div class="stat-card" style="flex:1;border-color:#be185d"><div class="stat-value" style="color:#be185d">'+psis+'</div><div class="stat-label">Psicólogas</div></div><div class="stat-card" style="flex:1;border-color:#059669"><div class="stat-value" style="color:#059669">'+pacs+'</div><div class="stat-label">Pacientes</div></div><div class="stat-card" style="flex:1;border-color:#15803d"><div class="stat-value" style="font-size:14px;color:#15803d">S/'+ingresos.toFixed(0)+'</div><div class="stat-label">Mes</div></div></div></div></div>';
+    var gastos=(D.gastos||[]).filter(function(g){return g.sede===s;}).reduce(function(a,g){return a+(g.monto||0);},0);
+    var neto=ingresos-gastos;
+    var asistHoy=(D.asistencia||[]).filter(function(a){return a.sede===s&&a.fecha===hoy;});
+    var aTiempo=asistHoy.filter(function(a){return a.estado==='presente'&&!a.motivo_tardanza;}).length;
+    var tarde=asistHoy.filter(function(a){return a.estado==='presente'&&a.motivo_tardanza;}).length;
+    var falto=asistHoy.filter(function(a){return a.estado==='ausente';}).length;
+    return'<div class="card" style="margin-bottom:0">'+
+      '<div style="background:linear-gradient(135deg,'+col+',#1e293b);padding:16px;display:flex;justify-content:space-between;align-items:center;gap:10px">'+
+        '<div><div style="font-size:17px;font-weight:900;color:#fff">🏥 '+s+'</div>'+
+        '<div style="font-size:11px;color:rgba(255,255,255,.75);font-weight:600;margin-top:2px">'+psis+' psicólogas · '+recs+' recepción · '+pacs+' pacientes</div></div>'+
+        '<button class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.35);white-space:nowrap" onclick="_irASede(\''+s.replace(/'/g,"\\'")+'\')">Ver detalle →</button>'+
+      '</div>'+
+      '<div style="padding:14px">'+
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">'+
+          '<div class="stat-card" style="padding:12px 8px;border-color:'+col+'"><div class="stat-value" style="font-size:22px;color:'+col+'">'+psis+'</div><div class="stat-label" style="font-size:10px">Psicólogas</div></div>'+
+          '<div class="stat-card" style="padding:12px 8px;border-color:#0891b2"><div class="stat-value" style="font-size:22px;color:#0891b2">'+recs+'</div><div class="stat-label" style="font-size:10px">Recepción</div></div>'+
+          '<div class="stat-card" style="padding:12px 8px;border-color:#059669"><div class="stat-value" style="font-size:22px;color:#059669">'+pacs+'</div><div class="stat-label" style="font-size:10px">Pacientes</div></div>'+
+        '</div>'+
+        '<div style="display:flex;gap:8px;background:#f8faff;border-radius:10px;padding:10px 12px;margin-bottom:10px">'+
+          '<div style="flex:1"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">Ingresos mes</div><div style="font-size:15px;font-weight:800;color:#15803d">S/'+ingresos.toFixed(0)+'</div></div>'+
+          '<div style="flex:1;border-left:1px solid var(--border);padding-left:8px"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">Gastos mes</div><div style="font-size:15px;font-weight:800;color:#dc2626">S/'+gastos.toFixed(0)+'</div></div>'+
+          '<div style="flex:1;border-left:1px solid var(--border);padding-left:8px"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">Neto</div><div style="font-size:15px;font-weight:800;color:'+(neto>=0?'#15803d':'#dc2626')+'">S/'+neto.toFixed(0)+'</div></div>'+
+        '</div>'+
+        '<div style="font-size:11px;color:var(--muted);font-weight:700">'+
+          (asistHoy.length?('Hoy: '+(aTiempo?'<span style="color:#059669">✅ '+aTiempo+' a tiempo</span> ':'')+(tarde?'<span style="color:#d97706">🕐 '+tarde+' tarde</span> ':'')+(falto?'<span style="color:#dc2626">❌ '+falto+' faltó</span>':'')):'Sin registros de asistencia hoy')+
+        '</div>'+
+      '</div>'+
+    '</div>';
   }).join('')+'</div>';
 }
 
@@ -1469,20 +1508,57 @@ async function eliminarTerapiaAdm(id){
 }
 
 // ══ TARIFAS Y PRECIOS ══
+function _tarifaCard(t,verTodas){
+  var cuotas=t.cantidad_cuotas||1;
+  var porCuota=t.monto_cuota||((t.costo_total||0)/cuotas);
+  var esPaquete=(t.tipo||'paquete')==='paquete';
+  var col=esPaquete?'#7c3aed':'#0369a1';
+  return '<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column">'+
+    '<div style="background:'+col+';padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px">'+
+      '<span style="color:#fff;font-weight:800;font-size:13px">'+(esPaquete?'📦':'🔹')+' '+(t.nombre_servicio||'-')+'</span>'+
+      '<span class="badge" style="background:rgba(255,255,255,.25);color:#fff">'+(t.categoria==='ninos'?'👶 Niños':t.categoria==='adultos'?'🧑 Adultos':(t.categoria||'-'))+'</span>'+
+    '</div>'+
+    '<div style="padding:14px;flex:1">'+
+      (verTodas?'<div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:6px">📍 '+(t.sede||'-')+'</div>':'')+
+      '<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px"><span style="font-size:24px;font-weight:900;color:#15803d">S/'+(t.costo_total||0)+'</span><span style="font-size:11px;color:var(--muted)">· '+(t.nro_sesiones||0)+' sesiones</span></div>'+
+      (cuotas>1?'<div style="font-size:11px;background:#fffbeb;color:#92400e;border-radius:8px;padding:6px 10px;font-weight:700">💳 '+cuotas+' cuotas de S/'+porCuota.toFixed(2)+'</div>':'<div style="font-size:11px;color:var(--muted)">Pago único</div>')+
+    '</div>'+
+    '<div style="display:flex;border-top:1px solid var(--border)">'+
+      '<button class="btn btn-sm" style="flex:1;border-radius:0;background:#eef2ff;color:#4338ca" onclick="editarTarifa(\''+t.id+'\')">✏️ Editar</button>'+
+      '<button class="btn btn-sm" style="flex:1;border-radius:0;background:#fee2e2;color:#991b1b" onclick="eliminarTarifa(\''+t.id+'\')">🗑 Eliminar</button>'+
+    '</div>'+
+  '</div>';
+}
 function renderTarifas(){
   var lbl=document.getElementById('tarSedeLbl');if(lbl)lbl.textContent=D.sede||'';
   var el=document.getElementById('listaTarifas');
   if(el){
     var verTodas=!D.sede;
     if(!(D.tarifas||[]).length)el.innerHTML='<p style="color:var(--muted);text-align:center;padding:16px">Sin tarifas registradas'+(verTodas?'':' para esta sede')+'</p>';
-    else el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Servicio</th>'+(verTodas?'<th>Sede</th>':'')+'<th>Tipo</th><th>Sesiones</th><th>Precio</th><th>Cuotas</th><th>Por cuota</th><th></th></tr></thead><tbody>'+
-    D.tarifas.map(function(t){var cuotas=t.cantidad_cuotas||1;var porCuota=t.monto_cuota||((t.costo_total||0)/cuotas);return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(t.nombre_servicio||'-')+'</td>'+(verTodas?'<td style="font-size:11px;color:var(--muted)">'+(t.sede||'-')+'</td>':'')+'<td style="font-size:12px">'+(t.tipo||'paquete')+'</td><td style="font-weight:700">'+(t.nro_sesiones||0)+'</td><td style="font-weight:900;color:#15803d">S/'+(t.costo_total||0)+'</td><td style="text-align:center">'+cuotas+'</td><td>S/'+porCuota.toFixed(2)+'</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-sm" style="background:#eef2ff;color:#4338ca" onclick="editarTarifa(\''+t.id+'\')">✏️</button> <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarTarifa(\''+t.id+'\')">🗑</button></td></tr>';}).join('')+'</tbody></table>';
+    else if(!verTodas){
+      el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">'+
+        D.tarifas.map(function(t){return _tarifaCard(t,false);}).join('')+'</div>';
+    }else{
+      var porSede={};
+      D.tarifas.forEach(function(t){var s=t.sede||'Todas las sedes';(porSede[s]=porSede[s]||[]).push(t);});
+      el.innerHTML=Object.keys(porSede).sort().map(function(s){
+        return '<div style="font-size:12px;font-weight:800;color:var(--acc);text-transform:uppercase;margin:14px 0 8px">📍 '+s+'</div>'+
+          '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">'+
+          porSede[s].map(function(t){return _tarifaCard(t,false);}).join('')+'</div>';
+      }).join('');
+    }
   }
   var el2=document.getElementById('listaPrecios');
   if(el2){
     if(!(D.precios||[]).length)el2.innerHTML='<p style="color:var(--muted);text-align:center;padding:16px">Sin precios especiales</p>';
-    else el2.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Paciente</th><th>Servicio</th><th>Precio</th><th>Motivo</th><th></th></tr></thead><tbody>'+
-    D.precios.map(function(p){return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(p.paciente_nombre||'-')+'</td><td style="font-size:12px">'+(p.nombre_servicio||'-')+'</td><td style="font-weight:900;color:var(--acc)">S/'+(p.precio_especial||0)+'</td><td style="font-size:12px">'+(p.motivo||'-')+'</td><td style="text-align:right"><button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarPrecioEsp(\''+p.id+'\')">🗑</button></td></tr>';}).join('')+'</tbody></table>';
+    else el2.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px">'+
+    D.precios.map(function(p){return '<div style="border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:#fffbeb">'+
+      '<div style="display:flex;justify-content:space-between;align-items:start;gap:8px"><div style="font-weight:800;font-size:13px">⭐ '+(p.paciente_nombre||'-')+'</div>'+
+      '<button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarPrecioEsp(\''+p.id+'\')">🗑</button></div>'+
+      '<div style="font-size:11px;color:var(--muted);margin:4px 0">'+(p.nombre_servicio||'-')+'</div>'+
+      '<div style="font-size:20px;font-weight:900;color:#b45309">S/'+(p.precio_especial||0)+'</div>'+
+      (p.motivo?'<div style="font-size:11px;color:#92400e;margin-top:4px">💬 '+p.motivo+'</div>':'')+
+    '</div>';}).join('')+'</div>';
   }
 }
 function abrirModalTarifa(){
