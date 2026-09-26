@@ -1315,7 +1315,7 @@ function tick(){
   const elR=document.getElementById('relojTop');if(elR)elR.textContent=t;
   const elA=document.getElementById('relojAsist');if(elA)elA.textContent=t;
   const elF=document.getElementById('fechaTop');
-  if(elF)elF.textContent=diaES[n.getDay()]+' '+n.getDate()+' '+mesES[n.getMonth()];
+  if(elF)elF.textContent=diaES[nl.getUTCDay()]+' '+nl.getUTCDate()+' '+mesES[nl.getUTCMonth()];
 }
 
 // ── INIT ──
