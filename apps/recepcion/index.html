@@ -78,9 +78,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .stat-card{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:14px 16px;text-align:center}
 .stat-value{font-size:28px;font-weight:900;color:var(--accent)}
 .stat-label{font-size:12px;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-top:4px;line-height:1.3}
-.sc-green .stat-value{color:var(--green)}.sc-red .stat-value{color:var(--red)}
-.sc-orange .stat-value{color:var(--orange)}.sc-cyan .stat-value{color:var(--cyan)}
-.sc-purple .stat-value{color:var(--accent)}
+.sc-green{background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.3)}.sc-green .stat-value{color:var(--green)}
+.sc-red{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.3)}.sc-red .stat-value{color:var(--red)}
+.sc-orange{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.3)}.sc-orange .stat-value{color:var(--orange)}
+.sc-cyan{background:rgba(6,182,212,.08);border-color:rgba(6,182,212,.3)}.sc-cyan .stat-value{color:var(--cyan)}
+.sc-purple{background:rgba(233,30,140,.08);border-color:rgba(233,30,140,.3)}.sc-purple .stat-value{color:var(--accent)}
 
 /* ── BADGES ── */
 .badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;
@@ -319,7 +321,7 @@ try{
 <!-- ═══ DASHBOARD ═══ -->
 <div id="page-dashboard" class="page active">
   <div id="dashBanner" style="margin-bottom:16px"></div>
-  <div class="grid" id="dashKPI" style="grid-template-columns:1fr;gap:10px;margin-bottom:16px"></div>
+  <div class="grid g4" id="dashKPI" style="margin-bottom:16px"></div>
 
   <!-- ASISTENCIA RÁPIDA en INICIO -->
   <div class="card" style="margin-bottom:16px">
@@ -468,9 +470,21 @@ try{
     </div>
   </div>
   <div class="grid g3" style="margin-bottom:16px">
-    <div class="stat-card sc-green"><div class="stat-value" id="ap-presentes">0</div><div class="stat-label">Presentes</div></div>
-    <div class="stat-card sc-red"><div class="stat-value" id="ap-ausentes">0</div><div class="stat-label">Ausentes</div></div>
-    <div class="stat-card"><div class="stat-value" id="ap-total">0</div><div class="stat-label">Total Personal</div></div>
+    <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:12px;padding:14px;text-align:center">
+      <div style="width:40px;height:40px;margin:0 auto 8px;border-radius:10px;background:#10b981;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 8px rgba(16,185,129,.5)">✅</div>
+      <div style="font-size:24px;font-weight:900;color:#10b981" id="ap-presentes">0</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.3px;margin-top:2px">Presentes</div>
+    </div>
+    <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:14px;text-align:center">
+      <div style="width:40px;height:40px;margin:0 auto 8px;border-radius:10px;background:#ef4444;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 8px rgba(239,68,68,.5)">❌</div>
+      <div style="font-size:24px;font-weight:900;color:#ef4444" id="ap-ausentes">0</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.3px;margin-top:2px">Ausentes</div>
+    </div>
+    <div style="background:rgba(233,30,140,.08);border:1px solid rgba(233,30,140,.3);border-radius:12px;padding:14px;text-align:center">
+      <div style="width:40px;height:40px;margin:0 auto 8px;border-radius:10px;background:#e91e8c;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 8px rgba(233,30,140,.5)">👥</div>
+      <div style="font-size:24px;font-weight:900;color:#e91e8c" id="ap-total">0</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.3px;margin-top:2px">Total Personal</div>
+    </div>
   </div>
   <div id="apLista"></div>
   <div class="card" style="margin-top:16px">
@@ -609,10 +623,26 @@ try{
     </div>
     <div id="rptAvisoPendientes" style="padding:14px 14px 0"></div>
     <div class="grid g4" style="padding:14px">
-      <div class="stat-card"><div class="stat-label">Total Sesiones</div><div class="stat-value" id="rptTotal">0</div></div>
-      <div class="stat-card sc-green"><div class="stat-label">Asistieron</div><div class="stat-value" id="rptAsist">0</div></div>
-      <div class="stat-card sc-red"><div class="stat-label">No Asistieron</div><div class="stat-value" id="rptNoAsist">0</div></div>
-      <div class="stat-card sc-cyan"><div class="stat-label">Caja Total</div><div class="stat-value" id="rptTot">S/0</div></div>
+      <div style="background:rgba(233,30,140,.08);border:1px solid rgba(233,30,140,.3);border-radius:12px;padding:14px;text-align:center">
+        <div style="width:40px;height:40px;margin:0 auto 8px;border-radius:10px;background:#e91e8c;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 8px rgba(233,30,140,.5)">📅</div>
+        <div style="font-size:24px;font-weight:900;color:#e91e8c" id="rptTotal">0</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.3px;margin-top:2px">Total Sesiones</div>
+      </div>
+      <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:12px;padding:14px;text-align:center">
+        <div style="width:40px;height:40px;margin:0 auto 8px;border-radius:10px;background:#10b981;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 8px rgba(16,185,129,.5)">✅</div>
+        <div style="font-size:24px;font-weight:900;color:#10b981" id="rptAsist">0</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.3px;margin-top:2px">Asistieron</div>
+      </div>
+      <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:14px;text-align:center">
+        <div style="width:40px;height:40px;margin:0 auto 8px;border-radius:10px;background:#ef4444;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 8px rgba(239,68,68,.5)">❌</div>
+        <div style="font-size:24px;font-weight:900;color:#ef4444" id="rptNoAsist">0</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.3px;margin-top:2px">No Asistieron</div>
+      </div>
+      <div style="background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.3);border-radius:12px;padding:14px;text-align:center">
+        <div style="width:40px;height:40px;margin:0 auto 8px;border-radius:10px;background:#06b6d4;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 8px rgba(6,182,212,.5)">💰</div>
+        <div style="font-size:24px;font-weight:900;color:#06b6d4" id="rptTot">S/0</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.3px;margin-top:2px">Caja Total</div>
+      </div>
     </div>
     <div style="padding:0 14px 14px" id="rptDetalle"></div>
   </div>
@@ -1543,11 +1573,11 @@ function showPage(name,el){
 // ══════════════════════════════════════════════════
 //  DASHBOARD
 // ══════════════════════════════════════════════════
-function _barraKPI(icono,valor,etiqueta,color){
-  return '<div style="display:flex;align-items:center;gap:16px;padding:14px 18px;text-align:left;border-radius:12px;background:'+color+'14;border:1px solid '+color+'30">'
-    +'<div style="width:46px;height:46px;flex:none;border-radius:12px;background:'+color+';display:flex;align-items:center;justify-content:center;font-size:21px;box-shadow:0 3px 8px '+color+'50">'+icono+'</div>'
-    +'<div style="flex:1;font-size:14px;font-weight:700;color:var(--text)">'+etiqueta+'</div>'
-    +'<div style="font-size:25px;font-weight:900;color:'+color+';white-space:nowrap">'+valor+'</div>'
+function _tarjetaKPI(icono,valor,etiqueta,color){
+  return '<div style="background:'+color+'14;border:1px solid '+color+'30;border-radius:12px;padding:14px;text-align:center">'
+    +'<div style="width:40px;height:40px;margin:0 auto 8px;border-radius:10px;background:'+color+';display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 8px '+color+'50">'+icono+'</div>'
+    +'<div style="font-size:24px;font-weight:900;color:'+color+'">'+valor+'</div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.3px;margin-top:2px">'+etiqueta+'</div>'
     +'</div>';
 }
 function renderDashboard(){
@@ -1570,10 +1600,10 @@ function renderDashboard(){
   }
   const kpiEl=document.getElementById('dashKPI');
   if(kpiEl){
-    kpiEl.innerHTML=_barraKPI('📅',sesH.length,'Sesiones Hoy','#06b6d4')
-      +_barraKPI('✅',asistH,'Asistieron','#10b981')
-      +_barraKPI('💰','S/'+cajaH.toLocaleString(),'Caja Hoy','#e91e8c')
-      +_barraKPI('🔔',nAl,'Alertas','#f59e0b');
+    kpiEl.innerHTML=_tarjetaKPI('📅',sesH.length,'Sesiones Hoy','#06b6d4')
+      +_tarjetaKPI('✅',asistH,'Asistieron','#10b981')
+      +_tarjetaKPI('💰','S/'+cajaH.toLocaleString(),'Caja Hoy','#e91e8c')
+      +_tarjetaKPI('🔔',nAl,'Alertas','#f59e0b');
   }
 
   // Sesiones de hoy en dashboard
