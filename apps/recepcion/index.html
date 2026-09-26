@@ -11,7 +11,7 @@
 
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#f0f4ff;--sidebar:#4a0e2e;--accent:#e91e8c;--accent2:#06b6d4;
+  --bg:#fdf0f7;--sidebar:#4a0e2e;--accent:#e91e8c;--accent2:#06b6d4;
   --green:#10b981;--orange:#f59e0b;--red:#ef4444;--pink:#ec4899;--cyan:#06b6d4;
   --card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--hover:#f8faff;
 }
@@ -42,7 +42,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   font-size:13px;font-weight:600;color:rgba(255,255,255,.75);border-radius:0;transition:.15s;
   border-left:3px solid transparent}
 .nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
-.nav-item.active{background:rgba(124,58,237,.3);color:#fff;border-left-color:var(--accent)}
+.nav-item.active{background:rgba(233,30,140,.3);color:#fff;border-left-color:var(--accent)}
 .nav-badge{margin-left:auto;background:var(--red);color:#fff;border-radius:10px;
   font-size:10px;font-weight:800;padding:1px 6px;min-width:18px;text-align:center}
 
@@ -99,7 +99,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;
   font-size:13px;font-weight:700;cursor:pointer;border:none;transition:.15s;white-space:nowrap}
 .btn:active{transform:scale(.97)}
-.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#6d28d9}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#c2185b}
 .btn-success{background:var(--green);color:#fff}.btn-success:hover{background:#059669}
 .btn-danger{background:var(--red);color:#fff}.btn-danger:hover{background:#dc2626}
 .btn-outline{background:#fff;border:1.5px solid var(--border);color:var(--text)}
@@ -111,7 +111,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .form-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;display:block}
 .form-control{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:9px;
   font-size:13px;font-family:inherit;background:#fff;color:var(--text);transition:.15s;outline:none}
-.form-control:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,58,237,.1)}
+.form-control:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(233,30,140,.12)}
 
 /* ── AUTOCOMPLETE (buscador de paciente) ── */
 .autocomplete-list{position:absolute;top:100%;left:0;right:0;z-index:50;background:#fff;
@@ -124,7 +124,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .tab-bar{display:flex;gap:4px;padding:12px 16px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .tab-btn{padding:7px 14px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:700;
   color:var(--muted);border-radius:8px 8px 0 0;transition:.15s;border-bottom:2px solid transparent}
-.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(124,58,237,.07)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(233,30,140,.08)}
 
 /* ── MODALES ── */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);
@@ -318,12 +318,8 @@ try{
 
 <!-- ═══ DASHBOARD ═══ -->
 <div id="page-dashboard" class="page active">
-  <div class="grid g4" style="margin-bottom:16px">
-    <div class="stat-card sc-cyan"><div class="stat-value" id="dashTotal">0</div><div class="stat-label">Sesiones Hoy</div></div>
-    <div class="stat-card sc-green"><div class="stat-value" id="dashAsist">0</div><div class="stat-label">Asistieron</div></div>
-    <div class="stat-card sc-purple"><div class="stat-value" id="dashCaja">S/0</div><div class="stat-label">Caja Hoy</div></div>
-    <div class="stat-card sc-orange"><div class="stat-value" id="dashAlertas">0</div><div class="stat-label">Alertas</div></div>
-  </div>
+  <div id="dashBanner" style="margin-bottom:16px"></div>
+  <div class="grid" id="dashKPI" style="grid-template-columns:1fr;gap:10px;margin-bottom:16px"></div>
 
   <!-- ASISTENCIA RÁPIDA en INICIO -->
   <div class="card" style="margin-bottom:16px">
@@ -1547,15 +1543,38 @@ function showPage(name,el){
 // ══════════════════════════════════════════════════
 //  DASHBOARD
 // ══════════════════════════════════════════════════
+function _barraKPI(icono,valor,etiqueta,color){
+  return '<div style="display:flex;align-items:center;gap:16px;padding:14px 18px;text-align:left;border-radius:12px;background:'+color+'14;border:1px solid '+color+'30">'
+    +'<div style="width:46px;height:46px;flex:none;border-radius:12px;background:'+color+';display:flex;align-items:center;justify-content:center;font-size:21px;box-shadow:0 3px 8px '+color+'50">'+icono+'</div>'
+    +'<div style="flex:1;font-size:14px;font-weight:700;color:var(--text)">'+etiqueta+'</div>'
+    +'<div style="font-size:25px;font-weight:900;color:'+color+';white-space:nowrap">'+valor+'</div>'
+    +'</div>';
+}
 function renderDashboard(){
   const hoy=today();
   const sesH=DB.sesiones.filter(s=>s.fecha===hoy&&_sesEsVisibleEnAgenda(s));
   const asistH=sesH.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   const cajaH=DB.pagos.filter(p=>p.fecha===hoy).reduce((a,p)=>a+p.monto,0);
   const nAl=contarAlertas();
-  [['dashTotal',sesH.length],['dashAsist',asistH],['dashCaja','S/'+cajaH.toLocaleString()],['dashAlertas',nAl]].forEach(([id,v])=>{
-    const el=document.getElementById(id);if(el)el.textContent=v;
-  });
+
+  const banner=document.getElementById('dashBanner');
+  if(banner){
+    const diasSem=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const nl=new Date(_limaMs());
+    banner.innerHTML='<div style="background:linear-gradient(135deg,#4a0e2e,#e91e8c);border-radius:14px;padding:18px 22px;color:#fff;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+      +'<div><div style="font-size:19px;font-weight:900">🏠 Panel de Recepción</div>'
+      +'<div style="font-size:12px;opacity:.85;margin-top:2px">'+diasSem[nl.getUTCDay()]+' '+nl.getUTCDate()+' de '+meses[nl.getUTCMonth()]+' de '+nl.getUTCFullYear()+'</div></div>'
+      +'<div style="background:rgba(255,255,255,.18);border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700">📍 '+(DB.sede||'-')+'</div>'
+      +'</div>';
+  }
+  const kpiEl=document.getElementById('dashKPI');
+  if(kpiEl){
+    kpiEl.innerHTML=_barraKPI('📅',sesH.length,'Sesiones Hoy','#06b6d4')
+      +_barraKPI('✅',asistH,'Asistieron','#10b981')
+      +_barraKPI('💰','S/'+cajaH.toLocaleString(),'Caja Hoy','#e91e8c')
+      +_barraKPI('🔔',nAl,'Alertas','#f59e0b');
+  }
 
   // Sesiones de hoy en dashboard
   const listEl=document.getElementById('sesionesHoyList');
@@ -4993,7 +5012,7 @@ function exportarPDF(){
       doc.text(p.hora||'',M+3,y+5.5);
       doc.setTextColor(30,30,30);doc.setFont('helvetica','bold');doc.setFontSize(8);
       doc.text((p.pacId||'-').substring(0,45),M+16,y+5.5);
-      doc.setTextColor(100,100,100);doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+      doc.setTextColor(0,0,0);doc.setFont('helvetica','normal');doc.setFontSize(7.5);
       doc.text((p.concepto||'').substring(0,40),M+130,y+5.5);
       doc.setTextColor(16,185,129);doc.setFont('helvetica','bold');doc.setFontSize(7.5);
       doc.text('S/'+p.monto,W-M-2,y+5.5,{align:'right'});
