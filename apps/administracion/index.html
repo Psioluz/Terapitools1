@@ -629,7 +629,6 @@ async function recargar(){
     D.rendimiento=res[17]||[];
     D.sede=sed;D.mes=mes;
     renderActiva();
-    toast('✅ Datos actualizados','success');
   }catch(e){toast('Error: '+e.message,'error');}
 }
 // Histórico de ingresos/gastos de los últimos 6 meses, para el gráfico
