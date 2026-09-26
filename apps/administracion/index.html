@@ -152,10 +152,13 @@ try{
 
     <!-- DASHBOARD -->
     <div class='page active' id='page-dashboard'>
-      <div class='grid' id='kpiAdmin' style='grid-template-columns:1fr;gap:8px;margin-bottom:10px'></div>
-      <div class='grid' id='kpiAdminMonto' style='grid-template-columns:1fr;gap:8px;margin-bottom:14px'></div>
-      <div class='card'><div class='card-header'><div class='card-title'>🔔 Alertas</div></div><div style='padding:12px' id='alertasAdmin'></div></div>
-      <div class='card'><div class='card-header'><div class='card-title'>📊 Resumen del mes</div></div><div style='padding:12px'>
+      <div id='dashBanner' style='margin-bottom:16px'></div>
+      <div style='font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 2px 8px'>Operación</div>
+      <div class='grid' id='kpiAdmin' style='grid-template-columns:1fr;gap:10px;margin-bottom:18px'></div>
+      <div style='font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 2px 8px'>Finanzas del mes</div>
+      <div class='grid' id='kpiAdminMonto' style='grid-template-columns:1fr;gap:10px;margin-bottom:18px'></div>
+      <div class='card' style='border-top:3px solid #d97706'><div class='card-header'><div class='card-title'>🔔 Alertas</div></div><div style='padding:12px' id='alertasAdmin'></div></div>
+      <div class='card' style='border-top:3px solid var(--acc)'><div class='card-header'><div class='card-title'>📊 Resumen del mes</div></div><div style='padding:12px'>
         <div id='resumenDash'></div></div></div>
     </div>
 
@@ -694,13 +697,24 @@ var PAGE_TITLES={dashboard:'Dashboard',contratos:'Contratos',sueldos:'Sueldos y 
 // izquierda, cifra grande a la derecha), más legible y aprovechando todo
 // el ancho de la pantalla en vez de amontonar 3-4 tarjetas por fila.
 function _barraKPI(icono,valor,etiqueta,color){
-  return '<div class="stat-card" style="border-color:'+color+';display:flex;align-items:center;gap:14px;padding:14px 18px;text-align:left">'
-    +'<div style="font-size:26px;flex:none">'+icono+'</div>'
+  return '<div style="display:flex;align-items:center;gap:16px;padding:14px 18px;text-align:left;border-radius:12px;background:'+color+'14;border:1px solid '+color+'30">'
+    +'<div style="width:46px;height:46px;flex:none;border-radius:12px;background:'+color+';display:flex;align-items:center;justify-content:center;font-size:21px;box-shadow:0 3px 8px '+color+'50">'+icono+'</div>'
     +'<div style="flex:1;font-size:14px;font-weight:700;color:var(--text)">'+etiqueta+'</div>'
-    +'<div style="font-size:24px;font-weight:900;color:'+color+';white-space:nowrap">'+valor+'</div>'
+    +'<div style="font-size:25px;font-weight:900;color:'+color+';white-space:nowrap">'+valor+'</div>'
     +'</div>';
 }
 function renderDashboard(){
+  var banner=document.getElementById('dashBanner');
+  if(banner){
+    var hoy=new Date(Date.now()-5*3600000);
+    var diasSem=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    var meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    banner.innerHTML='<div style="background:linear-gradient(135deg,#4a0e2e,#e91e8c);border-radius:14px;padding:18px 22px;color:#fff;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+      +'<div><div style="font-size:19px;font-weight:900">📊 Panel de Administración</div>'
+      +'<div style="font-size:12px;opacity:.85;margin-top:2px">'+diasSem[hoy.getDay()]+' '+hoy.getDate()+' de '+meses[hoy.getMonth()]+' de '+hoy.getFullYear()+'</div></div>'
+      +'<div style="background:rgba(255,255,255,.18);border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700">📍 '+(D.sede||'Todas las sedes')+'</div>'
+      +'</div>';
+  }
   var totSes=D.sesiones.length;
   var asistH=D.sesiones.filter(function(s){return s.fecha===today()&&s.estado==='asistio';}).length;
   var kpi=document.getElementById('kpiAdmin');
