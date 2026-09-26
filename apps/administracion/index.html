@@ -1817,14 +1817,19 @@ async function _datosPacientePDF(nombre){
 function _pdfEncabezado(doc,titulo,pac){
   var W=210,M=14,y=10;
   var logo=_pdfLogoSrc();
-  try{if(logo)doc.addImage(logo,'PNG',M,y,26,26);}catch(e){}
-  doc.setFillColor(74,14,46);doc.rect(44,y,W-44-M,28,'F');
+  // Mismo encabezado marrón+rosa y logo más grande que el recibo de pago,
+  // para que todos los reportes de Administración compartan la misma marca
+  // en vez del maroon plano de antes sin ningún acento de color.
+  try{if(logo)doc.addImage(logo,'PNG',M,y,32,32);}catch(e){}
+  doc.setFillColor(74,14,46);doc.rect(50,y,W-50-M,28,'F');
   doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
-  doc.text('CENTRO TERAPÉUTICO INTEGRAL PSICOLUZ',46,y+8);
-  doc.setFontSize(11);doc.text(titulo,46,y+16);
+  doc.text('CENTRO TERAPÉUTICO INTEGRAL PSICOLUZ',53,y+8);
+  doc.setFontSize(11);doc.text(titulo,53,y+16);
   doc.setFontSize(8);doc.setFont('helvetica','normal');
-  doc.text('Generado: '+new Date().toLocaleString('es-PE')+' - Por: '+((typeof ADM!=='undefined'&&ADM&&ADM.nombre)||'Administración'),46,y+23);
-  y+=34;
+  doc.text('Generado: '+new Date().toLocaleString('es-PE')+' - Por: '+((typeof ADM!=='undefined'&&ADM&&ADM.nombre)||'Administración'),53,y+23);
+  y+=28;
+  doc.setFillColor(233,30,140);doc.rect(M,y,W-M*2,2.5,'F');
+  y+=8;
   doc.setTextColor(30,30,30);
   doc.setDrawColor(230,230,230);doc.setFillColor(250,247,248);
   doc.roundedRect(M,y,W-M*2,26,2,2,'FD');
