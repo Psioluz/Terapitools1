@@ -2186,9 +2186,12 @@ function exportarIngresosPDF(){
       var jsPDF=window.jspdf.jsPDF;
       var doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
       var W=297,M=12;
+      // Franja rosa de marca debajo del encabezado - antes el maroon iba
+      // solo, sin ningún acento de color como en el resto de reportes.
       doc.setFillColor(74,14,46);doc.rect(0,0,W,18,'F');
       doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
       doc.text('Ingresos - '+d.sedeLbl+' - '+d.mesLbl,M,11);
+      doc.setFillColor(233,30,140);doc.rect(0,18,W,2,'F');
       var totEf=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].efectivo;},0);
       var totYp=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].yape;},0);
       var totTr=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].transferencia;},0);
@@ -2201,9 +2204,9 @@ function exportarIngresosPDF(){
       doc.autoTable({startY:24,margin:{left:M,right:M},
         head:[['Fecha','Efectivo','Yape/Plin','Transferencia','Total']],
         body:filasResumen,
-        headStyles:{fillColor:[45,26,61],textColor:255,fontStyle:'bold'},
+        headStyles:{fillColor:[74,14,46],textColor:255,fontStyle:'bold'},
         alternateRowStyles:{fillColor:[248,250,255]},
-        didParseCell:function(dt){if(dt.row.index===filasResumen.length-1&&dt.section==='body'){dt.cell.styles.fillColor=[253,242,248];dt.cell.styles.fontStyle='bold';}}
+        didParseCell:function(dt){if(dt.row.index===filasResumen.length-1&&dt.section==='body'){dt.cell.styles.fillColor=[248,199,225];dt.cell.styles.textColor=[74,14,46];dt.cell.styles.fontStyle='bold';}}
       });
       var y=doc.lastAutoTable.finalY+10;
       if(y>180){doc.addPage('a4','landscape');y=16;}
@@ -2214,7 +2217,7 @@ function exportarIngresosPDF(){
       doc.autoTable({startY:y,margin:{left:M,right:M},
         head:[['Fecha','Hora','Psicóloga','Paciente','Concepto','Método','Notas','Monto']],
         body:flat.map(function(p){return[fmtF(p.fecha),p.hora||'-',p.psicologa_nombre||'Sin psicóloga / Solo pago',p.paciente_nombre||'-',p.concepto||'-',p.metodo||'-',p.notas||'-','S/'+(p.monto||0).toLocaleString()];}),
-        headStyles:{fillColor:[45,26,61],textColor:255,fontStyle:'bold',fontSize:8},
+        headStyles:{fillColor:[74,14,46],textColor:255,fontStyle:'bold',fontSize:8},
         bodyStyles:{fontSize:8},
         alternateRowStyles:{fillColor:[248,250,255]},
         styles:{cellPadding:2}

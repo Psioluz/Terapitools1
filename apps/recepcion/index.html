@@ -4813,21 +4813,28 @@ function exportarPDF(){
   const tr=pags.filter(p=>p.metodo==='Transferencia'||p.metodo==='Tarjeta').reduce((a,p)=>a+p.monto,0);
   const tot=ef+yp+tr;
 
-  // ── LOGO + HEADER ──
-  try{const logoEl=document.querySelector('.login-logo');if(logoEl&&logoEl.src)doc.addImage(logoEl.src,'PNG',M,y,30,30);}catch(e){}
-  doc.setFillColor(26,31,94);doc.rect(46,y,W-46-M,32,'F');
+  // ── LOGO + HEADER ── mismo marrón+rosa de marca que el resto de la app
+  // (antes era un azul marino genérico que no tenía nada que ver con
+  // Psicoluz) y logo más grande, para que se note de inmediato de qué
+  // clínica es el documento.
+  try{const logoEl=document.querySelector('.login-logo');if(logoEl&&logoEl.src)doc.addImage(logoEl.src,'PNG',M,y,34,34);}catch(e){}
+  doc.setFillColor(74,14,46);doc.rect(50,y,W-50-M,30,'F');
   doc.setTextColor(255,255,255);
   doc.setFontSize(14);doc.setFont('helvetica','bold');
-  doc.text('CENTRO TERAPÉUTICO INTEGRAL PSICOLUZ',47+2,y+9);
+  doc.text('CENTRO TERAPÉUTICO INTEGRAL PSICOLUZ',53,y+9);
   doc.setFontSize(10);doc.setFont('helvetica','normal');
-  doc.text('REPORTE DIARIO - Sede: '+DB.sede+' - '+fmtF(fecha),47+2,y+16);
-  doc.text('Elaborado por: '+DB.usuario,47+2,y+22);
-  doc.text('Generado: '+new Date().toLocaleString('es-PE'),47+2,y+28);
-  y+=38;
+  doc.text('REPORTE DIARIO - Sede: '+DB.sede+' - '+fmtF(fecha),53,y+16);
+  doc.text('Elaborado por: '+DB.usuario,53,y+22);
+  doc.text('Generado: '+new Date().toLocaleString('es-PE'),53,y+27.5);
+  y+=30;
+  doc.setFillColor(233,30,140);doc.rect(M,y,W-M*2,3,'F');
+  y+=11;
 
   // ── RESUMEN ESTADÍSTICO - las 6 cifras deben sumar el Total exacto
-  // (antes faltaban Permiso y Reprogramado, y el total no cuadraba) ──
-  const colores=[[26,31,94],[16,185,129],[239,68,68],[59,130,246],[100,116,139],[245,158,11]];
+  // (antes faltaban Permiso y Reprogramado, y el total no cuadraba).
+  // Colores más saturados y de mayor contraste (antes el gris de
+  // "Reprogramado" quedaba apagado al lado de los demás). ──
+  const colores=[[74,14,46],[16,163,74],[220,38,38],[37,99,235],[147,51,234],[217,119,6]];
   const stats=[['Total',ses.length],['Asistieron',asist],['No asistieron',noAs],['Permiso',permi],['Reprogramado',repro],['Pendientes',pend]];
   const bw=(W-M*2-10)/6;
   stats.forEach(([lbl,val],i)=>{
@@ -4899,15 +4906,15 @@ function exportarPDF(){
     return [100,116,139];
   }
   function colorEstadoPDF(estado){
-    return estado==='asistio'?[16,185,129]:estado==='noasistio'?[239,68,68]:
-      estado==='permiso'?[59,130,246]:estado==='reprogramado'?[100,116,139]:[245,158,11];
+    return estado==='asistio'?[16,163,74]:estado==='noasistio'?[220,38,38]:
+      estado==='permiso'?[37,99,235]:estado==='reprogramado'?[147,51,234]:[217,119,6];
   }
   if(nombresPs.length){
     const rowH=8,headerH=12;
     nombresPs.forEach(function(nombrePs){
       const grp=porPs[nombrePs];
       if(y+headerH+rowH>190){doc.addPage();y=20;}
-      doc.setFillColor(107,33,77);doc.roundedRect(M,y,W-M*2,headerH,2,2,'F');
+      doc.setFillColor(74,14,46);doc.roundedRect(M,y,W-M*2,headerH,2,2,'F');
       doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont('helvetica','bold');
       doc.text(nombrePs,M+4,y+7.5);
       doc.setFontSize(8);doc.setFont('helvetica','normal');
@@ -4960,7 +4967,7 @@ function exportarPDF(){
   if(pagsSinPsPDF.length){
     const rowH2=8,headerH2=12;
     if(y+headerH2+rowH2>190){doc.addPage();y=20;}
-    doc.setFillColor(107,33,77);doc.roundedRect(M,y,W-M*2,headerH2,2,2,'F');
+    doc.setFillColor(74,14,46);doc.roundedRect(M,y,W-M*2,headerH2,2,2,'F');
     doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont('helvetica','bold');
     doc.text('OTROS PAGOS DEL DÍA (separación, sin sesión agendada aún)',M+4,y+7.5);
     doc.setFontSize(8);doc.setFont('helvetica','normal');
@@ -5088,7 +5095,7 @@ function exportarAgendaPDF(){
       // (fue justo el bug: la fila de días salía en blanco sobre blanco).
       // Por eso aquí se pintan TODOS los rects primero y recién después
       // se cambia a color de texto y se escribe todo.
-      doc.setFillColor(26,31,94);
+      doc.setFillColor(74,14,46);
       doc.rect(M,yy,horaW,10,'F');
       dias.forEach(function(dia,i){
         const dx=M+horaW+i*dayW;
@@ -5102,14 +5109,18 @@ function exportarAgendaPDF(){
       });
     }
 
-    // ── HEADER ──
-    doc.setFillColor(26,31,94);doc.rect(M,y,W-M*2,16,'F');
+    // ── HEADER ── mismo marrón+rosa de marca que el Reporte del Día
+    // (antes era el mismo azul marino genérico sin relación con Psicoluz).
+    try{const logoEl=document.querySelector('.login-logo');if(logoEl&&logoEl.src)doc.addImage(logoEl.src,'PNG',M,y,16,16);}catch(e){}
+    doc.setFillColor(74,14,46);doc.rect(M+18,y,W-M*2-18,16,'F');
     doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
-    doc.text('AGENDA SEMANAL - '+DB.sede+(filtPsNom?' - '+filtPsNom:''),M+4,y+7);
+    doc.text('AGENDA SEMANAL - '+DB.sede+(filtPsNom?' - '+filtPsNom:''),M+22,y+7);
     doc.setFontSize(9);doc.setFont('helvetica','normal');
     const d0=dias[0].d,d5=dias[5].d;
-    doc.text(d0.getDate()+' '+mesES[d0.getMonth()]+' - '+d5.getDate()+' '+mesES[d5.getMonth()]+' de '+d5.getFullYear(),M+4,y+13);
-    y+=20;
+    doc.text(d0.getDate()+' '+mesES[d0.getMonth()]+' - '+d5.getDate()+' '+mesES[d5.getMonth()]+' de '+d5.getFullYear(),M+22,y+13);
+    y+=16;
+    doc.setFillColor(233,30,140);doc.rect(M,y,W-M*2,2.2,'F');
+    y+=8;
 
     // ── LEYENDA - colores por psicóloga solo si se exporta "Todas las
     // psicólogas"; R (reprogramado) / P (permiso) siempre, porque ambos
@@ -5207,7 +5218,7 @@ function exportarAgendaPDF(){
     const W2=210,M2=14;
     doc.addPage('a4','portrait');
     let y2=14;
-    doc.setFillColor(26,31,94);doc.rect(M2,y2,W2-M2*2,14,'F');
+    doc.setFillColor(74,14,46);doc.rect(M2,y2,W2-M2*2,14,'F');
     doc.setTextColor(255,255,255);doc.setFontSize(12);doc.setFont('helvetica','bold');
     doc.text('DISPONIBILIDAD DE LA SEMANA (horarios sin agendar)',M2+4,y2+9);
     y2+=20;
@@ -5223,7 +5234,7 @@ function exportarAgendaPDF(){
       if(!librePorDia.some(function(x){return x.trabaja;}))return; // no trabaja ningún día de esta semana
 
       if(y2+18>282){doc.addPage('a4','portrait');y2=14;}
-      doc.setFillColor(107,33,77);doc.roundedRect(M2,y2,W2-M2*2,8,1.5,1.5,'F');
+      doc.setFillColor(74,14,46);doc.roundedRect(M2,y2,W2-M2*2,8,1.5,1.5,'F');
       doc.setTextColor(255,255,255);doc.setFontSize(9.5);doc.setFont('helvetica','bold');
       doc.text(ps.nombre,M2+3,y2+5.5);
       y2+=10;
