@@ -154,11 +154,9 @@ try{
     <div class='page active' id='page-dashboard'>
       <div class='grid' id='kpiAdmin' style='grid-template-columns:1fr;gap:8px;margin-bottom:10px'></div>
       <div class='grid' id='kpiAdminMonto' style='grid-template-columns:1fr;gap:8px;margin-bottom:14px'></div>
-      <div class='grid g2'>
-        <div class='card'><div class='card-header'><div class='card-title'>🔔 Alertas</div></div><div style='padding:12px' id='alertasAdmin'></div></div>
-        <div class='card'><div class='card-header'><div class='card-title'>📊 Resumen del mes</div></div><div style='padding:12px'>
-          <div id='resumenDash'></div></div></div>
-      </div>
+      <div class='card'><div class='card-header'><div class='card-title'>🔔 Alertas</div></div><div style='padding:12px' id='alertasAdmin'></div></div>
+      <div class='card'><div class='card-header'><div class='card-title'>📊 Resumen del mes</div></div><div style='padding:12px'>
+        <div id='resumenDash'></div></div></div>
     </div>
 
     <!-- CONTRATOS -->
@@ -1524,18 +1522,48 @@ async function guardarGasto(){
 }
 
 // AUDITORÍA
+// Antes "Auditoría" solo repetía las mismas 4 cifras del Dashboard
+// (ingresos/gastos/sueldos/neto) sin ningún registro de quién hizo qué -
+// eso no es una auditoría, es un resumen duplicado. Ahora arma una
+// bitácora real: cada pago, gasto y sueldo pagado, con quién lo
+// registró y cuándo, ordenado del más reciente al más antiguo.
 function renderAuditoria(){
   var el=document.getElementById('listaAuditoria');if(!el)return;
   var ingresos=D.pagos.reduce(function(a,p){return a+(p.monto||0);},0);
   var gastos=D.gastos.reduce(function(a,g){return a+(g.monto||0);},0);
-  var sueldos=D.honorarios.reduce(function(a,h){return a+(h.total||h.monto_base||0);},0);
+  var sueldosPagados=D.honorarios.filter(function(h){return h.estado==='pagado';});
+  var sueldos=sueldosPagados.reduce(function(a,h){return a+(h.total||h.monto_base||0);},0);
   var neto=ingresos-gastos-sueldos;
+  var eventos=[]
+    .concat(D.pagos.map(function(p){return{tipo:'ingreso',fecha:p.fecha,quien:p.registrado_por,monto:p.monto||0,sede:p.sede,orden:p.created_at||(p.fecha+'T'+(p.hora||'00:00')),
+      detalle:'Pago de '+(p.paciente_nombre||'paciente')+(p.concepto?' - '+p.concepto:'')+(p.metodo?' ('+p.metodo+')':'')};}))
+    .concat(D.gastos.map(function(g){return{tipo:'gasto',fecha:g.fecha,quien:g.registrado_por,monto:g.monto||0,sede:g.sede,orden:g.created_at||g.fecha,
+      detalle:(g.categoria?g.categoria+' - ':'')+(g.concepto||'Gasto')};}))
+    .concat(sueldosPagados.map(function(h){return{tipo:'sueldo',fecha:(h.created_at||'').substring(0,10)||h.mes,quien:null,monto:h.total||h.monto_base||0,sede:h.sede,orden:h.created_at||h.mes,
+      detalle:'Pago de sueldo/honorario a '+h.psicologa_nombre+' ('+h.mes+')'};}));
+  eventos.sort(function(a,b){return (b.orden||'').localeCompare(a.orden||'');});
+  var ICONOS={ingreso:'💰',gasto:'💸',sueldo:'👩‍⚕️'};
+  var COLORES={ingreso:'#15803d',gasto:'#dc2626',sueldo:'#b45309'};
   el.innerHTML='<div class="grid g4" style="margin-bottom:14px">'+[
     ['💰','S/'+ingresos.toFixed(2),'Ingresos mes','#15803d'],
     ['💸','S/'+gastos.toFixed(2),'Gastos mes','#dc2626'],
-    ['👩‍⚕️','S/'+sueldos.toFixed(2),'Sueldos','#b45309'],
+    ['👩‍⚕️','S/'+sueldos.toFixed(2),'Sueldos pagados','#b45309'],
     ['📊','S/'+neto.toFixed(2),'Neto mes',neto>=0?'#15803d':'#dc2626']
-  ].map(function(x){return'<div class="stat-card" style="border-color:'+x[3]+'"><div style="font-size:20px">'+x[0]+'</div><div class="stat-value" style="color:'+x[3]+'">'+x[1]+'</div><div class="stat-label">'+x[2]+'</div></div>';}).join('')+'</div>';
+  ].map(function(x){return'<div class="stat-card" style="border-color:'+x[3]+'"><div style="font-size:20px">'+x[0]+'</div><div class="stat-value" style="color:'+x[3]+'">'+x[1]+'</div><div class="stat-label">'+x[2]+'</div></div>';}).join('')+'</div>'
+  +'<div class="card"><div class="card-header"><div class="card-title">🧾 Bitácora de movimientos</div></div>'
+  +(eventos.length?'<div style="max-height:520px;overflow-y:auto">'+eventos.slice(0,200).map(function(e){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--border)">'
+      +'<span style="font-size:18px">'+ICONOS[e.tipo]+'</span>'
+      +'<div style="flex:1;min-width:180px">'
+      +'<div style="font-weight:700;font-size:13px">'+e.detalle+'</div>'
+      +'<div style="font-size:11px;color:var(--muted)">'+fmtF(e.fecha)+(e.sede?' · 📍 '+e.sede:'')+(e.quien?' · Registrado por '+e.quien:'')+'</div>'
+      +'</div>'
+      +'<div style="font-weight:900;color:'+COLORES[e.tipo]+';white-space:nowrap">'+(e.tipo==='ingreso'?'+':'-')+'S/'+e.monto.toFixed(2)+'</div>'
+      +'</div>';
+  }).join('')+'</div>'
+  +(eventos.length>200?'<div style="padding:10px 14px;font-size:11px;color:var(--muted);text-align:center">Mostrando los 200 movimientos más recientes de '+eventos.length+'</div>':'')
+  :'<p style="color:var(--muted);text-align:center;padding:20px">Sin movimientos registrados este mes</p>')
+  +'</div>';
 }
 
 // CHAT
