@@ -152,8 +152,8 @@ try{
 
     <!-- DASHBOARD -->
     <div class='page active' id='page-dashboard'>
-      <div class='grid g4' id='kpiAdmin' style='margin-bottom:14px'></div>
-      <div class='grid g3' id='kpiAdminMonto' style='margin-bottom:14px'></div>
+      <div class='grid' id='kpiAdmin' style='grid-template-columns:1fr;gap:8px;margin-bottom:10px'></div>
+      <div class='grid' id='kpiAdminMonto' style='grid-template-columns:1fr;gap:8px;margin-bottom:14px'></div>
       <div class='grid g2'>
         <div class='card'><div class='card-header'><div class='card-title'>🔔 Alertas</div></div><div style='padding:12px' id='alertasAdmin'></div></div>
         <div class='card'><div class='card-header'><div class='card-title'>📊 Resumen del mes</div></div><div style='padding:12px'>
@@ -498,6 +498,14 @@ try{
 </div>
 </div>
 
+<!-- MODAL DETALLE DE TARDANZAS -->
+<div class='modal-overlay' id='modalDetalleTardanza'>
+<div class='modal'>
+  <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px'><span style='font-weight:800;font-size:14px' id='detTardTitulo'>🕐 Tardanzas</span><button onclick="document.getElementById('modalDetalleTardanza').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
+  <div id='detTardLista'></div>
+</div>
+</div>
+
 <!-- MODAL GASTO -->
 <div class='modal-overlay' id='modalGasto'>
 <div class='modal'>
@@ -683,6 +691,17 @@ function cambiarSede(){
 var PAGE_TITLES={dashboard:'Dashboard',contratos:'Contratos',sueldos:'Sueldos y Bonos',asistencia:'Asistencia',inventario:'Inventario',personal:'Personal',sedes:'Sedes',feriados:'Feriados',rendimiento:'Rendimiento Recepción',gastos:'Gastos y Pagos Fijos',tarifas:'Tarifas y Precios',accesos:'Gestión de Accesos',auditoria:'Auditoría',chat:'Chat',cumpleanos:'Cumpleaños',calendario:'Calendario',metas:'Metas',fichas:'Fichas y Reportes'};
 
 // DASHBOARD
+// Antes los indicadores iban en columnas apretadas una al lado de otra -
+// ahora cada uno es una barra de ancho completo (icono + etiqueta a la
+// izquierda, cifra grande a la derecha), más legible y aprovechando todo
+// el ancho de la pantalla en vez de amontonar 3-4 tarjetas por fila.
+function _barraKPI(icono,valor,etiqueta,color){
+  return '<div class="stat-card" style="border-color:'+color+';display:flex;align-items:center;gap:14px;padding:14px 18px;text-align:left">'
+    +'<div style="font-size:26px;flex:none">'+icono+'</div>'
+    +'<div style="flex:1;font-size:14px;font-weight:700;color:var(--text)">'+etiqueta+'</div>'
+    +'<div style="font-size:24px;font-weight:900;color:'+color+';white-space:nowrap">'+valor+'</div>'
+    +'</div>';
+}
 function renderDashboard(){
   var totSes=D.sesiones.length;
   var asistH=D.sesiones.filter(function(s){return s.fecha===today()&&s.estado==='asistio';}).length;
@@ -692,7 +711,7 @@ function renderDashboard(){
     ['👥',D.pacientes.length,'Pacientes activos','#059669'],
     ['📅',totSes,'Sesiones del mes','#1565c0'],
     ['📋',D.contratos.filter(function(c){return c.estado!=='firmado';}).length,'Contratos pendientes','#b45309']
-  ].map(function(x){return'<div class="stat-card" style="border-color:'+x[3]+'"><div style="font-size:22px">'+x[0]+'</div><div class="stat-value" style="color:'+x[3]+'">'+x[1]+'</div><div class="stat-label">'+x[2]+'</div></div>';}).join('');
+  ].map(function(x){return _barraKPI(x[0],x[1],x[2],x[3]);}).join('');
   // Cifras exactas del mes en curso (antes el dashboard solo mostraba
   // gráficos de tendencia sin números, había que adivinar los montos).
   var totIng=(D.pagos||[]).reduce(function(a,p){return a+(p.monto||0);},0);
@@ -703,7 +722,7 @@ function renderDashboard(){
     ['💰','S/'+totIng.toLocaleString(undefined,{minimumFractionDigits:2}),'Ingresos del mes','#15803d'],
     ['💸','S/'+totGas.toLocaleString(undefined,{minimumFractionDigits:2}),'Gastos del mes','#dc2626'],
     ['📊','S/'+neto.toLocaleString(undefined,{minimumFractionDigits:2}),'Neto del mes',neto>=0?'#15803d':'#dc2626']
-  ].map(function(x){return'<div class="stat-card" style="border-color:'+x[3]+'"><div style="font-size:22px">'+x[0]+'</div><div class="stat-value" style="color:'+x[3]+';font-size:22px">'+x[1]+'</div><div class="stat-label">'+x[2]+'</div></div>';}).join('');
+  ].map(function(x){return _barraKPI(x[0],x[1],x[2],x[3]);}).join('');
   var alertas=[];
   D.contratos.filter(function(c){return c.estado==='pendiente'||c.estado==='por_firmar';}).forEach(function(c){alertas.push('<div class="alert al-warn">📋 Contrato pendiente: '+c.trabajadora+'</div>');});
   D.insumos.filter(function(i){return (i.cantidad_actual||0)<=(i.stock_minimo||0);}).forEach(function(i){alertas.push('<div class="alert al-info">📦 Stock bajo: '+i.nombre+' ('+i.cantidad_actual+' '+i.unidad+')</div>');});
@@ -849,13 +868,15 @@ function _descuentoPorAsistencia(p,mesStr,rTard,rInas){
   var faltas=regs.filter(function(a){return a.estado==='ausente';});
   var tardanzas=regs.filter(function(a){return a.estado==='presente'&&a.motivo_tardanza;});
   var costoHora=_costoPorHora(p.sueldo);
-  var minTardTotal=tardanzas.reduce(function(a,r){return a+_minutosTarde(r.entrada,_horaEsperadaDia(p,r.fecha));},0);
+  var tardanzasDetalle=tardanzas.map(function(r){return{fecha:r.fecha,entrada:r.entrada,esperada:_horaEsperadaDia(p,r.fecha),min:_minutosTarde(r.entrada,_horaEsperadaDia(p,r.fecha)),motivo:r.motivo_tardanza};});
+  var minTardTotal=tardanzasDetalle.reduce(function(a,r){return a+r.min;},0);
   var usaTasaTard=rTard>0, usaTasaFalta=rInas>0;
   var descTard=usaTasaTard?tardanzas.length*rTard:Math.round((minTardTotal/60)*costoHora*100)/100;
   var descFalta=usaTasaFalta?faltas.length*rInas:Math.round(faltas.length*8*costoHora*100)/100;
   return{nFaltas:faltas.length,nTard:tardanzas.length,minTardTotal:minTardTotal,
     descTard:descTard,descFalta:descFalta,descuento:descTard+descFalta,
-    usaTasaTard:usaTasaTard,usaTasaFalta:usaTasaFalta,costoHora:costoHora};
+    usaTasaTard:usaTasaTard,usaTasaFalta:usaTasaFalta,costoHora:costoHora,
+    tardanzasDetalle:tardanzasDetalle,faltasDetalle:faltas.map(function(r){return{fecha:r.fecha};})};
 }
 // Próxima fecha en que toca pagarle (día del mes fijo, dia_pago) - si ese
 // día de este mes ya pasó, se calcula la del mes siguiente. Se usa para
@@ -875,7 +896,7 @@ function renderSueldos(){
   var mesStr=mesY();
   todos.forEach(function(p){p._diasHastaPago=_diasHastaPago(parseInt(p.dia_pago)||0);});
   todos.sort(function(a,b){return a._diasHastaPago-b._diasHastaPago;});
-  el.innerHTML='<div style="display:grid;gap:12px">'+
+  el.innerHTML='<div style="display:grid;gap:10px">'+
   todos.map(function(p){
     var hon=D.honorarios.find(function(h){return h.psicologa_nombre===p.nombre;});
     var rTard=hon?(hon.descuento_tardanza||0):0, rInas=hon?(hon.descuento_inasistencia||0):0;
@@ -885,7 +906,12 @@ function renderSueldos(){
     // "sin registro" que inventar un número).
     var esPs=p._tabla==='psicologas';
     var asist=esPs?_descuentoPorAsistencia(p,mesStr,rTard,rInas):null;
-    var descuento=asist?asist.descuento:0;
+    var descuentoCalc=asist?asist.descuento:0;
+    // El descuento se calcula siempre que haya tardanzas/faltas, pero
+    // Administración decide si de verdad se descuenta del pago o queda
+    // solo como referencia (ej. una falta ya justificada aparte).
+    var aplicaDescuento=hon?hon.aplicar_descuento!==false:true;
+    var descuento=aplicaDescuento?descuentoCalc:0;
     var costoHora=_costoPorHora(p.sueldo);
     var bonos=(D.bonos||[]).filter(function(b){return (b.nombre||b.psicologa_nombre)===p.nombre;}).reduce(function(a,b){return a+(b.monto_bono||0);},0);
     var base=hon?hon.monto_base:(p.sueldo||0);var total=base+bonos-descuento;
@@ -897,35 +923,74 @@ function renderSueldos(){
         :p._diasHastaPago<=3?'🟡 En '+p._diasHastaPago+' día(s) (día '+p.dia_pago+')'
         :'Día '+p.dia_pago+' · en '+p._diasHastaPago+' días')
       :'⚠️ Sin día configurado';
-    var faltasTxt=esPs
-      ?String(asist.nFaltas)+(asist.nFaltas?(asist.usaTasaFalta?' (S/'+rInas.toFixed(2)+' c/u)':' (auto: día completo c/u)'):'')
-      :'sin registro';
-    var tardTxt=esPs
-      ?String(asist.nTard)+(asist.nTard?' ('+asist.minTardTotal+' min'+(asist.usaTasaTard?', S/'+rTard.toFixed(2)+' c/u':', auto por minuto')+')':'')
-      :'sin registro';
-    return '<div style="border:1px solid var(--border);border-radius:14px;overflow:hidden'+(esHoy?';box-shadow:0 0 0 2px #fecdd3':'')+'">'
-      +'<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:'+(esHoy?'linear-gradient(135deg,#be123c,#e11d48)':'linear-gradient(135deg,'+col+',#1e293b)')+'">'
-        +'<div style="width:38px;height:38px;flex:none;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:900">'+(p.nombre||'?').charAt(0)+'</div>'
-        +'<div style="flex:1;min-width:160px"><div style="color:#fff;font-weight:800;font-size:14px">'+p.nombre+'</div>'
-        +'<div style="color:rgba(255,255,255,.75);font-size:11px;font-weight:700">'+(esPs?'👩‍⚕️ Psicóloga':'💻 Recepción')+' · '+diaPagoTxt+'</div></div>'
+    var faltasTxt=esPs?String(asist.nFaltas):'-';
+    return '<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden'+(esHoy?';box-shadow:0 0 0 2px #fecdd3':'')+'">'
+      +'<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;background:'+(esHoy?'linear-gradient(135deg,#be123c,#e11d48)':'linear-gradient(135deg,'+col+',#1e293b)')+'">'
+        +'<div style="width:30px;height:30px;flex:none;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:900">'+(p.nombre||'?').charAt(0)+'</div>'
+        +'<div style="flex:1;min-width:160px"><div style="color:#fff;font-weight:800;font-size:13px">'+p.nombre+'</div>'
+        +'<div style="color:rgba(255,255,255,.75);font-size:10px;font-weight:700">'+(esPs?'👩‍⚕️ Psicóloga':'💻 Recepción')+' · '+diaPagoTxt+'</div></div>'
         +badge((hon&&hon.estado)||'pendiente')
       +'</div>'
-      +'<div style="padding:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px">'
-        +'<div class="stat-card" style="padding:10px 6px"><div class="stat-value" style="font-size:16px">S/'+base+'</div><div class="stat-label" style="font-size:9.5px">Sueldo base</div></div>'
-        +'<div class="stat-card" style="padding:10px 6px"><div class="stat-value" style="font-size:16px;color:#0369a1">S/'+costoHora.toFixed(2)+'</div><div class="stat-label" style="font-size:9.5px">Costo/hora</div></div>'
-        +'<div class="stat-card" style="padding:10px 6px"><div class="stat-value" style="font-size:16px;color:'+(esPs&&asist.nFaltas?'#dc2626':'var(--muted)')+'">'+faltasTxt+'</div><div class="stat-label" style="font-size:9.5px">❌ Faltas</div></div>'
-        +'<div class="stat-card" style="padding:10px 6px"><div class="stat-value" style="font-size:16px;color:'+(esPs&&asist.nTard?'#d97706':'var(--muted)')+'">'+tardTxt+'</div><div class="stat-label" style="font-size:9.5px">🕐 Tardanzas</div></div>'
-        +'<div class="stat-card" style="padding:10px 6px"><div class="stat-value" style="font-size:16px;color:'+(descuento>0?'#dc2626':'var(--muted)')+'">'+(descuento>0?'-S/'+descuento.toFixed(2):'S/0.00')+'</div><div class="stat-label" style="font-size:9.5px">Descuento</div></div>'
-        +'<div class="stat-card" style="padding:10px 6px"><div class="stat-value" style="font-size:16px;color:#15803d">S/'+bonos.toFixed(2)+'</div><div class="stat-label" style="font-size:9.5px">Bonos</div></div>'
-        +'<div class="stat-card" style="padding:10px 6px;border-color:'+col+';grid-column:span 2"><div class="stat-value" style="font-size:20px;color:'+col+'">S/'+total.toFixed(2)+'</div><div class="stat-label" style="font-size:9.5px">Total a pagar</div></div>'
+      +'<div style="padding:10px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:8px">'
+        +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px">S/'+base+'</div><div class="stat-label" style="font-size:8.5px">Sueldo base</div></div>'
+        +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:#0369a1">S/'+costoHora.toFixed(2)+'</div><div class="stat-label" style="font-size:8.5px">Costo/hora</div></div>'
+        +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:'+(esPs&&asist.nFaltas?'#dc2626':'var(--muted)')+'">'+faltasTxt+'</div><div class="stat-label" style="font-size:8.5px">❌ Faltas</div></div>'
+        +'<div class="stat-card" style="padding:7px 5px'+(esPs&&asist.nTard?';cursor:pointer':'')+'"'+(esPs&&asist.nTard?' onclick="verDetalleTardanza('+_sq(p.nombre)+')" title="Ver detalle"':'')+'><div class="stat-value" style="font-size:13px;color:'+(esPs&&asist.nTard?'#d97706':'var(--muted)')+'">'+(esPs?asist.minTardTotal+' min':'-')+'</div><div class="stat-label" style="font-size:8.5px">🕐 Tardanza'+(esPs&&asist.nTard?' · 👁 ver':'')+'</div></div>'
+        +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:'+(descuentoCalc>0?(aplicaDescuento?'#dc2626':'var(--muted)'):'var(--muted)')+(aplicaDescuento?'':';text-decoration:line-through')+'">'+(descuentoCalc>0?'-S/'+descuentoCalc.toFixed(2):'S/0.00')+'</div><div class="stat-label" style="font-size:8.5px">Descuento'+(descuentoCalc>0&&!aplicaDescuento?' (no aplicado)':'')+'</div></div>'
+        +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:#15803d">S/'+bonos.toFixed(2)+'</div><div class="stat-label" style="font-size:8.5px">Bonos</div></div>'
+        +'<div class="stat-card" style="padding:7px 5px;border-color:'+col+';grid-column:span 2"><div class="stat-value" style="font-size:17px;color:'+col+'">S/'+total.toFixed(2)+'</div><div class="stat-label" style="font-size:8.5px">Total a pagar</div></div>'
       +'</div>'
+      +(esPs&&descuentoCalc>0?'<div style="padding:0 12px 8px;display:flex;gap:8px;align-items:center;font-size:10.5px;color:var(--muted)">Este mes tiene S/'+descuentoCalc.toFixed(2)+' en descuento calculado - '
+        +'<button class="btn btn-sm" style="padding:3px 8px;font-size:10px;background:'+(aplicaDescuento?'#dcfce7':'#f1f5f9')+';color:'+(aplicaDescuento?'#166534':'#475569')+'" onclick="toggleAplicarDescuento('+_sq(p.nombre)+','+_sq(p.sede||D.sede)+','+(p.sueldo||0)+',true)">'+(aplicaDescuento?'✅':'⬜')+' Aplicar</button>'
+        +'<button class="btn btn-sm" style="padding:3px 8px;font-size:10px;background:'+(!aplicaDescuento?'#fee2e2':'#f1f5f9')+';color:'+(!aplicaDescuento?'#991b1b':'#475569')+'" onclick="toggleAplicarDescuento('+_sq(p.nombre)+','+_sq(p.sede||D.sede)+','+(p.sueldo||0)+',false)">'+(!aplicaDescuento?'✅':'⬜')+' Solo informativo</button>'
+        +'</div>':'')
       +'<div style="display:flex;border-top:1px solid var(--border)">'
       +'<button class="btn btn-sm" style="flex:1;border-radius:0;background:#eef2ff;color:#4338ca;font-weight:800" onclick="generarReciboHonorario('+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+_sq(mesStr)+','+base+','+descuento+','+bonos+','+total+')">📄 Recibo</button>'
       +(yaPagado?'<div style="flex:1;text-align:center;padding:9px;font-size:12px;font-weight:800;color:#166534;background:#dcfce7">✅ Ya pagado este mes</div>':'<button class="btn btn-sm" style="flex:1;border-radius:0;background:#dcfce7;color:#166534;font-weight:800" onclick="marcarHonorarioPagado('+_sq(p._tabla)+','+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+base+','+descuento+','+bonos+','+total+')">💾 Marcar pagado</button>')
       +'</div>'
       +'</div>';
   }).join('')+'</div>'
-  +'<div style="font-size:10px;color:var(--muted);margin-top:10px">➖ Costo/hora = sueldo ÷ 30 días ÷ 8 horas. Si la trabajadora tiene una tasa fija configurada (botón "Descuentos"), el descuento usa esa tasa; si no, se calcula automático con los minutos reales tarde (o el día completo en una falta) sobre su costo/hora. Las tarjetas se ordenan por cercanía al día de pago. "📄 Recibo" genera el PDF en cualquier momento, sin necesidad de marcar el pago. "Marcar pagado" además lo suma a Gastos de la sede.</div>';
+  +'<div style="font-size:10px;color:var(--muted);margin-top:10px">➖ Costo/hora = sueldo ÷ 30 días ÷ 8 horas. Si la trabajadora tiene una tasa fija configurada (botón "Descuentos"), el descuento usa esa tasa; si no, se calcula automático con los minutos reales tarde (o el día completo en una falta) sobre su costo/hora. Click en "Tardanza" para ver el detalle día por día. "Solo informativo" deja el descuento visible pero no lo resta del total. Las tarjetas se ordenan por cercanía al día de pago. "📄 Recibo" genera el PDF en cualquier momento. "Marcar pagado" además lo suma a Gastos de la sede.</div>';
+}
+// Ver el detalle día por día de las tardanzas del mes (fecha, hora real
+// de llegada, hora esperada, minutos tarde y motivo que registró la
+// recepcionista) - antes solo se veía el total, sin poder revisar caso
+// por caso.
+function verDetalleTardanza(nombre){
+  var p=(D.psicologas||[]).find(function(x){return x.nombre===nombre;});
+  if(!p)return;
+  var mesStr=mesY();
+  var hon=D.honorarios.find(function(h){return h.psicologa_nombre===nombre;});
+  var asist=_descuentoPorAsistencia(p,mesStr,hon?(hon.descuento_tardanza||0):0,hon?(hon.descuento_inasistencia||0):0);
+  document.getElementById('detTardTitulo').textContent='🕐 Tardanzas de '+nombre+' - '+mesStr;
+  var el=document.getElementById('detTardLista');
+  if(!asist.tardanzasDetalle.length){
+    el.innerHTML='<p style="color:var(--muted);text-align:center;padding:14px">Sin tardanzas registradas este mes</p>';
+  }else{
+    el.innerHTML=asist.tardanzasDetalle.map(function(d){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">'
+        +'<div><div style="font-weight:700;font-size:13px">'+fmtF(d.fecha)+'</div>'
+        +'<div style="font-size:11px;color:var(--muted)">Entrada '+(d.entrada||'-')+' · esperada '+d.esperada+'</div>'
+        +(d.motivo?'<div style="font-size:11px;color:#92400e;margin-top:2px">💬 '+d.motivo+'</div>':'')
+        +'</div>'
+        +'<div style="font-weight:900;color:#d97706;white-space:nowrap">'+d.min+' min</div>'
+        +'</div>';
+    }).join('')+'<div style="text-align:right;font-weight:900;margin-top:10px;color:#d97706">Total: '+asist.minTardTotal+' min</div>';
+  }
+  document.getElementById('modalDetalleTardanza').classList.add('open');
+}
+// Decide si el descuento calculado por tardanza/inasistencia se resta
+// de verdad del pago del mes, o se deja solo como dato informativo (ej.
+// una falta que ya se justificó y se decidió pagar completa igual).
+async function toggleAplicarDescuento(nombre,sede,sueldo,aplicar){
+  try{
+    var mes=mesY();
+    var hon=D.honorarios.find(function(h){return h.psicologa_nombre===nombre;});
+    if(hon)await sbPatch('honorarios',{aplicar_descuento:aplicar},{id:'eq.'+hon.id});
+    else await sbPost('honorarios',{mes:mes,psicologa_nombre:nombre,sede:sede,monto_base:sueldo,descuento_tardanza:0,descuento_inasistencia:0,estado:'pendiente',total:sueldo,aplicar_descuento:aplicar});
+    toast(aplicar?'✅ El descuento se aplicará al pago':'ℹ️ El descuento queda solo como referencia, no se resta');
+    await recargar();
+  }catch(e){toast('Error: '+e.message,'error');}
 }
 // Deja el honorario (o el sueldo de una recepcionista, que no tiene fila
 // en "honorarios" todavía) como pagado y lo refleja en Gastos, para que
@@ -964,14 +1029,19 @@ function generarReciboHonorario(nombre,rol,sede,mes,base,descuento,bonos,total){
     var W=210,M=14,y=10;
     var folio=_folioRecibo(nombre,mes);
     var logo=_pdfLogoSrc();
-    try{if(logo)doc.addImage(logo,'PNG',M,y,26,26);}catch(e){}
-    doc.setFillColor(74,14,46);doc.rect(44,y,W-44-M,28,'F');
-    doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
-    doc.text('CENTRO TERAPÉUTICO INTEGRAL PSICOLUZ',46,y+8);
-    doc.setFontSize(11);doc.text('RECIBO DE PAGO',46,y+16);
+    // Logo más grande (antes 26x26 se veía diminuto al lado del encabezado)
+    // y una franja rosa - el color característico de la marca, que el PDF
+    // no usaba para nada - debajo de la cabecera oscura.
+    try{if(logo)doc.addImage(logo,'PNG',M,y,34,34);}catch(e){}
+    doc.setFillColor(74,14,46);doc.rect(52,y,W-52-M,30,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(13.5);doc.setFont('helvetica','bold');
+    doc.text('CENTRO TERAPÉUTICO INTEGRAL PSICOLUZ',55,y+9);
+    doc.setFontSize(11);doc.text('RECIBO DE PAGO',55,y+18);
     doc.setFontSize(8);doc.setFont('helvetica','normal');
-    doc.text('Folio: '+folio+'   ·   Emitido: '+new Date().toLocaleString('es-PE'),46,y+23);
-    y+=36;
+    doc.text('Folio: '+folio+'   ·   Emitido: '+new Date().toLocaleString('es-PE'),55,y+25.5);
+    y+=30;
+    doc.setFillColor(233,30,140);doc.rect(M,y,W-M*2,3,'F');
+    y+=11;
     doc.setTextColor(30,30,30);
     doc.setDrawColor(230,230,230);doc.setFillColor(250,247,248);
     doc.roundedRect(M,y,W-M*2,26,2,2,'FD');
@@ -1004,7 +1074,7 @@ function generarReciboHonorario(nombre,rol,sede,mes,base,descuento,bonos,total){
     });
     doc.setTextColor(30,30,30);
     y+=6;
-    doc.setFillColor(74,14,46);doc.roundedRect(M,y-6,W-M*2,13,2,2,'F');
+    doc.setFillColor(233,30,140);doc.roundedRect(M,y-6,W-M*2,13,2,2,'F');
     doc.setTextColor(255,255,255);doc.setFontSize(12);doc.setFont('helvetica','bold');
     doc.text('TOTAL PAGADO',M+4,y+2);doc.text('S/'+total.toFixed(2),W-M-4,y+2,{align:'right'});
     doc.setTextColor(30,30,30);
