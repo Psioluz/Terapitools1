@@ -57,6 +57,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 .content{flex:1;overflow-y:auto;padding:20px}
 .page{display:none}.page.active{display:block}
+#page-agenda.active{display:flex;flex-direction:column}
 
 /* ── CARDS & GRIDS ── */
 .card{background:var(--card);border-radius:14px;border:1px solid var(--border);margin-bottom:16px;overflow:hidden}
@@ -352,7 +353,7 @@ try{
 </div>
 
 <!-- ═══ AGENDA ═══ -->
-<div id="page-agenda" class="page" style="height:100%;display:flex;flex-direction:column">
+<div id="page-agenda" class="page" style="height:100%">
   <div style="background:linear-gradient(135deg,var(--sidebar),var(--accent));border-radius:14px;padding:12px 18px;margin-bottom:10px;color:#fff;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;flex-shrink:0">
     <div style="font-size:16px;font-weight:900">🗓️ Agenda Semanal</div>
     <div style="background:rgba(255,255,255,.18);border-radius:10px;padding:5px 14px;font-size:12px;font-weight:700" id="agendaBannerSede">📍 -</div>
