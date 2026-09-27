@@ -3741,10 +3741,12 @@ function renderPacientes(){
     const prox=sesP.filter(s=>s.estado==='programado'&&s.fecha>=today()).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora))[0];
     const paqInfo=_paqInfoPac(p);
     const prog=progresoPac(p);
-    return '<div class="card" style="padding:14px;margin-bottom:8px">'+
+    const colPac=p.estado==='inactivo'?'#94a3b8':'#e91e8c';
+    return '<div class="card" style="padding:14px;margin-bottom:8px;border-left:4px solid '+colPac+'">'+
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+
       '<div style="flex:1;min-width:200px">'+
       '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px">'+
+      '<span style="width:28px;height:28px;flex:none;border-radius:50%;background:'+colPac+'14;color:'+colPac+';display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:900">'+(p.nombre||'?').trim().charAt(0).toUpperCase()+'</span>'+
       '<span style="font-size:15px;font-weight:800">'+p.nombre+'</span>'+
       (p.dni?'<span class="badge bk" style="font-size:10px">DNI '+p.dni+'</span>':'')+
       (p.estado==='inactivo'?'<span class="badge br">Inactivo</span>':'')+
@@ -4372,20 +4374,25 @@ function renderPsicologas(){
   if(!DB.psicologas.length){
     el.innerHTML='<div class="alert al-info" style="margin:12px">No hay psicólogas registradas para esta sede. Pide a Administración que agregue una.</div>';return;
   }
-  el.innerHTML=DB.psicologas.map(ps=>{
+  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">'+DB.psicologas.map(ps=>{
     const sesHoy=DB.sesiones.filter(s=>s.psId===ps.nombre&&s.fecha===today()).length;
-    return '<div style="background:#f8faff;border-radius:12px;padding:14px;border:1px solid var(--border);border-left:4px solid '+colorPsAgenda(ps)+'">'+
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:8px">'+
-      '<div><div style="font-size:15px;font-weight:800;margin-bottom:2px">'+ps.nombre+'</div>'+
-      '<div style="font-size:11px;color:var(--muted)">'+ps.esp+' · '+ps.cop+'</div>'+
-      '<div style="font-size:11px;color:var(--muted)">⏰ '+(ps.inicio||'13:15')+' - '+(ps.fin||'20:00')+(ps.diaEspecial?' · '+ps.diaEspecial+' desde 08:00':'')+(ps.diaHorarioEsp?' · '+ps.diaHorarioEsp+' '+ps.horaInicioEsp+'-'+ps.horaFinEsp:'')+'</div>'+
-      '<div style="font-size:11px;margin-top:3px">Sesiones hoy: <strong>'+sesHoy+'</strong></div></div>'+
+    const col=colorPsAgenda(ps);
+    return '<div class="card" style="margin-bottom:0;overflow:hidden">'+
+      '<div style="background:linear-gradient(135deg,'+col+',var(--sidebar));padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px">'+
+      '<div><div style="font-size:15px;font-weight:900;color:#fff">👩‍⚕️ '+ps.nombre+'</div>'+
+      '<div style="font-size:11px;color:rgba(255,255,255,.85);font-weight:600;margin-top:2px">'+ps.esp+' · '+ps.cop+'</div></div>'+
       '<div style="text-align:center;flex-shrink:0">'+
-      '<input type="color" value="'+colorPsAgenda(ps)+'" data-psid="'+ps.id+'" onchange="cambiarColorPs(this)" title="Color de sus sesiones en la agenda" style="width:34px;height:34px;border:none;border-radius:8px;cursor:pointer;background:none;padding:0">'+
-      '<div style="font-size:9px;color:var(--muted);margin-top:2px">Color agenda</div>'+
+      '<input type="color" value="'+col+'" data-psid="'+ps.id+'" onchange="cambiarColorPs(this)" title="Color de sus sesiones en la agenda" style="width:32px;height:32px;border:2px solid rgba(255,255,255,.6);border-radius:8px;cursor:pointer;background:none;padding:0">'+
+      '</div>'+
+      '</div>'+
+      '<div style="padding:14px 16px">'+
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">⏰ '+(ps.inicio||'13:15')+' - '+(ps.fin||'20:00')+(ps.diaEspecial?' · '+ps.diaEspecial+' desde 08:00':'')+(ps.diaHorarioEsp?' · '+ps.diaHorarioEsp+' '+ps.horaInicioEsp+'-'+ps.horaFinEsp:'')+'</div>'+
+      '<div style="display:inline-flex;align-items:center;gap:8px;background:'+col+'14;border:1px solid '+col+'30;border-radius:10px;padding:6px 14px">'+
+      '<span style="font-size:19px;font-weight:900;color:'+col+'">'+sesHoy+'</span>'+
+      '<span style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.3px">Sesiones hoy</span>'+
       '</div>'+
       '</div></div>';
-  }).join('');
+  }).join('')+'</div>';
 }
 function cambiarColorPs(input){
   const psId=input.dataset.psid;const color=input.value;
@@ -4559,12 +4566,16 @@ function abrevTerapia(nombre){
 }
 function renderTerapias(){
   const el=document.getElementById('gridTer');if(!el)return;
-  el.innerHTML=DB.terapias.map(t=>'<div class="card" style="padding:14px">'+
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">'+
-    '<span class="badge" style="background:'+(t.color||'#e5e7eb')+';color:'+colorTextoContraste(t.color)+'">'+t.nombre+'</span></div>'+
-    (t.sede?'<div style="font-size:10px;margin-top:2px"><span class="badge bo">📍 Solo '+t.sede+'</span></div>':'')+
-    '<div style="font-size:11px;color:var(--muted);margin-top:4px">'+(t.desc||'')+'</div>'+
-    '</div>').join('') ||
+  el.innerHTML=DB.terapias.map(t=>{
+    const col=t.color||'#94a3b8';
+    return '<div class="card" style="margin-bottom:0;overflow:hidden">'+
+    '<div style="height:6px;background:'+col+'"></div>'+
+    '<div style="padding:14px">'+
+    '<div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:6px">🧠 '+t.nombre+'</div>'+
+    (t.sede?'<span class="badge bo" style="font-size:10px">📍 Solo '+t.sede+'</span>':'')+
+    '<div style="font-size:11px;color:var(--muted);margin-top:6px">'+(t.desc||'Sin descripción')+'</div>'+
+    '</div></div>';
+  }).join('') ||
     '<div style="color:var(--muted);padding:14px">Sin terapias.</div>';
 }
 
@@ -4582,6 +4593,10 @@ const TIPO_META={
 function tipoMeta(tipo){
   return TIPO_META[(tipo||'').trim()]||{icono:'➕',color:'bk'};
 }
+const TIPO_COLOR_HEX={'Sesión':'#0ea5e9','Paquete':'#7c3aed','Programa':'#16a34a','Evaluación':'#f59e0b',
+  'Informe':'#2563eb','Constancia':'#64748b','Certificado':'#64748b','Consejería':'#e91e8c',
+  'Consulta':'#0ea5e9','Campaña':'#16a34a','Juegos':'#f59e0b'};
+function tipoColorHex(tipo){return TIPO_COLOR_HEX[(tipo||'').trim()]||'#e91e8c';}
 function actualizarTabsPaq(){
   const tabs=document.getElementById('tabsPaq');if(!tabs)return;
   const tipos=Array.from(new Set(DB.paquetes.map(p=>(p.tipo||'').trim()).filter(Boolean))).sort();
@@ -4600,7 +4615,8 @@ function renderPaquetes(filtro){
     }).length;
     const sesUsadas=DB.sesiones.filter(s=>s.paqId===p.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
     const meta=tipoMeta(p.tipo);
-    return '<div class="paq-card" style="border-top:4px solid var(--accent)">'+
+    const colTipo=tipoColorHex(p.tipo);
+    return '<div class="paq-card" style="border-top:4px solid '+colTipo+'">'+
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'+
     '<div style="flex:1">'+
     '<div style="font-size:14px;font-weight:800;margin-bottom:5px">'+meta.icono+' '+p.nombre+'</div>'+
@@ -6195,7 +6211,12 @@ function normHoraRec(h){
 function renderCumpleanos(){
   var hoy=new Date(_limaMs());
   function dias(fn){if(!fn)return null;var p=fn.split('-');if(p.length<3)return null;var c=new Date(Date.UTC(hoy.getUTCFullYear(),parseInt(p[1])-1,parseInt(p[2])));if(c<hoy)c.setUTCFullYear(hoy.getUTCFullYear()+1);var d=Math.round((c-hoy)/86400000);return d<=30?d:null;}
-  function mkCards(items){return items.length?'<div style="display:flex;flex-direction:column;gap:8px">'+items.map(function(x){return'<div style="display:flex;align-items:center;gap:10px;padding:10px;background:#fce7f3;border-radius:10px;border-left:3px solid var(--accent)"><span style="font-size:22px">'+(x.d===0?'🎂':x.d<=3?'🎉':'🎁')+'</span><div><b>'+x.n+'</b><div style="font-size:11px;color:var(--muted)">'+(x.d===0?'¡Hoy!':x.d===1?'Mañana':'En '+x.d+' días')+'</div></div></div>';}).join('')+'</div>':'<p style="color:var(--muted);padding:12px;text-align:center">Sin cumpleaños próximos</p>';}
+  function mkCards(items){return items.length?'<div style="display:flex;flex-direction:column;gap:8px">'+items.map(function(x){
+    var col=x.d===0?'#e91e8c':x.d<=3?'#f59e0b':'#94a3b8';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:'+col+'14;border:1px solid '+col+'30;border-radius:10px">'+
+    '<div style="width:38px;height:38px;flex:none;border-radius:10px;background:'+col+';display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 8px '+col+'50">'+(x.d===0?'🎂':x.d<=3?'🎉':'🎁')+'</div>'+
+    '<div><div style="font-weight:800;font-size:13px">'+x.n+'</div><div style="font-size:11px;color:'+col+';font-weight:700">'+(x.d===0?'¡Hoy!':x.d===1?'Mañana':'En '+x.d+' días')+'</div></div></div>';
+  }).join('')+'</div>':'<p style="color:var(--muted);padding:12px;text-align:center">Sin cumpleaños próximos</p>';}
   var cp=(DB.pacientes||[]).map(function(p){var d=dias(p.nac);return d!==null?{n:p.nombre,d:d}:null;}).filter(Boolean).sort(function(a,b){return a.d-b.d;});
   var cs=(DB.psicologas||[]).map(function(p){var d=dias(p.nac);return d!==null?{n:p.nombre,d:d}:null;}).filter(Boolean).sort(function(a,b){return a.d-b.d;});
   var elP=document.getElementById('cumplePacs');if(elP)elP.innerHTML=mkCards(cp);
