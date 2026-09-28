@@ -1404,8 +1404,7 @@ function fillSelects(){
   ['ag-ps','pg-ps'].forEach(id=>_fillPreservando(id,psO));
   ['ag-ter'].forEach(id=>_fillPreservando(id,terO));
   ['pg-pac','pg-ajustePaciente'].forEach(id=>_fillPreservando(id,pacO));
-  const hpEl=document.getElementById('histPac');
-  if(hpEl)hpEl.innerHTML='<option value="">- Selecciona paciente -</option>'+DB.pacientes.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join('');
+  _fillPreservando('histPac','<option value="">- Selecciona paciente -</option>'+DB.pacientes.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join(''));
   _fillPreservando('agPs','<option value="">- Todas -</option>'+DB.psicologas.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join(''));
   _fillPreservando('filtTer','<option value="">- Todas -</option>'+DB.terapias.map(t=>'<option value="'+t.id+'">'+t.nombre+'</option>').join(''));
   // Tipos de servicio reales de tarifas_sede (Consulta, Campaña, Informe, etc.),
@@ -6153,7 +6152,9 @@ async function marcarAs(sesRef,nuevoEst){
   }else{
     showToast('⚠️ Sesión sin ID de Supabase - recarga los datos','error');
   }
-  var a=document.querySelector('.page.active');if(a&&typeof showPage==='function')showPage(a.id.replace('page-',''));
+  var a=document.querySelector('.page.active');
+  if(a&&a.id==='page-historial'&&_histPacId&&typeof renderHistorial==='function')renderHistorial();
+  else if(a&&typeof showPage==='function')showPage(a.id.replace('page-',''));
 }
 
 // ══════════════════════════════════════════════════
