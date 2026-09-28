@@ -5640,17 +5640,17 @@ async function renderHistorial(){
     '</div>'+
     '<div style="font-size:13px;font-weight:800;color:var(--muted);margin-bottom:8px">📋 Registro de Sesiones</div>'+
     (filasTabla.length?
-      '<div style="overflow-x:auto"><table><thead><tr><th>Fecha</th><th>Hora</th><th>Psicóloga</th><th>Terapia</th><th>Estado</th><th>Tipo</th><th>Costo</th><th>Pago realizado</th><th>Notas</th><th>Acción</th></tr></thead><tbody>'+
+      '<div style="max-width:100%;overflow-x:auto"><table style="table-layout:auto;font-size:11px"><thead><tr><th>Fecha</th><th>Psicóloga</th><th>Terapia</th><th>Estado</th><th>Tipo</th><th>Costo</th><th>Notas</th><th>Acción</th></tr></thead><tbody>'+
       filasTabla.map(s=>{
         if(s.esPagoSuelto){
           const total=s.pagosGrupo.reduce(function(a,p){return a+(p.monto||0);},0);
-          const metodosTxt=s.pagosGrupo.map(function(p){return '<div>'+p.metodo+' S/'+p.monto+'</div>';}).join('');
+          const metodosTxt=s.pagosGrupo.map(function(p){return p.metodo+' S/'+p.monto;}).join(', ');
           const notasPagoSuelto=s.pagosGrupo.map(function(p){return p.notas||'';}).filter(Boolean).join(' · ');
-          return '<tr style="background:#f0fdf4"><td>'+fmtF(s.fecha)+'</td><td>-</td><td>-</td><td>-</td>'+
+          return '<tr style="background:#f0fdf4"><td style="white-space:nowrap">'+fmtF(s.fecha)+'</td><td>-</td><td>-</td>'+
             '<td><span style="color:var(--green);font-weight:700">Pago registrado</span></td>'+
             '<td><span class="badge bk" style="font-size:10px">'+s.concepto+'</span></td>'+
-            '<td style="white-space:nowrap"><span style="color:var(--green);font-weight:700">S/'+total+'</span></td>'+
-            '<td style="white-space:nowrap">'+metodosTxt+'</td>'+
+            '<td style="white-space:nowrap"><span style="color:var(--green);font-weight:700">S/'+total+'</span>'+
+            '<div style="font-size:10px;color:var(--muted)">'+metodosTxt+'</div></td>'+
             '<td style="font-size:11px;color:var(--muted)">'+(notasPagoSuelto||'')+'</td>'+
             '<td><span style="font-size:11px;color:var(--muted)">-</span></td></tr>';
         }
@@ -5681,7 +5681,6 @@ async function renderHistorial(){
         // (ver pagosDelPaciente/gruposHuerfanos), para no dar a entender
         // que el pago ocurrió el mismo día que la sesión cuando puede no
         // ser así.
-        const pagoCelda='-';
         const notasPago='';
         // Si esta fila es donde ocurrió un permiso o una reprogramación, se
         // le pega aquí mismo (en SU fecha real) la evidencia y la nota que
@@ -5699,17 +5698,16 @@ async function renderHistorial(){
         // cupo se movió - no cuenta como una sesión más, así que no muestra
         // el contador "Paq X/Y", y la fila reprogramada se pinta distinta
         // para diferenciarla de un cupo activo.
-        return '<tr'+(esReprogFila?' style="background:var(--bg);opacity:.65"':'')+'><td>'+fmtF(s.fecha)+'</td><td>'+s.hora+'</td><td>'+psH.nombre.replace('Lic.','').trim()+'</td>'+
+        return '<tr'+(esReprogFila?' style="background:var(--bg);opacity:.65"':'')+'><td style="white-space:nowrap">'+fmtF(s.fecha)+' <span style="color:var(--muted)">'+s.hora+'</span></td><td>'+psH.nombre.replace('Lic.','').trim()+'</td>'+
           '<td>'+terBadge(terH)+'</td>'+
           '<td><span style="color:'+ec+';font-weight:700">'+estadoLabel(s.estado)+'</span></td>'+
           '<td><span class="badge bk" style="font-size:10px">'+((esReprogFila||s.estado==='permiso')?'-':s.tipo==='paquete'?'Paq '+_paqLabel(s):s.tipo)+'</span></td>'+
           '<td style="white-space:nowrap">'+costoCelda+'</td>'+
-          '<td style="white-space:nowrap">'+pagoCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
-          '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaHTML(s)+
+          '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaCompactoHTML(s)+
             (s.tipo==='paquete'?'':
-              ' <button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="cancelarSesionSuelta(\''+s.id+'\')">🚫 Cancelar sesión</button>'):
-            s.estado==='permiso'?botonesAsistenciaHTML(s):
+              ' <button class="btn btn-outline btn-sm" style="padding:4px 7px;color:var(--red)" title="Cancelar sesión" onclick="cancelarSesionSuelta(\''+s.id+'\')">🚫</button>'):
+            s.estado==='permiso'?botonesAsistenciaCompactoHTML(s):
             '<span style="font-size:11px;color:var(--muted)">-</span>')+'</td></tr>';
       }).join('')+
       '</tbody></table></div>'
@@ -6102,6 +6100,19 @@ function botonesAsistenciaHTML(s){
     ' <button class="btn btn-danger btn-sm" data-sid="'+s.id+'" data-est="noasistio" onclick="btnMarcarAs(this)">❌ No Asistió</button>'+
     ' <button class="btn btn-sm" style="background:#fef3c7;color:#92400e;font-weight:800" onclick="abrirModalPermiso(\''+s.id+'\')">🟡 Permiso</button>'+
     ' <button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>';
+}
+// Misma acción que botonesAsistenciaHTML pero solo con el ícono (sin el
+// texto) y con "title" como tooltip - se usa en la tabla de Historial
+// Clínico, donde 4 botones con texto completo empujaban la tabla a
+// desbordar la pantalla y obligaban a correr la barra horizontal para
+// ver el resto de columnas.
+function botonesAsistenciaCompactoHTML(s){
+  if(s.estado==='permiso')return '<button class="btn btn-outline btn-sm" style="padding:4px 7px" title="Reprogramar" onclick="reprogramar(\''+s.id+'\')">🔄</button>';
+  if(s.estado!=='programado')return '';
+  return '<button class="btn btn-success btn-sm" style="padding:4px 7px" data-sid="'+s.id+'" data-est="asistio" title="Asistió" onclick="btnMarcarAs(this)">✅</button>'+
+    ' <button class="btn btn-danger btn-sm" style="padding:4px 7px" data-sid="'+s.id+'" data-est="noasistio" title="No Asistió" onclick="btnMarcarAs(this)">❌</button>'+
+    ' <button class="btn btn-sm" style="padding:4px 7px;background:#fef3c7;color:#92400e;font-weight:800" title="Permiso" onclick="abrirModalPermiso(\''+s.id+'\')">🟡</button>'+
+    ' <button class="btn btn-outline btn-sm" style="padding:4px 7px" title="Reprogramar" onclick="reprogramar(\''+s.id+'\')">🔄</button>';
 }
 function badgeEstadoAsistencia(estado){
   var map={asistio:['bg','✅ Asistió'],noasistio:['br','❌ No asistió'],permiso:['bb','🟡 Permiso'],reprogramado:['bk','🔁 Reprogramado']};
