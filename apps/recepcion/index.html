@@ -2458,9 +2458,13 @@ function agOnPaqCategoria(){
   agPoblarPaqCatalogo();
 }
 
+// "Juegos" (salón de juegos, Flecha) es un servicio del local, no una
+// terapia de una psicóloga puntual - no debe pedir psicóloga ni terapia.
+function _esTipoJuegos(tipo){return /^juegos/i.test((tipo||'').trim());}
 function agOnTipo(){
   const tipo=document.getElementById('ag-tipo').value;
   const esExclusivo=tipo==='exclusivo';
+  const esJuegos=_esTipoJuegos(tipo);
   const exclusivoModo=document.getElementById('ag-exclusivoModo')?.value||'sesion';
   const esPaqueteNuevo=(tipo==='paquete'||(esExclusivo&&exclusivoModo==='paquete'))&&!_reprogDe;
   const grpServ=document.getElementById('ag-grp-servicio');
@@ -2503,7 +2507,7 @@ function agOnTipo(){
     agOnModoPaq();
     agCargarProgramasActivos();
   } else {
-    if(grpSimple)grpSimple.style.display='contents';
+    if(grpSimple)grpSimple.style.display=esJuegos?'none':'contents';
     if(grpFH)grpFH.style.display='contents';
     if(grpCostoSimple)grpCostoSimple.style.display='block';
     if(grpBuilder)grpBuilder.style.display='none';
@@ -3483,15 +3487,19 @@ async function guardarSesion(){
   // después, aparte, cuando el paciente confirme día y hora).
   const sinSesionHoy=modoPaq==='soloPago'||tipo==='adelanto';
   const requiereHora=!sinSesionHoy;
+  // "Juegos" (salón de juegos, Flecha) no depende de psicóloga ni terapia -
+  // es un servicio del local, cualquier recepcionista lo agenda.
+  const esJuegos=_esTipoJuegos(tipo);
 
-  if(!pacId||!psId||!terId||!fecha||(requiereHora&&!hora)){
-    showToast('Completa: paciente, psicóloga, terapia, fecha'+(requiereHora?' y hora':''),'error');return;
+  if(!pacId||(!esJuegos&&(!psId||!terId))||!fecha||(requiereHora&&!hora)){
+    showToast('Completa: paciente'+(esJuegos?'':', psicóloga, terapia')+', fecha'+(requiereHora?' y hora':''),'error');return;
   }
   if(!sinSesionHoy){
     // Reprogramado y Permiso dejan libre ese horario (por eso se pintan en
     // gris tachado en la agenda) - no deben contar como "ocupado" o nunca
     // se podría agendar a otro paciente en el cupo que quedó liberado.
-    if(DB.sesiones.find(s=>s.psId===getPs(psId).nombre&&s.fecha===fecha&&s.hora===hora&&s.estado!=='reprogramado'&&s.estado!=='permiso'&&s.estado!=='cancelado')){
+    // "Juegos" no tiene psicóloga asignada, así que no aplica el choque de horario.
+    if(!esJuegos&&DB.sesiones.find(s=>s.psId===getPs(psId).nombre&&s.fecha===fecha&&s.hora===hora&&s.estado!=='reprogramado'&&s.estado!=='permiso'&&s.estado!=='cancelado')){
       showToast('Ese horario ya está ocupado para esta psicóloga','error');return;
     }
     const fer=feriadoDe(fecha);
@@ -3644,8 +3652,10 @@ async function guardarSesion(){
         }
       }
       if(!sinSesionHoyEfectivo){
+        // "Juegos" no tiene psicóloga/terapia: se deja psicóloga vacía y la
+        // terapia muestra el propio servicio (ej. "Juegos 15 min").
         filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
-          psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:tipo,
+          psicologa:esJuegos?'':ps.nombre,terapia:esJuegos?tipo:ter.nombre,estado:'programado',tipo:tipo,
           nro_en_paquete:tipo==='paquete'?1:0,total_paquete:totalPaq,costo_total:costoTotal,
           adelanto:adelanto,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
         if(progRow&&progRow.id){filaSesion.programa_id=progRow.id;if(ptRow&&ptRow.id)filaSesion.programa_terapia_id=ptRow.id;}
