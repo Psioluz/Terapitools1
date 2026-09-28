@@ -6147,7 +6147,11 @@ async function marcarAs(sesRef,nuevoEst){
   if(nuevoEst==='asistio'&&pac){
     var progId=s._sb&&s._sb.programa_id;
     var prog=progId&&(DB.programas||[]).find(function(p){return p.id===progId;});
-    if(prog&&prog.nro_sesiones_total>0){
+    if(prog&&prog.pago_diferido){
+      // Caso exclusivo: el paciente paga el paquete completo al finalizar
+      // (facilidades de pago), no por sesión - no se bloquea el Asistió
+      // por falta de abono en ninguna sesión intermedia.
+    }else if(prog&&prog.nro_sesiones_total>0){
       var costoSesion=(prog.costo_total||0)/prog.nro_sesiones_total;
       var yaAsistidas=DB.sesiones.filter(function(x){return x._sb&&x._sb.programa_id===progId&&x.estado==='asistio';}).length;
       var requerido=Math.round(costoSesion*(yaAsistidas+1)*100)/100;
