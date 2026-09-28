@@ -2343,7 +2343,8 @@ function agOnModoPaq(){
   // registra ningún pago - el costo y las cuotas del paquete no cambian,
   // solo se reprograman las sesiones que aún no se realizaron.
   const grpAdelanto=document.getElementById('ag-grp-adelanto');
-  if(grpAdelanto)grpAdelanto.style.display=esReemplazo?'none':'block';
+  if(esReemplazo){if(grpAdelanto)grpAdelanto.style.display='none';}
+  else if(typeof _agSyncAdelantoVisibilidad==='function')_agSyncAdelantoVisibilidad();
   const grpMetodos=document.getElementById('ag-grp-metodos');
   if(grpMetodos)grpMetodos.style.display=esReemplazo?'none':'block';
   // "Solo registrar paquete y pago" también necesita la fecha - para
@@ -2659,15 +2660,26 @@ function _agFilaMetodoHTML(metodo,monto){
     '<button type="button" class="btn btn-outline btn-sm ag-met-quitar" onclick="agQuitarMetodo(this)" style="padding:4px 8px">✕</button>'+
     '</div>';
 }
+// El campo "Adelanto / Pago inicial" de arriba solo aporta algo cuando
+// el pago se reparte entre 2+ métodos (ahí sí hace falta ver el total
+// aparte del desglose) - con un solo método es el mismo monto repetido
+// dos veces, así que se oculta y solo se usa la fila de método de abajo.
+function _agSyncAdelantoVisibilidad(){
+  const rows=document.querySelectorAll('#ag-metodos-rows .ag-met-row');
+  const grp=document.getElementById('ag-grp-adelanto');
+  if(grp)grp.style.display=rows.length>1?'':'none';
+}
 function agInicializarMetodos(montoInicial){
   const cont=document.getElementById('ag-metodos-rows');if(!cont)return;
   cont.innerHTML=_agFilaMetodoHTML('Efectivo',montoInicial||'');
   _agActualizarBotonesQuitar();
+  _agSyncAdelantoVisibilidad();
 }
 function agAgregarMetodo(){
   const cont=document.getElementById('ag-metodos-rows');if(!cont)return;
   cont.insertAdjacentHTML('beforeend',_agFilaMetodoHTML('Efectivo',''));
   _agActualizarBotonesQuitar();
+  _agSyncAdelantoVisibilidad();
   agSincronizarMetodos();
 }
 function agQuitarMetodo(btn){
@@ -2676,6 +2688,7 @@ function agQuitarMetodo(btn){
   if(cont.querySelectorAll('.ag-met-row').length<=1)return;
   row.remove();
   _agActualizarBotonesQuitar();
+  _agSyncAdelantoVisibilidad();
   agSincronizarMetodos();
 }
 function _agActualizarBotonesQuitar(){
