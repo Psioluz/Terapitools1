@@ -6115,13 +6115,33 @@ async function marcarAs(sesRef,nuevoEst){
   var pac=DB.pacientes.find(function(p){return p.id===s.pacId||p.nombre===s.pacId;});
   // El bloqueo por cuota vencida va AQUÍ, no al agendar: se puede seguir
   // reservando el cupo con toda tranquilidad, pero no se confirma el
-  // servicio como prestado ("Asistió") si el paciente tiene una cuota ya
-  // vencida sin pagar. Marcar "No Asistió" o "Permiso" nunca se bloquea.
+  // servicio como prestado ("Asistió") si no hay abono suficiente.
+  // Marcar "No Asistió" o "Permiso" nunca se bloquea.
+  // Para una sesión de PAQUETE, no se exige la cuota completa ni el
+  // paquete entero pagado - alcanza con que lo abonado hasta ahora cubra
+  // el costo de las sesiones ya atendidas (incluida esta), a razón de
+  // costo_total/nro_sesiones_total por sesión. Así un abono parcial que
+  // ya cubre "la sesión de hoy" no bloquea el Asistió, aunque exista una
+  // cuota vencida más adelante en el calendario del paquete.
   if(nuevoEst==='asistio'&&pac){
-    var stCuota=_estadoSaldoPac(pac);
-    if(stCuota&&stCuota.tipo==='vencido'){
-      showToast('No se puede confirmar "Asistió": '+pac.nombre+' tiene una cuota vencida (S/'+stCuota.saldo+'). Registra el pago primero en Caja/Pagos.','error');
-      return;
+    var progId=s._sb&&s._sb.programa_id;
+    var prog=progId&&(DB.programas||[]).find(function(p){return p.id===progId;});
+    if(prog&&prog.nro_sesiones_total>0){
+      var costoSesion=(prog.costo_total||0)/prog.nro_sesiones_total;
+      var yaAsistidas=DB.sesiones.filter(function(x){return x._sb&&x._sb.programa_id===progId&&x.estado==='asistio';}).length;
+      var requerido=Math.round(costoSesion*(yaAsistidas+1)*100)/100;
+      var abonado=prog.adelanto_acumulado||0;
+      if(abonado+0.01<requerido){
+        var faltante=Math.round((requerido-abonado)*100)/100;
+        showToast('No se puede confirmar "Asistió": el abono del paquete de '+pac.nombre+' no alcanza para cubrir esta sesión (falta S/'+faltante+' de S/'+Math.round(costoSesion*100)/100+' por sesión). Registra el pago primero en Caja/Pagos.','error');
+        return;
+      }
+    }else{
+      var stCuota=_estadoSaldoPac(pac);
+      if(stCuota&&stCuota.tipo==='vencido'){
+        showToast('No se puede confirmar "Asistió": '+pac.nombre+' tiene una cuota vencida (S/'+stCuota.saldo+'). Registra el pago primero en Caja/Pagos.','error');
+        return;
+      }
     }
   }
   // Ya no existe "tardanza" como estado - antes se sustituía "asistió" por
