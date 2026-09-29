@@ -3030,7 +3030,7 @@ function guardarFichaSeguimiento(){
        document.getElementById('clFichas').style.display!=='none'){
       renderClinico();
     }
-  }).catch(function(e){console.warn('[ficha] error Supabase:',e.message);showToast('⚠️ Ficha guardada localmente, pero falló el envío a Supabase','err');});
+  }).catch(function(e){console.warn('[ficha] error al sincronizar:',e.message);showToast('⚠️ Ficha guardada localmente, pero falló la sincronización','err');});
   showToast('✅ Ficha guardada','ok');
   cerrarFichaSeguimiento();
   // Refrescar vista inmediatamente
