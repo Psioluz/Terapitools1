@@ -2920,13 +2920,50 @@ async function generarSesionesRecurrentes(o){
 // Decide a qué flujo de guardado mandar el modal "Agendar Sesión": el
 // registro de paquete (una sola vez, con varias terapias) o el guardado
 // de una sesión puntual (no-paquete, o reprogramar una ya existente).
+// Al continuar un paquete activo, agregar una asistencia en un DÍA que
+// todavía no tenía (aunque repita la misma terapia+psicóloga de otro día,
+// ej. Lenguaje con Ana los sábados Y ahora también los lunes) debe repartir
+// TODO lo pendiente entre las asistencias vigentes (restar de las que ya
+// existían para darle sitio a la nueva), nunca sumarse aparte a lo que sobre
+// aritméticamente del total contratado - por eso, aunque la recepcionista
+// haya dejado el modo por defecto ("generar"), si detecta un día nuevo se
+// apoya en el mismo reflow que ya usa "Cambiar terapia/horario/psicóloga de
+// las sesiones pendientes". La comparación es por día+hora+terapia+psicóloga
+// (no solo terapia+psicóloga) porque eso es lo que de verdad identifica una
+// asistencia - dos días distintos de la misma terapia son dos asistencias.
+function _agHayFrecuenciaNueva(progId){
+  const pendientes=DB.sesiones.filter(function(s){return s._sb&&s._sb.programa_id===progId&&s.estado==='programado';});
+  if(!pendientes.length)return false;
+  const existentes={};
+  pendientes.forEach(function(s){
+    const diaNom=diaFull[new Date(s.fecha+'T12:00:00').getDay()];
+    existentes[diaNom+'|'+s.hora+'|'+s.terId+'|'+s.psId]=true;
+  });
+  const delForm={};
+  document.querySelectorAll('#ag-terapiaRows .ag-terapia-row').forEach(function(row){
+    const terId=row.querySelector('.ag-row-ter')?.value;
+    const psId=row.querySelector('.ag-row-ps')?.value;
+    const dia=row.querySelector('.ag-row-dia')?.value;
+    const hora=row.querySelector('.ag-row-hora')?.value;
+    if(!terId||!psId||!dia||!hora)return;
+    delForm[dia+'|'+hora+'|'+getTer(terId).nombre+'|'+getPs(psId).nombre]=true;
+  });
+  // Cambió si hay una llave en un lado que no está en el otro - añadir un
+  // día nuevo, o quitar uno que ya no está en el formulario, cuentan igual.
+  for(const k in delForm)if(!existentes[k])return true;
+  for(const k in existentes)if(!delForm[k])return true;
+  return false;
+}
 function agGuardarDesdeModal(){
   const tipo=document.getElementById('ag-tipo').value;
   const exclusivoModo=document.getElementById('ag-exclusivoModo')?.value||'sesion';
   const esPaqueteExclusivo=tipo==='exclusivo'&&exclusivoModo==='paquete';
   const modoPaq=document.getElementById('ag-modoPaq')?.value||'generar';
+  const progIdActual=document.getElementById('ag-progExist')?.value||'';
   if((tipo==='paquete'||esPaqueteExclusivo)&&!_reprogDe){
-    if(modoPaq==='reemplazarPendientes'){reemplazarPendientesPaquete();}
+    if(modoPaq==='reemplazarPendientes'||(modoPaq==='generar'&&progIdActual&&_agHayFrecuenciaNueva(progIdActual))){
+      reemplazarPendientesPaquete();
+    }
     else{guardarPaqueteFlujo();}
   } else {
     guardarSesion();
