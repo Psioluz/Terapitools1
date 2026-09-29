@@ -1262,11 +1262,15 @@ async function vaciarConfirmar(){
   const escrito=prompt('Para confirmar, escribe exactamente el nombre del paciente:\n"'+nombre+'"');
   if(escrito!==nombre){toast('El nombre no coincide - cancelado, no se borró nada','error');return;}
   try{
+    // Orden obligatorio: "sesiones" tiene FK (sin cascada) hacia
+    // "programa_terapias" y "programas_paciente" - si se borran esas dos
+    // antes, Postgres rechaza el borrado con "violates foreign key
+    // constraint" (23503) porque sesiones todavía las referencia.
+    if(_vaciarDatos.ses.length)await sbDelete('sesiones',{paciente_nombre:'eq.'+nombre});
     if(_vaciarDatos.progTer.length){
       const ids=_vaciarDatos.progTer.map(function(x){return x.id;});
       await sbDelete('programa_terapias',{id:'in.('+ids.join(',')+')'});
     }
-    if(_vaciarDatos.ses.length)await sbDelete('sesiones',{paciente_nombre:'eq.'+nombre});
     if(_vaciarDatos.pagos.length)await sbDelete('pagos',{paciente_nombre:'eq.'+nombre});
     if(_vaciarDatos.precios.length)await sbDelete('precio_paciente',{paciente_nombre:'eq.'+nombre});
     if(_vaciarDatos.progs.length)await sbDelete('programas_paciente',{paciente_nombre:'eq.'+nombre});
