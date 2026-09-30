@@ -3514,6 +3514,19 @@ async function guardarPaqueteFlujo(){
       // el costo de cada sede) - el cobro es en esa sesión, no antes.
       // Si el tamaño de paquete no está en la tabla, se reparte uniforme.
       const CUOTAS_CHECKPOINTS={8:[1],12:[1,3],16:[1,4,9],20:[1,5,12],30:[1,7,16,24]};
+      // Excepción: un grupo puntual de clientes antiguos/recurrentes (sede
+      // Flecha) tienen su cobro pactado en sesiones distintas a las del
+      // catálogo estándar de la plataforma - aplica siempre que renueven
+      // ese mismo tamaño de paquete, no solo la vez que se pidió, por eso
+      // va por nombre de paciente y no se corrige una sola vez a mano.
+      const CUOTAS_CHECKPOINTS_EXCEPCION={
+        'Luke Drake Yuto Villaorduña':{16:[1,5,10]},
+        'Dylan Corrillanca':{16:[1,5,10]},
+        'Jeyko De la cruz Flores':{16:[1,5,10]},
+        'Dylan Benjamin Salvador Huaman':{20:[1,6,14]},
+        'Tobias Alejandro Escobedo Mamani':{20:[1,6,14]},
+        'Efrain Alexander Escobedo Mamani':{20:[1,6,14]}
+      };
       const cortes={};
       if(nroCuotas>=2){
         // Cada cuota (salvo la última) se pide en soles ENTEROS - así se
@@ -3522,7 +3535,7 @@ async function guardarPaqueteFlujo(){
         // de cuotas, el sobrante (los centavos + lo que falte) se acumula
         // entero en la ÚLTIMA cuota, nunca se reparte en las intermedias.
         const montoBase=montoCuotaCatalogo||Math.floor(costoTotal/nroCuotas);
-        const checkpoints=CUOTAS_CHECKPOINTS[totalSesiones];
+        const checkpoints=(CUOTAS_CHECKPOINTS_EXCEPCION[pac.nombre]&&CUOTAS_CHECKPOINTS_EXCEPCION[pac.nombre][totalSesiones])||CUOTAS_CHECKPOINTS[totalSesiones];
         // Lista de (sesión de cobro, monto de esa cuota) en orden - con las
         // posiciones fijas de la tabla, o repartidas uniforme si el tamaño
         // de paquete no está en ella.
