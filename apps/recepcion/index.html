@@ -2166,8 +2166,12 @@ async function confirmarPermiso(){
 function abrirModalAgendar(fecha,hora,sesOrig){
   fillSelects();
   const elF=document.getElementById('ag-fecha');
-  if(elF)elF.value=fecha||today();
-  const elFI=document.getElementById('ag-fechaInicio');if(elFI)elFI.value=fecha||today();
+  // Al reprogramar (sesOrig) NO se debe precargar la fecha de hoy - eso
+  // invita a guardar sin querer con la fecha de hoy en vez de la fecha
+  // real a la que se está moviendo la sesión. Se deja vacía para forzar a
+  // elegirla a propósito.
+  if(elF)elF.value=sesOrig?'':(fecha||today());
+  const elFI=document.getElementById('ag-fechaInicio');if(elFI)elFI.value=sesOrig?'':(fecha||today());
   // Resetear form
   ['ag-ps','ag-ter'].forEach(id=>{const el=document.getElementById(id);if(el)el.selectedIndex=0;});
   const elPacHid=document.getElementById('ag-pac');if(elPacHid)elPacHid.value='';
@@ -2484,7 +2488,12 @@ function agOnTipo(){
   const grpExclusivo=document.getElementById('ag-grp-exclusivo');
   const grpPaqCatalogo=document.getElementById('ag-grp-paq');
   const grpExclusivoSes=document.getElementById('ag-grp-exclusivoSesiones');
-  if(grpServ)grpServ.style.display=(tipo&&tipo!=='paquete'&&tipo!=='adelanto'&&!esExclusivo)?'block':'none';
+  // Al reprogramar (_reprogDe) no se debe volver a pedir el servicio - ya
+  // quedó fijado desde que se registró la sesión original, aquí solo se
+  // mueve la fecha/hora. Mostrar el selector aquí confundía a recepción
+  // (parecía que tenía que elegir el servicio otra vez, igual que al
+  // crear una cita nueva).
+  if(grpServ)grpServ.style.display=(tipo&&tipo!=='paquete'&&tipo!=='adelanto'&&!esExclusivo&&!_reprogDe)?'block':'none';
   if(grpExclusivo)grpExclusivo.style.display=esExclusivo?'grid':'none';
   if(grpExclusivoSes)grpExclusivoSes.style.display=(esExclusivo&&exclusivoModo==='paquete')?'block':'none';
 
