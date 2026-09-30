@@ -874,6 +874,16 @@ function _minutosTarde(entrada,esperada){
 // se calcula solo con los minutos reales tarde (o el día completo perdido
 // en una falta) sobre su costo por hora - así nunca queda en "-" sin
 // explicación cuando sí hubo tardanzas/faltas reales.
+// El D.S. 012-92-TR (Art. 2, reglamento del D.Leg. 713 sobre descansos
+// remunerados) prohíbe descontar el descanso semanal obligatorio COMPLETO
+// por una falta injustificada - pero sí exige descontar su parte
+// PROPORCIONAL: por cada día de falta injustificada se pierde el pago de
+// ESE día (ya calculado abajo) MÁS un día adicional de sueldo (el
+// "valor día" = sueldo mensual/30) correspondiente a la parte del
+// descanso semanal que ese día de falta hace perder proporcionalmente.
+// Este segundo descuento aplica siempre que haya falta, sin importar si
+// el descuento del día en sí usa una tasa fija configurada o el cálculo
+// por horas - es un descuento legal aparte, no un reemplazo del otro.
 function _descuentoPorAsistencia(p,mesStr,rTard,rInas){
   var regs=(D.asistencia||[]).filter(function(a){return a.psicologa===p.nombre&&(a.fecha||'').substring(0,7)===mesStr;});
   var faltas=regs.filter(function(a){return a.estado==='ausente';});
@@ -882,11 +892,15 @@ function _descuentoPorAsistencia(p,mesStr,rTard,rInas){
   var tardanzasDetalle=tardanzas.map(function(r){return{fecha:r.fecha,entrada:r.entrada,esperada:_horaEsperadaDia(p,r.fecha),min:_minutosTarde(r.entrada,_horaEsperadaDia(p,r.fecha)),motivo:r.motivo_tardanza};});
   var minTardTotal=tardanzasDetalle.reduce(function(a,r){return a+r.min;},0);
   var usaTasaTard=rTard>0, usaTasaFalta=rInas>0;
+  var descFaltaDia=usaTasaFalta?faltas.length*rInas:Math.round(faltas.length*8*costoHora*100)/100;
+  var valorDia=(p.sueldo||0)/30;
+  var descDSO=Math.round(faltas.length*valorDia*100)/100;
   var descTard=usaTasaTard?tardanzas.length*rTard:Math.round((minTardTotal/60)*costoHora*100)/100;
-  var descFalta=usaTasaFalta?faltas.length*rInas:Math.round(faltas.length*8*costoHora*100)/100;
+  var descFalta=Math.round((descFaltaDia+descDSO)*100)/100;
   return{nFaltas:faltas.length,nTard:tardanzas.length,minTardTotal:minTardTotal,
-    descTard:descTard,descFalta:descFalta,descuento:descTard+descFalta,
-    usaTasaTard:usaTasaTard,usaTasaFalta:usaTasaFalta,costoHora:costoHora,
+    descTard:descTard,descFalta:descFalta,descFaltaDia:descFaltaDia,descDSO:descDSO,
+    descuento:descTard+descFalta,
+    usaTasaTard:usaTasaTard,usaTasaFalta:usaTasaFalta,costoHora:costoHora,valorDia:valorDia,
     tardanzasDetalle:tardanzasDetalle,faltasDetalle:faltas.map(function(r){return{fecha:r.fecha};})};
 }
 // Próxima fecha en que toca pagarle (día del mes fijo, dia_pago) - si ese
@@ -951,6 +965,7 @@ function renderSueldos(){
         +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:#15803d">S/'+bonos.toFixed(2)+'</div><div class="stat-label" style="font-size:8.5px">Bonos</div></div>'
         +'<div class="stat-card" style="padding:7px 5px;border-color:'+col+';grid-column:span 2"><div class="stat-value" style="font-size:17px;color:'+col+'">S/'+total.toFixed(2)+'</div><div class="stat-label" style="font-size:8.5px">Total a pagar</div></div>'
       +'</div>'
+      +(esPs&&asist.nFaltas>0?'<div style="padding:0 12px 4px;font-size:10px;color:var(--muted)">Incluye S/'+asist.descDSO.toFixed(2)+' de descanso semanal proporcional por '+asist.nFaltas+' falta(s) (D.S. 012-92-TR, no se descuenta el domingo completo).</div>':'')
       +(esPs&&descuentoCalc>0?'<div style="padding:0 12px 8px;display:flex;gap:8px;align-items:center;font-size:10.5px;color:var(--muted)">Este mes tiene S/'+descuentoCalc.toFixed(2)+' en descuento calculado - '
         +'<button class="btn btn-sm" style="padding:3px 8px;font-size:10px;background:'+(aplicaDescuento?'#dcfce7':'#f1f5f9')+';color:'+(aplicaDescuento?'#166534':'#475569')+'" onclick="toggleAplicarDescuento('+_sq(p.nombre)+','+_sq(p.sede||D.sede)+','+(p.sueldo||0)+',true)">'+(aplicaDescuento?'✅':'⬜')+' Aplicar</button>'
         +'<button class="btn btn-sm" style="padding:3px 8px;font-size:10px;background:'+(!aplicaDescuento?'#fee2e2':'#f1f5f9')+';color:'+(!aplicaDescuento?'#991b1b':'#475569')+'" onclick="toggleAplicarDescuento('+_sq(p.nombre)+','+_sq(p.sede||D.sede)+','+(p.sueldo||0)+',false)">'+(!aplicaDescuento?'✅':'⬜')+' Solo informativo</button>'
@@ -961,7 +976,7 @@ function renderSueldos(){
       +'</div>'
       +'</div>';
   }).join('')+'</div>'
-  +'<div style="font-size:10px;color:var(--muted);margin-top:10px">➖ Costo/hora = sueldo ÷ 30 días ÷ 8 horas. Si la trabajadora tiene una tasa fija configurada (botón "Descuentos"), el descuento usa esa tasa; si no, se calcula automático con los minutos reales tarde (o el día completo en una falta) sobre su costo/hora. Click en "Tardanza" para ver el detalle día por día. "Solo informativo" deja el descuento visible pero no lo resta del total. Las tarjetas se ordenan por cercanía al día de pago. "📄 Recibo" genera el PDF en cualquier momento. "Marcar pagado" además lo suma a Gastos de la sede.</div>';
+  +'<div style="font-size:10px;color:var(--muted);margin-top:10px">➖ Costo/hora = sueldo ÷ 30 días ÷ 8 horas. Si la trabajadora tiene una tasa fija configurada (botón "Descuentos"), el descuento usa esa tasa; si no, se calcula automático con los minutos reales tarde (o el día completo en una falta) sobre su costo/hora. Por cada falta se agrega además el descanso semanal proporcional (sueldo ÷ 30) según D.S. 012-92-TR - la ley prohíbe descontar el día de descanso completo, pero sí exige descontar su parte proporcional. Click en "Tardanza" para ver el detalle día por día. "Solo informativo" deja el descuento visible pero no lo resta del total. Las tarjetas se ordenan por cercanía al día de pago. "📄 Recibo" genera el PDF en cualquier momento. "Marcar pagado" además lo suma a Gastos de la sede.</div>';
 }
 // Ver el detalle día por día de las tardanzas del mes (fecha, hora real
 // de llegada, hora esperada, minutos tarde y motivo que registró la

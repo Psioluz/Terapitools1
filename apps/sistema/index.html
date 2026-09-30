@@ -130,6 +130,7 @@ try{
       <div class="nav-item" onclick="showPage('visor',this)">🔍 Visor por Sede</div>
       <div class="nav-item" onclick="showPage('tablas',this)">🗄️ Tablas de Supabase</div>
       <div class="nav-item" onclick="showPage('vaciar',this)">🧼 Vaciar Paciente</div>
+      <div class="nav-item" onclick="showPage('recalcular',this)">🧮 Recalcular Saldo</div>
       <div class="nav-item" onclick="showPage('cuentas',this)">👤 Cuentas y Accesos</div>
       <div class="nav-item" onclick="showPage('sedes',this)">🏥 Sedes</div>
       <div class="nav-item" onclick="showPage('storage',this)">📦 Storage</div>
@@ -241,6 +242,28 @@ try{
             <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="vaciarRevisar()">🔍 Revisar qué se borraría</button>
             <div id="vaciarPreview" style="margin-top:12px"></div>
             <button class="btn btn-danger" id="vaciarBtnBorrar" style="display:none;margin-top:10px" onclick="vaciarConfirmar()">🗑️ Borrar todo lo registrado (menos la ficha)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECALCULAR SALDO -->
+      <div class="page" id="pg-recalcular">
+        <div class="card">
+          <div class="ch"><div class="ct">🧮 Recalcular Saldo</div></div>
+          <div class="cb">
+            <div class="hint" style="margin-bottom:10px">
+              El saldo de un paciente (y de sus paquetes) es un total que el sistema va sumando/restando con cada
+              sesión o pago - si algo se corrigió por fuera de ese flujo normal (ej. un ajuste manual en la base de
+              datos), puede quedar desincronizado con la realidad. Esta herramienta vuelve a sumar desde cero, a
+              partir de las sesiones y pagos reales del paciente, y corrige cualquier desfase.
+            </div>
+            <div style="position:relative;max-width:420px">
+              <input class="fsel" id="recalcBusq" placeholder="Escribe el nombre del paciente…" style="width:100%" oninput="recalcBuscarPac()" autocomplete="off">
+              <div id="recalcLista" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:8px;max-height:220px;overflow:auto;z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.12)"></div>
+            </div>
+            <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="recalcRevisar()">🔍 Revisar saldo real</button>
+            <div id="recalcPreview" style="margin-top:12px"></div>
+            <button class="btn btn-primary" id="recalcBtnAplicar" style="display:none;margin-top:10px" onclick="recalcAplicar()">💾 Corregir al saldo real</button>
           </div>
         </div>
       </div>
@@ -1279,6 +1302,112 @@ async function vaciarConfirmar(){
     document.getElementById('vaciarBtnBorrar').style.display='none';
     _vaciarDatos=null;_vaciarPac=null;
   }catch(e){toast('Error al borrar: '+e.message,'error');}
+}
+
+// ── RECALCULAR SALDO ──
+// El saldo (de paciente y de cada paquete activo) se mantiene por
+// incrementos: cada sesión/pago lo va sumando o restando. Si algo se
+// corrigió por fuera de ese flujo (ej. una fila borrada/editada a mano
+// en la base de datos), el número guardado puede quedar desfasado de la
+// realidad. Esto vuelve a sumarlo TODO desde cero:
+// - Saldo suelto (fuera de paquete) = costo de sus sesiones sueltas NO
+//   perdonadas (asistio/noasistio/programado, nunca cancelado/permiso/
+//   reprogramado) menos lo pagado en pagos sin programa_id.
+// - Por cada paquete activo: adelanto_acumulado = suma de pagos atados a
+//   ESE programa_id; saldo = costo_total - adelanto_acumulado (nunca <0).
+let _recalcPac=null;
+let _recalcDatos=null;
+async function recalcBuscarPac(){
+  const q=(document.getElementById('recalcBusq').value||'').trim();
+  _recalcPac=null;_recalcDatos=null;
+  document.getElementById('recalcPreview').innerHTML='';
+  document.getElementById('recalcBtnAplicar').style.display='none';
+  const list=document.getElementById('recalcLista');
+  if(q.length<2){list.style.display='none';list.innerHTML='';return;}
+  try{
+    const {data}=await sbGet('pacientes',{select:'id,nombre,sede',nombre:'ilike.*'+q+'*',limit:'8',order:'nombre.asc'});
+    if(!data||!data.length){list.style.display='none';list.innerHTML='';return;}
+    list.innerHTML=data.map(function(p){
+      const nombreEsc=String(p.nombre).replace(/'/g,"\\'");
+      return '<div onclick="recalcElegirPac(\''+nombreEsc+'\')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border)" '+
+        'onmouseover="this.style.background=\'#f4f6fb\'" onmouseout="this.style.background=\'\'">'+p.nombre+
+        ' <span class="hint">· '+(p.sede||'-')+'</span></div>';
+    }).join('');
+    list.style.display='block';
+  }catch(e){}
+}
+function recalcElegirPac(nombre){
+  _recalcPac=nombre;
+  document.getElementById('recalcBusq').value=nombre;
+  document.getElementById('recalcLista').style.display='none';
+  document.getElementById('recalcPreview').innerHTML='';
+  document.getElementById('recalcBtnAplicar').style.display='none';
+}
+const _RECALC_ESTADOS_NO_COBRAN=['cancelado','permiso','reprogramado'];
+async function recalcRevisar(){
+  if(!_recalcPac){toast('Busca y elige un paciente de la lista primero','error');return;}
+  const nombre=_recalcPac;
+  const prevEl=document.getElementById('recalcPreview');
+  prevEl.innerHTML='⏳ Revisando…';
+  try{
+    const [pacR,sesR,progsR,pagosR]=await Promise.all([
+      sbGet('pacientes',{select:'id,nombre,saldo',nombre:'eq.'+nombre,limit:'1'}),
+      sbGet('sesiones',{select:'id,tipo,programa_id,costo_total,estado',paciente_nombre:'eq.'+nombre,limit:'3000'}),
+      sbGet('programas_paciente',{select:'id,paquete_nombre,costo_total,adelanto_acumulado,saldo,estado',paciente_nombre:'eq.'+nombre,estado:'eq.activo',limit:'200'}),
+      sbGet('pagos',{select:'id,monto,programa_id',paciente_nombre:'eq.'+nombre,limit:'3000'})
+    ]);
+    const pac=(pacR.data||[])[0];
+    if(!pac){prevEl.innerHTML='<div style="color:#dc2626">No se encontró la ficha de este paciente.</div>';return;}
+    const ses=sesR.data||[],progs=progsR.data||[],pagos=pagosR.data||[];
+    const sueltas=ses.filter(function(s){return s.tipo!=='paquete'&&!s.programa_id&&_RECALC_ESTADOS_NO_COBRAN.indexOf(s.estado)===-1;});
+    const costoSueltas=sueltas.reduce(function(a,s){return a+(parseFloat(s.costo_total)||0);},0);
+    const pagosSueltos=pagos.filter(function(p){return!p.programa_id;});
+    const pagadoSuelto=pagosSueltos.reduce(function(a,p){return a+(parseFloat(p.monto)||0);},0);
+    const saldoSueltoReal=Math.round((costoSueltas-pagadoSuelto)*100)/100;
+    const saldoSueltoActual=parseFloat(pac.saldo)||0;
+
+    const porPrograma=progs.map(function(pr){
+      const pagosProg=pagos.filter(function(p){return p.programa_id===pr.id;});
+      const adelantoReal=Math.round(pagosProg.reduce(function(a,p){return a+(parseFloat(p.monto)||0);},0)*100)/100;
+      const saldoReal=Math.round(Math.max(0,(parseFloat(pr.costo_total)||0)-adelantoReal)*100)/100;
+      return{id:pr.id,nombre:pr.paquete_nombre,costoTotal:parseFloat(pr.costo_total)||0,
+        adelantoActual:parseFloat(pr.adelanto_acumulado)||0,adelantoReal:adelantoReal,
+        saldoActual:parseFloat(pr.saldo)||0,saldoReal:saldoReal};
+    });
+
+    _recalcDatos={pacId:pac.id,saldoSueltoReal:saldoSueltoReal,porPrograma:porPrograma};
+    const hayDiffSuelto=Math.abs(saldoSueltoReal-saldoSueltoActual)>=0.01;
+    const progsConDiff=porPrograma.filter(function(pr){return Math.abs(pr.saldoReal-pr.saldoActual)>=0.01||Math.abs(pr.adelantoReal-pr.adelantoActual)>=0.01;});
+    let html='<div class="hint" style="margin-bottom:8px">Saldo real de <b>'+nombre+'</b>, calculado desde sus sesiones y pagos actuales:</div><ul style="margin:0;padding-left:18px">';
+    html+='<li>Saldo suelto (fuera de paquete): guardado <b>S/'+saldoSueltoActual.toFixed(2)+'</b> - real <b'+(hayDiffSuelto?' style="color:#dc2626"':'')+'>S/'+saldoSueltoReal.toFixed(2)+'</b>'+(hayDiffSuelto?' ⚠️':' ✅')+'</li>';
+    porPrograma.forEach(function(pr){
+      const diff=Math.abs(pr.saldoReal-pr.saldoActual)>=0.01||Math.abs(pr.adelantoReal-pr.adelantoActual)>=0.01;
+      html+='<li>Paquete "'+(pr.nombre||'-')+'": adelanto guardado S/'+pr.adelantoActual.toFixed(2)+' - real S/'+pr.adelantoReal.toFixed(2)+
+        ' · saldo guardado S/'+pr.saldoActual.toFixed(2)+' - real <b'+(diff?' style="color:#dc2626"':'')+'>S/'+pr.saldoReal.toFixed(2)+'</b>'+(diff?' ⚠️':' ✅')+'</li>';
+    });
+    html+='</ul>';
+    if(!hayDiffSuelto&&!progsConDiff.length){
+      html+='<div class="hint" style="margin-top:8px">✅ Todo cuadra - no hay nada que corregir.</div>';
+      document.getElementById('recalcBtnAplicar').style.display='none';
+    }else{
+      document.getElementById('recalcBtnAplicar').style.display='inline-block';
+    }
+    prevEl.innerHTML=html;
+  }catch(e){prevEl.innerHTML='<div style="color:#dc2626">Error: '+e.message+'</div>';}
+}
+async function recalcAplicar(){
+  if(!_recalcPac||!_recalcDatos)return;
+  if(!confirm('¿Corregir el saldo de '+_recalcPac+' al valor real calculado? Esto solo actualiza los totales (saldo/adelanto) - no toca ninguna sesión ni pago.'))return;
+  try{
+    await sbPatch('pacientes',{saldo:_recalcDatos.saldoSueltoReal},{id:'eq.'+_recalcDatos.pacId});
+    for(const pr of _recalcDatos.porPrograma){
+      await sbPatch('programas_paciente',{adelanto_acumulado:pr.adelantoReal,saldo:pr.saldoReal},{id:'eq.'+pr.id});
+    }
+    toast('✅ Saldo corregido');
+    document.getElementById('recalcPreview').innerHTML='<div class="hint">✅ Listo - el saldo de '+_recalcPac+' ya refleja sus sesiones y pagos reales.</div>';
+    document.getElementById('recalcBtnAplicar').style.display='none';
+    _recalcDatos=null;_recalcPac=null;
+  }catch(e){toast('Error al corregir: '+e.message,'error');}
 }
 
 // ── CUENTAS ──
