@@ -4412,11 +4412,22 @@ async function guardarPago(){
       // existe (en cascada sobre sus cuotas-checkpoint pendientes, de la
       // más antigua a la más nueva), o si no tiene paquete, a su sesión
       // suelta pendiente más antigua.
+      // Antes, si este bloque fallaba (red, timing) o no encontraba a qué
+      // vincular el pago, el error se tragaba en silencio: el pago quedaba
+      // guardado en "pagos" pero SIN sesion_id ni programa_id, el saldo del
+      // paquete/sesión nunca se descontaba, y la recepcionista veía
+      // igual "✅ Pago registrado" - el paciente quedaba "debiendo" algo
+      // que ya pagó, sin que nadie lo notara hasta que alguien reclamara
+      // (pasó con Jeyko De la Cruz y con Mauricio Bermudez). Ahora,
+      // cualquiera de los dos casos (falla o no encuentra nada) se avisa
+      // de inmediato, con la solución a mano (Recalcular Saldo en Sistema).
+      let _pagoVinculado=false;
       try{
         const progs=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:_filtroSedeSb(pac.nombre),estado:'eq.activo',select:'*'});
         const prog=(progs||[]).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))[0];
         if(prog&&prog.id){
           pagoAtadoAPaquete=true;
+          _pagoVinculado=true;
           const adelantoAcum=(prog.adelanto_acumulado||0)+monto;
           const saldoProg=Math.max(0,(prog.costo_total||0)-adelantoAcum);
           promesas.push(sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldoProg},{id:'eq.'+prog.id}));
@@ -4430,10 +4441,14 @@ async function guardarPago(){
           const ses=DB.sesiones.filter(s=>(s.pacNom===pac.nombre||s.pacId===pac.nombre)&&s.saldo>0)
             .sort((a,b)=>((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||'')))[0];
           if(ses&&ses._sb&&ses._sb.id){
+            _pagoVinculado=true;
             promesas.push(sbPatch('sesiones',{saldo:Math.max(0,(ses.saldo||0)-monto)},{id:'eq.'+ses._sb.id}));
           }
         }
       }catch(eProg){console.error('[pago->programa]',eProg);}
+      if(!_pagoVinculado){
+        showToast('⚠️ El pago de '+pac.nombre+' se guardó, pero no se pudo vincular a ningún paquete/sesión pendiente - el saldo puede seguir saliendo como pendiente. Ve a Sistema → Recalcular Saldo para corregirlo.','error');
+      }
     }
     // Reducir saldo del paciente en Supabase - SOLO si el pago no se ató a
     // un paquete (arriba). Puede quedar en negativo (crédito a favor) si
