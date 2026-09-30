@@ -6316,10 +6316,12 @@ function syncPacientes(){cargarDesdeSB();}
 // (Dashboard, Agenda, Próximos días, Historial), para que no queden
 // desactualizadas por separado como pasaba antes.
 function botonesAsistenciaHTML(s){
-  // Ya se le dio permiso, pero el paciente puede después de todo querer
-  // reprogramar en vez de perder la sesión - se deja la opción visible en
-  // vez de dejar la fila sin ninguna acción.
-  if(s.estado==='permiso')return '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>';
+  // Permiso YA genera su propia sesión de reposición automática (ver
+  // confirmarPermiso) - si esta fila (la original, ya reubicada) se
+  // "Reprograma" de nuevo, se crea una SEGUNDA reposición y la sesión
+  // termina duplicada (pasó con Mateo Uribe). Si el paciente necesita otra
+  // fecha, se reprograma la reposición ya creada (esa sí sigue
+  // "programado"), no esta fila.
   if(s.estado!=='programado')return '';
   // Permiso y Reprogramar van juntos al costado de Asistió/No Asistió - ambos
   // exigen evidencia (foto/sustento) y mueven la sesión: Permiso la reubica
@@ -6336,7 +6338,8 @@ function botonesAsistenciaHTML(s){
 // desbordar la pantalla y obligaban a correr la barra horizontal para
 // ver el resto de columnas.
 function botonesAsistenciaCompactoHTML(s){
-  if(s.estado==='permiso')return '<button class="btn btn-outline btn-sm" style="padding:4px 7px" title="Reprogramar" onclick="reprogramar(\''+s.id+'\')">🔄</button>';
+  // Ver nota en botonesAsistenciaHTML: reprogramar una fila ya reubicada
+  // por Permiso crea una reposición duplicada.
   if(s.estado!=='programado')return '';
   return '<button class="btn btn-success btn-sm" style="padding:4px 7px" data-sid="'+s.id+'" data-est="asistio" title="Asistió" onclick="btnMarcarAs(this)">✅</button>'+
     ' <button class="btn btn-danger btn-sm" style="padding:4px 7px" data-sid="'+s.id+'" data-est="noasistio" title="No Asistió" onclick="btnMarcarAs(this)">❌</button>'+
