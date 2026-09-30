@@ -2569,7 +2569,40 @@ function agOnPaq(){
 function agOnServ(){
   const servId=document.getElementById('ag-servId')?.value||'';
   const serv=servId?getPaq(servId):null;
-  document.getElementById('ag-costo').value=serv?serv.costoTotal:'';
+  const esMultiSesion=!!(serv&&(serv.nroSes||1)>1);
+  const grpSimple=document.getElementById('ag-grp-terapiaSimple');
+  const grpFH=document.getElementById('ag-grp-fechaHora');
+  const grpCostoSimple=document.getElementById('ag-grp-costo');
+  const grpBuilder=document.getElementById('ag-grp-paqueteBuilder');
+  const grpPaqCatalogo=document.getElementById('ag-grp-paq');
+  const grpProgExist=document.getElementById('ag-grp-progExist');
+  const grpCategoria=document.getElementById('ag-grp-categoria');
+  if(esMultiSesion){
+    // Servicios como "Informe psicológico" o "Evaluación neuropsicológica"
+    // constan de varias sesiones en su tarifa (la última suele ser la
+    // entrega/resultado) - se agenda igual que un paquete: se arma el
+    // calendario de asistencias en vez de una sola fecha/hora, en lugar
+    // de crear una única cita como antes.
+    if(grpSimple)grpSimple.style.display='none';
+    if(grpFH)grpFH.style.display='none';
+    if(grpCostoSimple)grpCostoSimple.style.display='none';
+    if(grpBuilder)grpBuilder.style.display='block';
+    if(grpPaqCatalogo)grpPaqCatalogo.style.display='none';
+    if(grpProgExist)grpProgExist.style.display='none';
+    if(grpCategoria)grpCategoria.style.display='none';
+    const elCuotasInp=document.getElementById('ag-cuotas');
+    const elCuotasNota=document.getElementById('ag-cuotas-nota');
+    if(elCuotasInp){elCuotasInp.readOnly=true;elCuotasInp.value=serv.cuotas||1;}
+    if(elCuotasNota)elCuotasNota.textContent='Fijo según la tarifa de este servicio - no se puede cambiar aquí.';
+    document.getElementById('ag-costo').value=serv.costoTotal||'';
+    agOnModoPaq();
+  } else {
+    if(grpSimple)grpSimple.style.display='contents';
+    if(grpFH)grpFH.style.display='contents';
+    if(grpCostoSimple)grpCostoSimple.style.display='block';
+    if(grpBuilder)grpBuilder.style.display='none';
+    document.getElementById('ag-costo').value=serv?serv.costoTotal:'';
+  }
   agActualizarResumen();
 }
 
@@ -2853,6 +2886,13 @@ function agActualizarResumen(){
   } else if(tipo==='paquete'&&!_reprogDe&&paq){
     const saldo=Math.max(0,paq.costoTotal-adelanto);
     txt=paq.nombre+' - S/'+paq.costoTotal+' total | Adelanto: S/'+adelanto+' | Saldo: S/'+saldo;
+  } else if(tipo&&tipo!=='paquete'&&tipo!=='adelanto'&&tipo!=='exclusivo'&&!_reprogDe){
+    const servId2=document.getElementById('ag-servId')?.value||'';
+    const serv2=servId2?getPaq(servId2):null;
+    if(serv2&&(serv2.nroSes||1)>1){
+      const saldo2=Math.max(0,serv2.costoTotal-adelanto);
+      txt=serv2.nombre+' ('+serv2.nroSes+' sesiones) - S/'+serv2.costoTotal+' total | Adelanto: S/'+adelanto+' | Saldo: S/'+saldo2;
+    }
   } else if(tipo==='adelanto'){
     const pacId2=document.getElementById('ag-pac')?.value||'';
     const pac2=pacId2?getPac(pacId2):null;
@@ -3029,6 +3069,11 @@ function agGuardarDesdeModal(){
   const tipo=document.getElementById('ag-tipo').value;
   const exclusivoModo=document.getElementById('ag-exclusivoModo')?.value||'sesion';
   const esPaqueteExclusivo=tipo==='exclusivo'&&exclusivoModo==='paquete';
+  // Servicios (Informe, Evaluación, etc.) cuya tarifa consta de varias
+  // sesiones se registran igual que un paquete (ver agOnServ).
+  const servId=(tipo&&tipo!=='paquete'&&tipo!=='adelanto'&&tipo!=='exclusivo')?(document.getElementById('ag-servId')?.value||''):'';
+  const serv=servId?getPaq(servId):null;
+  const esServicioMultiSesion=!!(serv&&(serv.nroSes||1)>1);
   const modoPaq=document.getElementById('ag-modoPaq')?.value||'generar';
   const progIdActual=document.getElementById('ag-progExist')?.value||'';
   if((tipo==='paquete'||esPaqueteExclusivo)&&!_reprogDe){
@@ -3036,6 +3081,8 @@ function agGuardarDesdeModal(){
       reemplazarPendientesPaquete();
     }
     else{guardarPaqueteFlujo();}
+  } else if(esServicioMultiSesion&&!_reprogDe){
+    guardarPaqueteFlujo();
   } else {
     guardarSesion();
   }
@@ -3303,7 +3350,13 @@ async function guardarPaqueteFlujo(){
   const fechaInicio=document.getElementById('ag-fechaInicio')?.value||'';
   const notas=document.getElementById('ag-notas').value;
   let nroCuotas=Math.max(1,parseInt(document.getElementById('ag-cuotas')?.value)||1);
-  const esExclusivo=document.getElementById('ag-tipo').value==='exclusivo';
+  const tipoSel=document.getElementById('ag-tipo').value;
+  const esExclusivo=tipoSel==='exclusivo';
+  // Servicios (Informe, Evaluación...) con varias sesiones en su tarifa
+  // registran su propio tipo real, en vez del genérico "paquete" - así se
+  // distinguen en Historial/Agenda de un paquete de sesiones normal.
+  const esServicioTipo=tipoSel&&tipoSel!=='paquete'&&tipoSel!=='adelanto'&&!esExclusivo;
+  const tipoRegistro=esServicioTipo?tipoSel:'paquete';
 
   const filas=[];
   document.querySelectorAll('#ag-terapiaRows .ag-terapia-row').forEach(function(row){
@@ -3376,14 +3429,17 @@ async function guardarPaqueteFlujo(){
         nombre_servicio:nombrePaqExcl,precio_especial:costoTotal,motivo:document.getElementById('ag-exclusivoMotivo')?.value||'',
         fecha_aplicacion:fechaInicio||today(),aprobado_por:DB.usuario||''}).catch(function(){});
     } else {
-      const paqId=document.getElementById('ag-paqId')?.value||'';
+      // Un servicio (Informe, Evaluación...) ya trae fijo su paquete desde
+      // el selector "ag-servId" (ver agOnServ) - no pasa por el catálogo de
+      // "ag-paqId", que solo lista paquetes de sesiones normales.
+      const paqId=esServicioTipo?(document.getElementById('ag-servId')?.value||''):(document.getElementById('ag-paqId')?.value||'');
       const paq=paqId?getPaq(paqId):null;
-      if(!paq){showToast('Selecciona el paquete del catálogo','error');return;}
+      if(!paq){showToast(esServicioTipo?'Selecciona el servicio':'Selecciona el paquete del catálogo','error');return;}
       costoTotal=paq.costoTotal;totalSesiones=paq.nroSes;
       montoCuotaCatalogo=paq.montoCuota||null;
       adelantoAcum=adelanto;saldo=Math.max(0,costoTotal-adelanto);
       const progRows=await sbPost('programas_paciente',{paciente_nombre:pac.nombre,sede:DB.sede,
-        paquete_nombre:paq.nombre,tipo:'paquete',nro_sesiones_total:totalSesiones,
+        paquete_nombre:paq.nombre,tipo:tipoRegistro,nro_sesiones_total:totalSesiones,
         costo_total:costoTotal,adelanto_acumulado:adelantoAcum,saldo:saldo,nro_cuotas:nroCuotas,
         fecha_inicio:fechaInicio||today(),estado:'activo',registrado_por:DB.usuario||'',
         categoria:paq.categoria||'ninos'});
@@ -3526,7 +3582,7 @@ async function guardarPaqueteFlujo(){
         const f=filas[ev.filaIdx];
         const saldoSesion=cortes[nro]||0;
         const filaSes={fecha:ev.fecha,hora:ev.hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
-          psicologa:f.psicologa.nombre,terapia:f.terapia,estado:'programado',tipo:'paquete',
+          psicologa:f.psicologa.nombre,terapia:f.terapia,estado:'programado',tipo:tipoRegistro,
           nro_en_paquete:nro,total_paquete:totalSesiones,costo_total:costoTotal,
           adelanto:0,saldo:saldoSesion,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||'',
           programa_id:progRow.id,programa_terapia_id:ptIdPorFila[ev.filaIdx]};
@@ -3538,7 +3594,7 @@ async function guardarPaqueteFlujo(){
         // del paciente que caiga en la misma fecha.
         if(primeraSesionId===null)primeraSesionId=(r&&r[0]&&r[0].id)||null;
         DB.sesiones.push({id:idNueva,fecha:ev.fecha,hora:ev.hora,
-          pacId:pac.nombre,psId:f.psicologa.nombre,terId:f.terapia,estado:'programado',tipo:'paquete',
+          pacId:pac.nombre,psId:f.psicologa.nombre,terId:f.terapia,estado:'programado',tipo:tipoRegistro,
           nroSes:nro,totalPaq:totalSesiones,costo:costoTotal,costoTotal:costoTotal,saldo:saldoSesion});
       }
       if(!sim.completo){
