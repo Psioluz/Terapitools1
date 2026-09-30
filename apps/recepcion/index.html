@@ -2458,13 +2458,22 @@ function agPoblarPaqCatalogo(){
   const sel=document.getElementById('ag-paqId');if(!sel)return;
   const categoria=document.getElementById('ag-paqCategoria')?.value||'ninos';
   sel.innerHTML='<option value="">- Elige el paquete -</option>'+
-    DB.paquetes.filter(function(p){return p.tipo==='Paquete'&&(p.categoria||'ninos')===categoria;}).map(function(p){
-      return '<option value="'+p.id+'">'+p.nombre+' - S/'+p.costoTotal+'</option>';
+    DB.paquetes.filter(function(p){return _seAgendaComoPaquete(p)&&(p.categoria||'ninos')===categoria;}).map(function(p){
+      const extra=p.tipo==='Paquete'?'':' ('+p.tipo+', '+p._sb.nro_sesiones+' sesiones)';
+      return '<option value="'+p.id+'">'+p.nombre+extra+' - S/'+p.costoTotal+'</option>';
     }).join('');
   agOnPaq();
 }
 function agOnPaqCategoria(){
   agPoblarPaqCatalogo();
+}
+// Todo servicio de tarifas_sede con más de 1 sesión (Informe psicológico
+// clínico = 5, Evaluación neuropsicológica = 3, Programa = 16...) se agenda
+// igual que un paquete: programa + sesiones numeradas 1/N..N/N, cuotas y
+// saldo. Antes solo el tipo "Paquete" lo hacía y el resto creaba 1 sola cita.
+function _seAgendaComoPaquete(p){
+  if(!p||_esTipoJuegos(p.tipo))return false;
+  return p.tipo==='Paquete'||((p._sb&&p._sb.nro_sesiones)||1)>1;
 }
 
 // "Juegos" (salón de juegos, Flecha) es un servicio del local que se cobra
@@ -2543,7 +2552,7 @@ function agOnTipo(){
       if(selServ){
         selServ.innerHTML='<option value="">- Selecciona el servicio -</option>'+
           DB.paquetes.filter(p=>p.tipo===tipo).map(p=>
-            '<option value="'+p.id+'">'+p.nombre+' - S/'+p.costoTotal+'</option>'
+            '<option value="'+p.id+'">'+p.nombre+(_seAgendaComoPaquete(p)?' ('+p._sb.nro_sesiones+' sesiones)':'')+' - S/'+p.costoTotal+'</option>'
           ).join('');
       }
     }
@@ -2569,6 +2578,18 @@ function agOnPaq(){
 function agOnServ(){
   const servId=document.getElementById('ag-servId')?.value||'';
   const serv=servId?getPaq(servId):null;
+  if(serv&&_seAgendaComoPaquete(serv)&&!_reprogDe){
+    // Servicio de varias sesiones: pasar al flujo de paquete con este
+    // servicio ya elegido, para que se agenden todas sus sesiones.
+    document.getElementById('ag-tipo').value='paquete';
+    const elCat=document.getElementById('ag-paqCategoria');
+    if(elCat)elCat.value=serv.categoria||'ninos';
+    agOnTipo();
+    const elPaq=document.getElementById('ag-paqId');
+    if(elPaq){elPaq.value=serv.id;agOnPaq();}
+    showToast('📦 '+serv.nombre+' tiene '+serv._sb.nro_sesiones+' sesiones: se registra como paquete para agendarlas todas.');
+    return;
+  }
   document.getElementById('ag-costo').value=serv?serv.costoTotal:'';
   agActualizarResumen();
 }
@@ -6216,7 +6237,7 @@ async function cargarDesdeSB(silencioso) {
     DB.terapias=(res[5]||[]).filter(function(t){return terapiaAplicaASede(t.sede,DB.sede);})
       .map(function(t){return{id:t.id||t.nombre,nombre:t.nombre,color:t.color||''};});
     DB.paquetes=(res[6]||[]).map(function(t){return{id:t.id||t.nombre_servicio,
-      nombre:t.nombre_servicio||'Servicio',tipo:t.tipo||'paquete',
+      nombre:t.nombre_servicio||'Servicio',tipo:(t.tipo||'paquete').trim(),
       terId:t.nombre_servicio,terNom:t.nombre_servicio,
       nroSes:t.nro_sesiones||12,sesiones:t.nro_sesiones||12,
       costoTotal:t.costo_total||0,precio:t.costo_total||0,
