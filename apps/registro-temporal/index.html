@@ -1307,8 +1307,10 @@ async function saveEditPatient(evt){
 
     if(nuevosProgramas.length > 0){
       await crearProgramasYPrimeraSesion(nuevosProgramas, payload.nombre, selectedSede, registradoPor, fechaLima());
-      await loadSesiones();
     }
+    // Recargar siempre: si cambió el nombre, el trigger de la BD
+    // (sql/016) ya lo propagó a sesiones/programas/pagos.
+    await loadSesiones();
 
     closeEditPatientForm();
     showStatus('Ficha del paciente actualizada.', 'ok');
