@@ -1213,6 +1213,13 @@ self.addEventListener('fetch',e=>{
 const SHEET='***';
 const API='https://script.google.com/macros/s/AKfycbw5KLwNulWBvU_7t4RAujX_TS8Sqw_6Dx6s2FishldetECiBaXTFru8Yj4JcS8EV-ko/exec';
 const PASS='psico2025';
+// Llave pública VAPID (segura de exponer en el cliente - es la pública) -
+// se usa para suscribir el navegador a notificaciones push reales, que sí
+// llegan con la pantalla del teléfono apagada (a diferencia de la
+// Notification local, que solo suena con la app abierta en memoria).
+const VAPID_PUBLIC_KEY='BGL9wnopcYCdmIJ6RtdYwEbkYaK-CyqUCf-LpURf7WrYGCq-YPqbQ4g_dRYuDVWM7oT1xwgYBr48zf6r5DzrKQ8';
+const SB_URL='https://uorxwmgaekeeuxeiikkw.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
 const DIAS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const DIAS_F=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 const MESES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -2074,6 +2081,10 @@ async function sync(mostrar){
     PS._syncing=false;
     console.log('[sync] OK - sesiones:'+PS.sesiones.length+' pacientes:'+PS.pacientes.length);
     savePS();
+    // Si ya había dado permiso antes, re-suscribir por si cambió de
+    // dispositivo/navegador o la suscripción expiró - sin esto, solo se
+    // suscribía la primera vez que tocaba el botón.
+    if('Notification' in window&&Notification.permission==='granted')suscribirPush();
     // Prefetch fichas del Sheet para los pacientes del día
     if(PS.email){
       fetch(API+'?action=getFichasPs&email='+encodeURIComponent(PS.email)+'&sede='+encodeURIComponent(PS.sede||'Comas')+'&_='+Date.now(),{cache:'no-store'})
@@ -3102,11 +3113,54 @@ function guardarFichaSeguimiento(){
 
 // ══ NOTIFICACIONES ══════════════════════════════════════════
 
+function _urlB64ToUint8Array(base64String){
+  var padding='='.repeat((4-base64String.length%4)%4);
+  var base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  var raw=atob(base64),out=new Uint8Array(raw.length);
+  for(var i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);
+  return out;
+}
+// Notificación push REAL (llega aunque la pantalla esté apagada o la app
+// cerrada) - se suscribe el navegador y se guarda la suscripción en
+// Supabase para que la función programada del servidor sepa a quién
+// avisarle 5 minutos antes de cada sesión.
+async function suscribirPush(){
+  try{
+    if(!('serviceWorker' in navigator)||!('PushManager' in window))return;
+    var reg=await navigator.serviceWorker.ready;
+    var sub=await reg.pushManager.getSubscription();
+    if(!sub){
+      sub=await reg.pushManager.subscribe({
+        userVisibleOnly:true,
+        applicationServerKey:_urlB64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    var j=sub.toJSON();
+    await fetch(SB_URL+'/rest/v1/push_subscriptions',{
+      method:'POST',
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json',
+        'Prefer':'resolution=merge-duplicates,return=minimal'},
+      body:JSON.stringify({
+        psicologa_email:(PS.email||'').toLowerCase(),
+        psicologa_nombre:PS.nombre||'',
+        sede:PS.sede||'',
+        endpoint:j.endpoint,
+        p256dh:j.keys.p256dh,
+        auth:j.keys.auth,
+        user_agent:navigator.userAgent
+      })
+    });
+  }catch(e){console.error('[push] no se pudo suscribir',e);}
+}
 function pedirPermisoNotificaciones(){
   if(!('Notification' in window))return Promise.resolve(false);
-  if(Notification.permission==='granted')return Promise.resolve(true);
+  if(Notification.permission==='granted'){suscribirPush();return Promise.resolve(true);}
   if(Notification.permission==='denied')return Promise.resolve(false);
-  return Notification.requestPermission().then(function(r){return r==='granted';});
+  return Notification.requestPermission().then(function(r){
+    var ok=r==='granted';
+    if(ok)suscribirPush();
+    return ok;
+  });
 }
 
 function mostrarBannerNotif(){
