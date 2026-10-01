@@ -74,8 +74,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ps-sidebar-logo img{width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.3);flex-shrink:0;background:#fff}
 .ps-sidebar-logo .ps-logo-name{font-size:13px;font-weight:800;line-height:1.3}
 .ps-sidebar-logo .ps-logo-sede{font-size:11px;opacity:.7;font-weight:400}
-.ps-nav-section{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;padding:14px 16px 6px;opacity:.5;color:#fff}
-.ps-nav-item{display:flex;align-items:center;gap:10px;padding:11px 16px;cursor:pointer;font-size:13px;font-weight:600;color:rgba(255,255,255,.75);border-left:3px solid transparent;transition:.15s;-webkit-tap-highlight-color:rgba(233,30,140,.2);touch-action:manipulation}
+.ps-nav-section{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;padding:16px 16px 6px;opacity:.5;color:#fff}
+.ps-nav-item{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;font-size:15px;font-weight:600;color:rgba(255,255,255,.75);border-left:3px solid transparent;transition:.15s;-webkit-tap-highlight-color:rgba(233,30,140,.2);touch-action:manipulation}
 .ps-nav-item:hover,.ps-nav-item:active{background:rgba(255,255,255,.1);color:#fff}
 .ps-nav-item.active{color:#fff;background:rgba(255,255,255,.15);border-left-color:#f48fb1}
 .ps-nav-badge{background:#e91e8c;color:#fff;border-radius:10px;font-size:9px;padding:1px 6px;font-weight:800;margin-left:auto}
@@ -111,7 +111,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
    caja de escribir queda flotando encima de mensajes en vez de debajo.
    goTab() fija display:block por JS al cambiar de pestaña, por eso el
    !important: si no, esa línea de JS gana siempre. */
-#tabChat.pg.active{display:flex!important;flex-direction:column;height:100%;padding:0}
+#tabChat.pg.active{display:flex!important;flex-direction:column;flex:1;min-height:0;padding:0}
 
 /* ── FICHA DE SEGUIMIENTO ── */
 .ficha-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:flex-end;justify-content:center}
@@ -585,6 +585,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div><!-- /ps-main -->
 
 <!-- ══ MODAL FICHA DE SEGUIMIENTO ══ -->
+<div class="ficha-modal" id="modalDetalleSesion">
+  <div class="ficha-box" style="max-width:420px">
+    <div class="ficha-hdr">
+      <div style="font-size:15px;font-weight:900">📌 Detalle de la sesión</div>
+      <button onclick="document.getElementById('modalDetalleSesion').classList.remove('open')"
+        style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <div id="detalleSesionBody" style="padding:16px"></div>
+  </div>
+</div>
 <div class="ficha-modal" id="modalFichaSegui">
   <div class="ficha-box">
     <div class="ficha-hdr">
@@ -726,7 +736,8 @@ function _diasTrabajoANum(txt){
                 fechaNac:p.fecha_nac||'',tel:p.telefono||'',
                 cuenta:p.numero_cuenta||'',cci:p.cci||'',
                 sueldo:p.sueldo||0,fotoUrl:p.foto_url||'',foto:p.foto_url||'',
-              fechaIngreso:p.fecha_ingreso||'',diaEspecial:p.dia_completo||''};
+              fechaIngreso:p.fecha_ingreso||'',diaEspecial:p.dia_completo||'',
+              colorAgenda:p.color_agenda||''};
             }),
             pacientes:pacs.map(function(p){
               return {id:p.id,nombre:p.nombre,tel:p.telefono||'',
@@ -2008,7 +2019,7 @@ async function sync(mostrar){
           pacNombre:s.pacNombre||'\u2014',pacTel:s.pacTel||'',
           psNombre:s.psNombre||PS.nombre,terNombre:s.terNombre||'\u2014',
           estado:s.estado||'programado',tipo:s.tipo||'sesion',
-          nroEnPaq:0,totalPaq:1,costoTotal:0,saldo:0,
+          nroEnPaq:s.nroEnPaq||0,totalPaq:s.totalPaq||1,costoTotal:s.costoTotal||0,saldo:s.saldo||0,
           emailRegistro:s.emailRegistro||''
         };
       });
@@ -2056,6 +2067,7 @@ async function sync(mostrar){
       if(psData.fechaIngreso) PS.fechaIngreso=psData.fechaIngreso;
       if(psData.fechaNac)    PS.fechaNac=psData.fechaNac;
       if(psData.tel)         PS.tel=psData.tel;
+      if(psData.colorAgenda) PS.colorAgenda=psData.colorAgenda;
     }
 
     ok=true;
@@ -2226,6 +2238,9 @@ function renderSemana(){
       +'<div style="font-size:13px;font-weight:900">'+String(dia.d.getDate()).padStart(2,'0')+'/'+String(dia.d.getMonth()+1).padStart(2,'0')+'</div>'
       +'</div>';
   });
+  // Detalle al tocar una casilla - se guarda la sesión real (no el string
+  // armado) para no tener que escapar comillas dentro del onclick.
+  window._semSesiones=[];
   slots.forEach(function(slot){
     h+='<div class="sem-hora">'+slot+'</div>';
     diasTrabajo.forEach(function(dia){
@@ -2233,15 +2248,46 @@ function renderSemana(){
       var esH=dia.f===hoy;
       h+='<div class="sem-celda" style="background:'+(esH?'#e6fafa':'#fff')+'">';
       sesList.forEach(function(s){
-        var bc=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':'#00a0a0';
+        // Mismo color/criterio que usa Recepción al asignar la agenda:
+        // reprogramado/permiso quedan en plomo (ya no ocupan el cupo de
+        // verdad), no asistió en rojo, asistió en verde, y "programado"
+        // usa el color propio que la recepcionista le asignó a esta
+        // psicóloga (PS.colorAgenda) en vez de un color genérico fijo.
+        var esLibre=s.estado==='reprogramado'||s.estado==='permiso';
+        var bc=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':
+          esLibre?'#94a3b8':(PS.colorAgenda||'#00a0a0');
+        var letra=s.estado==='reprogramado'?'R':s.estado==='permiso'?'P':'';
         var partes=(s.pacNombre||'').split(' ').filter(function(w){return w.length>0;});
         var nom=partes.length>=2?(partes[0]+' '+partes[1]):partes[0]||'';
-        h+='<div class="sem-chip" style="background:'+bc+'" title="'+s.pacNombre+' · '+s.estado+'">'+nom+'</div>';
+        var idx=window._semSesiones.length;
+        window._semSesiones.push(s);
+        h+='<div class="sem-chip" style="background:'+bc+';cursor:pointer;position:relative'+(esLibre?';opacity:.85;text-decoration:line-through':'')+'" title="'+s.pacNombre+' · '+s.estado+'" onclick="verDetalleSesionSemana('+idx+')">'
+          +(letra?'<span style="position:absolute;top:0;right:2px;font-size:9px;font-weight:900;text-decoration:none">'+letra+'</span>':'')
+          +nom+'</div>';
       });
       h+='</div>';
     });
   });
   el.innerHTML=h;
+}
+
+function verDetalleSesionSemana(idx){
+  var s=(window._semSesiones||[])[idx];if(!s)return;
+  var estadoLbl={asistio:'✅ Asistió',noasistio:'❌ No asistió',permiso:'🟡 Permiso',
+    reprogramado:'🔁 Reprogramado',programado:'🕐 Programado',tardanza:'⏰ Tardanza'}[s.estado]||s.estado;
+  var paqTxt=(s.tipo==='paquete'&&s.totalPaq)?('Paquete '+(s.nroEnPaq||'?')+'/'+s.totalPaq):'Sesión suelta';
+  var body=document.getElementById('detalleSesionBody');
+  if(body)body.innerHTML=
+    '<div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Paciente</div>'+
+    '<div style="font-size:16px;font-weight:900;margin-bottom:10px">'+(s.pacNombre||'-')+'</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">'+
+    '<div><div style="font-size:11px;color:var(--muted);font-weight:700">FECHA</div>'+(fmtF?fmtF(s.fecha):s.fecha)+'</div>'+
+    '<div><div style="font-size:11px;color:var(--muted);font-weight:700">HORA</div>'+normHora(s.hora)+'</div>'+
+    '<div><div style="font-size:11px;color:var(--muted);font-weight:700">TERAPIA</div>'+(s.terNombre||'-')+'</div>'+
+    '<div><div style="font-size:11px;color:var(--muted);font-weight:700">ESTADO</div>'+estadoLbl+'</div>'+
+    '<div style="grid-column:1/-1"><div style="font-size:11px;color:var(--muted);font-weight:700">PAQUETE</div>'+paqTxt+'</div>'+
+    '</div>';
+  var m=document.getElementById('modalDetalleSesion');if(m)m.classList.add('open');
 }
 
 function navSem(dir){_semOff+=dir;renderSemana();}
@@ -2257,11 +2303,17 @@ function renderClinico(){
   const pac=PS.pacientes.find(p=>p.nombre===pacNom)||{nombre:pacNom};
   const sesiones=PS.sesiones.filter(s=>s.pacNombre===pacNom||s.pacId===pac.id)
     .sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora));
-  const asistCnt=sesiones.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   // pac.paq es heredado del esquema viejo y no refleja el paquete real
   // (vive en programas_paciente/sesiones) - se calcula de las sesiones.
+  // Antes el "X" se contaba sumando TODA la asistencia histórica del
+  // paciente (de paquetes ya cerrados incluidos) - se acota a las sesiones
+  // del paquete MÁS RECIENTE (mismo total de sesiones que la última
+  // sesión tipo paquete) y se toma su posición real (nroEnPaq), no un
+  // conteo aparte que puede desincronizarse.
   const sesPaqCl=sesiones.filter(s=>s.tipo==='paquete'&&s.totalPaq);
-  const paqTotalCl=sesPaqCl.length?Math.max.apply(null,sesPaqCl.map(function(s){return s.totalPaq||0;})):0;
+  const paqTotalCl=sesPaqCl.length?(sesPaqCl[0].totalPaq||0):0;
+  const sesPaqActualCl=sesPaqCl.filter(s=>s.totalPaq===paqTotalCl);
+  const asistCnt=sesPaqActualCl.length?Math.max.apply(null,sesPaqActualCl.map(function(s){return s.nroEnPaq||0;})):0;
   const pct=paqTotalCl>0?Math.min(100,Math.round((asistCnt/paqTotalCl)*100)):0;
 
   // Cargar fichas de seguimiento (caché en memoria mientras se actualiza)
@@ -2731,7 +2783,11 @@ function cardSes(s){
   var bc=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':'var(--acc)';
   var badgeC=s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bt';
   var esPaq=s.tipo==='paquete'&&s.totalPaq;
-  var asistCnt=PS.sesiones.filter(function(x){return(x.pacId===s.pacId||x.pacNombre===s.pacNombre)&&x.estado==='asistio';}).length;
+  // El número de sesión DENTRO del paquete ya viene fijo desde que se creó
+  // (nroEnPaq) - antes se recalculaba contando TODA la asistencia histórica
+  // del paciente (de paquetes ya cerrados incluidos) entre el total del
+  // paquete actual, lo que daba conteos absurdos como "70/1".
+  var asistCnt=s.nroEnPaq||0;
   var pct=esPaq?Math.min(100,Math.round((asistCnt/s.totalPaq)*100)):0;
   var n=window._fd.length;
   window._fd.push({pac:s.pacNombre||'',ter:s.terNombre||'',fec:s.fecha||'',hor:s.hora||''});
@@ -2773,10 +2829,15 @@ function renderPacsPs(){
     return;
   }
   el.innerHTML=pacs.map(function(p){
-    var sesPac=PS.sesiones.filter(function(s){return s.pacNombre===p.nombre;});
-    var asist=sesPac.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
+    var sesPac=PS.sesiones.filter(function(s){return s.pacNombre===p.nombre;})
+      .sort(function(a,b){return(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||''));});
+    // Igual que en Clínico: el "X" es la posición real (nroEnPaq) dentro
+    // del paquete MÁS RECIENTE, no un conteo de toda la asistencia
+    // histórica del paciente (eso mezclaba paquetes ya cerrados).
     var sesPaqLi=sesPac.filter(function(s){return s.tipo==='paquete'&&s.totalPaq;});
-    var paqTotalLi=sesPaqLi.length?Math.max.apply(null,sesPaqLi.map(function(s){return s.totalPaq||0;})):0;
+    var paqTotalLi=sesPaqLi.length?(sesPaqLi[0].totalPaq||0):0;
+    var sesPaqActualLi=sesPaqLi.filter(function(s){return s.totalPaq===paqTotalLi;});
+    var asist=sesPaqActualLi.length?Math.max.apply(null,sesPaqActualLi.map(function(s){return s.nroEnPaq||0;})):0;
     var pct=paqTotalLi>0?Math.min(100,Math.round((asist/paqTotalLi)*100)):0;
     return '<div class="card" style="margin-bottom:8px"><div class="cb">'
       +'<div style="font-size:14px;font-weight:800;margin-bottom:6px">'+p.nombre+'</div>'
