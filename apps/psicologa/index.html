@@ -636,19 +636,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
     <!-- Campos de la ficha -->
     <div class="ficha-campo">
-      <label class="ficha-label">🎯 Objetivo de la sesión</label>
+      <label class="ficha-label" id="fichaLblObjetivo">🎯 Objetivo de la sesión</label>
       <textarea class="ficha-input" id="fichaObjetivo" placeholder="¿Qué se trabajará en esta sesión?"></textarea>
     </div>
     <div class="ficha-campo">
-      <label class="ficha-label">⚡ Actividad realizada</label>
+      <label class="ficha-label" id="fichaLblActividad">⚡ Actividad realizada</label>
       <textarea class="ficha-input" id="fichaActividad" placeholder="Describe las actividades y técnicas utilizadas..."></textarea>
     </div>
     <div class="ficha-campo">
-      <label class="ficha-label">📊 Resultados observados</label>
+      <label class="ficha-label" id="fichaLblResultados">📊 Resultados observados</label>
       <textarea class="ficha-input" id="fichaResultados" placeholder="¿Cómo respondió el paciente? Avances y observaciones..."></textarea>
     </div>
     <div class="ficha-campo">
-      <label class="ficha-label">📅 Plan para la próxima sesión</label>
+      <label class="ficha-label" id="fichaLblProxSesion">📅 Plan para la próxima sesión</label>
       <textarea class="ficha-input" id="fichaProxSesion" placeholder="Objetivos y actividades para la próxima sesión..."></textarea>
     </div>
     <!-- Botones -->
@@ -2410,7 +2410,10 @@ function renderClinico(){
   <!-- Header paciente -->
   <div class="card" style="margin-bottom:10px;border-top:4px solid var(--acc)">
     <div class="cb">
-      <div style="font-size:16px;font-weight:800;margin-bottom:6px">${pac.nombre}</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="font-size:16px;font-weight:800;margin-bottom:6px">${pac.nombre}</div>
+        <button onclick="exportarHistorialPDF('${pacNom.replace(/'/g,"\\'")}')" style="flex-shrink:0;padding:6px 10px;background:var(--acc);color:#fff;border:none;border-radius:8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap">📄 Exportar PDF</button>
+      </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${pac.terNombre?`<span class="badge bt">🧠 ${pac.terNombre}</span>`:''}
         ${paqTotalCl>0?`<span class="badge bb">📦 ${paqTotalCl} sesiones</span>`:''}
@@ -2597,6 +2600,85 @@ function clTab(tabId, btn){
     const pacNom=document.getElementById('clPacSel')?.value||'';
     if(pacNom) cargarDocsEnPanel(pacNom);
   }
+}
+
+// ══ EXPORTAR HISTORIAL CLÍNICO A PDF ═══════════════════════
+function _getJsPDF(cb){
+  if(typeof window.jspdf!=='undefined'){cb(window.jspdf.jsPDF);return;}
+  if(typeof window.jsPDF!=='undefined'){cb(window.jsPDF);return;}
+  if(!document.getElementById('jspdf-script-ps')){
+    var sc=document.createElement('script');sc.id='jspdf-script-ps';
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    sc.onload=function(){setTimeout(function(){_getJsPDF(cb);},300);};
+    document.head.appendChild(sc);
+  }else setTimeout(function(){_getJsPDF(cb);},400);
+}
+function exportarHistorialPDF(pacNom){
+  showToast('⏳ Generando PDF...');
+  _getJsPDF(function(jsPDF){
+    try{
+      var pac=PS.pacientes.find(function(p){return p.nombre===pacNom;})||{nombre:pacNom};
+      var sesiones=PS.sesiones.filter(function(s){return s.pacNombre===pacNom||s.pacId===pac.id;})
+        .sort(function(a,b){return(b.fecha+b.hora).localeCompare(a.fecha+a.hora);});
+      var asistCnt=sesiones.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
+      var listKey='fichas_pac_'+PS.sede+'_'+pacNom.replace(/\s/g,'_');
+      var fichas=(_clinicoCache[listKey]||[]).slice().sort(function(a,b){return(b.fecha||'').localeCompare(a.fecha||'');});
+      var clKey='psicoluz_cl_'+PS.sede+'_'+PS.nombre+'_'+pacNom.replace(/\s/g,'_');
+      var objetivos=(_clinicoCache[clKey]||{}).objetivos||[];
+
+      var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+      var W=210,M=14,y=18;
+      doc.setFillColor(74,14,46);doc.rect(0,0,W,24,'F');
+      doc.setTextColor(255,255,255);doc.setFontSize(15);doc.setFont(undefined,'bold');
+      doc.text('Historial Clínico - Psicoluz',M,15);
+      doc.setFontSize(9);doc.setFont(undefined,'normal');
+      doc.text((PS.sede||'')+' · Generado el '+fmtF(today()),M,21);
+      y=34;
+      doc.setTextColor(30,30,30);doc.setFontSize(13);doc.setFont(undefined,'bold');
+      doc.text(pac.nombre,M,y);y+=6;
+      doc.setFontSize(10);doc.setFont(undefined,'normal');
+      doc.text('Psicóloga: '+(PS.nombre||'-')+(pac.terNombre?' · Terapia: '+pac.terNombre:''),M,y);y+=5;
+      doc.text('Sesiones registradas: '+sesiones.length+' · Asistidas: '+asistCnt,M,y);y+=8;
+
+      if(objetivos.length){
+        doc.setFont(undefined,'bold');doc.setFontSize(11);doc.text('Objetivos Terapéuticos',M,y);y+=6;
+        doc.setFont(undefined,'normal');doc.setFontSize(9);
+        objetivos.forEach(function(o){
+          if(y>280){doc.addPage();y=18;}
+          var linea='• ['+(o.categoria||'Otro')+'] '+o.texto+' - '+(o.progreso||0)+'%';
+          var lines=doc.splitTextToSize(linea,W-2*M);
+          doc.text(lines,M,y);y+=lines.length*4.5+2;
+        });
+        y+=4;
+      }
+
+      doc.setFont(undefined,'bold');doc.setFontSize(11);
+      if(y>270){doc.addPage();y=18;}
+      doc.text('Fichas de Seguimiento ('+fichas.length+')',M,y);y+=7;
+      doc.setFont(undefined,'normal');
+      if(!fichas.length){
+        doc.setFontSize(9);doc.text('Sin fichas registradas.',M,y);y+=6;
+      }
+      fichas.forEach(function(f){
+        if(y>260){doc.addPage();y=18;}
+        doc.setFillColor(252,228,236);doc.rect(M,y-4,W-2*M,5.5,'F');
+        doc.setFontSize(9.5);doc.setFont(undefined,'bold');
+        doc.text(fmtF(f.fecha)+(f.hora?' · '+f.hora:'')+(f.terapia?' · '+f.terapia:''),M+1,y);y+=6;
+        doc.setFont(undefined,'normal');doc.setFontSize(9);
+        [['Objetivo',f.objetivo],['Actividad',f.actividad],['Resultados',f.resultados],['Próx. sesión',f.proxSesion||f.proxima_sesion]]
+          .forEach(function(campo){
+            if(!campo[1])return;
+            if(y>278){doc.addPage();y=18;}
+            var lines=doc.splitTextToSize(campo[0]+': '+campo[1],W-2*M-2);
+            doc.text(lines,M+1,y);y+=lines.length*4.3+1.5;
+          });
+        y+=3;
+      });
+
+      doc.save('Historial_'+pacNom.replace(/\s/g,'_')+'.pdf');
+      showToast('✅ PDF descargado','ok');
+    }catch(e){console.error('[pdf historial]',e);showToast('Error al generar el PDF','err');}
+  });
 }
 
 async function cargarDocsEnPanel(pacNom){
@@ -3117,8 +3199,79 @@ function abrirChat(){
 
 var _fichaActual={pac:'',terapia:'',fecha:'',hora:''};
 
+// Plantillas de la Ficha de Seguimiento por tipo de terapia - mismos 4
+// campos de siempre (objetivo/actividad/resultados/próxima sesión, misma
+// tabla), solo cambian la etiqueta y el placeholder para guiar qué
+// anotar según la terapia, en vez de un formulario genérico igual para
+// Lenguaje que para Conducta. Se busca por coincidencia de palabra clave
+// (case-insensitive) porque el nombre exacto de la terapia varía un poco
+// entre sedes (ej. "T. Ocupacional" vs "T. Ocupacional con integración
+// sensorial").
+var FICHA_PLANTILLAS=[
+  {clave:'lenguaje',lbls:{
+    objetivo:'🎯 Objetivo fonológico/lingüístico',actividad:'⚡ Ejercicios y estímulos usados',
+    resultados:'📊 Articulación/comprensión observada',proxSesion:'📅 Siguiente fonema/habilidad a trabajar'},
+   ph:{objetivo:'¿Qué fonema, estructura o habilidad del lenguaje se trabajará?',
+    actividad:'Ejercicios de articulación, repetición, estimulación del lenguaje...',
+    resultados:'¿Logró el sonido/palabra/frase? ¿Con o sin apoyo?',
+    proxSesion:'Próximo fonema u objetivo lingüístico a reforzar...'}},
+  {clave:'ocupacional',lbls:{
+    objetivo:'🎯 Objetivo sensorial/motor',actividad:'⚡ Actividades sensoriomotoras realizadas',
+    resultados:'📊 Respuesta sensorial/motora observada',proxSesion:'📅 Siguiente estímulo/habilidad motora'},
+   ph:{objetivo:'¿Qué habilidad motora o integración sensorial se trabajará?',
+    actividad:'Actividades de equilibrio, coordinación, estimulación sensorial...',
+    resultados:'¿Cómo toleró el estímulo? ¿Mejoró la coordinación/postura?',
+    proxSesion:'Próxima actividad sensoriomotora a introducir...'}},
+  {clave:'conduct',lbls:{
+    objetivo:'🎯 Conducta objetivo a modificar',actividad:'⚡ Estrategia/reforzador utilizado',
+    resultados:'📊 Frecuencia/intensidad de la conducta',proxSesion:'📅 Siguiente estrategia a reforzar'},
+   ph:{objetivo:'¿Qué conducta se busca aumentar o disminuir?',
+    actividad:'Reforzamiento, economía de fichas, extinción, modelado...',
+    resultados:'¿Disminuyó/aumentó la conducta? ¿Qué reforzador funcionó?',
+    proxSesion:'Próxima estrategia conductual a aplicar...'}},
+  {clave:'emocional',lbls:{
+    objetivo:'🎯 Emoción/habilidad socioemocional',actividad:'⚡ Dinámica o técnica emocional usada',
+    resultados:'📊 Regulación/expresión emocional observada',proxSesion:'📅 Siguiente habilidad emocional a trabajar'},
+   ph:{objetivo:'¿Qué emoción o habilidad socioemocional se trabajará?',
+    actividad:'Juego de roles, identificación de emociones, relajación...',
+    resultados:'¿Pudo identificar/regular la emoción? ¿Con qué apoyo?',
+    proxSesion:'Próxima habilidad emocional a reforzar...'}},
+  {clave:'atención',lbls:{objetivo:'🎯 Objetivo atencional',actividad:'⚡ Ejercicios de atención/concentración',
+    resultados:'📊 Tiempo/nivel de atención sostenida',proxSesion:'📅 Siguiente ejercicio atencional'},
+   ph:{objetivo:'¿Qué tipo de atención se busca mejorar (sostenida, selectiva...)?',
+    actividad:'Ejercicios de concentración, tareas con distractores...',
+    resultados:'¿Cuánto tiempo mantuvo la atención? ¿Con cuántos distractores?',
+    proxSesion:'Próximo ejercicio atencional a introducir...'}},
+  {clave:'psicológica',lbls:{objetivo:'🎯 Objetivo terapéutico',actividad:'⚡ Técnica/enfoque utilizado',
+    resultados:'📊 Avance/insight observado',proxSesion:'📅 Siguiente tema a abordar'},
+   ph:{objetivo:'¿Qué tema o habilidad psicológica se trabajará?',
+    actividad:'Técnica utilizada (cognitivo-conductual, juego terapéutico...)...',
+    resultados:'¿Qué avance o insight mostró el paciente?',
+    proxSesion:'Próximo tema a abordar en terapia...'}}
+];
+function _plantillaFicha(terapia){
+  var t=(terapia||'').toLowerCase();
+  for(var i=0;i<FICHA_PLANTILLAS.length;i++){if(t.indexOf(FICHA_PLANTILLAS[i].clave)>-1)return FICHA_PLANTILLAS[i];}
+  return null;
+}
 function abrirFichaSeguimiento(pacNom,terapia,fecha,hora){
   _fichaActual={pac:pacNom,terapia:terapia,fecha:fecha||today(),hora:hora||''};
+  // Plantilla según el tipo de terapia - si no hay una específica, se
+  // queda con las etiquetas/placeholders genéricos de siempre.
+  var pl=_plantillaFicha(terapia);
+  var LBL_DEF={objetivo:'🎯 Objetivo de la sesión',actividad:'⚡ Actividad realizada',
+    resultados:'📊 Resultados observados',proxSesion:'📅 Plan para la próxima sesión'};
+  var PH_DEF={objetivo:'¿Qué se trabajará en esta sesión?',
+    actividad:'Describe las actividades y técnicas utilizadas...',
+    resultados:'¿Cómo respondió el paciente? Avances y observaciones...',
+    proxSesion:'Objetivos y actividades para la próxima sesión...'};
+  [['fichaLblObjetivo','fichaObjetivo','objetivo'],['fichaLblActividad','fichaActividad','actividad'],
+   ['fichaLblResultados','fichaResultados','resultados'],['fichaLblProxSesion','fichaProxSesion','proxSesion']]
+    .forEach(function(t3){
+      var lblEl=document.getElementById(t3[0]),inputEl=document.getElementById(t3[1]),campo=t3[2];
+      if(lblEl)lblEl.textContent=(pl&&pl.lbls[campo])||LBL_DEF[campo];
+      if(inputEl)inputEl.placeholder=(pl&&pl.ph[campo])||PH_DEF[campo];
+    });
   var elPac=document.getElementById('fichaPacNom');if(elPac)elPac.textContent=pacNom;
   var elFecha=document.getElementById('fichaFecha');if(elFecha)elFecha.textContent=fmtF(fecha||today());
   var elTer=document.getElementById('fichaTerapia');if(elTer)elTer.textContent=terapia||'No especificada';
