@@ -4099,10 +4099,26 @@ function guardarPaciente(){
   showToast(editando?'⏳ Guardando cambios...':'⏳ Guardando paciente...');
   const pacExistente=editando?(DB.pacientes.find(function(x){return x.id===_pacEditId;})||
     (DB.pacientesInactivos||[]).find(function(x){return x.id===_pacEditId;})):null;
+  const nombreAnterior=pacExistente?pacExistente.nombre:null;
   const promesa=editando
     ? sbPatch('pacientes',datosSB,{id:'eq.'+((pacExistente&&pacExistente._sb&&pacExistente._sb.id)||_pacEditId)})
     : sbPost('pacientes',Object.assign({diagnostico:'',sede:DB.sede,registrado_por:DB.usuario||''},datosSB));
-  promesa.then(function(){
+  promesa.then(async function(){
+    // Sesiones, pagos, fichas, notas, etc. guardan el nombre del paciente
+    // como texto plano (no por id) - si el nombre cambió y no se propaga
+    // acá, todo eso queda "huérfano" bajo el nombre anterior y parece que
+    // el paciente perdió su historial completo.
+    if(editando&&nombreAnterior&&nombreAnterior!==p.nombre){
+      const TABLAS_CON_NOMBRE=['sesiones','pagos','programas_paciente','fichas_seguimiento',
+        'notas_clinicas','objetivos_terapeuticos','registro_animo','reprogramaciones',
+        'precio_paciente','documentos','alertas_log','fichas_recepcion_log','recordatorios_enviados'];
+      const fallos=[];
+      await Promise.all(TABLAS_CON_NOMBRE.map(function(t){
+        return sbPatch(t,{paciente_nombre:p.nombre},{paciente_nombre:'eq.'+nombreAnterior,sede:'eq.'+DB.sede})
+          .catch(function(e){fallos.push(t);console.error('[rename cascade]',t,e);});
+      }));
+      if(fallos.length)showToast('⚠️ El nombre se cambió, pero no se pudo actualizar en: '+fallos.join(', ')+'. Avisa a soporte.','error');
+    }
     ['p-nombre','p-nac','p-dni','p-tel','p-apoderado','p-colegio','p-grado','p-motivo','p-terapias'].forEach(id=>{
       const el=document.getElementById(id);if(el)el.value='';
     });
@@ -6285,6 +6301,7 @@ async function cargarDesdeSB(silencioso) {
     DB.sesiones=historicasPreservadas.concat(sesionesVentana);
     DB.pacientes=(res[1]||[]).map(function(p){return{id:p.id||p.nombre,nombre:p.nombre,
       tel:p.telefono||'',nac:p.fecha_nac||'',dni:p.dni||'',diagnostico:p.diagnostico||'',
+      genero:p.genero||'',motivo:p.motivo||'',
       psId:p.psicologa,terId:p.terapia,terapias:p.terapias||p.terapia||'',apoderado:p.apoderado||'',
       colegio:p.colegio||'',grado:p.grado||'',sedesCompartidas:p.sedes_compartidas||'',
       paq:parseInt(p.paquete)||12,saldo:p.saldo||0,estado:p.estado||'activo',_sb:p};});
