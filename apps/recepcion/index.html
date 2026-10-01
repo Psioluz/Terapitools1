@@ -4392,7 +4392,6 @@ async function guardarPago(){
   // pagos del día" y la caja física cuadre sin generarle a nadie un saldo
   // a favor falso.
   if(document.getElementById('pg-esAjuste')?.checked){
-    const conceptoAjuste='Vuelto cubierto por Coordinación - Yape';
     if(monto<=0){showToast('Indica el monto del ajuste','error');return;}
     const ajustePacId=document.getElementById('pg-ajustePaciente')?.value||'';
     const ajustePac=ajustePacId?getPac(ajustePacId):null;
@@ -4401,8 +4400,11 @@ async function guardarPago(){
       const n=new Date();const hora=horaLima(n);
       const filasAjuste=pgFilasPagoParaGuardar(monto);
       for(const fa of filasAjuste){
+        // El concepto debe reflejar el método REAL elegido para este ajuste
+        // (antes decía siempre "- Yape" sin importar lo que se seleccionara,
+        // lo que hacía ver un ajuste en efectivo como si fuera por Yape).
         await sbPost('pagos',{fecha:fecha,hora:hora,monto:fa.monto,metodo:fa.metodo,
-          concepto:conceptoAjuste,
+          concepto:'Vuelto cubierto por Coordinación - '+fa.metodo,
           paciente_nombre:'[Ajuste de caja]'+(ajustePac?' '+ajustePac.nombre:''),
           notas:notas,sede:DB.sede,registrado_por:DB.usuario||''});
       }
