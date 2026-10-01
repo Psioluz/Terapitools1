@@ -1028,7 +1028,7 @@ try{
       <div class="form-group" style="grid-column:1/-1">
         <label class="form-label">Método(s) de Pago</label>
         <div id="pg-metodos-rows"></div>
-        <button type="button" class="btn btn-outline btn-sm" onclick="pgAgregarMetodo()">+ Agregar otro método</button>
+        <button type="button" id="pgBtnAgregarMetodo" class="btn btn-outline btn-sm" onclick="pgAgregarMetodo()">+ Agregar otro método</button>
       </div>
       <div class="form-group" id="pg-grp-concepto" style="grid-column:1/-1">
         <label class="form-label">Concepto</label>
@@ -4206,6 +4206,21 @@ function pgToggleAjuste(){
   if(grpPs)grpPs.style.display=esAjuste?'none':'block';
   if(grpAjustePac)grpAjustePac.style.display=esAjuste?'block':'none';
   if(grpConceptoNormal)grpConceptoNormal.style.display=esAjuste?'none':'block';
+  // El vuelto que cubre Coordinación siempre sale en efectivo de la caja
+  // física - no tiene sentido ofrecer Yape/Plin/etc. acá, así que se fija
+  // un único método "Efectivo" y no se puede ni cambiar ni dividir.
+  const btnAgregar=document.getElementById('pgBtnAgregarMetodo');
+  if(esAjuste){
+    const montoActual=document.getElementById('pg-monto')?.value||'';
+    pgInicializarMetodos(montoActual);
+    const sel=document.querySelector('#pg-metodos-rows .pg-met-tipo');
+    if(sel){sel.value='Efectivo';sel.disabled=true;}
+    if(btnAgregar)btnAgregar.style.display='none';
+  }else{
+    const sel=document.querySelector('#pg-metodos-rows .pg-met-tipo');
+    if(sel)sel.disabled=false;
+    if(btnAgregar)btnAgregar.style.display='inline-block';
+  }
 }
 // "+ Registrar Pago" genérico (no viene de una fila de sesión puntual):
 // no hay sesión que decrementar directamente, se aplica al paquete activo
