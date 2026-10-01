@@ -1995,12 +1995,23 @@ function _paqLabel(s){
 // quedaban alertas "fantasma" de pacientes ya regularizados. El saldo real
 // de la alerta se calcula de sus paquetes activos (programas_paciente),
 // que sí se mantienen al día con cada pago.
+// pacientes.saldo es el saldo corriente de sesiones/consultas SUELTAS
+// (fuera de paquete) - pero es un número que varios flujos van sumando/
+// restando por separado, y puede quedar desincronizado si algo lo toca
+// sin pasar por el camino normal (pasó con Lucca Valencia: le quedó un
+// saldo suelto "fantasma" de S/139 sumado a los S/378 reales de su
+// paquete, sin ninguna sesión suelta real detrás que lo explique). Si el
+// paciente nunca tuvo ninguna sesión suelta, ese número no puede
+// representar una deuda/crédito real - se ignora en vez de mostrarlo,
+// para que un residuo así no vuelva a inflar el saldo mostrado.
+function _saldoSueltoReal(pac){
+  const tieneSueltas=DB.sesiones.some(function(s){return s.pacId===pac.nombre&&s.tipo!=='paquete'&&!(s._sb&&s._sb.programa_id);});
+  return tieneSueltas?(pac.saldo||0):0;
+}
 function _saldoRealPac(pac){
   const saldoPaquetes=(DB.programas||[]).filter(function(pr){return pr.paciente_nombre===pac.nombre&&pr.estado==='activo';})
     .reduce(function(a,pr){return a+(pr.saldo||0);},0);
-  // pacientes.saldo es ahora el saldo corriente de sesiones/consultas
-  // sueltas (fuera de paquete) - puede ser negativo (crédito a favor).
-  return saldoPaquetes+(pac.saldo||0);
+  return saldoPaquetes+_saldoSueltoReal(pac);
 }
 // Estado del saldo de un paciente para pintar la alerta del color correcto:
 // null = sin nada que avisar (saldo en 0); 'credito' = a favor (verde);
@@ -3941,8 +3952,14 @@ async function guardarSesion(){
     if(pac._sb&&pac._sb.id){
       const upd={psicologa:ps.nombre,terapia:ter.nombre};
       // El saldo de paquete vive en programas_paciente, no aquí - mezclarlo
-      // pisaría el saldo corriente (crédito/deuda) de sesiones sueltas.
-      if(tipo==='paquete'&&paq){upd.paquete=String(paq.sesiones||totalPaq);}
+      // pisaría el saldo corriente (crédito/deuda) de sesiones sueltas. Antes
+      // esto solo se evitaba si además había un "paq" de catálogo resuelto
+      // (tipo==='paquete'&&paq) - si por lo que sea paq quedaba vacío (ej.
+      // paquete manual/sin catálogo), igual caía al "else" y el saldo del
+      // paquete se duplicaba en pacientes.saldo (pasó con Lucca Valencia:
+      // quedó un saldo suelto fantasma sumado al saldo real del paquete).
+      // Ahora CUALQUIER paquete, tenga o no "paq", nunca toca este campo.
+      if(tipo==='paquete'){upd.paquete=String((paq&&paq.sesiones)||totalPaq);}
       else{upd.saldo=saldo;}
       promesas.push(sbPatch('pacientes',upd,{id:'eq.'+pac._sb.id}));
     }
@@ -4307,7 +4324,7 @@ async function pgOnPaciente(){
     pgInicializarMetodos(elMonto.value);
     return;
   }
-  const deudaSuelta=pac.saldo||0;
+  const deudaSuelta=_saldoSueltoReal(pac);
   info.style.display='block';
   if(deudaSuelta>0){
     info.style.background='#fff7ed';info.style.color='#9a3412';
