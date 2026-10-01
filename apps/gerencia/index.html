@@ -3655,7 +3655,7 @@ async function renderAlertasSB(){
     var noLeidas=(rows||[]).filter(function(a){return !a.leida;}).length;
     if(badge){badge.textContent=noLeidas;badge.style.display=noLeidas?'inline-block':'none';}
     if(!rows||!rows.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Sin alertas 🎉</div>';return;}
-    var iconos={paquete_por_terminar:'📦',saldo_pendiente:'💰',inasistencia:'⚠️'};
+    var iconos={paquete_por_terminar:'📦',saldo_pendiente:'💰',inasistencia:'⚠️',cita_agendada_bot:'🤖'};
     el.innerHTML=rows.map(function(a){
       return '<div style="display:flex;gap:10px;align-items:flex-start;padding:11px;border-bottom:1px solid var(--border);'+(a.leida?'opacity:.55':'')+'">'
         +'<span style="font-size:20px">'+(iconos[a.tipo]||'🔔')+'</span>'
