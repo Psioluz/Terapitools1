@@ -50,8 +50,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .prog{background:var(--border);border-radius:4px;height:6px;overflow:hidden;margin:4px 0}
 .prog-fill{height:100%;border-radius:4px;background:var(--green)}
 .sync-btn{position:fixed;bottom:20px;right:16px;background:var(--acc);color:#fff;border:none;border-radius:50%;width:52px;height:52px;font-size:22px;cursor:pointer;box-shadow:0 4px 16px rgba(0,197,197,.4);z-index:100}
-.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(60px);background:#1e293b;color:#fff;padding:9px 18px;border-radius:20px;font-size:12px;font-weight:700;z-index:9999;transition:.3s;white-space:nowrap;max-width:88vw;text-align:center}
-.toast.show{transform:translateX(-50%) translateY(0)}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(60px);background:#1e293b;color:#fff;padding:9px 18px;border-radius:20px;font-size:12px;font-weight:700;z-index:9999;transition:.3s;white-space:nowrap;max-width:88vw;text-align:center;opacity:0;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;pointer-events:auto}
 .toast.ok{background:#059669}.toast.err{background:var(--red)}.toast.inf{background:var(--acc)}
 .sync-bar{position:fixed;top:0;left:0;right:0;height:3px;background:var(--acc);display:none;z-index:200}
 @keyframes scan{0%{left:-30%}100%{left:100%}}
@@ -81,6 +81,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ps-nav-badge{background:#e91e8c;color:#fff;border-radius:10px;font-size:9px;padding:1px 6px;font-weight:800;margin-left:auto}
 .ps-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .ps-content{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;padding-bottom:80px;-webkit-overflow-scrolling:touch}
+/* El chat necesita el alto COMPLETO sin el padding-bottom de 80px que las
+   demás pestañas sí necesitan (para que un botón flotante no les tape el
+   contenido) - ese padding fijo era justo el espacio vacío que quedaba
+   abajo del chat. flex:1 en #tabChat no alcanzaba porque .ps-content no
+   es un contenedor flex por defecto - aquí se vuelve flex SOLO mientras
+   el chat está activo, sin tocar el comportamiento de scroll normal de
+   las demás pestañas. */
+.ps-content:has(> #tabChat.pg.active){display:flex;flex-direction:column;padding-bottom:0;overflow:hidden}
 /* Overlay sidebar en móvil */
 .ps-sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99}
 .ps-sidebar-overlay.on{display:block}
@@ -254,6 +262,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <span id="chatBadge" class="ps-nav-badge" style="display:none">0</span>
       </div>
       <div class="ps-nav-section">Mi Cuenta</div>
+      <div class="ps-nav-item" id="nav-tabAsistencia" onclick="goTab('tabAsistencia',this)">📋 Mi Asistencia</div>
       <div class="ps-nav-item" id="nav-tabPerfil" onclick="goTab('tabPerfil',this)">👤 Mi Perfil</div>
 
     </div>
@@ -419,7 +428,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 
       <!-- ASISTENCIA DEL PERSONAL -->
-      
+      <div class="pg" id="tabAsistencia">
+        <div class="card" style="margin-bottom:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">
+            <button onclick="navMesAsistencia(-1)" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;font-size:16px;cursor:pointer">‹</button>
+            <div id="asistMesTitulo" style="font-weight:800;font-size:14px;text-transform:capitalize">-</div>
+            <button onclick="navMesAsistencia(1)" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;font-size:16px;cursor:pointer">›</button>
+          </div>
+          <div id="asistKpis" style="display:flex;gap:8px"></div>
+        </div>
+        <div id="asistLista"></div>
+      </div>
+
   <!-- PERFIL -->
   <div class="pg" id="tabPerfil">
     <!-- Card principal psicóloga -->
@@ -1223,6 +1243,7 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const DIAS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const DIAS_F=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 const MESES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const MESES_LARGO=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 // Estado global
 let PS={sede:'',nombre:'',email:'',foto:'',cop:'',esp:'',diaEspecial:'',inicio:'13:15',fin:'20:00',fechaIngreso:'',
@@ -1883,7 +1904,8 @@ function goTab(tabId, el){
     tabHoy:'Mi Agenda - Hoy', tabSemana:'Agenda Semanal',
     tabPacs:'Mis Pacientes',  tabClinico:'Registro Clínico',
     tabMetas:'Metas', tabHerramientas:'Herramientas para Terapias',
-    tabChat:'Chat de Sede',   tabPerfil:'Mi Perfil'
+    tabChat:'Chat de Sede',   tabPerfil:'Mi Perfil',
+    tabAsistencia:'Mi Asistencia'
   };
   const titleEl=document.getElementById('pageTitlePs');
   if(titleEl)titleEl.textContent=titles[tabId]||tabId;
@@ -1912,6 +1934,7 @@ function goTab(tabId, el){
   else if(tabId==='tabClinico') renderPacsPs();
   else if(tabId==='tabDocs')    { if(typeof renderDocs==='function') renderDocs(); }
   else if(tabId==='tabChat')    { if(typeof renderChat==='function') renderChat(); }
+  else if(tabId==='tabAsistencia') { if(typeof renderMiAsistencia==='function') renderMiAsistencia(); }
   else if(tabId==='tabPerfil'){
     renderPerfil();
     setTimeout(function(){if(typeof cargarContrato==='function')cargarContrato();},300);
@@ -2892,6 +2915,72 @@ function renderListaDocs(todos,el){
       +(d.url?'<a href="'+d.url+'" target="_blank" style="padding:7px 12px;background:var(--acc);color:#fff;border-radius:8px;font-size:11px;font-weight:700;text-decoration:none">Abrir</a>':'')
       +'</div>';
   }).join('');
+}
+
+// ══ MI ASISTENCIA (tardanza/falta propia, con motivo) ══════
+// Dato real de asistencia AL TRABAJO (no confundir con que un paciente
+// falte a su cita) - vive en asistencia_personal, igual que en
+// Administración/Gerencia. Se trae directo de Supabase (no por el puente
+// de Google Apps Script) porque esa tabla no está en el "getData" que usa
+// el resto de la app.
+var _asistMesOffset=0;
+function navMesAsistencia(dir){_asistMesOffset+=dir;renderMiAsistencia();}
+async function renderMiAsistencia(){
+  var base=new Date();base.setMonth(base.getMonth()+_asistMesOffset);
+  var anio=base.getFullYear(),mes=base.getMonth();
+  var mesStr=anio+'-'+String(mes+1).padStart(2,'0');
+  var tit=document.getElementById('asistMesTitulo');
+  if(tit)tit.textContent=MESES_LARGO[mes]+' '+anio;
+  var listaEl=document.getElementById('asistLista');
+  if(listaEl)listaEl.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)"><div style="font-size:24px">⏳</div>Cargando...</div>';
+  var nomB=(PS.nombre||'').toLowerCase().replace(/lic\.?/gi,'').trim().split(' ')[0];
+  var desde=mesStr+'-01';
+  var finD=new Date(anio,mes+1,0).getDate();
+  var hasta=mesStr+'-'+String(finD).padStart(2,'0');
+  try{
+    var r=await fetch(SB_URL+'/rest/v1/asistencia_personal?fecha=gte.'+desde+'&fecha=lte.'+hasta+'&select=*&order=fecha.asc',{
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
+    });
+    var todos=await r.json();
+    var regs=(todos||[]).filter(function(a){
+      var pn=(a.psicologa||'').toLowerCase().replace(/lic\.?/gi,'').trim();
+      return pn.includes(nomB)||nomB.includes(pn.split(' ')[0]);
+    });
+    var nPres=regs.filter(function(a){return a.estado==='presente'&&!a.motivo_tardanza;}).length;
+    var nTard=regs.filter(function(a){return a.estado==='presente'&&a.motivo_tardanza;}).length;
+    var nAus=regs.filter(function(a){return a.estado==='ausente';}).length;
+    var kpis=document.getElementById('asistKpis');
+    if(kpis)kpis.innerHTML=
+      '<div style="flex:1;background:#f0fdf4;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:900;color:#16a34a">'+nPres+'</div><div style="font-size:10px;color:#64748b">A TIEMPO</div></div>'+
+      '<div style="flex:1;background:#fffbeb;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:900;color:#d97706">'+nTard+'</div><div style="font-size:10px;color:#64748b">TARDANZAS</div></div>'+
+      '<div style="flex:1;background:#fef2f2;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:900;color:#dc2626">'+nAus+'</div><div style="font-size:10px;color:#64748b">FALTAS</div></div>';
+    if(!listaEl)return;
+    if(!regs.length){
+      listaEl.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">Sin registros de asistencia este mes.</div>';
+      return;
+    }
+    listaEl.innerHTML=regs.map(function(a){
+      var esAus=a.estado==='ausente';
+      var esTard=!esAus&&a.motivo_tardanza;
+      var color=esAus?'#dc2626':esTard?'#d97706':'#059669';
+      var bg=esAus?'#fef2f2':esTard?'#fffbeb':'#f0fdf4';
+      var icono=esAus?'❌':esTard?'🕐':'✅';
+      var etiqueta=esAus?'Falté':esTard?'Llegué tarde':'A tiempo';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:6px;background:'+bg+'">'
+        +'<span style="font-size:18px">'+icono+'</span>'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-weight:700;font-size:13px">'+fmtF(a.fecha)+'</div>'
+        +(a.motivo_tardanza?'<div style="font-size:11px;color:var(--muted);margin-top:1px">Motivo: '+a.motivo_tardanza+'</div>':'')
+        +'</div>'
+        +'<div style="text-align:right">'
+        +'<div style="font-size:11px;font-weight:800;color:'+color+'">'+etiqueta+'</div>'
+        +(a.entrada?'<div style="font-size:11px;color:var(--muted)">'+a.entrada.substring(0,5)+'</div>':'')
+        +'</div></div>';
+    }).join('');
+  }catch(e){
+    console.error('[asistencia]',e);
+    if(listaEl)listaEl.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)">No se pudo cargar. Intenta de nuevo.</div>';
+  }
 }
 
 // ══ PERFIL ════════════════════════════════════════════════
