@@ -600,6 +600,7 @@ try{
 <div id="page-alertas" class="page">
   <div class="card">
     <div class="card-header"><div class="card-title">🔔 Alertas del Sistema</div></div>
+    <div style="padding:0 16px" id="notifRecepBox"></div>
     <div style="padding:12px" id="alertasPage"></div>
   </div>
 </div>
@@ -1155,6 +1156,43 @@ try{
 
 const SBU='https://uorxwmgaekeeuxeiikkw.supabase.co', SBK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
 const SBH = {apikey:SBK,'Authorization':'Bearer '+SBK,'Content-Type':'application/json','Prefer':'return=representation'};
+const VAPID_PUBLIC_KEY='BGL9wnopcYCdmIJ6RtdYwEbkYaK-CyqUCf-LpURf7WrYGCq-YPqbQ4g_dRYuDVWM7oT1xwgYBr48zf6r5DzrKQ8';
+function _urlB64ToUint8Array(base64String){
+  var padding='='.repeat((4-base64String.length%4)%4);
+  var base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  var raw=atob(base64),out=new Uint8Array(raw.length);
+  for(var i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);
+  return out;
+}
+// Notificación push REAL para Recepción (llega aunque la pestaña esté
+// cerrada) - se suscribe POR SEDE, no por persona, ya que cualquiera que
+// esté en recepción de esa sede debe enterarse de un aviso del bot.
+async function suscribirPushRecepcion(){
+  try{
+    if(!('serviceWorker' in navigator)||!('PushManager' in window))return;
+    var reg=await navigator.serviceWorker.ready;
+    var sub=await reg.pushManager.getSubscription();
+    if(!sub){
+      sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:_urlB64ToUint8Array(VAPID_PUBLIC_KEY)});
+    }
+    var j=sub.toJSON();
+    await fetch(SBU+'/rest/v1/push_subscriptions',{
+      method:'POST',
+      headers:{'apikey':SBK,'Authorization':'Bearer '+SBK,'Content-Type':'application/json',
+        'Prefer':'resolution=merge-duplicates,return=minimal'},
+      body:JSON.stringify({rol:'recepcion',usuario_nombre:DB.usuario||'',sede:DB.sede||'',
+        endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth,user_agent:navigator.userAgent})
+    });
+  }catch(e){console.error('[push recepción] no se pudo suscribir',e);}
+}
+function pedirPermisoNotificacionesRecepcion(){
+  if(!('Notification' in window))return Promise.resolve(false);
+  if(Notification.permission==='granted'){suscribirPushRecepcion();return Promise.resolve(true);}
+  if(Notification.permission==='denied')return Promise.resolve(false);
+  return Notification.requestPermission().then(function(r){
+    var ok=r==='granted';if(ok)suscribirPushRecepcion();return ok;
+  });
+}
 
 async function sbGet(tabla, params) {
   params = params || {};
@@ -4962,8 +5000,25 @@ function irAReporteFecha(fecha){
   generarReporte();
 }
 
+function renderNotifRecepBox(){
+  const box=document.getElementById('notifRecepBox');if(!box)return;
+  if(!('Notification' in window)){box.innerHTML='';return;}
+  if(Notification.permission==='granted'){box.innerHTML='';suscribirPushRecepcion();return;}
+  box.innerHTML='<div style="background:#ede9fe;color:#5b21b6;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'+
+    '<span>🔔 Activa las notificaciones para enterarte al instante de avisos del bot de WhatsApp, aunque tengas la pestaña cerrada</span>'+
+    '<button class="btn btn-primary btn-sm" onclick="pedirPermisoNotificacionesRecepcion().then(renderNotifRecepBox)">Activar</button></div>';
+}
 function renderAlertas(){
+  renderNotifRecepBox();
   let h='';
+  // Avisos del bot de WhatsApp (citas agendadas automáticamente, leads sin
+  // confirmar, etc.) - exclusivos de esta sede, separados del chat general
+  // que también ven psicólogas y gerencia.
+  (DB.avisosBot||[]).forEach(function(a){
+    h+='<div class="alert al-info" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;background:#ede9fe;color:#5b21b6">'+
+      '<span>🤖 '+a.mensaje+'</span>'+
+      '<button class="btn btn-outline btn-sm" onclick="marcarAvisoLeido(\''+a.id+'\')">Marcar leído</button></div>';
+  });
   // Sesiones de días anteriores sin marcar asistencia - lo primero que
   // debe verse, para que no se acumulen sin que nadie se dé cuenta.
   _sesionesPendientesAnteriores().forEach(function(s){
@@ -4994,6 +5049,13 @@ function renderAlertas(){
   ['alertasPage','alertasDash'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=h||empty;});
   const badge=document.getElementById('alertasBadge');
   if(badge){const cnt=(h.match(/class="alert/g)||[]).length;badge.textContent=cnt;badge.style.display=cnt>0?'inline-flex':'none';}
+}
+async function marcarAvisoLeido(id){
+  try{
+    await sbPatch('avisos_recepcion',{leido:true},{id:'eq.'+id});
+    DB.avisosBot=(DB.avisosBot||[]).filter(function(a){return a.id!==id;});
+    renderAlertas();
+  }catch(e){showToast('Error: '+e.message,'error');}
 }
 
 // ══════════════════════════════════════════════════
@@ -6279,8 +6341,10 @@ async function cargarDesdeSB(silencioso) {
       sbGet('terapias',{select:'*'}).catch(function(){return[];}),
       sbGet('tarifas_sede',{sede:'eq.'+DB.sede,select:'*'}).catch(function(){return[];}),
       sbGet('programas_paciente',{sede:'eq.'+DB.sede,estado:'eq.activo',select:'*,programa_terapias(*)'}).catch(function(){return[];}),
-      sbGet('feriados',{estado:'eq.activo',select:'*'}).catch(function(){return[];})
+      sbGet('feriados',{estado:'eq.activo',select:'*'}).catch(function(){return[];}),
+      sbGet('avisos_recepcion',{sede:'eq.'+DB.sede,leido:'eq.false',select:'*',order:'created_at.desc',limit:'50'}).catch(function(){return[];})
     ]);
+    DB.avisosBot=res[9]||[];
     const sesionesVentana=(res[0]||[]).map(function(s){return{id:s.id,fecha:s.fecha,hora:normHoraRec(s.hora),
       pacId:s.paciente_nombre,pacNom:s.paciente_nombre,psId:s.psicologa,psNom:s.psicologa,
       terId:s.terapia,terNom:s.terapia,estado:s.estado,saldo:s.saldo||0,tipo:s.tipo||'sesion',notas:s.notas||'',
