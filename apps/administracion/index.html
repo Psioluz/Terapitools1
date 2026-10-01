@@ -217,6 +217,12 @@ try{
       <button class='btn btn-primary btn-sm' onclick="abrirModalPrecio()">+ Precio Especial</button></div>
     <div id='listaPrecios' style='padding:14px'></div>
   </div>
+  <div class='card'>
+    <div class='card-header'><div class='card-title'>🎁 Ofertas Especiales (bot de WhatsApp)</div>
+      <button class='btn btn-primary btn-sm' onclick="abrirModalOferta()">+ Nueva Oferta</button></div>
+    <div style='font-size:11px;color:#5b21b6;background:#ede9fe;border-radius:10px;padding:10px 12px;margin:0 14px 12px'>Si un lead del bot de WhatsApp cotiza un precio y deja de responder, el bot le reenvía el mensaje de la oferta activa de su sede (si existe) como incentivo para retomar la conversación.</div>
+    <div id='listaOfertas' style='padding:0 14px 14px'></div>
+  </div>
 </div>
 <div id='page-fichas' class='page'>
   <div class='card'>
@@ -377,6 +383,18 @@ try{
   <label class='flabel'>Precio especial (S/) *</label><input type='number' class='finput' id='pePrecio'>
   <label class='flabel'>Motivo</label><input class='finput' id='peMotivo' placeholder='Ej: caso social, hermanos, beca'>
   <button class='btn btn-primary' style='width:100%;margin-top:12px' onclick='guardarPrecioEsp()'>Guardar</button>
+ </div>
+</div>
+<div class='modal-overlay' id='modalOferta'>
+ <div class='modal-box'>
+  <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px'>🎁 Oferta Especial</span><button onclick="document.getElementById('modalOferta').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
+  <input type='hidden' id='ofId'>
+  <label class='flabel'>Sede</label><select class='finput' id='ofSede'></select>
+  <label class='flabel'>Servicio (opcional)</label><input class='finput' id='ofServicio' placeholder='Déjalo vacío para que aplique a cualquier servicio de la sede'>
+  <label class='flabel'>Mensaje de la oferta *</label><textarea class='finput' id='ofMensaje' rows='3' placeholder='Ej: Si agendas esta semana, tu primera sesión de T. Psicológica tiene 20% de descuento 💜'></textarea>
+  <label class='flabel'>Válida hasta (opcional)</label><input type='date' class='finput' id='ofValidoHasta'>
+  <label class='flabel'>Estado</label><select class='finput' id='ofActiva'><option value='true'>✅ Activa</option><option value='false'>⏸️ Pausada</option></select>
+  <button class='btn btn-primary' style='width:100%;margin-top:12px' onclick='guardarOferta()'>Guardar</button>
  </div>
 </div>
 <div class='modal-overlay' id='modalBono'>
@@ -566,6 +584,7 @@ async function cargarSedesActivas(){
   var terSel=document.getElementById('terAdmSede');if(terSel)terSel.insertAdjacentHTML('beforeend',
     SEDES_ACTIVAS.map(function(s){return '<option value="'+s+'">Solo '+s+'</option>';}).join(''));
   var tfSel=document.getElementById('tfSede');if(tfSel)tfSel.innerHTML=optsConValor;
+  var ofSel=document.getElementById('ofSede');if(ofSel)ofSel.innerHTML=optsConValor;
   var ferSel=document.getElementById('ferSede');if(ferSel)ferSel.insertAdjacentHTML('beforeend',opts);
   var accSel=document.getElementById('accSede');if(accSel&&!accSel.children.length)accSel.innerHTML=opts+'<option>Todas</option>';
 }
@@ -619,14 +638,15 @@ async function recargar(){
       sbGet('recepcionistas',Object.assign({estado:'eq.activa',select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
       sbGet('usuarios_gerencia',{select:'*'}).catch(function(){return[];}),
       sbGet('feriados',{select:'*',order:'fecha.asc'}).catch(function(){return[];}),
-      sbGet('rendimiento_recepcion',Object.assign({mes:'eq.'+mes,select:'*'},sedeFiltro(sed))).catch(function(){return[];})
+      sbGet('rendimiento_recepcion',Object.assign({mes:'eq.'+mes,select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
+      sbGet('ofertas_especiales',Object.assign({select:'*',order:'created_at.desc'},sedeFiltro(sed))).catch(function(){return[];})
     ]);
     D.sesiones=res[0]||[];D.pacientes=res[1]||[];D.pagos=res[2]||[];D.psicologas=res[3]||[];
     D.contratos=res[4]||[];D.gastos=res[5]||[];D.honorarios=res[6]||[];D.asistencia=res[7]||[];D.insumos=res[8]||[];
     D.tarifas=res[9]||[];D.precios=res[10]||[];D.bonos=res[11]||[];D.pagosRecurrentes=res[12]||[];
     D.terapias=sed?(res[13]||[]).filter(function(t){return terapiaAplicaASede(t.sede,sed);}):(res[13]||[]);
     D.recepcionistas=res[14]||[];D.usuariosGerencia=res[15]||[];D.feriados=res[16]||[];
-    D.rendimiento=res[17]||[];
+    D.rendimiento=res[17]||[];D.ofertas=res[18]||[];
     D.sede=sed;D.mes=mes;
     renderActiva();
   }catch(e){toast('Error: '+e.message,'error');}
@@ -1795,6 +1815,61 @@ async function eliminarTarifa(id){
   if(!confirm('¿Eliminar esta tarifa?'))return;
   try{await sbDelete('tarifas_sede',{id:'eq.'+id});toast('✅ Eliminada');await recargar();}catch(e){toast('Error: '+e.message,'error');}
 }
+function renderOfertas(){
+  var el=document.getElementById('listaOfertas');if(!el)return;
+  if(!(D.ofertas||[]).length){el.innerHTML='<p style="color:var(--muted);text-align:center;padding:16px">Sin ofertas registradas</p>';return;}
+  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">'+
+    D.ofertas.map(function(o){
+      var vencida=o.valido_hasta&&o.valido_hasta<today();
+      return '<div style="border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:'+(o.activa&&!vencida?'#f0fdf4':'#f8fafc')+'">'+
+      '<div style="display:flex;justify-content:space-between;align-items:start;gap:8px">'+
+      '<div style="font-weight:800;font-size:12px;color:var(--acc)">📍 '+(o.sede||'-')+(o.servicio?' · '+o.servicio:' · cualquier servicio')+'</div>'+
+      '<div style="display:flex;gap:4px">'+
+      '<button class="btn btn-sm" style="background:#eef2ff;color:#4338ca" onclick="editarOferta(\''+o.id+'\')">✏️</button>'+
+      '<button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarOferta(\''+o.id+'\')">🗑</button>'+
+      '</div></div>'+
+      '<div style="font-size:12px;margin:8px 0;color:#1e293b">'+o.mensaje_oferta+'</div>'+
+      '<div style="font-size:10px;color:var(--muted)">'+
+      (vencida?'⏰ Venció el '+fmtF(o.valido_hasta):(o.valido_hasta?'Válida hasta '+fmtF(o.valido_hasta):'Sin fecha límite'))+
+      ' · '+(o.activa?'✅ Activa':'⏸️ Pausada')+'</div></div>';
+    }).join('')+'</div>';
+}
+function abrirModalOferta(){
+  ['ofId','ofServicio','ofMensaje','ofValidoHasta'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('ofSede').value=D.sede||'Comas';
+  document.getElementById('ofActiva').value='true';
+  document.getElementById('modalOferta').classList.add('open');
+}
+function editarOferta(id){
+  var o=(D.ofertas||[]).find(function(x){return String(x.id)===String(id);});if(!o)return;
+  document.getElementById('ofId').value=o.id;
+  document.getElementById('ofSede').value=o.sede||D.sede||'Comas';
+  document.getElementById('ofServicio').value=o.servicio||'';
+  document.getElementById('ofMensaje').value=o.mensaje_oferta||'';
+  document.getElementById('ofValidoHasta').value=o.valido_hasta||'';
+  document.getElementById('ofActiva').value=o.activa?'true':'false';
+  document.getElementById('modalOferta').classList.add('open');
+}
+async function guardarOferta(){
+  var mensaje=document.getElementById('ofMensaje').value.trim();
+  if(!mensaje){toast('El mensaje de la oferta es obligatorio','error');return;}
+  var fila={sede:document.getElementById('ofSede').value,
+    servicio:document.getElementById('ofServicio').value.trim()||null,
+    mensaje_oferta:mensaje,
+    valido_hasta:document.getElementById('ofValidoHasta').value||null,
+    activa:document.getElementById('ofActiva').value==='true',
+    creado_por:(typeof ADM!=='undefined'&&ADM&&ADM.nombre)?ADM.nombre:''};
+  var id=document.getElementById('ofId').value;
+  try{
+    if(id)await sbPatch('ofertas_especiales',fila,{id:'eq.'+id});else await sbPost('ofertas_especiales',fila);
+    document.getElementById('modalOferta').classList.remove('open');
+    toast('✅ Oferta guardada');await recargar();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+async function eliminarOferta(id){
+  if(!confirm('¿Eliminar esta oferta?'))return;
+  try{await sbDelete('ofertas_especiales',{id:'eq.'+id});toast('✅ Eliminada');await recargar();}catch(e){toast('Error: '+e.message,'error');}
+}
 function abrirModalPrecio(){
   var sel=document.getElementById('peNombre');
   sel.innerHTML=(D.pacientes||[]).map(function(p){return '<option value="'+p.nombre+'">'+p.nombre+'</option>';}).join('');
@@ -2011,7 +2086,7 @@ function exportarSUNAT(){
 // Render de tarifas al abrir su página
 (function(){
   var _sp=showPage;
-  showPage=function(name,el){_sp(name,el);if(name==='tarifas'){try{renderTarifas();}catch(e){console.error(e);}try{renderTerapiasAdm();}catch(e){console.error(e);}}};
+  showPage=function(name,el){_sp(name,el);if(name==='tarifas'){try{renderTarifas();}catch(e){console.error(e);}try{renderTerapiasAdm();}catch(e){console.error(e);}try{renderOfertas();}catch(e){console.error(e);}}};
 })();
 
 // ══ ALQUILER Y PAGOS FIJOS (tabla pagos_recurrentes) ══
