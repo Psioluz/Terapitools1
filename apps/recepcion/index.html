@@ -2149,6 +2149,21 @@ async function confirmarPermiso(){
   const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
   const progId=(s._sb&&s._sb.programa_id)||null;
   const ptId=(s._sb&&s._sb.programa_terapia_id)||null;
+  // Antes de crear la reposición: si el paquete YA tiene tantas sesiones
+  // reales (sin contar esta, que está por pasar a permiso) como las que
+  // contrató, crear una más lo deja con una sesión de regalo que nadie
+  // pagó (pasó con varios pacientes de Óvalo Zapallal - permisos cuya
+  // reposición se sumó aparte en vez de ocupar el cupo liberado).
+  const progActual=progId&&(DB.programas||[]).find(function(p){return p.id===progId;});
+  if(progActual&&progActual.nro_sesiones_total>0){
+    const realesSinEsta=DB.sesiones.filter(function(x){
+      return x._sb&&x._sb.programa_id===progId&&x.tipo==='paquete'&&x.id!==s.id&&
+        x.estado!=='permiso'&&x.estado!=='reprogramado'&&x.estado!=='cancelado';
+    }).length;
+    if(realesSinEsta>=progActual.nro_sesiones_total){
+      if(!confirm('⚠️ Este paquete ya tiene las '+progActual.nro_sesiones_total+' sesiones contratadas completas (sin contar la que le vas a dar permiso). Si continúas, va a quedar con una sesión de más, sin cobrar. ¿Seguro que quieres crear la reposición de todas formas?'))return;
+    }
+  }
   // La siguiente fecha sigue la secuencia real: mismo día de la semana que
   // esta terapia ya usa, colocada DESPUÉS de la última sesión que exista
   // para ese día (no simplemente +7 sobre esta, por si ya hay sesiones más
@@ -6494,7 +6509,23 @@ function badgeEstadoAsistencia(estado){
   var m=map[estado];
   return m?'<span class="badge '+m[0]+'" style="font-size:10px">'+m[1]+'</span>':'';
 }
+var _marcarAsEnCurso=new Set();
 async function marcarAs(sesRef,nuevoEst){
+  // Un doble clic (o el doble disparo del evento en algunos navegadores)
+  // mandaba dos peticiones casi simultáneas para la misma sesión, y las
+  // dos llegaban a crear/actualizar antes de que la primera terminara -
+  // dejó una sesión con dos filas contradictorias (Asistió y No Asistió
+  // al mismo tiempo, pasó con Alexia del Castillo Tocto). Mientras una
+  // petición para esta sesión sigue en curso, se ignoran los clics extra.
+  if(_marcarAsEnCurso.has(sesRef))return;
+  _marcarAsEnCurso.add(sesRef);
+  try{
+    await _marcarAsInterno(sesRef,nuevoEst);
+  }finally{
+    _marcarAsEnCurso.delete(sesRef);
+  }
+}
+async function _marcarAsInterno(sesRef,nuevoEst){
   // acepta id (UUID) o índice
   var s=DB.sesiones.find(function(x){return x.id===sesRef;})||DB.sesiones[sesRef];
   if(!s){showToast('Sesión no encontrada','error');return;}
