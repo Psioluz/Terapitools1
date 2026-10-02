@@ -194,7 +194,7 @@ try{
     <!-- PERSONAL -->
     <div class='page' id='page-personal'>
       <div class='card'>
-        <div class='card-header'><div class='card-title'>👩‍⚕️ Personal Activo (Psicólogas y Recepción)</div><button class='btn btn-primary btn-sm' onclick='abrirModalPsicologa()'>+ Nueva Psicóloga</button></div>
+        <div class='card-header'><div class='card-title'>👩‍⚕️ Personal Activo (Psicólogas y Recepción)</div><div style="display:flex;gap:6px"><button class='btn btn-primary btn-sm' onclick="abrirModalPsicologa('psicologas')">+ Nueva Psicóloga</button><button class='btn btn-primary btn-sm' onclick="abrirModalPsicologa('recepcionistas')">+ Nueva Recepcionista</button></div></div>
         <div style='padding:12px' id='listaPersonal'></div>
       </div>
     </div>
@@ -501,10 +501,11 @@ try{
 <div class='modal'>
   <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px' id='modalPsicologaTit'>👩‍⚕️ Nueva Psicóloga</span><button onclick="document.getElementById('modalPsicologa').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
   <input type='hidden' id='psId'>
+  <input type='hidden' id='psTabla' value='psicologas'>
   <div class='form-group'><label class='form-label'>Nombre completo *</label><input class='form-control' id='psNombre' placeholder='Lic. María García'></div>
   <div class='grid g2'>
-    <div class='form-group'><label class='form-label'>CPSP / Colegiatura</label><input class='form-control' id='psCpsp' placeholder='CPSP-12345'></div>
-    <div class='form-group'><label class='form-label'>Especialidad</label><input class='form-control' id='psEsp' placeholder='Clínica, Educativa...'></div>
+    <div class='form-group' id='psCpspGrp'><label class='form-label'>CPSP / Colegiatura</label><input class='form-control' id='psCpsp' placeholder='CPSP-12345'></div>
+    <div class='form-group' id='psEspGrp'><label class='form-label'>Especialidad</label><input class='form-control' id='psEsp' placeholder='Clínica, Educativa...'></div>
     <div class='form-group'><label class='form-label'>Grado académico</label><input class='form-control' id='psGrado' placeholder='Ej: Magíster en Psicología Clínica'></div>
     <div class='form-group'><label class='form-label'>Email <span id='psEmailReq'>*</span></label><input class='form-control' type='email' id='psEmail' placeholder='psicologa@psicoluz.pe'></div>
     <div class='form-group'><label class='form-label'>Contraseña <span id='psPassReq'>*</span></label><input class='form-control' type='password' id='psPass' placeholder='Dejar vacío para no cambiarla'></div>
@@ -1231,27 +1232,38 @@ function renderPersonal(){
     .concat((D.recepcionistas||[]).map(function(p){return Object.assign({},p,{_tabla:'recepcionistas',_rol:'💻 Recepción'});}));
   if(!todos.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin personal activo</p>';return;}
   el.innerHTML='<div style="display:grid;gap:10px">'+todos.map(function(p){return'<div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f8faff;border-radius:10px"><div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#4a0e2e,#e91e8c);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:900">'+p.nombre.charAt(0)+'</div><div style="flex:1"><div style="font-weight:800">'+p.nombre+' <span style="font-weight:600;font-size:11px;color:var(--acc)">'+p._rol+'</span></div><div style="font-size:11px;color:var(--muted)">'+(p.cpsp||'')+(p.especialidad?' · '+p.especialidad:'')+(p.grado_academico?' · '+p.grado_academico:'')+'</div><div style="font-size:11px;color:var(--muted)">'+(p.email||'')+(p.telefono?' · '+p.telefono:'')+'</div></div>'+badge(p.estado||'activa')+
-    (p._tabla==='psicologas'?'<button style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="editarPsicologa('+_sq(p.id)+')">✏️ Editar</button>':'')+
+    '<button style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="editarPsicologa('+_sq(p._tabla)+','+_sq(p.id)+')">✏️ Editar</button>'+
     '<button style="padding:5px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="cesarPersonal('+_sq(p._tabla)+','+_sq(p.id)+')">Cesar</button></div>';}).join('')+'</div>';
 }
 async function cesarPersonal(tabla,id){
   if(!confirm('¿Confirmas cesar a esta persona?'))return;
   try{await sbPatch(tabla,{estado:'cesada'},{id:'eq.'+id});toast('✅ Personal cesado');await recargar();}catch(e){toast('Error: '+e.message,'error');}
 }
-function abrirModalPsicologa(){
+function abrirModalPsicologa(tabla){
+  tabla=tabla||'psicologas';
   ['psId','psNombre','psCpsp','psEsp','psGrado','psEmail','psPass','psTel'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('psTabla').value=tabla;
   document.getElementById('psSueldo').value='0';
   document.getElementById('psHoraIn').value='08:00';
   document.getElementById('psHoraFin').value='19:00';
-  document.getElementById('modalPsicologaTit').textContent='👩‍⚕️ Nueva Psicóloga';
-  document.getElementById('psGuardarBtn').textContent='💾 Registrar Psicóloga';
+  var esPs=tabla==='psicologas';
+  document.getElementById('psCpspGrp').style.display=esPs?'':'none';
+  document.getElementById('psEspGrp').style.display=esPs?'':'none';
+  document.getElementById('modalPsicologaTit').textContent=esPs?'👩‍⚕️ Nueva Psicóloga':'💻 Nueva Recepcionista';
+  document.getElementById('psGuardarBtn').textContent=esPs?'💾 Registrar Psicóloga':'💾 Registrar Recepcionista';
   document.getElementById('psEmailReq').textContent='*';
   document.getElementById('psPassReq').textContent='*';
   document.getElementById('psPass').placeholder='Contraseña inicial';
   document.getElementById('modalPsicologa').classList.add('open');
 }
-function editarPsicologa(id){
-  var p=(D.psicologas||[]).find(function(x){return String(x.id)===String(id);});if(!p)return;
+function editarPsicologa(tabla,id){
+  // Antes solo existía para psicólogas - las recepcionistas no tenían forma
+  // de editarse desde aquí (ni de "activar" una que se autorregistró desde
+  // el formulario web público, que llega con estado "pendiente").
+  tabla=tabla||'psicologas';
+  var p=((tabla==='psicologas'?D.psicologas:D.recepcionistas)||[]).find(function(x){return String(x.id)===String(id);});if(!p)return;
+  var esPs=tabla==='psicologas';
+  document.getElementById('psTabla').value=tabla;
   document.getElementById('psId').value=p.id;
   document.getElementById('psNombre').value=p.nombre||'';
   document.getElementById('psCpsp').value=p.cpsp||'';
@@ -1263,25 +1275,34 @@ function editarPsicologa(id){
   document.getElementById('psSueldo').value=p.sueldo||0;
   document.getElementById('psHoraIn').value=(p.hora_inicio||'08:00').substring(0,5);
   document.getElementById('psHoraFin').value=(p.hora_fin||'19:00').substring(0,5);
-  document.getElementById('modalPsicologaTit').textContent='✏️ Editar: '+p.nombre;
-  document.getElementById('psGuardarBtn').textContent='💾 Guardar cambios';
-  document.getElementById('psEmailReq').textContent='';
-  document.getElementById('psPassReq').textContent='';
-  document.getElementById('psPass').placeholder='Dejar vacío para no cambiarla';
+  document.getElementById('psCpspGrp').style.display=esPs?'':'none';
+  document.getElementById('psEspGrp').style.display=esPs?'':'none';
+  document.getElementById('modalPsicologaTit').textContent=(p.estado==='pendiente'?'✅ Activar: ':'✏️ Editar: ')+p.nombre;
+  document.getElementById('psGuardarBtn').textContent=p.estado==='pendiente'?'💾 Activar acceso':'💾 Guardar cambios';
+  document.getElementById('psEmailReq').textContent='*';
+  document.getElementById('psPassReq').textContent=p.estado==='pendiente'?'*':'';
+  document.getElementById('psPass').placeholder=p.estado==='pendiente'?'Crea su contraseña inicial':'Dejar vacío para no cambiarla';
   document.getElementById('modalPsicologa').classList.add('open');
 }
 async function guardarPsicologa(){
   var id=document.getElementById('psId').value;
+  var tabla=document.getElementById('psTabla').value||'psicologas';
+  var esPs=tabla==='psicologas';
   var pass=document.getElementById('psPass').value;
-  var d={nombre:document.getElementById('psNombre').value,cpsp:document.getElementById('psCpsp').value,especialidad:document.getElementById('psEsp').value,grado_academico:document.getElementById('psGrado').value,email:document.getElementById('psEmail').value,telefono:document.getElementById('psTel').value,sueldo:parseFloat(document.getElementById('psSueldo').value)||0,hora_inicio:document.getElementById('psHoraIn').value,hora_fin:document.getElementById('psHoraFin').value};
+  var d={nombre:document.getElementById('psNombre').value,grado_academico:document.getElementById('psGrado').value,email:document.getElementById('psEmail').value,telefono:document.getElementById('psTel').value,sueldo:parseFloat(document.getElementById('psSueldo').value)||0,hora_inicio:document.getElementById('psHoraIn').value,hora_fin:document.getElementById('psHoraFin').value};
+  if(esPs){d.cpsp=document.getElementById('psCpsp').value;d.especialidad=document.getElementById('psEsp').value;}
   if(!d.nombre||!d.email){toast('Nombre y email son obligatorios','error');return;}
-  if(!id&&!pass){toast('La contraseña es obligatoria para una psicóloga nueva','error');return;}
+  if(!id&&!pass){toast('La contraseña es obligatoria para un registro nuevo','error');return;}
   if(pass)d.password=pass;
+  // Un registro que llegó "pendiente" (autorregistro desde el formulario web)
+  // pasa a "activa" en cuanto se le completa el correo institucional y la
+  // contraseña - así queda disponible para iniciar sesión en su app.
+  if(pass)d.estado='activa';
   try{
-    if(id)await sbPatch('psicologas',d,{id:'eq.'+id});
-    else await sbPost('psicologas',Object.assign({sede:D.sede,estado:'activa'},d));
+    if(id)await sbPatch(tabla,d,{id:'eq.'+id});
+    else await sbPost(tabla,Object.assign({sede:D.sede,estado:'activa'},d));
     document.getElementById('modalPsicologa').classList.remove('open');
-    toast(id?'✅ Psicóloga actualizada':'✅ Psicóloga registrada');await recargar();
+    toast(id?'✅ Datos guardados':'✅ Registrado correctamente');await recargar();
   }catch(e){toast('Error: '+e.message,'error');}
 }
 

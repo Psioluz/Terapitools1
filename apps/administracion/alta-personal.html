@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Registro de Personal - Psicoluz</title>
+<style>
+  :root{--acc:#c2185b;--dark:#4a0e2e;--muted:#64748b;--border:#e5e7eb}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:linear-gradient(145deg,#1a0510 0%,#6b0735 35%,#c2185b 100%);min-height:100vh;
+    display:flex;align-items:center;justify-content:center;padding:20px}
+  .box{background:#fff;border-radius:20px;width:100%;max-width:480px;padding:28px 24px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  h1{font-size:19px;font-weight:900;color:var(--dark);margin:0 0 4px}
+  .sub{font-size:12.5px;color:var(--muted);margin-bottom:20px;line-height:1.5}
+  label{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px;margin-top:12px;text-transform:uppercase;letter-spacing:.3px}
+  input,select{width:100%;padding:11px 13px;border:1.5px solid #f3bcd4;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fef8fb;color:#333}
+  input:focus,select:focus{border-color:var(--acc);background:#fff}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+  .rol-tabs{display:flex;gap:8px;margin-bottom:4px}
+  .rol-tab{flex:1;padding:12px;border-radius:10px;border:2px solid #f3bcd4;background:#fef8fb;text-align:center;
+    font-size:13px;font-weight:800;cursor:pointer;color:var(--dark)}
+  .rol-tab.active{background:linear-gradient(135deg,var(--dark),var(--acc));color:#fff;border-color:transparent}
+  .solo-psico{display:none}
+  .solo-psico.show{display:block}
+  .btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--dark),var(--acc));color:#fff;border:none;
+    border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;margin-top:20px}
+  .btn:active{opacity:.85}
+  .err{display:none;background:#fee2e2;color:#991b1b;padding:9px 12px;border-radius:8px;font-size:12px;font-weight:700;margin-top:12px}
+  .ok{display:none;text-align:center;padding:20px 0}
+  .ok .ico{font-size:44px;margin-bottom:10px}
+  .ok h2{color:var(--dark);font-size:17px;margin:0 0 8px}
+  .ok p{color:var(--muted);font-size:13px;line-height:1.6}
+  .foto-row{display:flex;align-items:center;gap:12px;margin-top:12px}
+  .foto-preview{width:56px;height:56px;border-radius:50%;background:#fce4ec;display:flex;align-items:center;justify-content:center;
+    overflow:hidden;flex-shrink:0;border:2px solid #f3bcd4}
+  .foto-preview img{width:100%;height:100%;object-fit:cover}
+  .hint{font-size:10.5px;color:#94a3b8;margin-top:3px}
+</style>
+</head>
+<body>
+<div class="box" id="formBox">
+  <h1>📋 Registro de Personal</h1>
+  <div class="sub">Psicoluz · Centro Terapéutico Integral<br>Completa tus datos. La administradora te creará tu acceso (correo y contraseña) una vez revisados.</div>
+
+  <div class="rol-tabs">
+    <div class="rol-tab active" id="tabPsico" onclick="elegirRol('psicologa')">👩‍⚕️ Soy Psicóloga</div>
+    <div class="rol-tab" id="tabRecep" onclick="elegirRol('recepcionista')">💻 Soy Recepcionista</div>
+  </div>
+
+  <label>Sede</label>
+  <select id="fSede"><option value="">Cargando sedes...</option></select>
+
+  <label>Nombre completo</label>
+  <input id="fNombre" placeholder="Ej: Juana Pérez Gómez">
+
+  <div class="grid2">
+    <div><label>DNI</label><input id="fDni" maxlength="8" placeholder="12345678"></div>
+    <div><label>Fecha de nacimiento</label><input id="fNac" type="date"></div>
+  </div>
+
+  <div class="grid2">
+    <div><label>Teléfono</label><input id="fTel" placeholder="987654321"></div>
+    <div><label>Correo personal</label><input id="fEmailPersonal" type="email" placeholder="tucorreo@gmail.com"></div>
+  </div>
+
+  <div class="solo-psico" id="bloquePsico">
+    <div class="grid2">
+      <div><label>CPSP / Colegiatura</label><input id="fCpsp" placeholder="Ej: 12345"></div>
+      <div><label>Grado académico</label><input id="fGrado" placeholder="Ej: Licenciada en Psicología"></div>
+    </div>
+    <label>Especialidad</label>
+    <input id="fEsp" placeholder="Ej: Psicología Clínica Infantil">
+  </div>
+
+  <label>Datos bancarios para el pago de tu sueldo</label>
+  <div class="grid2">
+    <div><label>Banco</label><input id="fBanco" placeholder="Ej: BCP"></div>
+    <div><label>Número de cuenta</label><input id="fCuenta" placeholder="Número de cuenta"></div>
+  </div>
+  <input id="fCci" placeholder="CCI (opcional)" style="margin-top:10px">
+
+  <label>Foto de perfil (opcional)</label>
+  <div class="foto-row">
+    <div class="foto-preview" id="fotoPreview">📷</div>
+    <input type="file" id="fFoto" accept="image/*" style="border:none;background:none;padding:0">
+  </div>
+  <div class="hint">Puedes dejarlo para después y subirla tú misma desde "Mi Perfil" una vez tengas tu acceso.</div>
+
+  <div class="err" id="errMsg"></div>
+  <button class="btn" id="btnEnviar" onclick="enviarRegistro()">Enviar mis datos</button>
+</div>
+
+<div class="box ok" id="okBox">
+  <div class="ico">✅</div>
+  <h2>¡Datos enviados!</h2>
+  <p>Gracias. La administradora revisará tu información y te creará tu correo institucional y contraseña para que puedas entrar a la app. Te avisarán apenas esté listo.</p>
+</div>
+
+<script>
+const SBU='https://uorxwmgaekeeuxeiikkw.supabase.co',
+  SBK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
+const SBH={apikey:SBK,'Authorization':'Bearer '+SBK,'Content-Type':'application/json','Prefer':'return=representation'};
+async function sbGet(t,p){p=p||{};var u=SBU+'/rest/v1/'+t;var q=Object.entries(p).map(function(e){return e[0]+'='+encodeURIComponent(e[1]);}).join('&');if(q)u+='?'+q;var r=await fetch(u,{headers:SBH});if(!r.ok)throw new Error(await r.text());return r.json();}
+async function sbPost(t,d){var r=await fetch(SBU+'/rest/v1/'+t,{method:'POST',headers:SBH,body:JSON.stringify(d)});if(!r.ok)throw new Error(await r.text());return r.json();}
+async function sbUpload(bucket,path,file){var h={apikey:SBK,'Authorization':'Bearer '+SBK,'Content-Type':file.type||'application/octet-stream','x-upsert':'true'};var r=await fetch(SBU+'/storage/v1/object/'+bucket+'/'+path,{method:'POST',headers:h,body:file});if(!r.ok)throw new Error(await r.text());return SBU+'/storage/v1/object/public/'+bucket+'/'+path;}
+
+var ROL='psicologa';
+function elegirRol(r){
+  ROL=r;
+  document.getElementById('tabPsico').classList.toggle('active',r==='psicologa');
+  document.getElementById('tabRecep').classList.toggle('active',r==='recepcionista');
+  document.getElementById('bloquePsico').classList.toggle('show',r==='psicologa');
+}
+
+(async function cargarSedes(){
+  var sel=document.getElementById('fSede');
+  var sedes=['Comas','Ovalo Zapallal','Flecha','Pachacutec','Rosaluz'];
+  try{
+    var r=await sbGet('sedes',{select:'nombre',activa:'eq.true',order:'nombre.asc'});
+    if(r&&r.length)sedes=r.map(function(s){return s.nombre;});
+  }catch(e){}
+  sel.innerHTML='<option value="">- Selecciona tu sede -</option>'+sedes.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
+})();
+
+document.getElementById('fFoto').addEventListener('change',function(e){
+  var f=e.target.files[0];if(!f)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){document.getElementById('fotoPreview').innerHTML='<img src="'+ev.target.result+'">';};
+  reader.readAsDataURL(f);
+});
+
+function mostrarError(msg){
+  var el=document.getElementById('errMsg');
+  el.textContent=msg;el.style.display='block';
+}
+
+async function enviarRegistro(){
+  document.getElementById('errMsg').style.display='none';
+  var sede=document.getElementById('fSede').value.trim();
+  var nombre=document.getElementById('fNombre').value.trim();
+  var dni=document.getElementById('fDni').value.trim();
+  var nac=document.getElementById('fNac').value;
+  var tel=document.getElementById('fTel').value.trim();
+  var emailPersonal=document.getElementById('fEmailPersonal').value.trim();
+  var banco=document.getElementById('fBanco').value.trim();
+  var cuenta=document.getElementById('fCuenta').value.trim();
+  var cci=document.getElementById('fCci').value.trim();
+
+  if(!sede){mostrarError('Selecciona tu sede.');return;}
+  if(!nombre){mostrarError('Escribe tu nombre completo.');return;}
+  if(!dni||dni.length<8){mostrarError('El DNI debe tener 8 dígitos.');return;}
+  if(!tel){mostrarError('Escribe tu teléfono.');return;}
+
+  var btn=document.getElementById('btnEnviar');
+  btn.disabled=true;btn.textContent='Enviando...';
+
+  try{
+    var fotoUrl='';
+    var fotoFile=document.getElementById('fFoto').files[0];
+    if(fotoFile){
+      var ext=(fotoFile.name.split('.').pop()||'jpg');
+      var path='registro_personal/'+Date.now()+'_'+dni+'.'+ext;
+      fotoUrl=await sbUpload('fotos-perfil',path,fotoFile).catch(function(){return '';});
+    }
+
+    var datos={
+      nombre:nombre,sede:sede,dni:dni,fecha_nac:nac||null,telefono:tel,
+      banco:banco||null,numero_cuenta:cuenta||null,cci:cci||null,
+      foto_url:fotoUrl||null,estado:'pendiente',
+      // Se guarda temporalmente en "email" el correo personal (de contacto) que
+      // puso la persona - la administradora lo reemplaza por el institucional
+      // real al activar la cuenta. No hay una columna de notas en la tabla.
+      email:emailPersonal||null
+    };
+
+    if(ROL==='psicologa'){
+      datos.cpsp=document.getElementById('fCpsp').value.trim()||null;
+      datos.especialidad=document.getElementById('fEsp').value.trim()||null;
+      datos.grado_academico=document.getElementById('fGrado').value.trim()||null;
+      await sbPost('psicologas',datos);
+    }else{
+      datos.grado_academico=document.getElementById('fGrado')?document.getElementById('fGrado').value.trim()||null:null;
+      await sbPost('recepcionistas',datos);
+    }
+
+    document.getElementById('formBox').style.display='none';
+    document.getElementById('okBox').style.display='block';
+  }catch(e){
+    console.error(e);
+    mostrarError('No se pudo enviar. Revisa tu conexión e intenta de nuevo. ('+e.message.slice(0,120)+')');
+    btn.disabled=false;btn.textContent='Enviar mis datos';
+  }
+}
+</script>
+</body>
+</html>
