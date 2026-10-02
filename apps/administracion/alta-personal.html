@@ -47,8 +47,19 @@
   <label>Sede *</label>
   <select id="fSede"><option value="">Cargando sedes...</option></select>
 
-  <label>Nombre completo *</label>
-  <input id="fNombre" placeholder="Ej: Juana Pérez Gómez">
+  <div id="bloquePersonaExistente" style="display:none">
+    <label>¿Cuál eres tú? *</label>
+    <select id="fPersonaExistente" onchange="elegirPersonaExistente()">
+      <option value="">- Selecciona tu nombre -</option>
+    </select>
+    <div class="hint" id="hintExistente"></div>
+  </div>
+
+  <input type="hidden" id="fId" value="">
+  <div id="bloqueNombre">
+    <label>Nombre completo *</label>
+    <input id="fNombre" placeholder="Ej: Juana Pérez Gómez">
+  </div>
 
   <div class="grid2">
     <div><label>DNI *</label><input id="fDni" maxlength="8" inputmode="numeric" placeholder="12345678"></div>
@@ -94,13 +105,18 @@ const SBU='https://uorxwmgaekeeuxeiikkw.supabase.co',
 const SBH={apikey:SBK,'Authorization':'Bearer '+SBK,'Content-Type':'application/json','Prefer':'return=representation'};
 async function sbGet(t,p){p=p||{};var u=SBU+'/rest/v1/'+t;var q=Object.entries(p).map(function(e){return e[0]+'='+encodeURIComponent(e[1]);}).join('&');if(q)u+='?'+q;var r=await fetch(u,{headers:SBH});if(!r.ok)throw new Error(await r.text());return r.json();}
 async function sbPost(t,d){var r=await fetch(SBU+'/rest/v1/'+t,{method:'POST',headers:SBH,body:JSON.stringify(d)});if(!r.ok)throw new Error(await r.text());return r.json();}
+async function sbPatch(t,d,f){var q=Object.entries(f).map(function(e){return e[0]+'='+encodeURIComponent(e[1]);}).join('&');var r=await fetch(SBU+'/rest/v1/'+t+'?'+q,{method:'PATCH',headers:SBH,body:JSON.stringify(d)});if(!r.ok)throw new Error(await r.text());return r.json();}
 
 var ROL='psicologa';
+var PERSONAS_SEDE=[]; // candidatos ya existentes en la sede elegida, para no duplicarlos
+var TIENE_EMAIL_INSTITUCIONAL=false;
 function elegirRol(r){
   ROL=r;
   document.getElementById('tabPsico').classList.toggle('active',r==='psicologa');
   document.getElementById('tabRecep').classList.toggle('active',r==='recepcionista');
   document.getElementById('bloquePsico').classList.toggle('show',r==='psicologa');
+  limpiarSeleccionExistente();
+  cargarPersonasDeLaSede();
 }
 
 elegirRol('psicologa');
@@ -113,7 +129,77 @@ elegirRol('psicologa');
     if(r&&r.length)sedes=r.map(function(s){return s.nombre;});
   }catch(e){}
   sel.innerHTML='<option value="">- Selecciona tu sede -</option>'+sedes.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
+  sel.addEventListener('change',cargarPersonasDeLaSede);
 })();
+
+// Busca quién ya está registrada en esa sede (con ese rol) para poder
+// elegir "soy yo" y así rellenar lo que ya tiene en vez de crear un
+// duplicado. Se muestra a cualquiera (activa o pendiente) - por ejemplo
+// alguien ya activa pero a la que le falta DNI/banco/etc.
+async function cargarPersonasDeLaSede(){
+  var sede=document.getElementById('fSede').value;
+  var bloque=document.getElementById('bloquePersonaExistente');
+  var sel=document.getElementById('fPersonaExistente');
+  limpiarSeleccionExistente();
+  if(!sede){bloque.style.display='none';return;}
+  var tabla=ROL==='psicologa'?'psicologas':'recepcionistas';
+  try{
+    var cols='id,nombre,email,estado,dni,fecha_nac,telefono,grado_academico,banco,numero_cuenta,cci'+(ROL==='psicologa'?',cpsp,especialidad':'');
+    PERSONAS_SEDE=await sbGet(tabla,{select:cols,sede:'eq.'+sede,order:'nombre.asc'});
+  }catch(e){PERSONAS_SEDE=[];}
+  bloque.style.display=PERSONAS_SEDE.length?'block':'none';
+  sel.innerHTML='<option value="">- Selecciona tu nombre -</option>'+
+    PERSONAS_SEDE.map(function(p){return '<option value="'+p.id+'">'+p.nombre+'</option>';}).join('')+
+    '<option value="_nueva">✏️ No encuentro mi nombre / soy nueva</option>';
+}
+
+function limpiarSeleccionExistente(){
+  document.getElementById('fId').value='';
+  document.getElementById('hintExistente').textContent='';
+  document.getElementById('bloqueNombre').style.display='block';
+  TIENE_EMAIL_INSTITUCIONAL=false;
+  document.getElementById('fEmailPersonal').parentNode.style.display='';
+  ['fNombre','fDni','fNac','fTel','fGrado','fBanco','fCuenta','fCci','fCpsp','fEsp','fEmailPersonal'].forEach(function(id){
+    var e=document.getElementById(id);if(e)e.value='';
+  });
+}
+
+function elegirPersonaExistente(){
+  var val=document.getElementById('fPersonaExistente').value;
+  limpiarSeleccionExistente();
+  if(!val)return;
+  if(val==='_nueva'){
+    document.getElementById('bloqueNombre').style.display='block';
+    return;
+  }
+  var p=PERSONAS_SEDE.find(function(x){return String(x.id)===String(val);});
+  if(!p)return;
+  document.getElementById('fId').value=p.id;
+  document.getElementById('fNombre').value=p.nombre||'';
+  document.getElementById('bloqueNombre').style.display='none'; // ya sabemos quién es
+  document.getElementById('fDni').value=p.dni||'';
+  document.getElementById('fNac').value=p.fecha_nac||'';
+  document.getElementById('fTel').value=p.telefono||'';
+  document.getElementById('fGrado').value=p.grado_academico||'';
+  document.getElementById('fBanco').value=p.banco||'';
+  document.getElementById('fCuenta').value=p.numero_cuenta||'';
+  document.getElementById('fCci').value=p.cci||'';
+  if(ROL==='psicologa'){
+    document.getElementById('fCpsp').value=p.cpsp||'';
+    document.getElementById('fEsp').value=p.especialidad||'';
+  }
+  // Si su "email" guardado ya es el institucional (@psicoluz.pe), no lo
+  // pisamos con el correo personal - se deja en blanco para que ponga el suyo,
+  // y ya no se le exige (ya tiene correo con el que entra a su app).
+  TIENE_EMAIL_INSTITUCIONAL=!!(p.email&&/@psicoluz\.pe$/i.test(p.email));
+  if(p.email&&!TIENE_EMAIL_INSTITUCIONAL)document.getElementById('fEmailPersonal').value=p.email;
+  document.getElementById('fEmailPersonal').parentNode.style.display=TIENE_EMAIL_INSTITUCIONAL?'none':'';
+  var faltan=['dni','fecha_nac','telefono','grado_academico','banco','numero_cuenta','cci']
+    .filter(function(k){return !p[k];});
+  document.getElementById('hintExistente').textContent=faltan.length?
+    ('Ya tienes algunos datos guardados - solo completa lo que falta.'):
+    'Ya tienes todos tus datos completos. Puedes corregir algo si hace falta.';
+}
 
 function mostrarError(msg){
   var el=document.getElementById('errMsg');
@@ -124,6 +210,7 @@ function _soloDigitos(v){return (v||'').replace(/\D/g,'');}
 
 async function enviarRegistro(){
   document.getElementById('errMsg').style.display='none';
+  var idExistente=document.getElementById('fId').value;
   var sede=document.getElementById('fSede').value.trim();
   var nombre=document.getElementById('fNombre').value.trim();
   var dni=_soloDigitos(document.getElementById('fDni').value);
@@ -139,12 +226,15 @@ async function enviarRegistro(){
 
   // Validación completa: se piden todos los datos de verdad, no a medias -
   // si falta algo, la administradora igual tendría que ir a pedírselo.
+  // Excepción: si ya tiene correo institucional (ya es personal activo),
+  // no se le vuelve a pedir un correo personal.
   if(!sede){mostrarError('Selecciona tu sede.');return;}
+  if(document.getElementById('bloquePersonaExistente').style.display==='block'&&!document.getElementById('fPersonaExistente').value){mostrarError('Selecciona tu nombre de la lista, o "No encuentro mi nombre / soy nueva".');return;}
   if(!nombre||nombre.split(' ').filter(Boolean).length<2){mostrarError('Escribe tu nombre completo.');return;}
   if(dni.length!==8){mostrarError('El DNI debe tener exactamente 8 dígitos.');return;}
   if(!nac){mostrarError('Selecciona tu fecha de nacimiento.');return;}
   if(tel.length!==9||tel[0]!=='9'){mostrarError('El teléfono debe tener 9 dígitos y empezar con 9.');return;}
-  if(!emailPersonal||emailPersonal.indexOf('@')<0){mostrarError('Escribe un correo personal válido.');return;}
+  if(!TIENE_EMAIL_INSTITUCIONAL&&(!emailPersonal||emailPersonal.indexOf('@')<0)){mostrarError('Escribe un correo personal válido.');return;}
   if(!grado){mostrarError('Escribe tu grado académico.');return;}
   if(!banco){mostrarError('Escribe el nombre de tu banco.');return;}
   if(!cuenta){mostrarError('Escribe tu número de cuenta.');return;}
@@ -160,23 +250,28 @@ async function enviarRegistro(){
   try{
     var datos={
       nombre:nombre,sede:sede,dni:dni,fecha_nac:nac,telefono:tel,
-      grado_academico:grado,banco:banco,numero_cuenta:cuenta,cci:cci,
-      estado:'pendiente',
-      // Se guarda temporalmente en "email" el correo personal (de contacto) que
-      // puso la persona - la administradora lo reemplaza por el institucional
-      // real al activar la cuenta. No hay una columna de notas en la tabla.
-      email:emailPersonal
+      grado_academico:grado,banco:banco,numero_cuenta:cuenta,cci:cci
     };
+    if(ROL==='psicologa'){datos.cpsp=cpsp;datos.especialidad=esp;}
+    var tabla=ROL==='psicologa'?'psicologas':'recepcionistas';
 
-    if(ROL==='psicologa'){
-      datos.cpsp=cpsp;datos.especialidad=esp;
-      await sbPost('psicologas',datos);
+    if(idExistente){
+      // Ya existía (activa o pendiente): solo se completan/corrigen sus
+      // datos personales - NO se toca su estado ni su correo institucional.
+      if(!TIENE_EMAIL_INSTITUCIONAL&&emailPersonal)datos.email=emailPersonal;
+      await sbPatch(tabla,datos,{id:'eq.'+idExistente});
     }else{
-      await sbPost('recepcionistas',datos);
+      // Registro totalmente nuevo (sede nueva como Rosaluz, o no estaba en
+      // la lista): entra como "pendiente" hasta que la administradora le
+      // cree su correo institucional y contraseña.
+      datos.estado='pendiente';
+      datos.email=emailPersonal;
+      await sbPost(tabla,datos);
     }
 
     document.getElementById('formBox').style.display='none';
     document.getElementById('okBox').style.display='block';
+    if(idExistente)document.querySelector('#okBox p').textContent='Gracias, actualizamos tus datos correctamente.';
   }catch(e){
     console.error(e);
     mostrarError('No se pudo enviar. Revisa tu conexión e intenta de nuevo. ('+e.message.slice(0,120)+')');
