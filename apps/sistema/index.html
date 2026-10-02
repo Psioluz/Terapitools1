@@ -213,10 +213,20 @@ try{
                 <input class="fsel" id="tblLimit" type="number" value="50" style="width:100%">
               </div>
             </div>
+            <div class="grid g2" style="margin-bottom:10px">
+              <div>
+                <label class="hint">Buscar por ID (exacto)</label>
+                <input class="fsel" id="tblBuscarId" type="text" placeholder="Pega aquí el ID de la fila y presiona Enter" style="width:100%" onkeydown="if(event.key==='Enter')tblCargar()">
+              </div>
+              <div style="display:flex;align-items:flex-end;gap:6px">
+                <button class="btn btn-outline btn-sm" onclick="tblCargar()">🔎 Buscar</button>
+                <button class="btn btn-outline btn-sm" onclick="document.getElementById('tblBuscarId').value='';tblCargar()">✖ Limpiar</button>
+              </div>
+            </div>
             <button class="btn btn-primary" style="width:auto" onclick="tblCargar()">Cargar filas</button>
             <button class="btn btn-outline btn-sm" onclick="tblNuevaFila()">+ Nueva fila</button>
             <button class="btn btn-outline btn-sm" onclick="tblActualizarTodo(document.getElementById('tblSelect').value,'tblGrid')">💾 Actualizar todo</button>
-            <div class="hint" style="margin-top:6px">Las filas con cambios sin guardar se resaltan en amarillo. Los campos con 🔒 (id, fechas de creación) no se pueden editar. El filtro de Sede se ignora en tablas que no tienen columna "sede" (ej. Sedes).</div>
+            <div class="hint" style="margin-top:6px">Las filas con cambios sin guardar se resaltan en amarillo. Los campos con 🔒 (id, fechas de creación) no se pueden editar. El filtro de Sede se ignora en tablas que no tienen columna "sede" (ej. Sedes). Si pegas un ID en "Buscar por ID", se ignoran el filtro de sede y el límite y se busca esa fila exacta en la tabla seleccionada.</div>
           </div>
         </div>
         <div class="card">
@@ -1044,8 +1054,9 @@ async function tblCargar(){
   const t=document.getElementById('tblSelect').value;
   const lim=document.getElementById('tblLimit').value||'50';
   const sede=document.getElementById('tblSede')?document.getElementById('tblSede').value:'';
-  const filtroSedeActivo=sede&&TABLAS_SIN_SEDE.indexOf(t)===-1;
-  document.getElementById('tblTitulo').textContent=t+(filtroSedeActivo?' · '+sede:'');
+  const idBuscado=(document.getElementById('tblBuscarId')?document.getElementById('tblBuscarId').value:'').trim();
+  const filtroSedeActivo=!idBuscado&&sede&&TABLAS_SIN_SEDE.indexOf(t)===-1;
+  document.getElementById('tblTitulo').textContent=t+(idBuscado?' · ID = '+idBuscado:(filtroSedeActivo?' · '+sede:''));
   document.getElementById('tblCount').textContent='⏳ cargando…';
   try{
     // order:'id.asc' evita que las filas "salten" de posición cada vez que
@@ -1053,10 +1064,19 @@ async function tblCargar(){
     // el mismo orden entre consultas, y después de editar una fila podía
     // aparecer en otro lugar de la lista.
     const params={select:'*',limit:lim,order:'id.asc'};
-    if(filtroSedeActivo)params.sede='eq.'+sede;
+    if(idBuscado){
+      // Buscar por ID exacto: ignora sede y límite para poder encontrar
+      // y borrar una fila puntual aunque no se sepa su sede/fecha.
+      params.id='eq.'+idBuscado;
+      delete params.limit;
+    }else if(filtroSedeActivo){
+      params.sede='eq.'+sede;
+    }
     const {data,count}=await sbGet(t,params);
     _tblRows[t]=data||[];
-    document.getElementById('tblCount').textContent=(count!==null?count+' filas totales · ':'')+(data?data.length:0)+' mostradas'+(sede&&!filtroSedeActivo?' (esta tabla no tiene columna "sede", se ignoró el filtro)':'');
+    document.getElementById('tblCount').textContent=(count!==null?count+' filas totales · ':'')+(data?data.length:0)+' mostradas'+
+      (idBuscado&&!data.length?' · ⚠️ no se encontró ninguna fila con ese ID en esta tabla':'')+
+      (sede&&!idBuscado&&!filtroSedeActivo?' (esta tabla no tiene columna "sede", se ignoró el filtro)':'');
     renderEditableGrid('tblGrid',data,t);
   }catch(e){
     document.getElementById('tblCount').textContent='❌ '+e.message;
