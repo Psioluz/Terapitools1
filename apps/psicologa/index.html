@@ -1557,8 +1557,12 @@ async function doLoginEmail(){
   // Buscar en el registro local de psicólogas (guardado por la administradora)
   let psEncontrada = null;
 
-  // Fuente 1: cache local de la psicóloga (login previo en este dispositivo)
-  if(!psEncontrada){
+  // Fuente 1: cache local de la psicóloga (login previo en este dispositivo).
+  // Solo se usa SIN internet - con conexión siempre se valida contra
+  // Supabase primero, para que un correo que la administradora ya cambió
+  // (ej. de personal a corporativo) deje de funcionar en el dispositivo
+  // aunque haya quedado guardado de un login anterior.
+  if(!psEncontrada && !navigator.onLine){
     try{
       const cacheKey = 'psicoluz_ps_cred_'+email;
       const cached = JSON.parse(localStorage.getItem(cacheKey)||'null');
