@@ -256,6 +256,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="ps-nav-item" id="nav-tabMetas" onclick="goTab('tabMetas',this)">🎯 Metas</div>
       <div class="ps-nav-section">Herramientas para Terapias</div>
       <div class="ps-nav-item" id="nav-tabHerramientas" onclick="goTab('tabHerramientas',this)">🧰 Herramientas</div>
+      <div class="ps-nav-item" id="nav-tabMateriales" onclick="goTab('tabMateriales',this)">📚 Materiales</div>
       <div class="ps-nav-section">Comunicación</div>
       <div class="ps-nav-item" id="nav-tabChat" onclick="goTab('tabChat',this);abrirChat()">
         💬 Chat Sede
@@ -314,6 +315,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button onclick="irHoyPs()" style="padding:7px 12px;background:var(--acc);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:11px;font-weight:700">Hoy</button>
     </div>
     <div class="sem-grid"><div id="semKpi" style="margin:8px 0"></div>
+    <div id="semLeyenda" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:10px;color:#475569;background:#f8fafc;border-radius:8px;padding:6px 10px;margin-bottom:8px"></div>
     <div class="sem-inner" id="gridSemana"></div></div>
   </div>
 
@@ -393,6 +395,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <div style="font-size:11px;color:var(--muted)">Juego de fonemas - practica sonidos y palabras con el paciente</div>
         </div>
         <div style="font-size:20px;color:var(--muted)">→</div>
+      </div>
+    </div>
+  </div>
+  <div class="pg" id="tabMateriales">
+    <div class="card">
+      <div class="ch">📚 Materiales</div>
+      <div class="cb" style="text-align:center;padding:40px 16px;color:var(--muted)">
+        <div style="font-size:40px;margin-bottom:10px">🚧</div>
+        <div style="font-size:15px;font-weight:800;color:#1e293b">Próximamente</div>
+        <div style="font-size:12px;margin-top:6px">Aquí vas a encontrar materiales de apoyo para tus sesiones.</div>
       </div>
     </div>
   </div>
@@ -1903,7 +1915,7 @@ function goTab(tabId, el){
   const titles={
     tabHoy:'Mi Agenda - Hoy', tabSemana:'Agenda Semanal',
     tabPacs:'Mis Pacientes',  tabClinico:'Registro Clínico',
-    tabMetas:'Metas', tabHerramientas:'Herramientas para Terapias',
+    tabMetas:'Metas', tabHerramientas:'Herramientas para Terapias', tabMateriales:'Materiales',
     tabChat:'Chat de Sede',   tabPerfil:'Mi Perfil',
     tabAsistencia:'Mi Asistencia'
   };
@@ -2245,6 +2257,15 @@ function renderSemana(){
       +'<div style="font-size:10px;color:#64748b">PENDIENTES</div></div>'
       +'</div>';
   }
+  var leyEl=document.getElementById('semLeyenda');
+  if(leyEl){
+    var sw=function(color,texto){return '<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:3px;background:'+color+';display:inline-block"></span>'+texto+'</span>';};
+    leyEl.innerHTML=sw(PS.colorAgenda||'#00a0a0','Programado')+
+      sw('#059669','Asistió')+sw('#dc2626','No asistió')+
+      sw('#94a3b8','Reprogramado (R) / Permiso (P)')+
+      '<span style="display:flex;align-items:center;gap:4px">📣 Campaña</span>'+
+      '<span style="display:flex;align-items:center;gap:4px">🩺 Consulta</span>';
+  }
   var el=document.getElementById('gridSemana');if(!el)return;
   // Días que trabaja: si PS.diasSemana no está definido, mostrar los 6 días
   var diasTrabajo=(PS.diasSemana&&PS.diasSemana.length)?dias.filter(function(d){return PS.diasSemana.indexOf(d.d.getDay())>-1;}):dias;
@@ -2291,12 +2312,18 @@ function renderSemana(){
         var bc=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':
           esLibre?'#94a3b8':(PS.colorAgenda||'#00a0a0');
         var letra=s.estado==='reprogramado'?'R':s.estado==='permiso'?'P':'';
+        // Consulta y Campaña son ambas consultas normales para la psicóloga
+        // (mismo trabajo), pero recepción las distingue para seguimiento de
+        // marketing - un ícono chiquito en la ficha le deja ver de un
+        // vistazo de dónde vino el paciente, sin cambiarle el color.
+        var tipoIcono=s.tipo==='Campaña'?'📣':s.tipo==='Consulta'?'🩺':'';
         var partes=(s.pacNombre||'').split(' ').filter(function(w){return w.length>0;});
         var nom=partes.length>=2?(partes[0]+' '+partes[1]):partes[0]||'';
         var idx=window._semSesiones.length;
         window._semSesiones.push(s);
-        h+='<div class="sem-chip" style="background:'+bc+';cursor:pointer;position:relative'+(esLibre?';opacity:.85;text-decoration:line-through':'')+'" title="'+s.pacNombre+' · '+s.estado+'" onclick="verDetalleSesionSemana('+idx+')">'
+        h+='<div class="sem-chip" style="background:'+bc+';cursor:pointer;position:relative'+(esLibre?';opacity:.85;text-decoration:line-through':'')+'" title="'+s.pacNombre+' · '+s.estado+(s.tipo?' · '+s.tipo:'')+'" onclick="verDetalleSesionSemana('+idx+')">'
           +(letra?'<span style="position:absolute;top:0;right:2px;font-size:9px;font-weight:900;text-decoration:none">'+letra+'</span>':'')
+          +(tipoIcono&&!letra?'<span style="position:absolute;top:0;right:2px;font-size:9px;text-decoration:none">'+tipoIcono+'</span>':'')
           +nom+'</div>';
       });
       h+='</div>';
