@@ -2550,7 +2550,7 @@ function renderClinico(){
             <div style="font-size:11px;color:var(--muted)">${s.terNombre||'Sin terapia'} · <span style="font-weight:700">${s.estado}</span></div>
           </div>
           <button onclick="window._openFicha(${_rn})" style="padding:5px 10px;background:${hasFicha?'var(--green)':'var(--acc)'};color:#fff;border:none;border-radius:8px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0">
-            ${hasFicha?'✅ Ver ficha':'✍️ Llenar Ficha'}
+            ${hasFicha?'✏️ Editar ficha':'✍️ Llenar Ficha'}
           </button>
         </div>`;
       }).join('')}
@@ -3330,13 +3330,46 @@ function abrirFichaSeguimiento(pacNom,terapia,fecha,hora){
   var elTer=document.getElementById('fichaTerapia');if(elTer)elTer.textContent=terapia||'No especificada';
   var elPs=document.getElementById('fichaPsicologa');if(elPs)elPs.textContent=PS.nombre||'-';
   var elSub=document.getElementById('fichaSubtitulo');if(elSub)elSub.textContent=(hora||'')+' · '+(terapia||'Sesión');
-  // Cargar ficha guardada
-  var key='ficha_'+PS.sede+'_'+PS.nombre+'_'+(pacNom.replace(/\s/g,'_'))+'_'+(fecha||today())+'_'+((terapia||'').replace(/\s/g,'_').substring(0,20))+'_'+((hora||'').replace(':',''));
-  var saved={};try{saved=JSON.parse(localStorage.getItem(key)||'{}');}catch(e){}
+  // Cargar ficha guardada. Antes solo miraba localStorage (por dispositivo),
+  // así que si la psicóloga volvía a abrir la ficha en otro celular o con el
+  // caché borrado, la veía en blanco y parecía que no se podía editar.
+  // Ahora se busca primero en las fichas ya sincronizadas desde Supabase
+  // (_clinicoCache, cargadas por getFichasPs) y solo si no está ahí se usa
+  // el respaldo local.
+  var saved={};
+  var listKeyFicha='fichas_pac_'+PS.sede+'_'+pacNom.replace(/\s/g,'_');
+  var fichasCache=_clinicoCache[listKeyFicha]||[];
+  var fichaSync=fichasCache.find(function(f){
+    return (f.fecha||'')===(fecha||today())&&(f.terapia||'')===(terapia||'')&&(f.hora||'')===(hora||'');
+  });
+  if(fichaSync){
+    saved={objetivo:fichaSync.objetivo,actividad:fichaSync.actividad,resultados:fichaSync.resultados,proxSesion:fichaSync.proxSesion};
+  }else{
+    var key='ficha_'+PS.sede+'_'+PS.nombre+'_'+(pacNom.replace(/\s/g,'_'))+'_'+(fecha||today())+'_'+((terapia||'').replace(/\s/g,'_').substring(0,20))+'_'+((hora||'').replace(':',''));
+    try{saved=JSON.parse(localStorage.getItem(key)||'{}');}catch(e){}
+  }
   ['fichaObjetivo','fichaActividad','fichaResultados','fichaProxSesion'].forEach(function(id,i){
     var el=document.getElementById(id);
     if(el)el.value=saved[['objetivo','actividad','resultados','proxSesion'][i]]||'';
   });
+  // Si no había nada en caché ni en localStorage, puede que la ficha exista
+  // en Supabase pero aún no se haya sincronizado a este dispositivo (p. ej.
+  // primera vez que se abre esta sesión ahí). Se consulta directo por si acaso,
+  // y si llega algo se rellena el formulario mientras sigue abierto.
+  if(!fichaSync&&!saved.objetivo&&!saved.actividad){
+    var filtroPref={sede:'eq.'+(PS.sede||''),paciente_nombre:'eq.'+pacNom,fecha:'eq.'+(fecha||today()),terapia:'eq.'+(terapia||'')};
+    filtroPref.hora=hora?('eq.'+hora):'is.null';
+    sbGet('fichas_seguimiento',filtroPref).then(function(r){
+      if(!r||!r.length)return;
+      if(!_fichaActual||_fichaActual.pac!==pacNom||_fichaActual.fecha!==(fecha||today()))return;
+      var f=r[0];
+      var map={fichaObjetivo:f.objetivo,fichaActividad:f.actividad,fichaResultados:f.resultados,fichaProxSesion:f.proxima_sesion};
+      Object.keys(map).forEach(function(id){
+        var el=document.getElementById(id);
+        if(el&&!el.value)el.value=map[id]||'';
+      });
+    }).catch(function(){});
+  }
   var modal=document.getElementById('modalFichaSegui');
   if(modal){
     // Siempre mover al body para evitar problemas con overflow/stacking context
@@ -3379,17 +3412,23 @@ function guardarFichaSeguimiento(){
   _clinicoCache[listKey]=fichas;
   // Guardar en Supabase (tabla fichas_seguimiento) - directo, sin pasar por el
   // interceptor de Apps Script (que esperaba campos planos y no un objeto anidado)
-  sbPost('fichas_seguimiento',{
-    fecha:ficha.fecha,
-    hora:ficha.hora||null,
-    paciente_nombre:pac,
-    terapia:terapia||'',
-    psicologa_nombre:PS.nombre||'',
-    sede:PS.sede||'',
-    objetivo:objetivo,
-    actividad:actividad,
-    resultados:resultados,
-    proxima_sesion:proxSesion
+  // Antes esto siempre insertaba una fila nueva, así que "editar" una ficha ya
+  // guardada creaba un duplicado en vez de actualizarla. Ahora se busca primero
+  // si ya existe una fila para esta misma sesión (sede+paciente+fecha+terapia+hora)
+  // y si existe se actualiza (PATCH) en lugar de insertar otra.
+  var filtroFicha={sede:'eq.'+(PS.sede||''),paciente_nombre:'eq.'+pac,fecha:'eq.'+(ficha.fecha||''),
+    terapia:'eq.'+(terapia||''),select:'id'};
+  filtroFicha.hora=ficha.hora?('eq.'+ficha.hora):'is.null';
+  sbGet('fichas_seguimiento',filtroFicha).then(function(existentes){
+    var datosFicha={
+      fecha:ficha.fecha,hora:ficha.hora||null,paciente_nombre:pac,terapia:terapia||'',
+      psicologa_nombre:PS.nombre||'',sede:PS.sede||'',objetivo:objetivo,actividad:actividad,
+      resultados:resultados,proxima_sesion:proxSesion
+    };
+    if(existentes&&existentes.length){
+      return sbPatch('fichas_seguimiento',datosFicha,{id:'eq.'+existentes[0].id});
+    }
+    return sbPost('fichas_seguimiento',datosFicha);
   }).then(function(){
     console.log('[ficha] guardada en Supabase');
     // Refrescar fichas en renderClinico si está activo
