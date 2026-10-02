@@ -31,10 +31,6 @@
   .ok .ico{font-size:44px;margin-bottom:10px}
   .ok h2{color:var(--dark);font-size:17px;margin:0 0 8px}
   .ok p{color:var(--muted);font-size:13px;line-height:1.6}
-  .foto-row{display:flex;align-items:center;gap:12px;margin-top:12px}
-  .foto-preview{width:56px;height:56px;border-radius:50%;background:#fce4ec;display:flex;align-items:center;justify-content:center;
-    overflow:hidden;flex-shrink:0;border:2px solid #f3bcd4}
-  .foto-preview img{width:100%;height:100%;object-fit:cover}
   .hint{font-size:10.5px;color:#94a3b8;margin-top:3px}
 </style>
 </head>
@@ -48,44 +44,39 @@
     <div class="rol-tab" id="tabRecep" onclick="elegirRol('recepcionista')">💻 Soy Recepcionista</div>
   </div>
 
-  <label>Sede</label>
+  <label>Sede *</label>
   <select id="fSede"><option value="">Cargando sedes...</option></select>
 
-  <label>Nombre completo</label>
+  <label>Nombre completo *</label>
   <input id="fNombre" placeholder="Ej: Juana Pérez Gómez">
 
   <div class="grid2">
-    <div><label>DNI</label><input id="fDni" maxlength="8" placeholder="12345678"></div>
-    <div><label>Fecha de nacimiento</label><input id="fNac" type="date"></div>
+    <div><label>DNI *</label><input id="fDni" maxlength="8" inputmode="numeric" placeholder="12345678"></div>
+    <div><label>Fecha de nacimiento *</label><input id="fNac" type="date"></div>
   </div>
 
   <div class="grid2">
-    <div><label>Teléfono</label><input id="fTel" placeholder="987654321"></div>
-    <div><label>Correo personal</label><input id="fEmailPersonal" type="email" placeholder="tucorreo@gmail.com"></div>
+    <div><label>Teléfono *</label><input id="fTel" maxlength="9" inputmode="numeric" placeholder="987654321"></div>
+    <div><label>Correo personal *</label><input id="fEmailPersonal" type="email" placeholder="tucorreo@gmail.com"></div>
   </div>
+
+  <label>Grado académico *</label>
+  <input id="fGrado" placeholder="Ej: Licenciada en Psicología / Bachiller en Administración">
 
   <div class="solo-psico" id="bloquePsico">
     <div class="grid2">
-      <div><label>CPSP / Colegiatura</label><input id="fCpsp" placeholder="Ej: 12345"></div>
-      <div><label>Grado académico</label><input id="fGrado" placeholder="Ej: Licenciada en Psicología"></div>
+      <div><label>CPSP / Colegiatura *</label><input id="fCpsp" placeholder="Ej: 12345"></div>
+      <div><label>Especialidad *</label><input id="fEsp" placeholder="Ej: Psicología Clínica Infantil"></div>
     </div>
-    <label>Especialidad</label>
-    <input id="fEsp" placeholder="Ej: Psicología Clínica Infantil">
   </div>
 
   <label>Datos bancarios para el pago de tu sueldo</label>
   <div class="grid2">
-    <div><label>Banco</label><input id="fBanco" placeholder="Ej: BCP"></div>
-    <div><label>Número de cuenta</label><input id="fCuenta" placeholder="Número de cuenta"></div>
+    <div><label>Banco *</label><input id="fBanco" placeholder="Ej: BCP"></div>
+    <div><label>Número de cuenta *</label><input id="fCuenta" placeholder="Número de cuenta"></div>
   </div>
-  <input id="fCci" placeholder="CCI (opcional)" style="margin-top:10px">
-
-  <label>Foto de perfil (opcional)</label>
-  <div class="foto-row">
-    <div class="foto-preview" id="fotoPreview">📷</div>
-    <input type="file" id="fFoto" accept="image/*" style="border:none;background:none;padding:0">
-  </div>
-  <div class="hint">Puedes dejarlo para después y subirla tú misma desde "Mi Perfil" una vez tengas tu acceso.</div>
+  <input id="fCci" maxlength="20" inputmode="numeric" placeholder="CCI (20 dígitos) *" style="margin-top:10px">
+  <div class="hint">Tu foto de perfil la subes directamente desde la app, en "Mi Perfil", una vez que tengas tu acceso - aquí no hace falta.</div>
 
   <div class="err" id="errMsg"></div>
   <button class="btn" id="btnEnviar" onclick="enviarRegistro()">Enviar mis datos</button>
@@ -103,7 +94,6 @@ const SBU='https://uorxwmgaekeeuxeiikkw.supabase.co',
 const SBH={apikey:SBK,'Authorization':'Bearer '+SBK,'Content-Type':'application/json','Prefer':'return=representation'};
 async function sbGet(t,p){p=p||{};var u=SBU+'/rest/v1/'+t;var q=Object.entries(p).map(function(e){return e[0]+'='+encodeURIComponent(e[1]);}).join('&');if(q)u+='?'+q;var r=await fetch(u,{headers:SBH});if(!r.ok)throw new Error(await r.text());return r.json();}
 async function sbPost(t,d){var r=await fetch(SBU+'/rest/v1/'+t,{method:'POST',headers:SBH,body:JSON.stringify(d)});if(!r.ok)throw new Error(await r.text());return r.json();}
-async function sbUpload(bucket,path,file){var h={apikey:SBK,'Authorization':'Bearer '+SBK,'Content-Type':file.type||'application/octet-stream','x-upsert':'true'};var r=await fetch(SBU+'/storage/v1/object/'+bucket+'/'+path,{method:'POST',headers:h,body:file});if(!r.ok)throw new Error(await r.text());return SBU+'/storage/v1/object/public/'+bucket+'/'+path;}
 
 var ROL='psicologa';
 function elegirRol(r){
@@ -112,6 +102,8 @@ function elegirRol(r){
   document.getElementById('tabRecep').classList.toggle('active',r==='recepcionista');
   document.getElementById('bloquePsico').classList.toggle('show',r==='psicologa');
 }
+
+elegirRol('psicologa');
 
 (async function cargarSedes(){
   var sel=document.getElementById('fSede');
@@ -123,64 +115,63 @@ function elegirRol(r){
   sel.innerHTML='<option value="">- Selecciona tu sede -</option>'+sedes.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
 })();
 
-document.getElementById('fFoto').addEventListener('change',function(e){
-  var f=e.target.files[0];if(!f)return;
-  var reader=new FileReader();
-  reader.onload=function(ev){document.getElementById('fotoPreview').innerHTML='<img src="'+ev.target.result+'">';};
-  reader.readAsDataURL(f);
-});
-
 function mostrarError(msg){
   var el=document.getElementById('errMsg');
   el.textContent=msg;el.style.display='block';
 }
 
+function _soloDigitos(v){return (v||'').replace(/\D/g,'');}
+
 async function enviarRegistro(){
   document.getElementById('errMsg').style.display='none';
   var sede=document.getElementById('fSede').value.trim();
   var nombre=document.getElementById('fNombre').value.trim();
-  var dni=document.getElementById('fDni').value.trim();
+  var dni=_soloDigitos(document.getElementById('fDni').value);
   var nac=document.getElementById('fNac').value;
-  var tel=document.getElementById('fTel').value.trim();
+  var tel=_soloDigitos(document.getElementById('fTel').value);
   var emailPersonal=document.getElementById('fEmailPersonal').value.trim();
+  var grado=document.getElementById('fGrado').value.trim();
   var banco=document.getElementById('fBanco').value.trim();
   var cuenta=document.getElementById('fCuenta').value.trim();
-  var cci=document.getElementById('fCci').value.trim();
+  var cci=_soloDigitos(document.getElementById('fCci').value);
+  var cpsp=document.getElementById('fCpsp').value.trim();
+  var esp=document.getElementById('fEsp').value.trim();
 
+  // Validación completa: se piden todos los datos de verdad, no a medias -
+  // si falta algo, la administradora igual tendría que ir a pedírselo.
   if(!sede){mostrarError('Selecciona tu sede.');return;}
-  if(!nombre){mostrarError('Escribe tu nombre completo.');return;}
-  if(!dni||dni.length<8){mostrarError('El DNI debe tener 8 dígitos.');return;}
-  if(!tel){mostrarError('Escribe tu teléfono.');return;}
+  if(!nombre||nombre.split(' ').filter(Boolean).length<2){mostrarError('Escribe tu nombre completo.');return;}
+  if(dni.length!==8){mostrarError('El DNI debe tener exactamente 8 dígitos.');return;}
+  if(!nac){mostrarError('Selecciona tu fecha de nacimiento.');return;}
+  if(tel.length!==9||tel[0]!=='9'){mostrarError('El teléfono debe tener 9 dígitos y empezar con 9.');return;}
+  if(!emailPersonal||emailPersonal.indexOf('@')<0){mostrarError('Escribe un correo personal válido.');return;}
+  if(!grado){mostrarError('Escribe tu grado académico.');return;}
+  if(!banco){mostrarError('Escribe el nombre de tu banco.');return;}
+  if(!cuenta){mostrarError('Escribe tu número de cuenta.');return;}
+  if(cci.length!==20){mostrarError('El CCI debe tener exactamente 20 dígitos (lo da tu banco).');return;}
+  if(ROL==='psicologa'){
+    if(!cpsp){mostrarError('Escribe tu CPSP / número de colegiatura.');return;}
+    if(!esp){mostrarError('Escribe tu especialidad.');return;}
+  }
 
   var btn=document.getElementById('btnEnviar');
   btn.disabled=true;btn.textContent='Enviando...';
 
   try{
-    var fotoUrl='';
-    var fotoFile=document.getElementById('fFoto').files[0];
-    if(fotoFile){
-      var ext=(fotoFile.name.split('.').pop()||'jpg');
-      var path='registro_personal/'+Date.now()+'_'+dni+'.'+ext;
-      fotoUrl=await sbUpload('fotos-perfil',path,fotoFile).catch(function(){return '';});
-    }
-
     var datos={
-      nombre:nombre,sede:sede,dni:dni,fecha_nac:nac||null,telefono:tel,
-      banco:banco||null,numero_cuenta:cuenta||null,cci:cci||null,
-      foto_url:fotoUrl||null,estado:'pendiente',
+      nombre:nombre,sede:sede,dni:dni,fecha_nac:nac,telefono:tel,
+      grado_academico:grado,banco:banco,numero_cuenta:cuenta,cci:cci,
+      estado:'pendiente',
       // Se guarda temporalmente en "email" el correo personal (de contacto) que
       // puso la persona - la administradora lo reemplaza por el institucional
       // real al activar la cuenta. No hay una columna de notas en la tabla.
-      email:emailPersonal||null
+      email:emailPersonal
     };
 
     if(ROL==='psicologa'){
-      datos.cpsp=document.getElementById('fCpsp').value.trim()||null;
-      datos.especialidad=document.getElementById('fEsp').value.trim()||null;
-      datos.grado_academico=document.getElementById('fGrado').value.trim()||null;
+      datos.cpsp=cpsp;datos.especialidad=esp;
       await sbPost('psicologas',datos);
     }else{
-      datos.grado_academico=document.getElementById('fGrado')?document.getElementById('fGrado').value.trim()||null:null;
       await sbPost('recepcionistas',datos);
     }
 
