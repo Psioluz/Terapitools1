@@ -2028,25 +2028,22 @@ function _paqLabel(s){
 // quedaban alertas "fantasma" de pacientes ya regularizados. El saldo real
 // de la alerta se calcula de sus paquetes activos (programas_paciente),
 // que sí se mantienen al día con cada pago.
-// pacientes.saldo es un CACHÉ del saldo corriente de sesiones/consultas
-// SUELTAS (fuera de paquete): cada sesión suelta nueva guarda en su propio
-// campo "saldo" el TOTAL ACUMULADO hasta ese momento (saldo = pac.saldo +
-// costoTotal - adelanto, encadenado) - por diseño NO es el cargo de esa
-// sesión sola, así que sumar el saldo de varias sesiones sueltas multiplica
-// el error (se detectó con Carlos Pumachay: 19 sesiones sueltas con saldos
-// encadenados 36,112,150...720 - sumarlas da más de 7000 en vez de 720).
-// El caché pacientes.saldo puede además quedar desincronizado si algo lo
-// toca sin pasar por ese encadenado (pasó con Lucca Valencia: S/139
-// fantasma sin ninguna sesión detrás; y con Dariel Casas: su única sesión
-// suelta ya estaba pagada -saldo 0- pero el caché seguía en S/186).
-// Por eso se usa el saldo de la sesión suelta MÁS RECIENTE (si existe) en
-// vez de sumarlas o de confiar ciegamente en el caché - es el valor que de
-// verdad quedó acumulado hasta la última sesión real que se registró.
+// pacientes.saldo es el saldo corriente de sesiones/consultas SUELTAS
+// (fuera de paquete). Antes este campo era un caché que se desincronizaba
+// fácil (casos Lucca Valencia, Dariel Casas, Carlos Pumachay...), así que
+// aquí se intentó no confiar en él - primero sumando el saldo de todas las
+// sesiones sueltas (mal: ese campo es un acumulado encadenado, sumarlo
+// multiplicaba el error), después usando el de la sesión más reciente
+// (tampoco: al cancelar retroactivamente una sesión VIEJA por "No Asistió"
+// -como con Aaron Tapia, Ehitan Pujay y Gabriel Príncipe- la sesión más
+// reciente se queda con su acumulado viejo sin enterarse del cambio).
+//
+// La solución de fondo ya no es adivinar en el navegador: hay un trigger
+// en la base de datos (recalc_saldo_suelto, en sesiones y pagos) que
+// recalcula pacientes.saldo automáticamente y de verdad cada vez que algo
+// cambia - así que ahora SÍ es seguro confiar en pacientes.saldo tal cual.
 function _saldoSueltoReal(pac){
-  const sueltas=DB.sesiones.filter(function(s){return s.pacId===pac.nombre&&s.tipo!=='paquete'&&!(s._sb&&s._sb.programa_id);});
-  if(!sueltas.length)return 0;
-  sueltas.sort(function(a,b){return (a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
-  return sueltas[sueltas.length-1].saldo||0;
+  return pac.saldo||0;
 }
 function _saldoRealPac(pac){
   const saldoPaquetes=(DB.programas||[]).filter(function(pr){return pr.paciente_nombre===pac.nombre&&pr.estado==='activo';})
