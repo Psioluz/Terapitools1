@@ -1147,6 +1147,38 @@ try{
 </div>
 </div>
 
+<!-- MODAL CANCELAR SESIÓN / PAQUETE (con motivo) -->
+<div class="modal-overlay" id="modalCancelarSesion">
+<div class="modal">
+  <div class="modal-header">
+    <div class="modal-title">🚫 Cancelar</div>
+    <button class="modal-close" onclick="closeModal('modalCancelarSesion')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div id="cancelar-info" style="background:#fef2f2;border-radius:10px;padding:10px;margin-bottom:14px;font-size:12.5px;color:#991b1b"></div>
+    <div class="form-group" id="cancelar-alcance-grp" style="display:none">
+      <label class="form-label">¿Qué quieres cancelar?</label>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">
+          <input type="radio" name="cancelar-alcance" value="sesion" checked> Solo esta sesión (el resto del paquete sigue igual)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">
+          <input type="radio" name="cancelar-alcance" value="paquete"> Todo el paquete (cancela también las sesiones futuras)
+        </label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Motivo (obligatorio)</label>
+      <textarea class="form-control" id="cancelar-motivo" rows="3" placeholder="¿Por qué se cancela? Ej: Paciente ya no continuará, error de registro, etc."></textarea>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modalCancelarSesion')">Cerrar</button>
+    <button class="btn btn-danger" onclick="confirmarCancelarConMotivo()">🚫 Confirmar cancelación</button>
+  </div>
+</div>
+</div>
+
 </div>
 
 
@@ -1681,11 +1713,15 @@ function renderDashboard(){
           '<div style="font-size:11px;color:var(--muted);margin-bottom:3px">'+ps.nombre+'</div>'+
           terBadge(ter)+
           progresoPacInline(pac)+'</div>'+
-          '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">'+
+          // Los botones de acción van en su propia fila de ancho completo
+          // (flex-basis:100%) y en horizontal con flex-wrap - antes quedaban
+          // apilados uno encima de otro en una columna angosta aunque
+          // sobrara espacio a lo ancho.
+          '<div style="display:flex;flex-direction:row;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center;flex-basis:100%;margin-top:4px">'+
+          (s.estado!=='programado'?badgeEstadoAsistencia(s.estado):'')+
           botonesAsistenciaHTML(s)+
           ((s.estado==='asistio'||s.estado==='tardanza')&&!pago?
             '<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="btnAbrirPago(this)">💰 Cobrar</button>':'') +
-          (s.estado!=='programado'?badgeEstadoAsistencia(s.estado):'')+
           '</div></div>';
       }).join('');
     }
@@ -1900,9 +1936,6 @@ function mostrarResumenCelda(sesList,fecha,hora){
           '<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="btnAbrirPago(this)">💰 Cobrar</button>':'')+
         (s.estado==='noasistio'?
           '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':'')+
-        (s.estado==='programado'?(s.tipo==='paquete'?
-          '<button class="btn btn-outline btn-sm" style="color:var(--red)" data-prog="'+((s._sb&&s._sb.programa_id)||'')+'" onclick="cancelarPaquete(this.dataset.prog,\''+(pac.nombre||'').replace(/'/g,"\\'")+'\')">🚫 Cancelar paquete</button>':
-          '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="cancelarSesionSuelta(\''+s.id+'\')">🚫 Cancelar sesión</button>'):'')+
         '</div></div></div>';
     }).join('')+
     '<div style="padding:8px 0;margin-top:6px">'+
@@ -5929,9 +5962,6 @@ function renderAgendaViaDia(fecha){
           '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'+
           botonesAsistenciaHTML(s)+
           ((s.estado==='asistio'||s.estado==='tardanza')&&!pago?'<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="btnAbrirPago(this)">💰 Cobrar</button>':'')+
-          (s.estado==='programado'?(s.tipo==='paquete'?
-            '<button class="btn btn-outline btn-sm" style="color:var(--red)" data-prog="'+((s._sb&&s._sb.programa_id)||'')+'" onclick="cancelarPaquete(this.dataset.prog,\''+(pac.nombre||'').replace(/'/g,"\\'")+'\')">🚫 Cancelar paquete</button>':
-            '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="cancelarSesionSuelta(\''+s.id+'\')">🚫 Cancelar sesión</button>'):'')+
           '</div></div>';
       });
     }
@@ -6115,10 +6145,7 @@ async function renderHistorial(){
           '<td><span class="badge bk" style="font-size:10px">'+((esReprogFila||s.estado==='permiso')?'-':s.tipo==='paquete'?'Paq '+_paqLabel(s):s.tipo)+'</span></td>'+
           '<td style="white-space:nowrap">'+costoCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
-          '<td style="white-space:nowrap">'+(s.estado==='programado'?botonesAsistenciaCompactoHTML(s)+
-            (s.tipo==='paquete'?'':
-              ' <button class="btn btn-outline btn-sm" style="padding:4px 7px;color:var(--red)" title="Cancelar sesión" onclick="cancelarSesionSuelta(\''+s.id+'\')">🚫</button>'):
-            s.estado==='permiso'?botonesAsistenciaCompactoHTML(s):
+          '<td style="white-space:nowrap">'+((s.estado==='programado'||s.estado==='noasistio'||s.estado==='permiso')?botonesAsistenciaCompactoHTML(s):
             '<span style="font-size:11px;color:var(--muted)">-</span>')+'</td></tr>';
       }).join('')+
       '</tbody></table></div>'
@@ -6507,6 +6534,12 @@ function botonesAsistenciaHTML(s){
   // termina duplicada (pasó con Mateo Uribe). Si el paciente necesita otra
   // fecha, se reprograma la reposición ya creada (esa sí sigue
   // "programado"), no esta fila.
+  // Una sesión ya marcada "No Asistió" antes no tenía ninguna acción
+  // disponible, aunque siguiera contando en el saldo o en el paquete -
+  // se le deja solo el botón de Cancelar (con motivo) para poder sacarla.
+  if(s.estado==='noasistio'){
+    return '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="abrirModalCancelarSesion(\''+s.id+'\')">🚫 Cancelar</button>';
+  }
   if(s.estado!=='programado')return '';
   // Permiso y Reprogramar van juntos al costado de Asistió/No Asistió - ambos
   // exigen evidencia (foto/sustento) y mueven la sesión: Permiso la reubica
@@ -6515,7 +6548,8 @@ function botonesAsistenciaHTML(s){
   return '<button class="btn btn-success btn-sm" data-sid="'+s.id+'" data-est="asistio" onclick="btnMarcarAs(this)">✅ Asistió</button>'+
     ' <button class="btn btn-danger btn-sm" data-sid="'+s.id+'" data-est="noasistio" onclick="btnMarcarAs(this)">❌ No Asistió</button>'+
     ' <button class="btn btn-sm" style="background:#fef3c7;color:#92400e;font-weight:800" onclick="abrirModalPermiso(\''+s.id+'\')">🟡 Permiso</button>'+
-    ' <button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>';
+    ' <button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>'+
+    ' <button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="abrirModalCancelarSesion(\''+s.id+'\')">🚫 Cancelar</button>';
 }
 // Misma acción que botonesAsistenciaHTML pero solo con el ícono (sin el
 // texto) y con "title" como tooltip - se usa en la tabla de Historial
@@ -6525,11 +6559,15 @@ function botonesAsistenciaHTML(s){
 function botonesAsistenciaCompactoHTML(s){
   // Ver nota en botonesAsistenciaHTML: reprogramar una fila ya reubicada
   // por Permiso crea una reposición duplicada.
+  if(s.estado==='noasistio'){
+    return '<button class="btn btn-outline btn-sm" style="padding:4px 7px;color:var(--red)" title="Cancelar" onclick="abrirModalCancelarSesion(\''+s.id+'\')">🚫</button>';
+  }
   if(s.estado!=='programado')return '';
   return '<button class="btn btn-success btn-sm" style="padding:4px 7px" data-sid="'+s.id+'" data-est="asistio" title="Asistió" onclick="btnMarcarAs(this)">✅</button>'+
     ' <button class="btn btn-danger btn-sm" style="padding:4px 7px" data-sid="'+s.id+'" data-est="noasistio" title="No Asistió" onclick="btnMarcarAs(this)">❌</button>'+
     ' <button class="btn btn-sm" style="padding:4px 7px;background:#fef3c7;color:#92400e;font-weight:800" title="Permiso" onclick="abrirModalPermiso(\''+s.id+'\')">🟡</button>'+
-    ' <button class="btn btn-outline btn-sm" style="padding:4px 7px" title="Reprogramar" onclick="reprogramar(\''+s.id+'\')">🔄</button>';
+    ' <button class="btn btn-outline btn-sm" style="padding:4px 7px" title="Reprogramar" onclick="reprogramar(\''+s.id+'\')">🔄</button>'+
+    ' <button class="btn btn-outline btn-sm" style="padding:4px 7px;color:var(--red)" title="Cancelar" onclick="abrirModalCancelarSesion(\''+s.id+'\')">🚫</button>';
 }
 function badgeEstadoAsistencia(estado){
   var map={asistio:['bg','✅ Asistió'],noasistio:['br','❌ No asistió'],permiso:['bb','🟡 Permiso'],reprogramado:['bk','🔁 Reprogramado']};
@@ -6646,27 +6684,47 @@ async function _marcarAsInterno(sesRef,nuevoEst){
 // se perdona lo pendiente de cobrar (mismo criterio que No Asistió en
 // sesión suelta) - no se presta el servicio, no se cobra, y el horario
 // queda libre para otro paciente.
-async function cancelarSesionSuelta(sesRef){
+async function cancelarSesionSuelta(sesRef,motivo){
   var s=DB.sesiones.find(function(x){return x.id===sesRef;});
   if(!s){showToast('Sesión no encontrada','error');return;}
   if(s.tipo==='paquete'){showToast('Esta sesión es parte de un paquete - usa "Cancelar paquete"','error');return;}
-  var pac=DB.pacientes.find(function(p){return p.id===s.pacId||p.nombre===s.pacId;});
-  if(!confirm('¿Cancelar la sesión de '+(s.pacNom||'este paciente')+' del '+fmtF(s.fecha)+' '+s.hora+'? El horario quedará libre y no se cobrará nada pendiente de esta sesión.'))return;
+  if(!motivo){if(!confirm('¿Cancelar la sesión de '+(s.pacNom||'este paciente')+' del '+fmtF(s.fecha)+' '+s.hora+'? El horario quedará libre y no se cobrará nada pendiente de esta sesión.'))return;}
   var sbId=(s._sb&&s._sb.id)||((typeof s.id==='string'&&s.id.length>20)?s.id:null);
   if(!sbId){showToast('⚠️ Sesión sin identificador - recarga los datos','error');return;}
-  var yaAdelantado=(s._sb&&s._sb.adelanto)||0;
-  var noCobrado=Math.max(0,Math.round(((s.costoTotal||0)-yaAdelantado)*100)/100);
   showToast('⏳ Cancelando...');
   try{
-    await sbPatch('sesiones',{estado:'cancelado',saldo:0},{id:'eq.'+sbId});
-    if(noCobrado>0&&pac&&pac._sb&&pac._sb.id){
-      pac.saldo=Math.round(((pac.saldo||0)-noCobrado)*100)/100;
-      await sbPatch('pacientes',{saldo:pac.saldo},{id:'eq.'+pac._sb.id});
-    }
-    s.estado='cancelado';s.saldo=0;
+    var notasNuevas=((s.notas||'')+(motivo?' [CANCELADA] Motivo: '+motivo:'')).trim();
+    // Ya no se descuenta pac.saldo a mano aquí: un trigger en la base de
+    // datos recalcula pacientes.saldo automáticamente apenas esta sesión
+    // queda en "cancelado" (se excluye sola del cálculo real) - hacerlo
+    // también aquí podía pisar ese recálculo con un número desfasado.
+    await sbPatch('sesiones',{estado:'cancelado',saldo:0,notas:notasNuevas},{id:'eq.'+sbId});
+    if(motivo)await sbPost('alertas_log',{tipo:'cancelacion_sesion',sede:DB.sede,mensaje:motivo,paciente_nombre:s.pacNom||''}).catch(function(){});
+    s.estado='cancelado';s.saldo=0;s.notas=notasNuevas;
     showToast('✅ Sesión cancelada');
     await cargarDesdeSB();
   }catch(e){showToast('Error al cancelar: '+e.message,'error');console.error('[cancelarSesionSuelta]',e);}
+}
+// Cancela UNA sola sesión dentro de un paquete (ej. un "No Asistió" que
+// nunca debió contar) sin tocar el resto del paquete ni su saldo - el
+// paquete ya se cobra completo de antemano, así que quitar una sesión de
+// en medio no cambia lo que se debe, solo la saca del conteo Paq X/Y.
+async function cancelarUnaSesionDePaquete(sesRef,motivo){
+  var s=DB.sesiones.find(function(x){return x.id===sesRef;});
+  if(!s){showToast('Sesión no encontrada','error');return;}
+  if(s.tipo!=='paquete'){showToast('Esta sesión no es de paquete - usa "Cancelar sesión"','error');return;}
+  if(!motivo){if(!confirm('¿Cancelar esta sesión del paquete de '+(s.pacNom||'este paciente')+' del '+fmtF(s.fecha)+' '+s.hora+'? El resto del paquete sigue igual.'))return;}
+  var sbId=(s._sb&&s._sb.id)||((typeof s.id==='string'&&s.id.length>20)?s.id:null);
+  if(!sbId){showToast('⚠️ Sesión sin identificador - recarga los datos','error');return;}
+  showToast('⏳ Cancelando...');
+  try{
+    var notasNuevas=((s.notas||'')+(motivo?' [CANCELADA] Motivo: '+motivo:'')).trim();
+    await sbPatch('sesiones',{estado:'cancelado',nro_en_paquete:null,notas:notasNuevas},{id:'eq.'+sbId});
+    if(motivo)await sbPost('alertas_log',{tipo:'cancelacion_sesion',sede:DB.sede,mensaje:motivo,paciente_nombre:s.pacNom||''}).catch(function(){});
+    s.estado='cancelado';s.notas=notasNuevas;
+    showToast('✅ Sesión del paquete cancelada');
+    await cargarDesdeSB();
+  }catch(e){showToast('Error al cancelar: '+e.message,'error');console.error('[cancelarUnaSesionDePaquete]',e);}
 }
 // "Cancelar paquete" es para cuando el paciente NO continúa el
 // tratamiento: se cancelan TODAS las sesiones futuras (estado
@@ -6674,16 +6732,54 @@ async function cancelarSesionSuelta(sesRef){
 // horarios, y se anula la deuda restante del paquete completo (lo ya
 // asistido y pagado no se toca). Después de esto la psicóloga se encarga
 // de marcar al paciente como inactivo.
-async function cancelarPaquete(programaId,pacienteNombre){
+async function cancelarPaquete(programaId,pacienteNombre,motivo){
   if(!programaId){showToast('No se encontró el paquete de esta sesión','error');return;}
-  if(!confirm('¿Cancelar TODO el paquete de '+(pacienteNombre||'este paciente')+'? Se cancelan todas sus sesiones futuras pendientes, se liberan esos horarios y se anula el saldo restante del paquete. Esta acción no se puede deshacer.'))return;
+  if(!motivo){if(!confirm('¿Cancelar TODO el paquete de '+(pacienteNombre||'este paciente')+'? Se cancelan todas sus sesiones futuras pendientes, se liberan esos horarios y se anula el saldo restante del paquete. Esta acción no se puede deshacer.'))return;}
   showToast('⏳ Cancelando paquete...');
   try{
     await sbPatch('sesiones',{estado:'cancelado',saldo:0},{programa_id:'eq.'+programaId,estado:'eq.programado'});
     await sbPatch('programas_paciente',{estado:'cancelado',saldo:0},{id:'eq.'+programaId});
+    if(motivo)await sbPost('alertas_log',{tipo:'cancelacion_paquete',sede:DB.sede,mensaje:motivo,paciente_nombre:pacienteNombre||''}).catch(function(){});
     showToast('✅ Paquete cancelado - horarios liberados');
     await cargarDesdeSB();
   }catch(e){showToast('Error al cancelar el paquete: '+e.message,'error');console.error('[cancelarPaquete]',e);}
+}
+
+// ── Modal unificado "Cancelar" (sesión o paquete) con motivo obligatorio ──
+// Se usa desde los botones de asistencia (Inicio, Agenda, Historial) tanto
+// para sesiones "programado" como "noasistio" - antes una sesión ya
+// marcada "No Asistió" no tenía ninguna forma de cancelarse/quitarse,
+// aunque siguiera contando en el paquete o en el saldo.
+var _cancelarCtx=null;
+function abrirModalCancelarSesion(sesId){
+  var s=DB.sesiones.find(function(x){return x.id===sesId;});
+  if(!s){showToast('Sesión no encontrada','error');return;}
+  _cancelarCtx={sesId:sesId,esPaquete:s.tipo==='paquete',programaId:(s._sb&&s._sb.programa_id)||null,pacNom:s.pacNom||''};
+  document.getElementById('cancelar-info').innerHTML=
+    '<b>'+(s.pacNom||'Paciente')+'</b> · '+fmtF(s.fecha)+' '+s.hora+
+    (s.terNom?' · '+s.terNom:'')+(s.tipo==='paquete'?' · Sesión de paquete':' · Sesión suelta');
+  document.getElementById('cancelar-alcance-grp').style.display=_cancelarCtx.esPaquete?'block':'none';
+  var radios=document.getElementsByName('cancelar-alcance');
+  for(var i=0;i<radios.length;i++)radios[i].checked=(radios[i].value==='sesion');
+  document.getElementById('cancelar-motivo').value='';
+  openModal('modalCancelarSesion');
+}
+async function confirmarCancelarConMotivo(){
+  if(!_cancelarCtx)return;
+  var motivo=document.getElementById('cancelar-motivo').value.trim();
+  if(!motivo){showToast('Escribe el motivo de la cancelación','error');return;}
+  var alcance='sesion';
+  var radios=document.getElementsByName('cancelar-alcance');
+  for(var i=0;i<radios.length;i++)if(radios[i].checked)alcance=radios[i].value;
+  closeModal('modalCancelarSesion');
+  if(_cancelarCtx.esPaquete&&alcance==='paquete'){
+    await cancelarPaquete(_cancelarCtx.programaId,_cancelarCtx.pacNom,motivo);
+  }else if(_cancelarCtx.esPaquete){
+    await cancelarUnaSesionDePaquete(_cancelarCtx.sesId,motivo);
+  }else{
+    await cancelarSesionSuelta(_cancelarCtx.sesId,motivo);
+  }
+  _cancelarCtx=null;
 }
 
 function normHoraRec(h){
