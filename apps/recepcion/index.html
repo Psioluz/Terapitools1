@@ -6050,6 +6050,33 @@ async function renderHistorial(){
   const noAs=sesParaStats.filter(s=>s.estado==='noasistio').length;
   const prog=progresoPac(pac2);
   if(!el)return;
+  // El campo s.saldo de cada sesión suelta es un acumulado encadenado
+  // (saldo = saldo anterior + costo - adelanto) tomado en el momento en
+  // que esa sesión se creó - si después se cancela una sesión VIEJA (ej.
+  // un "No Asistió" que no debía cobrarse), las sesiones MÁS RECIENTES
+  // se quedan con su acumulado de antes del cambio y siguen mostrando
+  // "Pend." aunque el saldo real del paciente (pac2.saldo, mantenido al
+  // día por el trigger de la base de datos) ya esté en 0 (pasó con Aaron
+  // Tapia). Por eso aquí NO se usa s.saldo para decidir qué fila marcar
+  // como pendiente: se parte del saldo REAL actual y se reparte entre las
+  // sesiones sueltas cobrables más recientes, de atrás para adelante,
+  // hasta completarlo - esas son las que de verdad siguen sin pagarse.
+  const _idsSueltosPendientes=(function(){
+    const ids=new Set();
+    let restante=_saldoSueltoReal(pac2);
+    if(restante<=0)return ids;
+    const sueltasCobrables=sesPac.filter(function(s){
+      return s.tipo!=='paquete'&&!(s._sb&&s._sb.programa_id)&&
+        s.estado!=='cancelado'&&s.estado!=='permiso'&&s.estado!=='reprogramado';
+    }).sort(function(a,b){return(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||''));});
+    for(let i=0;i<sueltasCobrables.length&&restante>0.004;i++){
+      const costo=sueltasCobrables[i].costoTotal||0;
+      if(costo<=0)continue;
+      ids.add(sueltasCobrables[i].id);
+      restante=Math.round((restante-costo)*100)/100;
+    }
+    return ids;
+  })();
   el.innerHTML=
     '<div style="background:var(--bg);border-radius:12px;padding:14px;margin-bottom:16px">'+
     '<div style="font-size:16px;font-weight:800;margin-bottom:6px">'+pac2.nombre+'</div>'+
@@ -6112,7 +6139,7 @@ async function renderHistorial(){
           costoCelda=s.saldo>0?'<span style="color:var(--orange);font-weight:700">⚠️ Cuota S/'+s.saldo+'</span>':'-';
         }else if(!s.costoTotal){costoCelda='-';}
         else{
-          costoCelda='S/'+s.costoTotal+(s.saldo>0?' <span style="color:var(--orange);font-weight:700">⚠️ Pend. S/'+s.saldo+'</span>':' <span style="color:var(--green)">✅</span>');
+          costoCelda='S/'+s.costoTotal+(_idsSueltosPendientes.has(s.id)?' <span style="color:var(--orange);font-weight:700">⚠️ Pend. S/'+s.costoTotal+'</span>':' <span style="color:var(--green)">✅</span>');
         }
         // El pago nunca se muestra dentro de la fila de una sesión - sale
         // como su propia fila de "💰 Pago registrado" en su fecha real
