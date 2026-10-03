@@ -695,6 +695,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     if(p)u+='?'+Object.keys(p).map(function(k){return k+'='+encodeURIComponent(p[k]);}).join('&');
     return fetch(u,{headers:HDR}).then(function(r){return r.json();});
   }
+  // Trae TODAS las filas de una tabla sin depender de un límite fijo que con
+  // el tiempo se queda corto (ej. sesiones: 500 -> se cortaba antes de hoy
+  // en sedes con mucho historial). Pagina de a 1000 y sigue pidiendo hasta
+  // que una página vuelve incompleta, sin importar cuánto crezca la tabla.
+  function _sbAll(t,p){
+    var PAGE=1000;
+    function pedir(offset,acc){
+      var params=Object.assign({},p||{},{limit:String(PAGE),offset:String(offset)});
+      return _sb(t,params).then(function(r){
+        if(!Array.isArray(r))return acc; // error de la API: no seguir paginando sobre basura
+        acc=acc.concat(r);
+        if(r.length<PAGE)return acc;
+        return pedir(offset+PAGE,acc);
+      });
+    }
+    return pedir(0,[]);
+  }
   function _sbP(t,d){
     return fetch(SB+'/rest/v1/'+t,{method:'POST',headers:HDR,body:JSON.stringify(d)}).then(function(r){return r.json();});
   }
@@ -731,14 +748,14 @@ function _diasTrabajoANum(txt){
 
       if(action==='getData'){
         return Promise.all([
-          // Antes el límite era 500 ordenado de más antiguo a más nuevo: en
-          // sedes con mucho historial (ej. Ovalo Zapallal ya con 900+ sesiones)
-          // eso cortaba justo antes de hoy, así que "Hoy" y "Semana" quedaban
-          // vacíos y no se podían llenar fichas de sesiones que ni siquiera
-          // llegaban al dispositivo. Se ordena de más nuevo a más viejo (si
-          // algún día se vuelve a tocar el límite, se pierde historial antiguo
-          // en vez de la agenda actual) y se sube el límite con margen amplio.
-          _sb('sesiones',{'sede':'eq.'+sede,'select':'*','order':'fecha.desc,hora.desc','limit':'5000'}),
+          // Antes era _sb() con un límite fijo (500) ordenado de más antiguo
+          // a más nuevo: en sedes con mucho historial (ej. Ovalo Zapallal con
+          // 900+ sesiones) eso cortaba justo antes de hoy, así que "Hoy" y
+          // "Semana" quedaban vacíos y no se podían llenar fichas de sesiones
+          // que ni siquiera llegaban al dispositivo. Con _sbAll() se pagina y
+          // se trae TODO sin importar cuánto crezca la tabla - no hay techo
+          // que se pueda volver a desbordar con el tiempo.
+          _sbAll('sesiones',{'sede':'eq.'+sede,'select':'*','order':'fecha.desc,hora.desc'}),
           _sb('psicologas',{'sede':'eq.'+sede,'select':'*'}),
           _sb('pacientes',{'sede':'eq.'+sede,'estado':'eq.activo','select':'*'}),
           _sb('terapias',{'select':'*'}),

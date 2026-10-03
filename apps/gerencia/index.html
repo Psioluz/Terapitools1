@@ -1005,6 +1005,24 @@ function sbar(on){
     if(p)u+='?'+Object.keys(p).map(function(k){return k+'='+encodeURIComponent(p[k]);}).join('&');
     return fetch(u,{headers:HDR}).then(function(r){return r.json();});
   }
+  // Trae TODAS las filas de una tabla sin depender de un límite fijo que con
+  // el tiempo se queda corto (ej. sesiones: con "todas las sedes" ya se
+  // superaban las 2000 filas y se perdían las más recientes). Pagina de a
+  // 1000 y sigue pidiendo hasta que una página vuelve incompleta, sin
+  // importar cuánto crezca la tabla.
+  function _sbAll(t,p){
+    var PAGE=1000;
+    function pedir(offset,acc){
+      var params=Object.assign({},p||{},{limit:String(PAGE),offset:String(offset)});
+      return _sb(t,params).then(function(r){
+        if(!Array.isArray(r))return acc;
+        acc=acc.concat(r);
+        if(r.length<PAGE)return acc;
+        return pedir(offset+PAGE,acc);
+      });
+    }
+    return pedir(0,[]);
+  }
   function _sbP(t,d){
     return fetch(SB+'/rest/v1/'+t,{method:'POST',headers:HDR,body:JSON.stringify(d)}).then(function(r){return r.json();});
   }
@@ -1047,12 +1065,12 @@ function _diasTrabajoANum(txt){
       if(action==='getData'){
         return Promise.all([
           // Mismo bug de fondo que en Psicóloga: con "todas las sedes" (sin
-          // filtro) ya se superan las 2000 filas sumando las 4 sedes, y el
+          // filtro) ya se superaban las 2000 filas sumando las 4 sedes, y el
           // orden ascendente con límite fijo iba cortando justo las sesiones
           // más RECIENTES (las de hoy en adelante) en vez de las antiguas.
-          // Se invierte el orden (si el límite se vuelve a alcanzar, se pierde
-          // historial viejo en vez de la agenda actual) y se sube el margen.
-          _sb('sesiones',Object.assign({'select':'*','order':'fecha.desc,hora.desc','limit':'10000'},sedeFiltro(sede))),
+          // Con _sbAll() se pagina y se trae TODO sin importar cuánto crezca -
+          // no hay techo que se pueda volver a desbordar con el tiempo.
+          _sbAll('sesiones',Object.assign({'select':'*','order':'fecha.desc,hora.desc'},sedeFiltro(sede))),
           _sb('psicologas',Object.assign({'estado':'eq.activa','select':'*'},sedeFiltro(sede))),
           _sb('recepcionistas',Object.assign({'estado':'eq.activa','select':'*'},sedeFiltro(sede))),
           _sb('pacientes',Object.assign({'estado':'eq.activo','select':'*'},sedeFiltro(sede))),
