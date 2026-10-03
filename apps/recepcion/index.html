@@ -3773,6 +3773,13 @@ async function guardarSesion(){
       }else{
         saldo=(pac.saldo||0)+costoTotal-adelanto;
       }
+      // La fila de la sesión guarda SOLO lo que falta pagar de ESA sesión
+      // (con el crédito a favor ya aplicado), nunca la deuda acumulada del
+      // paciente: si guardaba el acumulado, al pagar la sesión le quedaba
+      // saldo, parecía "vencida" y bloqueaba "Asistió" aunque ya estuviera
+      // pagada (José Ángel Gonzales, 03/10/2026). La base de datos también
+      // lo recalcula (sql/017).
+      const saldoSesion=tipo==='paquete'?saldo:Math.max(0,Math.min(costoTotal-adelanto,saldo));
       totalPaq=tipo==='paquete'&&paq?paq.nroSes:1;
       let progRow=null,ptRow=null;
       if(tipo==='paquete'&&paq){
@@ -3792,7 +3799,7 @@ async function guardarSesion(){
         filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
           psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:tipo,
           nro_en_paquete:tipo==='paquete'?1:0,total_paquete:totalPaq,costo_total:costoTotal,
-          adelanto:adelanto,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
+          adelanto:adelanto,saldo:saldoSesion,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
         if(progRow&&progRow.id){filaSesion.programa_id=progRow.id;if(ptRow&&ptRow.id)filaSesion.programa_terapia_id=ptRow.id;}
         const rSes=await sbPost('sesiones',filaSesion);
         sesionIdCreada=(rSes&&rSes[0]&&rSes[0].id)||null;
@@ -6354,23 +6361,11 @@ async function marcarAs(sesRef,nuevoEst){
   if(s.tipo==='paquete'&&pac){
     pac.sesUsadas=DB.sesiones.filter(function(x){return x.pacId===s.pacId&&(x.estado==='asistio'||x.estado==='noasistio'||x.estado==='permiso');}).length;
   }
-  // Una sesión SUELTA (no paquete) que no se llega a dar nunca se cobra -
-  // si quedaba un saldo pendiente por lo que faltaba pagar de esa sesión
-  // puntual, se perdona al marcar "No Asistió" (no se va a prestar el
-  // servicio, no hay nada que cobrar). El paquete es distinto: ahí el
-  // compromiso es por el paquete completo, no por sesión individual, así
-  // que su saldo/checkpoints no se tocan aquí.
+  // Regla de la clínica: "No asistió" cuenta como sesión y SÍ se cobra,
+  // también en sesiones sueltas (solo Reprogramado y Permiso no cuentan, y
+  // Cancelado anula lo pendiente) - ya no se perdona el saldo aquí.
   var patchSesion={estado:nuevoEst};
   var noCobrado=0;
-  if(nuevoEst==='noasistio'&&s.tipo!=='paquete'){
-    var yaAdelantado=(s._sb&&s._sb.adelanto)||0;
-    noCobrado=Math.max(0,Math.round(((s.costoTotal||0)-yaAdelantado)*100)/100);
-    if(noCobrado>0){
-      s.saldo=0;
-      patchSesion.saldo=0;
-      if(pac)pac.saldo=Math.round(((pac.saldo||0)-noCobrado)*100)/100;
-    }
-  }
   showToast('⏳ Guardando...');
   var sbId=(s._sb&&s._sb.id)||((typeof s.id==='string'&&s.id.length>20)?s.id:null);
   if(sbId){
