@@ -1995,18 +1995,25 @@ function _paqLabel(s){
 // quedaban alertas "fantasma" de pacientes ya regularizados. El saldo real
 // de la alerta se calcula de sus paquetes activos (programas_paciente),
 // que sí se mantienen al día con cada pago.
-// pacientes.saldo es el saldo corriente de sesiones/consultas SUELTAS
-// (fuera de paquete) - pero es un número que varios flujos van sumando/
-// restando por separado, y puede quedar desincronizado si algo lo toca
-// sin pasar por el camino normal (pasó con Lucca Valencia: le quedó un
-// saldo suelto "fantasma" de S/139 sumado a los S/378 reales de su
-// paquete, sin ninguna sesión suelta real detrás que lo explique). Si el
-// paciente nunca tuvo ninguna sesión suelta, ese número no puede
-// representar una deuda/crédito real - se ignora en vez de mostrarlo,
-// para que un residuo así no vuelva a inflar el saldo mostrado.
+// pacientes.saldo es un CACHÉ del saldo corriente de sesiones/consultas
+// SUELTAS (fuera de paquete): cada sesión suelta nueva guarda en su propio
+// campo "saldo" el TOTAL ACUMULADO hasta ese momento (saldo = pac.saldo +
+// costoTotal - adelanto, encadenado) - por diseño NO es el cargo de esa
+// sesión sola, así que sumar el saldo de varias sesiones sueltas multiplica
+// el error (se detectó con Carlos Pumachay: 19 sesiones sueltas con saldos
+// encadenados 36,112,150...720 - sumarlas da más de 7000 en vez de 720).
+// El caché pacientes.saldo puede además quedar desincronizado si algo lo
+// toca sin pasar por ese encadenado (pasó con Lucca Valencia: S/139
+// fantasma sin ninguna sesión detrás; y con Dariel Casas: su única sesión
+// suelta ya estaba pagada -saldo 0- pero el caché seguía en S/186).
+// Por eso se usa el saldo de la sesión suelta MÁS RECIENTE (si existe) en
+// vez de sumarlas o de confiar ciegamente en el caché - es el valor que de
+// verdad quedó acumulado hasta la última sesión real que se registró.
 function _saldoSueltoReal(pac){
-  const tieneSueltas=DB.sesiones.some(function(s){return s.pacId===pac.nombre&&s.tipo!=='paquete'&&!(s._sb&&s._sb.programa_id);});
-  return tieneSueltas?(pac.saldo||0):0;
+  const sueltas=DB.sesiones.filter(function(s){return s.pacId===pac.nombre&&s.tipo!=='paquete'&&!(s._sb&&s._sb.programa_id);});
+  if(!sueltas.length)return 0;
+  sueltas.sort(function(a,b){return (a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
+  return sueltas[sueltas.length-1].saldo||0;
 }
 function _saldoRealPac(pac){
   const saldoPaquetes=(DB.programas||[]).filter(function(pr){return pr.paciente_nombre===pac.nombre&&pr.estado==='activo';})
