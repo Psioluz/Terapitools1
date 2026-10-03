@@ -6553,7 +6553,18 @@ async function cargarDesdeSB(silencioso) {
     if(typeof renderAlertas==='function')renderAlertas();
     if(typeof renderCumpleanos==='function')renderCumpleanos();
     console.log('[SB] sesiones:',DB.sesiones.length,'pacientes:',DB.pacientes.length);
-  } catch(e) { console.error('[SB]',e); if(typeof showToast==='function')showToast('Error: '+e.message,'error'); }
+  } catch(e) {
+    console.error('[SB]',e);
+    // La sincronización silenciosa (cada 30s, en segundo plano) usaba el
+    // mismo toast rojo que una recarga manual. Un parpadeo de red de un
+    // segundo (wifi que reconecta, el celular que se bloquea) hace que
+    // fetch() falle con "Failed to fetch" - el siguiente ciclo de 30s se
+    // recupera solo, pero la recepcionista igual veía una alarma roja sin
+    // que nada estuviera realmente roto. Ahora el error silencioso solo
+    // queda en la consola; si alguien toca "Actualizar" a mano y de verdad
+    // no hay conexión, ahí sí se avisa.
+    if(!silencioso&&typeof showToast==='function')showToast('Error al actualizar: '+e.message,'error');
+  }
 }
 function syncAgenda(){cargarDesdeSB();}
 function syncPacientes(){cargarDesdeSB();}
