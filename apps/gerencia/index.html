@@ -1046,7 +1046,13 @@ function _diasTrabajoANum(txt){
 
       if(action==='getData'){
         return Promise.all([
-          _sb('sesiones',Object.assign({'select':'*','order':'fecha.asc,hora.asc','limit':'2000'},sedeFiltro(sede))),
+          // Mismo bug de fondo que en Psicóloga: con "todas las sedes" (sin
+          // filtro) ya se superan las 2000 filas sumando las 4 sedes, y el
+          // orden ascendente con límite fijo iba cortando justo las sesiones
+          // más RECIENTES (las de hoy en adelante) en vez de las antiguas.
+          // Se invierte el orden (si el límite se vuelve a alcanzar, se pierde
+          // historial viejo en vez de la agenda actual) y se sube el margen.
+          _sb('sesiones',Object.assign({'select':'*','order':'fecha.desc,hora.desc','limit':'10000'},sedeFiltro(sede))),
           _sb('psicologas',Object.assign({'estado':'eq.activa','select':'*'},sedeFiltro(sede))),
           _sb('recepcionistas',Object.assign({'estado':'eq.activa','select':'*'},sedeFiltro(sede))),
           _sb('pacientes',Object.assign({'estado':'eq.activo','select':'*'},sedeFiltro(sede))),
