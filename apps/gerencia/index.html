@@ -1580,6 +1580,27 @@ function _saldoRealPac(p){
     .reduce(function(a,pr){return a+(pr.saldo||0);},0);
   return saldoPaquetes+(p.saldo||0);
 }
+// Saldo pendiente DE UN MES ESPECÍFICO - no confundir con _saldoRealPac
+// (la deuda total del paquete completo, sin importar cuándo toque cada
+// cuota). Para una proyección mensual, lo que corresponde mostrar es solo
+// lo que vence DENTRO de ese mes: la(s) cuota(s)-checkpoint de paquete
+// cuya sesión cae en ese mes (sesiones.saldo ya vive atado a esa sesión
+// puntual, ver cascada de cuotas), más los cargos de sesiones sueltas sin
+// cobrar de ese mes. Antes "Saldo Pendiente" en Finanzas sumaba
+// _saldoRealPac (el total restante del paquete completo, meses futuros
+// incluidos) aunque el usuario ya hubiera filtrado por un mes puntual.
+function _saldoMesPac(p,mes){
+  var ses=(G.sesiones||[]).filter(function(s){return s.pacNombre===p.nombre;});
+  var cuotaPaquete=ses.filter(function(s){return s.tipo==='paquete'&&(s.saldo||0)>0&&(s.fecha||'').startsWith(mes);})
+    .reduce(function(a,s){return a+(s.saldo||0);},0);
+  var cargoSuelto=ses.filter(function(s){
+    return s.tipo!=='paquete'&&s.estado!=='cancelado'&&s.estado!=='permiso'&&s.estado!=='reprogramado'&&(s.fecha||'').startsWith(mes);
+  }).reduce(function(a,s){return a+(s.costoTotal||0);},0);
+  var pagadoSueltoMes=(G.pagosLocal||[]).filter(function(pg){
+    return pg.paciente_nombre===p.nombre&&!pg.programa_id&&(pg.fecha||'').startsWith(mes);
+  }).reduce(function(a,pg){return a+(pg.monto||0);},0);
+  return cuotaPaquete+Math.max(0,cargoSuelto-pagadoSueltoMes);
+}
 // El progreso real de un paquete se calcula de las sesiones (tipo:'paquete',
 // totalPaq) - pacientes.mod/pacientes.paquete son campos heredados que no
 // reflejan el paquete real (viven en programas_paciente/sesiones).
@@ -1912,7 +1933,14 @@ function renderFinanzas(){
   // KPIs
   var asistPct = ses.length?pct(ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length,ses.length):0;
   var conPaq   = pacs.filter(p=>_paqInfoPac(p)).length;
-  var saldoTot = pacs.reduce((a,p)=>a+_saldoRealPac(p),0);
+  // Con un mes puntual elegido, "Saldo Pendiente" debe ser lo que
+  // realmente vence ESE mes (cuotas con fecha-checkpoint en el mes +
+  // cargos sueltos del mes), no la deuda total del paquete completo
+  // (que puede incluir cuotas de meses futuros que ni siquiera tocan
+  // todavía). Con "todos los meses" sí tiene sentido ver el total real.
+  var saldoTot = (m&&m!=='todos')
+    ? pacs.reduce((a,p)=>a+_saldoMesPac(p,m),0)
+    : pacs.reduce((a,p)=>a+_saldoRealPac(p),0);
   var tickProm = ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length>0
     ? Math.round(ingresos/ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length) : 0;
 
@@ -1921,8 +1949,9 @@ function renderFinanzas(){
   setText('kPacTotal', pacs.length);
   setText('kPacPaq',   conPaq+' con paquete');
   setText('kSaldo',    'S/'+Math.abs(saldoTot).toLocaleString());
-  setText('kSaldoLbl', saldoTot<0?'Crédito a Favor':'Saldo Pendiente');
-  setText('kSaldoPacs',pacs.filter(p=>_saldoRealPac(p)>0).length+' pacientes con deuda');
+  setText('kSaldoLbl', saldoTot<0?'Crédito a Favor':(m&&m!=='todos'?'Pendiente de '+fmtM(m):'Saldo Pendiente'));
+  var _fnSaldoKpi=(m&&m!=='todos')?function(p){return _saldoMesPac(p,m);}:_saldoRealPac;
+  setText('kSaldoPacs',pacs.filter(p=>_fnSaldoKpi(p)>0).length+' pacientes con deuda');
   var kSaldoCardEl=document.getElementById('kSaldoCard');
   if(kSaldoCardEl){kSaldoCardEl.classList.toggle('r',saldoTot>=0);kSaldoCardEl.classList.toggle('g',saldoTot<0);}
   setText('kTicket',   'S/'+tickProm);
@@ -2850,6 +2879,35 @@ function renderAlertas(){
   let alertas=[];
   var hoy=today();
   var mesH=mesActual();
+  var sdAl=getFiltSede();
+
+  // Pagos vencidos - cuotas-checkpoint de paquete cuya fecha YA PASÓ y
+  // siguen con saldo sin cobrar (no es lo mismo que "debe" en general:
+  // esto es específicamente lo que ya debió cobrarse y no se cobró).
+  var cuotasVencidas=G.sesiones.filter(function(s){
+    if(sdAl&&(s.sede||'')!==sdAl)return false;
+    return s.tipo==='paquete'&&(s.saldo||0)>0&&s.fecha&&s.fecha<hoy;
+  }).sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
+  if(cuotasVencidas.length){
+    var totalVenc=cuotasVencidas.reduce(function(a,s){return a+(s.saldo||0);},0);
+    alertas.push({tipo:'r',icon:'🔴',txt:`<strong>${cuotasVencidas.length} cuota(s) vencida(s)</strong> sin cobrar - total <strong>S/${totalVenc}</strong>`});
+    cuotasVencidas.slice(0,8).forEach(function(s){
+      alertas.push({tipo:'r',icon:'💸',txt:`<strong>${s.pacNombre}</strong> (${s.sede||'-'}) - cuota del ${fmtF(s.fecha)} vencida: S/${s.saldo}`});
+    });
+  }
+
+  // Sesiones pasadas (de ayer hacia atrás) que siguen "programado" - nadie
+  // marcó si el paciente asistió, no asistió, tuvo permiso o se reprogramó.
+  var sinRegistrar=G.sesiones.filter(function(s){
+    if(sdAl&&(s.sede||'')!==sdAl)return false;
+    return s.estado==='programado'&&s.fecha&&s.fecha<hoy;
+  }).sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
+  if(sinRegistrar.length){
+    alertas.push({tipo:'r',icon:'❗',txt:`<strong>${sinRegistrar.length} sesión(es) pasada(s) sin registrar asistencia</strong> - recepción debe marcar Asistió/No Asistió/Permiso`});
+    sinRegistrar.slice(0,8).forEach(function(s){
+      alertas.push({tipo:'o',icon:'📋',txt:`<strong>${s.pacNombre}</strong> (${s.sede||'-'}) - sesión del ${fmtF(s.fecha)} sin registrar`});
+    });
+  }
 
   // Saldos altos - saldo REAL (suelto + paquetes activos)
   filtPac(G.pacientes).map(p=>Object.assign({},p,{_saldoReal:_saldoRealPac(p)})).filter(p=>p._saldoReal>100).sort((a,b)=>b._saldoReal-a._saldoReal).slice(0,5).forEach(p=>{
