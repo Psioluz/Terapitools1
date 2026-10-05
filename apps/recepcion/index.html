@@ -1310,7 +1310,7 @@ function mostrarError(el, msg) {
 
 
 // ── STATE ──
-let DB={sede:'',usuario:'',psicologas:[],terapias:[],paquetes:[],pacientes:[],sesiones:[],pagos:[],programas:[],feriados:[]};
+let DB={sede:'',usuario:'',psicologas:[],terapias:[],paquetes:[],pacientes:[],sesiones:[],pagos:[],programas:[],feriados:[],fichas:[]};
 // terapias.sede puede estar vacía (todas las sedes), tener UNA sede, o
 // varias separadas por coma (ej. "Comas, Flecha") -- esto último para
 // terapias que se dan en más de una sede pero no en todas.
@@ -6086,6 +6086,20 @@ async function renderHistorial(){
     }
     return ids;
   })();
+  // Ficha de seguimiento (la que llena la psicóloga) de cada sesión - se
+  // empareja por paciente+fecha+terapia+hora, igual que hace la propia app
+  // de Psicóloga al buscar si ya existe una ficha guardada para esa sesión.
+  const _fichasPacHist=(DB.fichas||[]).filter(function(f){return f.paciente_nombre===pac2.nombre;});
+  function _fichaDeSesion(s){
+    const terH2=getTer(s.terId);
+    return _fichasPacHist.find(function(f){
+      if(f.fecha!==s.fecha)return false;
+      if((f.terapia||'')!==(terH2.nombre||''))return false;
+      const fh=(f.hora||'').slice(0,5),sh=(s.hora||'').slice(0,5);
+      if(fh&&sh)return fh===sh;
+      return true; // si alguno no trae hora, no se descarta solo por eso
+    });
+  }
   el.innerHTML=
     '<div style="background:var(--bg);border-radius:12px;padding:14px;margin-bottom:16px">'+
     '<div style="font-size:16px;font-weight:800;margin-bottom:6px">'+pac2.nombre+'</div>'+
@@ -6112,9 +6126,12 @@ async function renderHistorial(){
       '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="cancelarPaquete(\''+_progVigHist.id+'\',\''+(pac2.nombre||'').replace(/'/g,"\\'")+'\')">🚫 Cancelar paquete</button>'+
       '</div>':'')+
     '</div>'+
-    '<div style="font-size:13px;font-weight:800;color:var(--muted);margin-bottom:8px">📋 Registro de Sesiones</div>'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+
+    '<div style="font-size:13px;font-weight:800;color:var(--muted)">📋 Registro de Sesiones</div>'+
+    (_fichasPacHist.length?'<button class="btn btn-outline btn-sm" onclick="exportarFichasHistorialPDF()">📄 Exportar fichas (PDF)</button>':'')+
+    '</div>'+
     (filasTabla.length?
-      '<div style="max-width:100%;overflow-x:auto"><table style="table-layout:auto;font-size:11px"><thead><tr><th>Fecha</th><th>Psicóloga</th><th>Terapia</th><th>Estado</th><th>Tipo</th><th>Costo</th><th>Notas</th><th>Acción</th></tr></thead><tbody>'+
+      '<div style="max-width:100%;overflow-x:auto"><table style="table-layout:auto;font-size:11px"><thead><tr><th>Fecha</th><th>Psicóloga</th><th>Terapia</th><th>Estado</th><th>Tipo</th><th>Costo</th><th>Ficha</th><th>Notas</th><th>Acción</th></tr></thead><tbody>'+
       filasTabla.map(s=>{
         if(s.esPagoSuelto){
           const total=s.pagosGrupo.reduce(function(a,p){return a+(p.monto||0);},0);
@@ -6125,6 +6142,7 @@ async function renderHistorial(){
             '<td><span class="badge bk" style="font-size:10px">'+s.concepto+'</span></td>'+
             '<td style="white-space:nowrap"><span style="color:var(--green);font-weight:700">S/'+total+'</span>'+
             '<div style="font-size:10px;color:var(--muted)">'+metodosTxt+'</div></td>'+
+            '<td>-</td>'+
             '<td style="font-size:11px;color:var(--muted)">'+(notasPagoSuelto||'')+'</td>'+
             '<td><span style="font-size:11px;color:var(--muted)">-</span></td></tr>';
         }
@@ -6168,6 +6186,16 @@ async function renderHistorial(){
           evReg.url_evidencia?'<a href="'+evReg.url_evidencia+'" target="_blank">📎 Ver evidencia</a>':''
         ].filter(Boolean).join('<br>'):'';
         const notasCelda=[s.notas||'',notasPago?'💳 '+notasPago:'',evCelda].filter(Boolean).join('<br>');
+        // Ficha de seguimiento de la psicóloga: solo tiene sentido mirarla en
+        // sesiones reales (no en una fila reprogramada, que es solo el
+        // registro de que ese cupo se movió a otra fecha).
+        let fichaCelda='-';
+        if(!esReprogFila){
+          const fichaSes=_fichaDeSesion(s);
+          fichaCelda=fichaSes
+            ?'<a href="#" onclick="verFichaHistorial(\''+fichaSes.id+'\');return false" style="color:var(--green);font-weight:700;white-space:nowrap">✅ PDF</a>'
+            :'<span style="color:var(--orange);font-weight:700;white-space:nowrap">⏳ Pendiente</span>';
+        }
         // Reprogramada o con permiso: queda solo como registro de que ese
         // cupo se movió - no cuenta como una sesión más, así que no muestra
         // el contador "Paq X/Y", y la fila reprogramada se pinta distinta
@@ -6177,6 +6205,7 @@ async function renderHistorial(){
           '<td><span style="color:'+ec+';font-weight:700">'+estadoLabel(s.estado)+'</span></td>'+
           '<td><span class="badge bk" style="font-size:10px">'+((esReprogFila||s.estado==='permiso')?'-':s.tipo==='paquete'?'Paq '+_paqLabel(s):s.tipo)+'</span></td>'+
           '<td style="white-space:nowrap">'+costoCelda+'</td>'+
+          '<td style="white-space:nowrap">'+fichaCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
           '<td style="white-space:nowrap">'+((s.estado==='programado'||s.estado==='noasistio'||s.estado==='permiso')?botonesAsistenciaCompactoHTML(s):
             '<span style="font-size:11px;color:var(--muted)">-</span>')+'</td></tr>';
@@ -6284,13 +6313,21 @@ async function cargarHistorialCompletoPac(pacNombre){
   // recepcionistas ve el cuadro completo, aunque cada una solo pueda
   // marcar asistencia/cobrar lo que pasa en la suya.
   const filtroSede=_filtroSedeSb(pacNombre);
-  const [rows,progs,pagosPac,reprogsPac]=await Promise.all([
+  const [rows,progs,pagosPac,reprogsPac,fichasPac]=await Promise.all([
     sbGet('sesiones',{paciente_nombre:'eq.'+pacNombre,sede:filtroSede,select:'*',order:'fecha.desc',limit:'500'}),
     sbGet('programas_paciente',{paciente_nombre:'eq.'+pacNombre,sede:filtroSede,select:'*'}).catch(function(){return[];}),
     sbGet('pagos',{paciente_nombre:'eq.'+pacNombre,sede:filtroSede,select:'*',order:'fecha.desc',limit:'500'}).catch(function(){return[];}),
-    sbGet('reprogramaciones',{paciente_nombre:'eq.'+pacNombre,sede:filtroSede,select:'*'}).catch(function(){return[];})
+    sbGet('reprogramaciones',{paciente_nombre:'eq.'+pacNombre,sede:filtroSede,select:'*'}).catch(function(){return[];}),
+    sbGet('fichas_seguimiento',{paciente_nombre:'eq.'+pacNombre,sede:filtroSede,select:'*'}).catch(function(){return[];})
   ]);
   DB.reprogramaciones=reprogsPac||[];
+  // Fichas de seguimiento que las psicólogas llenan por sesión (objetivo,
+  // actividad, resultados, próxima sesión) - antes esta app ni siquiera las
+  // consultaba, así que Recepción no tenía forma de saber si una sesión
+  // tenía su ficha llena o seguía pendiente.
+  (fichasPac||[]).forEach(function(f){
+    if(!(DB.fichas||[]).some(function(x){return x.id===f.id;}))(DB.fichas=DB.fichas||[]).push(f);
+  });
   (pagosPac||[]).forEach(function(p){
     if(!(DB.pagos||[]).some(function(x){return x.id===p.id;})){
       (DB.pagos=DB.pagos||[]).push({id:p.id,fecha:p.fecha,hora:p.hora||'',pacId:p.paciente_nombre,
@@ -6327,6 +6364,78 @@ async function cargarHistorialCompletoPac(pacNombre){
   });
   return rows.length;
 }
+
+// ══════════════════════════════════════════════════
+//  FICHAS DE SEGUIMIENTO (las llena la psicóloga) EN EL HISTORIAL CLÍNICO
+// ══════════════════════════════════════════════════
+function _getJsPDFHist(){
+  if(typeof window.jspdf!=='undefined')return window.jspdf.jsPDF;
+  if(typeof window.jsPDF!=='undefined')return window.jsPDF;
+  return null;
+}
+function verFichaHistorial(fichaId){
+  const f=(DB.fichas||[]).find(function(x){return x.id===fichaId;});
+  if(!f){showToast('Ficha no encontrada','error');return;}
+  const jsPDF=_getJsPDFHist();
+  if(!jsPDF){showToast('Cargando PDF... intenta de nuevo en un segundo','info');return;}
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const W=210,M=16;let y;
+  doc.setFillColor(74,14,46);doc.rect(0,0,W,16,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
+  doc.text('Ficha de seguimiento',M,10);
+  doc.setFillColor(233,30,140);doc.rect(0,16,W,1.5,'F');
+  y=26;
+  doc.setTextColor(30,30,30);doc.setFontSize(12);doc.setFont('helvetica','bold');
+  doc.text(f.paciente_nombre||'-',M,y);y+=6;
+  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(100,100,100);
+  doc.text(fmtF(f.fecha)+(f.hora?' · '+f.hora:'')+' · '+(f.terapia||'-')+' · '+(f.psicologa_nombre||'-'),M,y);
+  y+=10;
+  [['Objetivo',f.objetivo],['Actividad realizada',f.actividad],['Resultados',f.resultados],['Próxima sesión',f.proxima_sesion]].forEach(function(c){
+    if(y>270){doc.addPage();y=18;}
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(136,14,79);
+    doc.text(c[0],M,y);y+=5;
+    doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(30,30,30);
+    doc.splitTextToSize(c[1]||'-',W-M*2).forEach(function(ln){
+      if(y>280){doc.addPage();y=18;}
+      doc.text(ln,M,y);y+=5.5;
+    });
+    y+=4;
+  });
+  guardarPDF(doc,'Ficha_'+(f.paciente_nombre||'paciente').replace(/\s+/g,'_')+'_'+f.fecha+'.pdf');
+}
+function exportarFichasHistorialPDF(){
+  const pacId=document.getElementById('histPac')?.value||'';
+  if(!pacId)return;
+  const pac2=getPac(pacId);
+  const fichasPac=(DB.fichas||[]).filter(function(f){return f.paciente_nombre===pac2.nombre;})
+    .sort(function(a,b){return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
+  if(!fichasPac.length){showToast('Sin fichas registradas para este paciente','error');return;}
+  const jsPDF=_getJsPDFHist();
+  if(!jsPDF){showToast('Cargando PDF... intenta de nuevo en un segundo','info');return;}
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=297,M=12;let y=24;
+  doc.setFillColor(74,14,46);doc.rect(0,0,W,18,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text('Fichas de seguimiento - '+(pac2.nombre||''),M,11);
+  doc.setFillColor(233,30,140);doc.rect(0,18,W,2,'F');
+  fichasPac.forEach(function(f){
+    if(y>190){doc.addPage('a4','landscape');y=16;}
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(74,14,46);
+    doc.text(fmtF(f.fecha)+(f.hora?' '+f.hora:'')+' · '+(f.terapia||'-')+' · '+(f.psicologa_nombre||'-'),M,y);
+    y+=5;
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(40,40,40);
+    [['Objetivo:',f.objetivo],['Actividad:',f.actividad],['Resultados:',f.resultados],['Próx. sesión:',f.proxima_sesion]].forEach(function(b){
+      doc.splitTextToSize(b[0]+' '+(b[1]||'-'),W-M*2).forEach(function(ln){
+        if(y>196){doc.addPage('a4','landscape');y=16;}
+        doc.text(ln,M,y);y+=4.5;
+      });
+    });
+    y+=4;
+    doc.setDrawColor(230,230,230);doc.line(M,y,W-M,y);y+=5;
+  });
+  guardarPDF(doc,'Fichas_'+(pac2.nombre||'paciente').replace(/\s+/g,'_')+'.pdf');
+}
+
 async function onCambioHistPac(){
   const pacSel=document.getElementById('histPac')?.value||'';
   renderHistorial();
