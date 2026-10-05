@@ -817,7 +817,7 @@ function _diasTrabajoANum(txt){
               diasSemana:_diasTrabajoANum(p.dias_trabajo),
               fechaNac:p.fecha_nac||'',tel:p.telefono||'',
               cuenta:p.numero_cuenta||'',cci:p.cci||'',
-              sueldo:p.sueldo||0,fotoUrl:p.foto_url||''};
+              sueldo:p.sueldo||0,fotoUrl:p.foto_url||'',deviceId:p.device_id||''};
             return _jr({status:'ok',psicologa:ps,usuario:ps});
           }
           return _sb('recepcionistas',{'email':'eq.'+email,'select':'*'}).then(function(r2){
@@ -1616,6 +1616,19 @@ async function doLoginEmail(){
             // Verificar contraseña: acepta la del sheet O la contraseña global
             const passCorrecta = (ps2.password && ps2.password === pass) || pass === PASS;
             if(passCorrecta){
+              // Un solo dispositivo activo por psicóloga: evita que comparta su
+              // usuario con otra persona. El primer login de todos registra el
+              // dispositivo (huella guardada en este navegador); desde otro
+              // dispositivo, con la misma cuenta, queda bloqueado hasta que
+              // Administración la "libere" (ej. cambió de celular).
+              const miDispositivo = _getDeviceId();
+              if(ps2.deviceId && ps2.deviceId !== miDispositivo){
+                showErr('Esta cuenta ya está en uso en otro dispositivo. Si cambiaste de celular, pide a Administración que te libere el acceso.');
+                return;
+              }
+              if(!ps2.deviceId){
+                try{ await sbPatch('psicologas',{device_id:miDispositivo},{id:'eq.'+ps2.id}); }catch(eDev){console.warn('[device_id]',eDev);}
+              }
               // Guardar perfil completo para acceso offline (sin contraseña;
               // completarLoginConPs se encarga de cachear el hash de la clave)
               try{
@@ -1659,6 +1672,21 @@ async function doLoginEmail(){
 // guardar la contraseña real en localStorage, solo su huella, así el login
 // offline sigue funcionando sin dejar la contraseña en texto plano en el
 // dispositivo.
+// Huella del dispositivo (navegador) actual, persistida en localStorage -
+// no identifica a la persona, identifica el aparato/navegador donde corre
+// esta sesión, para poder limitar una cuenta de psicóloga a un solo
+// dispositivo a la vez.
+function _getDeviceId(){
+  try{
+    var k='psicoluz_device_id';
+    var id=localStorage.getItem(k);
+    if(!id){
+      id=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('dev_'+Date.now()+'_'+Math.random().toString(16).slice(2));
+      localStorage.setItem(k,id);
+    }
+    return id;
+  }catch(e){ return 'dev_sin_storage'; }
+}
 async function sha256Hex(str){
   var buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str||''));
   return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
