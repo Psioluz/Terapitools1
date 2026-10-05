@@ -1233,7 +1233,17 @@ function renderPersonal(){
   if(!todos.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin personal activo</p>';return;}
   el.innerHTML='<div style="display:grid;gap:10px">'+todos.map(function(p){return'<div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f8faff;border-radius:10px"><div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#4a0e2e,#e91e8c);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:900">'+p.nombre.charAt(0)+'</div><div style="flex:1"><div style="font-weight:800">'+p.nombre+' <span style="font-weight:600;font-size:11px;color:var(--acc)">'+p._rol+'</span></div><div style="font-size:11px;color:var(--muted)">'+(p.cpsp||'')+(p.especialidad?' · '+p.especialidad:'')+(p.grado_academico?' · '+p.grado_academico:'')+'</div><div style="font-size:11px;color:var(--muted)">'+(p.email||'')+(p.telefono?' · '+p.telefono:'')+'</div></div>'+badge(p.estado||'activa')+
     '<button style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="editarPsicologa('+_sq(p._tabla)+','+_sq(p.id)+')">✏️ Editar</button>'+
+    (p._tabla==='psicologas'&&p.device_id?'<button style="padding:5px 10px;background:#fff7ed;color:#9a3412;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="liberarDispositivo('+_sq(p.id)+')" title="Permite que vuelva a iniciar sesión desde un celular nuevo (ej. lo perdió o lo cambió)">📱 Liberar dispositivo</button>':'')+
     '<button style="padding:5px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="cesarPersonal('+_sq(p._tabla)+','+_sq(p.id)+')">Cesar</button></div>';}).join('')+'</div>';
+}
+// Una psicóloga solo puede tener su cuenta abierta en un dispositivo a la
+// vez (evita que comparta su usuario con otra persona) - si cambia de
+// celular o lo pierde, queda bloqueada hasta que Administración libere el
+// dispositivo registrado, para que el siguiente login quede libre de
+// nuevo. Ver _getDeviceId()/doLoginEmail() en la app de Psicóloga.
+async function liberarDispositivo(id){
+  if(!confirm('¿Liberar el dispositivo registrado de esta psicóloga? Podrá volver a iniciar sesión desde cualquier celular/navegador la próxima vez.'))return;
+  try{await sbPatch('psicologas',{device_id:null},{id:'eq.'+id});toast('✅ Dispositivo liberado');await recargar();}catch(e){toast('Error: '+e.message,'error');}
 }
 async function cesarPersonal(tabla,id){
   if(!confirm('¿Confirmas cesar a esta persona?'))return;
