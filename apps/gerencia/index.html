@@ -397,6 +397,7 @@ select.fsel{
     <div class="ger-nav-item" id="gnav-tDocsPsicologas" onclick="goTab('tDocsPsicologas',this);if(typeof renderDocsPsicologas==='function')renderDocsPsicologas()">📋 Docs Psicólogas</div>
     <div class="ger-nav-section">Sistema</div>
     <div class="ger-nav-item" id="gnav-tAlertas" onclick="goTab('tAlertas',this)">🔔 Alertas <span class="nav-badge" id="alertaBadge" style="display:none"></span></div>
+    <div class="ger-nav-item" id="gnav-tCajaVerif" onclick="goTab('tCajaVerif',this);if(typeof renderVerifCaja==='function')renderVerifCaja()">🧾 Verificación de Caja</div>
     <div class="ger-nav-item" id="gnav-tPagos" onclick="goTab('tPagos',this);if(typeof renderCalendarioPagos==='function')renderCalendarioPagos('calendarioPagosContainer');if(typeof renderPagosRecurrentesLista==='function')renderPagosRecurrentesLista()">📅 Calendario</div>
     <div class="ger-nav-item" id="gnav-tCumple" onclick="goTab('tCumple',this);if(typeof renderCumple==='function')renderCumple('listCumple2')">🎂 Cumpleaños</div>
     <div class="ger-nav-item" id="gnav-tChat" onclick="goTab('tChat',this);abrirChatGer()">💬 Chat <span id="chatBadgeGer" style="display:none;background:#e91e8c;color:#fff;border-radius:10px;font-size:9px;padding:1px 5px;font-weight:800;margin-left:4px"></span></div>
@@ -501,21 +502,6 @@ select.fsel{
     <div class="cb" id="chartMetodos"></div>
   </div>
 
-  <!-- Ingresos por día -->
-  <div class="card">
-    <div class="ch" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <div class="ct">📅 Ingresos por Día</div>
-      <div style="display:flex;gap:8px">
-        <button onclick="exportarIngresosPDF()" style="border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 12px;font-weight:800;font-size:12px;cursor:pointer">📄 Exportar PDF</button>
-        <button onclick="exportarIngresosExcel()" style="border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 12px;font-weight:800;font-size:12px;cursor:pointer">📊 Exportar Excel</button>
-      </div>
-    </div>
-    <div class="cb" style="overflow-x:auto">
-      <table id="tblIngDia"><thead><tr><th>Fecha</th><th>Efectivo</th><th>Yape/Plin</th><th>Transferencia</th><th>Total</th><th></th></tr></thead>
-      <tbody id="tblIngDiaBody"></tbody>
-      <tfoot id="tblIngDiaFoot"></tfoot></table>
-    </div>
-  </div>
 
 </div><!-- /tFinanzas -->
 
@@ -742,6 +728,54 @@ select.fsel{
   <div class="card">
     <div class="ch"><div class="ct">🔔 Alertas del Sistema</div></div>
     <div class="cb" id="listaAlertas"><div style="text-align:center;padding:20px;color:var(--muted)">⏳ Cargando...</div></div>
+  </div>
+</div>
+
+<!-- ════════ VERIFICACIÓN DE CAJA ════════ -->
+<!-- Antes "Ingresos por Día" vivía dentro de Finanzas, amarrado al
+     selector de mes global (solo se podía ver un mes calendario completo
+     a la vez). Para un arqueo/cuadre de caja real, Gerencia necesita
+     elegir cualquier rango de fechas (ej. del 15 al 20, o a caballo entre
+     dos meses) - por eso se traslada aquí, con su propio rango de fechas
+     libre en vez del filtro de mes. También se agrega la columna "Vuelto
+     (Coord.)" - antes el vuelto que Coordinación cubre por Yape cuando no
+     hay cambio en caja quedaba mezclado dentro de la columna "Yape/Plin"
+     sin distinguirse de un cobro real a un paciente, lo que inflaba ese
+     número para efectos de arqueo. -->
+<div class="page" id="tCajaVerif" style="padding:14px">
+  <div class="card" style="margin-bottom:14px">
+    <div class="ch"><div class="ct">🧾 Verificación de Caja</div></div>
+    <div style="padding:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">Desde</label>
+        <input type="date" id="cvDesde" class="fsel" style="padding:8px 10px">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">Hasta</label>
+        <input type="date" id="cvHasta" class="fsel" style="padding:8px 10px">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">Sede</label>
+        <select id="cvSedeSel" class="fsel">
+          <option value="">🌐 Todas las sedes</option>
+        </select>
+      </div>
+      <button onclick="renderVerifCaja()" style="padding:9px 18px;background:var(--acc);color:#fff;border:none;border-radius:8px;font-weight:800;cursor:pointer">🔍 Buscar</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ch" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div class="ct">📅 Detalle por Día</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="exportarCajaPDF()" style="border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 12px;font-weight:800;font-size:12px;cursor:pointer">📄 Exportar PDF</button>
+        <button onclick="exportarCajaExcel()" style="border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 12px;font-weight:800;font-size:12px;cursor:pointer">📊 Exportar Excel</button>
+      </div>
+    </div>
+    <div class="cb" style="overflow-x:auto">
+      <table id="tblCajaVerif"><thead><tr><th>Fecha</th><th>Efectivo</th><th>Yape/Plin</th><th>Transferencia</th><th>Vuelto (Coord.)</th><th>Total</th><th></th></tr></thead>
+      <tbody id="tblCajaVerifBody"></tbody>
+      <tfoot id="tblCajaVerifFoot"></tfoot></table>
+    </div>
   </div>
 </div>
 
@@ -1637,7 +1671,7 @@ function recargar(){
     'tPersonal':renderPersonal,'tSedes':renderSedes,
     'tAlertas':renderAlertas,'tCrecimiento':renderCrecimiento,
     'tAsistHist':renderAsistHist,'tDocsPsicologas':renderDocsPsicologas,
-    'tAgenda':renderAgendaGer
+    'tAgenda':renderAgendaGer,'tCajaVerif':renderVerifCaja
   };
   var fn=renderMap[tabId];
   if(fn)fn();
@@ -1996,15 +2030,57 @@ function renderFinanzas(){
   var metData=Object.entries(metodos).map(([k,v])=>({label:k,val:v})).filter(x=>x.val>0);
   renderDonut('chartMetodos', metData);
 
-  // Ingresos por día, con el mismo desglose de método (respeta los filtros
-  // de mes/sede ya aplicados arriba en "pagos") - más reciente primero.
-  var porDia={};
-  var porDiaPagos={};
+  // El detalle "Ingresos por Día" (con el vuelto de Coordinación como
+  // columna aparte) se movió a la pestaña "🧾 Verificación de Caja", con
+  // rango de fechas libre en vez de depender del mes seleccionado aquí -
+  // ver renderVerifCaja().
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  VERIFICACIÓN DE CAJA - antes "Ingresos por Día" dentro de Finanzas,
+//  amarrado al mes calendario. Aquí el rango de fechas es libre (para
+//  arqueos reales, que casi nunca calzan con el 1 al 30/31), y se suma
+//  una columna aparte para el vuelto que Coordinación cubre por Yape -
+//  antes quedaba mezclado dentro de "Yape/Plin" sin distinguirse de un
+//  cobro real a un paciente.
+var _cvSelectsListos=false;
+function _esVueltoCoord(p){
+  return String(p.paciente_nombre||'').indexOf('[Ajuste de caja]')===0;
+}
+function renderVerifCaja(){
+  if(!_cvSelectsListos){
+    var selSede=document.getElementById('cvSedeSel');
+    if(selSede&&selSede.options.length<=1){
+      getSedes().forEach(function(sd){
+        var o=document.createElement('option');o.value=sd;o.textContent=sd;selSede.appendChild(o);
+      });
+    }
+    _cvSelectsListos=true;
+  }
+  var elD=document.getElementById('cvDesde'), elH=document.getElementById('cvHasta');
+  if(elD&&!elD.value){
+    var hoy=today();
+    elD.value=hoy.slice(0,8)+'01'; // primer día del mes actual, por defecto
+  }
+  if(elH&&!elH.value)elH.value=today();
+  var desde=elD?elD.value:'';
+  var hasta=elH?elH.value:'';
+  var sede=document.getElementById('cvSedeSel')?.value||'';
+
+  var pagos=(G.pagosLocal||[]).filter(function(p){
+    if(!p.fecha)return false;
+    if(desde&&p.fecha<desde)return false;
+    if(hasta&&p.fecha>hasta)return false;
+    if(sede&&(p._sede||p.sede||'')!==sede)return false;
+    return true;
+  });
+
+  var porDia={}, porDiaPagos={};
   pagos.forEach(function(p){
-    var f=p.fecha;if(!f)return;
-    if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0};
-    if(!porDiaPagos[f])porDiaPagos[f]=[];
-    porDiaPagos[f].push(p);
+    var f=p.fecha;
+    if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0,vuelto:0};
+    (porDiaPagos[f]=porDiaPagos[f]||[]).push(p);
+    if(_esVueltoCoord(p)){porDia[f].vuelto+=p.monto||0;return;}
     var m2=p.metodo||'Efectivo';
     if(m2==='Yape'||m2==='Plin')porDia[f].yape+=p.monto||0;
     else if(m2==='Transferencia'||m2==='Tarjeta')porDia[f].transferencia+=p.monto||0;
@@ -2012,16 +2088,19 @@ function renderFinanzas(){
   });
   var diasOrd=Object.keys(porDia).sort().reverse();
   window._ingDiaPagosPorFecha=porDiaPagos;
-  var bodyDia=document.getElementById('tblIngDiaBody');
+  window._cvRango={desde:desde,hasta:hasta,sede:sede};
+
+  var bodyDia=document.getElementById('tblCajaVerifBody');
   if(bodyDia){
-    var maxTot=Math.max.apply(null,diasOrd.map(function(f){var d=porDia[f];return d.efectivo+d.yape+d.transferencia;}).concat([1]));
+    var maxTot=Math.max.apply(null,diasOrd.map(function(f){var d=porDia[f];return d.efectivo+d.yape+d.transferencia+d.vuelto;}).concat([1]));
     bodyDia.innerHTML=diasOrd.length?diasOrd.map(function(f){
-      var d=porDia[f];var tot=d.efectivo+d.yape+d.transferencia;
+      var d=porDia[f];var tot=d.efectivo+d.yape+d.transferencia+d.vuelto;
       var pct=Math.max(4,Math.round(tot/maxTot*100));
       return'<tr><td style="font-weight:700">'+fmtF(f)+'</td>'+
         '<td>💵 S/'+d.efectivo.toLocaleString()+'</td>'+
         '<td>📱 S/'+d.yape.toLocaleString()+'</td>'+
         '<td>🏦 S/'+d.transferencia.toLocaleString()+'</td>'+
+        '<td>🔄 S/'+d.vuelto.toLocaleString()+'</td>'+
         '<td style="min-width:150px">'+
           '<div style="display:flex;align-items:center;gap:8px">'+
             '<div style="flex:1;background:#f1e9f5;border-radius:6px;height:8px;overflow:hidden">'+
@@ -2029,26 +2108,28 @@ function renderFinanzas(){
             '<span style="font-weight:900;color:var(--dark);white-space:nowrap">S/'+tot.toLocaleString()+'</span>'+
           '</div></td>'+
         '<td><a href="#" onclick="verDetalleIngresosDia(\''+f+'\');return false" style="color:var(--acc);font-weight:700;font-size:11.5px;white-space:nowrap">Ver más detalle →</a></td></tr>';
-    }).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:14px">Sin pagos en el período</td></tr>';
+    }).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:14px">Sin pagos en el período</td></tr>';
   }
-  var footDia=document.getElementById('tblIngDiaFoot');
+  var footDia=document.getElementById('tblCajaVerifFoot');
   if(footDia){
     var totEf=diasOrd.reduce(function(a,f){return a+porDia[f].efectivo;},0);
     var totYp=diasOrd.reduce(function(a,f){return a+porDia[f].yape;},0);
     var totTr=diasOrd.reduce(function(a,f){return a+porDia[f].transferencia;},0);
-    var totAll=totEf+totYp+totTr;
+    var totVu=diasOrd.reduce(function(a,f){return a+porDia[f].vuelto;},0);
+    var totAll=totEf+totYp+totTr+totVu;
     footDia.innerHTML=diasOrd.length?('<tr style="background:#fdf2f8;font-weight:900"><td>TOTAL</td>'+
       '<td>S/'+totEf.toLocaleString()+'</td><td>S/'+totYp.toLocaleString()+'</td>'+
-      '<td>S/'+totTr.toLocaleString()+'</td><td>S/'+totAll.toLocaleString()+'</td><td></td></tr>'):'';
+      '<td>S/'+totTr.toLocaleString()+'</td><td>S/'+totVu.toLocaleString()+'</td>'+
+      '<td>S/'+totAll.toLocaleString()+'</td><td></td></tr>'):'';
   }
 }
 
-// Abre en una pestaña nueva el detalle de un día puntual de "Ingresos por
-// Día": agrupado por psicóloga (los pagos sin psicóloga - adelantos de
-// paquete, ajustes de caja, etc. - caen en "Sin psicóloga / Solo pago"),
-// con paciente, concepto, método y notas de cada uno. Usa los pagos que
-// ya se agruparon al renderizar la tabla (respetan el filtro de sede
-// actual), no hace falta volver a consultar nada.
+// Abre en una pestaña nueva el detalle de un día puntual de "Verificación
+// de Caja": agrupado por psicóloga (los pagos sin psicóloga - adelantos
+// de paquete, ajustes de caja, etc. - caen en "Sin psicóloga / Solo
+// pago"), con paciente, concepto, método y notas de cada uno. Usa los
+// pagos que ya se agruparon al renderizar la tabla (respetan el rango de
+// fechas/sede actual), no hace falta volver a consultar nada.
 function verDetalleIngresosDia(fecha){
   var pagosDia=(window._ingDiaPagosPorFecha&&window._ingDiaPagosPorFecha[fecha])||[];
   var porPs={};
@@ -2090,30 +2171,42 @@ function verDetalleIngresosDia(fecha){
   w.document.open();w.document.write(html);w.document.close();
 }
 
-// Exporta a CSV (se abre directo en Excel) el detalle de TODOS los pagos
-// del mes/sede actualmente filtrados en Finanzas - una fila por pago, no
+// Exporta a Excel/PDF el detalle de TODOS los pagos del rango de
+// fechas/sede filtrados en Verificación de Caja - una fila por pago, no
 // solo el resumen por día, para que Gerencia pueda auditar cada uno.
 // Arma la misma agrupación que ya usa la tabla en pantalla (resumen por
-// día) MÁS el detalle por psicóloga/paciente/concepto de cada día - lo
-// comparten exportarIngresosExcel y exportarIngresosPDF para que ambos
-// exports muestren exactamente lo mismo que la web, resumen y detalle.
-function _prepIngresosExport(){
-  var pagosMes=filtPagos(G.pagosLocal);
+// día, con el vuelto de Coordinación como columna aparte) MÁS el detalle
+// por psicóloga/paciente/concepto de cada día - lo comparten
+// exportarCajaExcel y exportarCajaPDF para que ambos exports muestren
+// exactamente lo mismo que la web, resumen y detalle.
+function _prepCajaExport(){
+  var rango=window._cvRango||{};
+  var desde=rango.desde||document.getElementById('cvDesde')?.value||'';
+  var hasta=rango.hasta||document.getElementById('cvHasta')?.value||'';
+  var sede=rango.sede||document.getElementById('cvSedeSel')?.value||'';
+  var pagosRango=(G.pagosLocal||[]).filter(function(p){
+    if(!p.fecha)return false;
+    if(desde&&p.fecha<desde)return false;
+    if(hasta&&p.fecha>hasta)return false;
+    if(sede&&(p._sede||p.sede||'')!==sede)return false;
+    return true;
+  });
   var porDia={},porDiaPagos={};
-  pagosMes.forEach(function(p){
+  pagosRango.forEach(function(p){
     var f=p.fecha;if(!f)return;
-    if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0};
+    if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0,vuelto:0};
     if(!porDiaPagos[f])porDiaPagos[f]=[];
     porDiaPagos[f].push(p);
+    if(_esVueltoCoord(p)){porDia[f].vuelto+=p.monto||0;return;}
     var m2=p.metodo||'Efectivo';
     if(m2==='Yape'||m2==='Plin')porDia[f].yape+=p.monto||0;
     else if(m2==='Transferencia'||m2==='Tarjeta')porDia[f].transferencia+=p.monto||0;
     else porDia[f].efectivo+=p.monto||0;
   });
   var diasOrd=Object.keys(porDia).sort().reverse();
-  var mesLbl=getFiltMes()||mesActual();
-  var sedeLbl=getFiltSede()||'Todas las sedes';
-  return{porDia:porDia,porDiaPagos:porDiaPagos,diasOrd:diasOrd,mesLbl:mesLbl,sedeLbl:sedeLbl,totalPagos:pagosMes.length};
+  var rangoLbl=(desde?fmtF(desde):'-')+' al '+(hasta?fmtF(hasta):'-');
+  var sedeLbl=sede||'Todas las sedes';
+  return{porDia:porDia,porDiaPagos:porDiaPagos,diasOrd:diasOrd,rangoLbl:rangoLbl,sedeLbl:sedeLbl,totalPagos:pagosRango.length,desde:desde,hasta:hasta};
 }
 function _detalleDiaPorPs(pagosDia){
   var porPs={};
@@ -2152,23 +2245,24 @@ function _pagosFlatSorted(d){
 // el body en una sola hoja. Por eso el detalle aparecía mezclado en
 // "Resumen" y la hoja "Detalle" quedaba vacía. El formato que sí abre con
 // hojas reales en un solo archivo es SpreadsheetML (el XML de Excel 2003).
-function exportarIngresosExcel(){
-  var d=_prepIngresosExport();
+function exportarCajaExcel(){
+  var d=_prepCajaExport();
   if(!d.totalPagos){alert('No hay pagos en el período/sede filtrados para exportar.');return;}
   var totEf=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].efectivo;},0);
   var totYp=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].yape;},0);
   var totTr=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].transferencia;},0);
-  var totAll=totEf+totYp+totTr;
+  var totVu=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].vuelto;},0);
+  var totAll=totEf+totYp+totTr+totVu;
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function cT(val,style){return '<Cell'+(style?' ss:StyleID="'+style+'"':'')+'><Data ss:Type="String">'+esc(val)+'</Data></Cell>';}
   function cN(val,style){return '<Cell'+(style?' ss:StyleID="'+style+'"':'')+'><Data ss:Type="Number">'+(val||0)+'</Data></Cell>';}
   function row(cells){return '<Row>'+cells.join('')+'</Row>';}
 
   var filasResumen=d.diasOrd.map(function(f,i){
-    var r=d.porDia[f];var tot=r.efectivo+r.yape+r.transferencia;
+    var r=d.porDia[f];var tot=r.efectivo+r.yape+r.transferencia+r.vuelto;
     var sT=i%2?'sRowAlt':'sRow',sM=i%2?'sMoneyAlt':'sMoney',sMB=i%2?'sMoneyBoldAlt':'sMoneyBold';
-    return row([cT(fmtF(f),sT),cN(r.efectivo,sM),cN(r.yape,sM),cN(r.transferencia,sM),cN(tot,sMB)]);
-  }).join('')+row([cT('TOTAL','sTotal'),cN(totEf,'sTotalMoney'),cN(totYp,'sTotalMoney'),cN(totTr,'sTotalMoney'),cN(totAll,'sTotalMoney')]);
+    return row([cT(fmtF(f),sT),cN(r.efectivo,sM),cN(r.yape,sM),cN(r.transferencia,sM),cN(r.vuelto,sM),cN(tot,sMB)]);
+  }).join('')+row([cT('TOTAL','sTotal'),cN(totEf,'sTotalMoney'),cN(totYp,'sTotalMoney'),cN(totTr,'sTotalMoney'),cN(totVu,'sTotalMoney'),cN(totAll,'sTotalMoney')]);
 
   var flat=_pagosFlatSorted(d);
   var filasDetalle=flat.map(function(p,i){
@@ -2194,8 +2288,8 @@ function exportarIngresosExcel(){
     '</Styles>'+
     '<Worksheet ss:Name="Resumen">'+
       '<Table>'+
-      '<Column ss:Width="80"/><Column ss:Width="70"/><Column ss:Width="70"/><Column ss:Width="90"/><Column ss:Width="80"/>'+
-      row([cT('Fecha','sHead'),cT('Efectivo','sHead'),cT('Yape/Plin','sHead'),cT('Transferencia','sHead'),cT('Total','sHead')])+
+      '<Column ss:Width="80"/><Column ss:Width="70"/><Column ss:Width="70"/><Column ss:Width="90"/><Column ss:Width="90"/><Column ss:Width="80"/>'+
+      row([cT('Fecha','sHead'),cT('Efectivo','sHead'),cT('Yape/Plin','sHead'),cT('Transferencia','sHead'),cT('Vuelto (Coord.)','sHead'),cT('Total','sHead')])+
       filasResumen+
       '</Table>'+
     '</Worksheet>'+
@@ -2210,7 +2304,7 @@ function exportarIngresosExcel(){
   var blob=new Blob(['﻿'+xml],{type:'application/vnd.ms-excel;charset=utf-8;'});
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a');
-  a.href=url;a.download='Ingresos_'+d.sedeLbl.replace(/\s+/g,'_')+'_'+d.mesLbl+'.xls';
+  a.href=url;a.download='VerifCaja_'+d.sedeLbl.replace(/\s+/g,'_')+'_'+(d.desde||'')+'_a_'+(d.hasta||'')+'.xls';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
@@ -2252,8 +2346,8 @@ function guardarPDF(doc,filename){
   }
   try{doc.save(filename);}catch(e2){console.error('[guardarPDF]',e2);}
 }
-function exportarIngresosPDF(){
-  var d=_prepIngresosExport();
+function exportarCajaPDF(){
+  var d=_prepCajaExport();
   if(!d.totalPagos){alert('No hay pagos en el período/sede filtrados para exportar.');return;}
   _cargarLibsPDF(function(){
     try{
@@ -2264,19 +2358,20 @@ function exportarIngresosPDF(){
       // solo, sin ningún acento de color como en el resto de reportes.
       doc.setFillColor(74,14,46);doc.rect(0,0,W,18,'F');
       doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
-      doc.text('Ingresos - '+d.sedeLbl+' - '+d.mesLbl,M,11);
+      doc.text('Verificación de Caja - '+d.sedeLbl+' - '+d.rangoLbl,M,11);
       doc.setFillColor(233,30,140);doc.rect(0,18,W,2,'F');
       var totEf=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].efectivo;},0);
       var totYp=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].yape;},0);
       var totTr=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].transferencia;},0);
-      var totAll=totEf+totYp+totTr;
+      var totVu=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].vuelto;},0);
+      var totAll=totEf+totYp+totTr+totVu;
       var filasResumen=d.diasOrd.map(function(f){
-        var r=d.porDia[f];var tot=r.efectivo+r.yape+r.transferencia;
-        return[fmtF(f),'S/'+r.efectivo.toLocaleString(),'S/'+r.yape.toLocaleString(),'S/'+r.transferencia.toLocaleString(),'S/'+tot.toLocaleString()];
+        var r=d.porDia[f];var tot=r.efectivo+r.yape+r.transferencia+r.vuelto;
+        return[fmtF(f),'S/'+r.efectivo.toLocaleString(),'S/'+r.yape.toLocaleString(),'S/'+r.transferencia.toLocaleString(),'S/'+r.vuelto.toLocaleString(),'S/'+tot.toLocaleString()];
       });
-      filasResumen.push(['TOTAL','S/'+totEf.toLocaleString(),'S/'+totYp.toLocaleString(),'S/'+totTr.toLocaleString(),'S/'+totAll.toLocaleString()]);
+      filasResumen.push(['TOTAL','S/'+totEf.toLocaleString(),'S/'+totYp.toLocaleString(),'S/'+totTr.toLocaleString(),'S/'+totVu.toLocaleString(),'S/'+totAll.toLocaleString()]);
       doc.autoTable({startY:24,margin:{left:M,right:M},
-        head:[['Fecha','Efectivo','Yape/Plin','Transferencia','Total']],
+        head:[['Fecha','Efectivo','Yape/Plin','Transferencia','Vuelto (Coord.)','Total']],
         body:filasResumen,
         headStyles:{fillColor:[74,14,46],textColor:255,fontStyle:'bold'},
         alternateRowStyles:{fillColor:[248,250,255]},
@@ -2296,8 +2391,8 @@ function exportarIngresosPDF(){
         alternateRowStyles:{fillColor:[248,250,255]},
         styles:{cellPadding:2}
       });
-      guardarPDF(doc,'Ingresos_'+d.sedeLbl.replace(/\s+/g,'_')+'_'+d.mesLbl+'.pdf');
-    }catch(e){console.error('[exportarIngresosPDF]',e);alert('Error al generar el PDF: '+e.message);}
+      guardarPDF(doc,'VerifCaja_'+d.sedeLbl.replace(/\s+/g,'_')+'_'+(d.desde||'')+'_a_'+(d.hasta||'')+'.pdf');
+    }catch(e){console.error('[exportarCajaPDF]',e);alert('Error al generar el PDF: '+e.message);}
   });
 }
 
@@ -3096,7 +3191,7 @@ function goTab(id,btn){
   // La Agenda tiene su propio filtro de sede independiente - el filtro
   // global de mes/sede de arriba no aplica ahí y se oculta para no confundir.
   var fb=document.querySelector('.filtros-bar');
-  if(fb)fb.style.display=(id==='tAgenda')?'none':'';
+  if(fb)fb.style.display=(id==='tAgenda'||id==='tCajaVerif')?'none':'';
 
   // Renderizar solo la pestaña activa
   var renderMap={
@@ -3105,6 +3200,7 @@ function goTab(id,btn){
     'tAlertas':renderAlertas,'tCrecimiento':renderCrecimiento,
     'tAsistHist':renderAsistHist,
     'tDocsPsicologas':renderDocsPsicologas,
+    'tCajaVerif':renderVerifCaja,
     'tPagos':function(){if(typeof renderCalendarioPagos==='function')renderCalendarioPagos('calendarioPagosContainer');if(typeof renderPagosRecurrentesLista==='function')renderPagosRecurrentesLista();}
   };
   var fn=renderMap[id];
