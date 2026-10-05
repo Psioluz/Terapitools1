@@ -6765,7 +6765,14 @@ async function _marcarAsInterno(sesRef,nuevoEst){
   // costo_total/nro_sesiones_total por sesión. Así un abono parcial que
   // ya cubre "la sesión de hoy" no bloquea el Asistió, aunque exista una
   // cuota vencida más adelante en el calendario del paquete.
-  if(nuevoEst==='asistio'&&pac){
+  // Excepción puntual: algunos pacientes (ej. Cristofer Alejandro Loayza,
+  // de los primeros desde que se fundó Psicoluz) tienen el privilegio de
+  // que nunca se les bloquee "Asistió" por cuota/abono, sin importar su
+  // saldo. Se marca en pacientes.exento_bloqueo_asistencia en vez de
+  // hardcodear nombres aquí, para que Administración pueda dar/quitar
+  // este privilegio a futuro sin tocar código.
+  var pacExento=pac&&pac._sb&&pac._sb.exento_bloqueo_asistencia;
+  if(nuevoEst==='asistio'&&pac&&!pacExento){
     var progId=s._sb&&s._sb.programa_id;
     var prog=progId&&(DB.programas||[]).find(function(p){return p.id===progId;});
     if(prog&&prog.pago_diferido){
