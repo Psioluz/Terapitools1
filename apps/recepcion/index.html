@@ -6555,7 +6555,14 @@ function abrirHistPac(pacId){
   const el=document.getElementById('histPac');
   if(el)el.value=pacId;
   showPage('historial',null);
-  renderHistorial();
+  // Antes solo hacía renderHistorial() con lo que ya hubiera en memoria -
+  // este es el camino que más se usa (el botón "Historial" desde la lista
+  // de Pacientes), pero nunca pasaba por cargarHistorialCompletoPac(), así
+  // que ni las sesiones antiguas ni las fichas de seguimiento llegaban a
+  // cargarse salvo que la recepcionista también tocara el selector de
+  // arriba a mano. onCambioHistPac() ya hace exactamente esto (lee el
+  // mismo <select>, que ya se dejó en el valor correcto arriba).
+  onCambioHistPac();
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
 }
 
