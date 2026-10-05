@@ -680,6 +680,15 @@ try{
     </div>
     <div id="histArchivosList" style="padding:14px"></div>
   </div>
+  <!-- FICHAS DE SEGUIMIENTO (las llena la psicóloga por sesión) - aparte de
+       Registro de Sesiones, para no desordenar esa tabla. -->
+  <div class="card" style="margin-top:16px" id="histFichasCard" style="display:none">
+    <div class="card-header">
+      <div class="card-title">📋 Fichas de Seguimiento</div>
+      <button class="btn btn-outline btn-sm" id="histFichasExportBtn" style="display:none" onclick="exportarFichasHistorialPDF()">📄 Exportar todas (PDF)</button>
+    </div>
+    <div id="histFichasList" style="padding:14px"></div>
+  </div>
 </div>
 
   <div class="page" id="page-cumpleanos"><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px"><div class="card"><div class="card-header"><div class="card-title">🎂 Pacientes</div></div><div style="padding:12px" id="cumplePacs"></div></div><div class="card"><div class="card-header"><div class="card-title">🎉 Psicólogas</div></div><div style="padding:12px" id="cumplePsis"></div></div></div></div>
@@ -5986,9 +5995,11 @@ async function renderHistorial(){
   _histPacId=pacId;
   const el=document.getElementById('histContenido');
   const cardArch=document.getElementById('histArchivosCard');
+  const cardFichas=document.getElementById('histFichasCard');
   if(!pacId){
     if(el)el.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">Selecciona un paciente</div>';
     if(cardArch)cardArch.style.display='none';
+    if(cardFichas)cardFichas.style.display='none';
     return;
   }
   // Las sesiones ya están en DB.sesiones, cargadas de Supabase por cargarDesdeSB()
@@ -6086,19 +6097,30 @@ async function renderHistorial(){
     }
     return ids;
   })();
-  // Ficha de seguimiento (la que llena la psicóloga) de cada sesión - se
-  // empareja por paciente+fecha+terapia+hora, igual que hace la propia app
-  // de Psicóloga al buscar si ya existe una ficha guardada para esa sesión.
-  const _fichasPacHist=(DB.fichas||[]).filter(function(f){return f.paciente_nombre===pac2.nombre;});
-  function _fichaDeSesion(s){
-    const terH2=getTer(s.terId);
-    return _fichasPacHist.find(function(f){
-      if(f.fecha!==s.fecha)return false;
-      if((f.terapia||'')!==(terH2.nombre||''))return false;
-      const fh=(f.hora||'').slice(0,5),sh=(s.hora||'').slice(0,5);
-      if(fh&&sh)return fh===sh;
-      return true; // si alguno no trae hora, no se descarta solo por eso
-    });
+  // Fichas de seguimiento (las llena la psicóloga) de este paciente - antes
+  // se mostraban como una columna más en la tabla de sesiones, pero ahí
+  // quedaba muy desordenado junto con asistencia/costo/notas. Ahora viven
+  // en su propia tarjeta, debajo de Documentos del Paciente (ver
+  // histFichasCard más abajo).
+  const _fichasPacHist=(DB.fichas||[]).filter(function(f){return f.paciente_nombre===pac2.nombre;})
+    .sort(function(a,b){return(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||''));});
+  if(cardFichas){
+    cardFichas.style.display='block';
+    const btnExp=document.getElementById('histFichasExportBtn');
+    if(btnExp)btnExp.style.display=_fichasPacHist.length?'inline-flex':'none';
+    const listFichasEl=document.getElementById('histFichasList');
+    if(listFichasEl){
+      listFichasEl.innerHTML=_fichasPacHist.length?_fichasPacHist.map(function(f){
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border-radius:10px;margin-bottom:6px;flex-wrap:wrap">'+
+          '<div style="font-size:22px">📋</div>'+
+          '<div style="flex:1;min-width:160px">'+
+          '<div style="font-size:12px;font-weight:700">'+fmtF(f.fecha)+(f.hora?' · '+f.hora:'')+' · '+(f.terapia||'-')+'</div>'+
+          '<div style="font-size:11px;color:var(--muted)">'+(f.psicologa_nombre||'-')+'</div>'+
+          '</div>'+
+          '<button class="btn btn-outline btn-sm" onclick="verFichaHistorial(\''+f.id+'\')">📄 PDF</button>'+
+          '</div>';
+      }).join(''):'<div style="color:var(--muted);text-align:center;padding:20px">Sin fichas de seguimiento registradas para este paciente.</div>';
+    }
   }
   el.innerHTML=
     '<div style="background:var(--bg);border-radius:12px;padding:14px;margin-bottom:16px">'+
@@ -6126,12 +6148,9 @@ async function renderHistorial(){
       '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="cancelarPaquete(\''+_progVigHist.id+'\',\''+(pac2.nombre||'').replace(/'/g,"\\'")+'\')">🚫 Cancelar paquete</button>'+
       '</div>':'')+
     '</div>'+
-    '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+
-    '<div style="font-size:13px;font-weight:800;color:var(--muted)">📋 Registro de Sesiones</div>'+
-    (_fichasPacHist.length?'<button class="btn btn-outline btn-sm" onclick="exportarFichasHistorialPDF()">📄 Exportar fichas (PDF)</button>':'')+
-    '</div>'+
+    '<div style="font-size:13px;font-weight:800;color:var(--muted);margin-bottom:8px">📋 Registro de Sesiones</div>'+
     (filasTabla.length?
-      '<div style="max-width:100%;overflow-x:auto"><table style="table-layout:auto;font-size:11px"><thead><tr><th>Fecha</th><th>Psicóloga</th><th>Terapia</th><th>Estado</th><th>Tipo</th><th>Costo</th><th>Ficha</th><th>Notas</th><th>Acción</th></tr></thead><tbody>'+
+      '<div style="max-width:100%;overflow-x:auto"><table style="table-layout:auto;font-size:11px"><thead><tr><th>Fecha</th><th>Psicóloga</th><th>Terapia</th><th>Estado</th><th>Tipo</th><th>Costo</th><th>Notas</th><th>Acción</th></tr></thead><tbody>'+
       filasTabla.map(s=>{
         if(s.esPagoSuelto){
           const total=s.pagosGrupo.reduce(function(a,p){return a+(p.monto||0);},0);
@@ -6142,7 +6161,6 @@ async function renderHistorial(){
             '<td><span class="badge bk" style="font-size:10px">'+s.concepto+'</span></td>'+
             '<td style="white-space:nowrap"><span style="color:var(--green);font-weight:700">S/'+total+'</span>'+
             '<div style="font-size:10px;color:var(--muted)">'+metodosTxt+'</div></td>'+
-            '<td>-</td>'+
             '<td style="font-size:11px;color:var(--muted)">'+(notasPagoSuelto||'')+'</td>'+
             '<td><span style="font-size:11px;color:var(--muted)">-</span></td></tr>';
         }
@@ -6186,16 +6204,6 @@ async function renderHistorial(){
           evReg.url_evidencia?'<a href="'+evReg.url_evidencia+'" target="_blank">📎 Ver evidencia</a>':''
         ].filter(Boolean).join('<br>'):'';
         const notasCelda=[s.notas||'',notasPago?'💳 '+notasPago:'',evCelda].filter(Boolean).join('<br>');
-        // Ficha de seguimiento de la psicóloga: solo tiene sentido mirarla en
-        // sesiones reales (no en una fila reprogramada, que es solo el
-        // registro de que ese cupo se movió a otra fecha).
-        let fichaCelda='-';
-        if(!esReprogFila){
-          const fichaSes=_fichaDeSesion(s);
-          fichaCelda=fichaSes
-            ?'<a href="#" onclick="verFichaHistorial(\''+fichaSes.id+'\');return false" style="color:var(--green);font-weight:700;white-space:nowrap">✅ PDF</a>'
-            :'<span style="color:var(--orange);font-weight:700;white-space:nowrap">⏳ Pendiente</span>';
-        }
         // Reprogramada o con permiso: queda solo como registro de que ese
         // cupo se movió - no cuenta como una sesión más, así que no muestra
         // el contador "Paq X/Y", y la fila reprogramada se pinta distinta
@@ -6205,7 +6213,6 @@ async function renderHistorial(){
           '<td><span style="color:'+ec+';font-weight:700">'+estadoLabel(s.estado)+'</span></td>'+
           '<td><span class="badge bk" style="font-size:10px">'+((esReprogFila||s.estado==='permiso')?'-':s.tipo==='paquete'?'Paq '+_paqLabel(s):s.tipo)+'</span></td>'+
           '<td style="white-space:nowrap">'+costoCelda+'</td>'+
-          '<td style="white-space:nowrap">'+fichaCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
           '<td style="white-space:nowrap">'+((s.estado==='programado'||s.estado==='noasistio'||s.estado==='permiso')?botonesAsistenciaCompactoHTML(s):
             '<span style="font-size:11px;color:var(--muted)">-</span>')+'</td></tr>';
