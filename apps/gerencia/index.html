@@ -3205,7 +3205,7 @@ function goTab(id,btn){
   // La Agenda tiene su propio filtro de sede independiente - el filtro
   // global de mes/sede de arriba no aplica ahí y se oculta para no confundir.
   var fb=document.querySelector('.filtros-bar');
-  if(fb)fb.style.display=(id==='tAgenda'||id==='tCajaVerif')?'none':'';
+  if(fb)fb.style.display=(id==='tAgenda'||id==='tCajaVerif'||id==='tChat')?'none':'';
 
   // Renderizar solo la pestaña activa
   var renderMap={
