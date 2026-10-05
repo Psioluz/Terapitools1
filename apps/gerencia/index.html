@@ -2047,11 +2047,25 @@ var _cvSelectsListos=false;
 function _esVueltoCoord(p){
   return String(p.paciente_nombre||'').indexOf('[Ajuste de caja]')===0;
 }
+// Lista de TODAS las sedes, sin depender del filtro global de sede de
+// Finanzas - getSedes() colapsa a devolver solo la sede ya elegida ahí
+// cuando hay una seleccionada (sirve para otras pantallas, pero acá
+// hacía que el selector de esta pestaña solo mostrara "Flecha" si esa
+// quedó elegida de antes en Finanzas, aunque esta pestaña tiene su
+// propio filtro de sede independiente).
+function _todasLasSedes(){
+  var set=new Set();
+  SEDES_ACTIVAS.forEach(function(s){set.add(s);});
+  G.sedes.forEach(function(s){set.add(s.nombre);});
+  G.sesiones.forEach(function(s){if(s.sede||s._sede)set.add(s.sede||s._sede);});
+  G.psicologas.forEach(function(p){if(p.sede||p._sede)set.add(p.sede||p._sede);});
+  return[...set].filter(Boolean);
+}
 function renderVerifCaja(){
   if(!_cvSelectsListos){
     var selSede=document.getElementById('cvSedeSel');
     if(selSede&&selSede.options.length<=1){
-      getSedes().forEach(function(sd){
+      _todasLasSedes().forEach(function(sd){
         var o=document.createElement('option');o.value=sd;o.textContent=sd;selSede.appendChild(o);
       });
     }
