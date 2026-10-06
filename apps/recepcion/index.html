@@ -3456,6 +3456,29 @@ function simularCalendarioPaquete(filas,fechaInicioStr,totalSesiones){
   return{eventos:eventos,porFila:porFila,saltadas:saltadas,completo:total>=totalSesiones};
 }
 
+// Un paquete recién creado puede "heredar" pagos sueltos que el paciente
+// ya había hecho ANTES de que este paquete existiera (ej. llegó, pagó un
+// adelanto de una vez y recién después se le armó el paquete completo) -
+// esos pagos quedan en "pagos" sin sesion_id ni programa_id porque en su
+// momento no había a qué atarlos. Si no se buscan aquí, el
+// adelanto_acumulado del paquete nuevo arranca sin contar esa plata que
+// el paciente YA pagó, y el saldo pendiente sale inflado (pasó con Jerson
+// Dayiro Cruzado: pagó S/100 antes del paquete y S/185 al registrarlo,
+// pero el saldo solo contaba los S/185). Devuelve el total encontrado (0
+// si no había nada) y deja los pagos ya atados al paquete nuevo.
+async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
+  let huerfanos=[];
+  try{
+    huerfanos=await sbGet('pagos',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,
+      sesion_id:'is.null',programa_id:'is.null',select:'id,monto'})||[];
+  }catch(e){console.error('[vincular pagos huérfanos]',e);return 0;}
+  if(!huerfanos.length)return 0;
+  const total=huerfanos.reduce(function(a,p){return a+(parseFloat(p.monto)||0);},0);
+  if(total<=0)return 0;
+  await Promise.all(huerfanos.map(function(p){return sbPatch('pagos',{programa_id:progId},{id:'eq.'+p.id});}));
+  return Math.round(total*100)/100;
+}
+
 // Registra el paquete UNA sola vez con todas sus terapias (nuevo, o
 // agregándole terapias a uno ya activo del paciente) y genera el
 // calendario de sesiones automáticamente.
@@ -3547,6 +3570,10 @@ async function guardarPaqueteFlujo(){
       await sbPost('precio_paciente',{paciente_nombre:pac.nombre,dni:pac.dni||'',sede:DB.sede,
         nombre_servicio:nombrePaqExcl,precio_especial:costoTotal,motivo:document.getElementById('ag-exclusivoMotivo')?.value||'',
         fecha_aplicacion:fechaInicio||today(),aprobado_por:DB.usuario||''}).catch(function(){});
+      {const extra=await _vincularPagosHuerfanosAPrograma(pac.nombre,DB.sede,progRow.id);
+      if(extra>0){adelantoAcum+=extra;saldo=Math.max(0,costoTotal-adelantoAcum);
+        await sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldo},{id:'eq.'+progRow.id});
+        showToast('💰 Se encontraron S/'+extra+' en pagos previos de '+pac.nombre+' sin vincular y se sumaron al adelanto de este paquete','success');}}
     } else {
       // Un servicio (Informe, Evaluación...) ya trae fijo su paquete desde
       // el selector "ag-servId" (ver agOnServ) - no pasa por el catálogo de
@@ -3564,6 +3591,10 @@ async function guardarPaqueteFlujo(){
         categoria:paq.categoria||'ninos'});
       progRow=progRows&&progRows[0];
       if(!progRow||!progRow.id)throw new Error('No se pudo crear el paquete');
+      {const extra=await _vincularPagosHuerfanosAPrograma(pac.nombre,DB.sede,progRow.id);
+      if(extra>0){adelantoAcum+=extra;saldo=Math.max(0,costoTotal-adelantoAcum);
+        await sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldo},{id:'eq.'+progRow.id});
+        showToast('💰 Se encontraron S/'+extra+' en pagos previos de '+pac.nombre+' sin vincular y se sumaron al adelanto de este paquete','success');}}
     }
 
     // Dos filas (días distintos) pueden compartir la misma terapia+psicóloga
@@ -3941,7 +3972,7 @@ async function guardarSesion(){
         saldo=(pac.saldo||0)+costoTotal-adelanto;
       }
       totalPaq=tipo==='paquete'&&paq?paq.nroSes:1;
-      let progRow=null,ptRow=null;
+      let progRow=null,ptRow=null,adelantoEfectivo=adelanto;
       if(tipo==='paquete'&&paq){
         const progRows=await sbPost('programas_paciente',{paciente_nombre:pac.nombre,sede:DB.sede,
           paquete_nombre:paq.nombre,tipo:'paquete',nro_sesiones_total:totalPaq,
@@ -3953,13 +3984,20 @@ async function guardarSesion(){
           const ptRows=await sbPost('programa_terapias',{programa_id:progRow.id,terapia:ter.nombre,
             psicologa:ps.nombre,sesiones_asignadas:totalPaq,sesiones_realizadas:sinSesionHoyEfectivo?0:1});
           ptRow=ptRows&&ptRows[0];
+          const extra=await _vincularPagosHuerfanosAPrograma(pac.nombre,DB.sede,progRow.id);
+          if(extra>0){
+            adelantoEfectivo=adelanto+extra;
+            saldo=Math.max(0,costoTotal-adelantoEfectivo);
+            await sbPatch('programas_paciente',{adelanto_acumulado:adelantoEfectivo,saldo:saldo},{id:'eq.'+progRow.id});
+            showToast('💰 Se encontraron S/'+extra+' en pagos previos de '+pac.nombre+' sin vincular y se sumaron al adelanto de este paquete','success');
+          }
         }
       }
       if(!sinSesionHoyEfectivo){
         filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
           psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:tipo,
           nro_en_paquete:tipo==='paquete'?1:0,total_paquete:totalPaq,costo_total:costoTotal,
-          adelanto:adelanto,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
+          adelanto:adelantoEfectivo,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
         if(progRow&&progRow.id){filaSesion.programa_id=progRow.id;if(ptRow&&ptRow.id)filaSesion.programa_terapia_id=ptRow.id;}
         const rSes=await sbPost('sesiones',filaSesion);
         sesionIdCreada=(rSes&&rSes[0]&&rSes[0].id)||null;
