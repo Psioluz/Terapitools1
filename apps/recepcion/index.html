@@ -911,7 +911,7 @@ try{
   </div>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="cancelarModalAgendar()">Cancelar</button>
-    <button class="btn btn-primary" onclick="agGuardarDesdeModal()">✅ Guardar Sesión</button>
+    <button class="btn btn-primary" id="ag-btn-guardar" onclick="agGuardarDesdeModal()">✅ Guardar Sesión</button>
   </div>
 </div>
 </div>
@@ -3184,7 +3184,21 @@ function _agHayFrecuenciaNueva(progId){
   for(const k in existentes)if(!delForm[k])return true;
   return false;
 }
+// Un doble clic (o un toque accidental repetido en el celular) en
+// "Guardar Sesión" disparaba guardarSesion()/guardarPaqueteFlujo() dos
+// veces casi al mismo tiempo - el chequeo de "horario ya ocupado" lee
+// DB.sesiones en memoria, que todavía no se había actualizado con el
+// primer guardado cuando arrancó el segundo, así que ambos pasaban la
+// validación y se creaban dos sesiones duplicadas en el mismo horario
+// (pasó con Nicolás Vásquez Ortiz al reprogramar). Se bloquea el botón
+// mientras el guardado está en curso para que esto no se repita.
+let _agGuardando=false;
 function agGuardarDesdeModal(){
+  if(_agGuardando)return;
+  _agGuardando=true;
+  const btn=document.getElementById('ag-btn-guardar');
+  if(btn)btn.disabled=true;
+  setTimeout(function(){_agGuardando=false;if(btn)btn.disabled=false;},3000);
   const tipo=document.getElementById('ag-tipo').value;
   const exclusivoModo=document.getElementById('ag-exclusivoModo')?.value||'sesion';
   const esPaqueteExclusivo=tipo==='exclusivo'&&exclusivoModo==='paquete';
