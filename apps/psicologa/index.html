@@ -719,7 +719,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     var u=SB+'/rest/v1/'+t+'?'+Object.keys(f).map(function(k){return k+'='+encodeURIComponent(f[k]);}).join('&');
     return fetch(u,{method:'PATCH',headers:HDR,body:JSON.stringify(d)}).then(function(r){return r.json();});
   }
-  function _jr(d){return new Response(JSON.stringify(d),{headers:{'Content-Type':'application/json'}});}
+  function _jr(d){return d;} // ya no se simula una Response - sbApi() devuelve el objeto directo
   function _fH(h){return h?h.substring(0,5):'';}
   function _sede(){try{return PS.sede||'Comas';}catch(e){return 'Comas';}}
 
@@ -730,22 +730,21 @@ function _diasTrabajoANum(txt){
     var nums=txt.split(',').map(function(s){return map[s.trim().toLowerCase()];}).filter(function(n){return n!==undefined;});
     return nums.length?nums:[1,2,3,4,5,6];
   }
-    var _oF=window.fetch;
-  window.fetch=function(url,opts){
-    if(typeof url==='string' && url.indexOf('script.google.com')>-1){
-      var qs=url.split('?')[1]||'';
-      var qp={};
-      qs.split('&').forEach(function(p){
-        var kv=p.split('=');
-        if(kv[0])qp[decodeURIComponent(kv[0])]=decodeURIComponent((kv[1]||'').replace(/\+/g,' '));
-      });
-      var action=qp.action||'';
-      var bd={};
-      try{bd=opts&&opts.body?JSON.parse(opts.body):{};}catch(e){}
-      var sede=qp.sede||bd.sede||_sede();
-      var email=(qp.email||qp.nombre||bd.email||bd.nombre||'').toLowerCase();
-      var mes=new Date(Date.now()-5*3600000); mes=mes.getFullYear()+'-'+String(mes.getMonth()+1).padStart(2,'0');
+  // Todas las lecturas/escrituras de esta app van directo a Supabase - antes
+  // pasaban por una capa que simulaba llamar a un Google Apps Script/Sheet
+  // (interceptando window.fetch) para no tener que tocar cada función que
+  // llamaba a esa URL vieja; los datos siempre vinieron de Supabase, nunca
+  // de una hoja de cálculo real. Se quitó esa capa: ahora cada función de
+  // abajo se llama directo (sbApi('accion',{...params})) sin URLs, sin
+  // querystring y sin el viaje de ida y vuelta por JSON.stringify/parse.
+  async function sbApi(action,p){
+    p=p||{};
+    var sede=p.sede||_sede();
+    var email=(p.email||p.nombre||'').toLowerCase();
+    var mes=new Date(Date.now()-5*3600000); mes=mes.getFullYear()+'-'+String(mes.getMonth()+1).padStart(2,'0');
+    var qp=p,bd=p;
 
+    {
       if(action==='getData'){
         return Promise.all([
           // Antes era _sb() con un límite fijo (500) ordenado de más antiguo
@@ -849,18 +848,6 @@ function _diasTrabajoANum(txt){
           mensaje:bd.msg||bd.texto||bd.mensaje||'',hora:h}).then(function(){return _jr({status:'ok'});});
       }
 
-      if(action==='guardarFichaSeguimiento'){
-        return _sbP('fichas_seguimiento',{
-          fecha:bd.fecha,hora:bd.hora||null,
-          paciente_nombre:bd.pacNombre||bd.paciente_nombre||'',
-          terapia:bd.terNombre||bd.terapia||'',
-          psicologa_nombre:bd.psNombre||bd.psicologa_nombre||'',
-          sede:bd.sede||sede,objetivo:bd.objetivo||'',
-          actividad:bd.actividad||'',resultados:bd.resultados||'',
-          proxima_sesion:bd.proxSesion||bd.proxima_sesion||''
-        }).then(function(r){return _jr({status:'ok',data:r});});
-      }
-
       if(action==='getContratoPs'){
         return _sb('contratos',{'trabajadora':'eq.'+(qp.nombre||''),'sede':'eq.'+(qp.sede||sede||''),'select':'*','order':'created_at.desc','limit':'1'}).then(function(r){
           if(r&&r.length){
@@ -872,55 +859,6 @@ function _diasTrabajoANum(txt){
         });
       }
 
-      if(action==='guardarFirmaContrato'){
-        return _sbU('contratos',{estado:'firmado',notas:'Firmado digitalmente el '+new Date().toLocaleDateString('es-PE')},
-          {'trabajadora':'eq.'+(bd.nombre||''),'sede':'eq.'+(bd.sede||sede||'')}).then(function(){return _jr({status:'ok'});});
-      }
-
-      if(action==='updateEstado'){
-        return _sbU('sesiones',{estado:bd.estado},{'id':'eq.'+(bd.id||'')}).then(function(){return _jr({status:'ok'});});
-      }
-
-      if(action==='getSeguimientoFichas'){
-        var fechaHoy=qp.fecha||new Date(Date.now()-5*3600000).toISOString().split('T')[0];
-        return Promise.all([
-          _sb('sesiones',{'sede':'eq.'+sede,'fecha':'eq.'+fechaHoy,'estado':'neq.programado','select':'*'}),
-          _sb('fichas_seguimiento',{'sede':'eq.'+sede,'fecha':'eq.'+fechaHoy,'select':'*'})
-        ]).then(function(res){return _jr({status:'ok',sesiones:res[0]||[],fichas:res[1]||[]});});
-      }
-
-      if(action==='append'){
-        // Insertar sesión, paciente u otro registro
-        var sheet=bd.sheet||bd.hoja||'';
-        if(sheet.toLowerCase().includes('sesion')){
-          return _sbP('sesiones',{fecha:bd.fecha,hora:bd.hora,paciente_nombre:bd.pacNombre||bd.nombre,
-            paciente_tel:bd.tel||'',psicologa:bd.psNombre||'',terapia:bd.terNombre||'',
-            estado:bd.estado||'programado',sede:sede}).then(function(){return _jr({status:'ok'});});
-        }
-        if(sheet.toLowerCase().includes('paciente')){
-          return _sbP('pacientes',{nombre:bd.nombre,telefono:bd.tel||'',diagnostico:bd.dx||'',
-            apoderado:bd.apoderado||'',paquete:bd.paq||'Paquete 12 sesiones',
-            sede:sede,estado:'activo',registrado_por:bd.registradoPor||''}).then(function(){return _jr({status:'ok'});});
-        }
-        return Promise.resolve(_jr({status:'ok'}));
-      }
-
-      if(action==='guardarFotoPs'){
-        // Ignorar - la foto se guarda localmente en el browser
-        return Promise.resolve(_jr({status:'ok',url:''}));
-      }
-
-      if(action==='verificarUsuario'){
-        var qpass=qp.password||bd.password||'';
-        return _sb('usuarios_gerencia',{'email':'eq.'+email,'password':'eq.'+qpass,'select':'*'}).then(function(r){
-          r=(r||[]).filter(function(u){var e=(u.estado||'').toLowerCase();return e===''||e==='activo'||e==='activa';});
-          if(r&&r.length)return _jr({status:'ok',acceso:true,nombre:r[0].nombre||email,rol:r[0].rol||'gerencia'});
-          return _sb('psicologas',{'email':'eq.'+email,'password':'eq.'+qpass,'select':'*'}).then(function(r2){
-            if(r2&&r2.length)return _jr({status:'ok',acceso:true,nombre:r2[0].nombre,rol:'psicologa'});
-            return _jr({status:'error',acceso:false,msg:'Credenciales incorrectas'});
-          });
-        });
-      }
       if(action==='getFichasPs'){
         var filF={'sede':'eq.'+sede,'select':'*','order':'fecha.desc','limit':'300'};
         try{if(PS&&PS.nombre)filF['psicologa_nombre']='eq.'+PS.nombre;}catch(e){}
@@ -950,34 +888,11 @@ function _diasTrabajoANum(txt){
         }).catch(function(){return _jr({status:'ok',archivos:[]});});
       }
 
-      if(action==='guardarObjetivo'){
-        return _sbP('fichas_seguimiento',{
-          fecha:qp.fecha||new Date(Date.now()-5*3600000).toISOString().split('T')[0],
-          paciente_nombre:qp.pac||'',terapia:'',
-          psicologa_nombre:(function(){try{return PS.nombre||'';}catch(e){return '';}})(),
-          sede:qp.sede||sede,objetivo:qp.objetivo||'',
-          actividad:'(Objetivo clínico)',resultados:'',proxima_sesion:''
-        }).then(function(){return _jr({status:'ok'});}).catch(function(){return _jr({status:'ok'});});
-      }
-
-      if(action==='getDocsPsicologas'){
-        var fSede=qp.sede||'';
-        var fil={'select':'*','order':'fecha_subida.desc'};
-        if(fSede)fil['sede']='eq.'+fSede;
-        return _sb('documentos_personal',fil).then(function(r){
-          return _jr({status:'ok',documentos:(r||[]).map(function(d){
-            return {psNombre:d.nombre||'',nombre:d.descripcion_doc||d.tipo||'Documento',
-              tipo:d.tipo||'',sede:d.sede||'',url:d.url_archivo||'',
-              fecha:d.fecha_subida||'',firmado:false};
-          })});
-        });
-      }
-
       console.warn('[Supabase] Acción no mapeada:',action);
-      return Promise.resolve(_jr({status:'ok',data:[]}));
+      return _jr({status:'ok',data:[]});
     }
-    return _oF.apply(window,arguments);
-  };
+  }
+  window.sbApi=sbApi; // el resto de la app (otros <script>) llama a esto directo
 
   // Función extra: cargar bonos del mes para el apartado de Metas
   window.cargarBonosMes=function(psicologa,sede){
@@ -1263,8 +1178,6 @@ self.addEventListener('fetch',e=>{
   };
 })();
 
-const SHEET='***';
-const API='https://script.google.com/macros/s/AKfycbw5KLwNulWBvU_7t4RAujX_TS8Sqw_6Dx6s2FishldetECiBaXTFru8Yj4JcS8EV-ko/exec';
 const PASS='psico2025';
 // Llave pública VAPID (segura de exponer en el cliente - es la pública) -
 // se usa para suscribir el navegador a notificaciones push reales, que sí
@@ -1494,14 +1407,11 @@ function onSede(){
     sel.disabled=false;
     toast('✅ '+psList.length+' psicólogas cargadas','ok');
   } else {
-    // Intentar del Apps Script
+    // Consultar directo a Supabase
     sel.innerHTML='<option value="">Consultando servidor...</option>';
-    fetch(API+'?action=getData&sede='+encodeURIComponent(sede)+'&_='+Date.now(),{cache:'no-store'})
-      .then(r=>r.text()).then(txt=>{
-        if(txt&&txt.charAt(0)==='{'){
-          const data=JSON.parse(txt);
-          if(data.psicologas&&data.psicologas.length>0){
-            // Apps Script ya filtra cesadas/inactivas en getData()
+    sbApi('getData',{sede:sede}).then(data=>{
+        if(data.psicologas&&data.psicologas.length>0){
+            // sbApi ya filtra cesadas/inactivas en getData()
             const nombres=[...new Set(data.psicologas
               .filter(p=>p.estado!=='cesada'&&p.estado!=='inactiva')
               .map(p=>p.nombre).filter(Boolean))];
@@ -1510,7 +1420,6 @@ function onSede(){
             sel.disabled=false;
             toast('✅ '+nombres.length+' psicólogas activas','ok');
             return;
-          }
         }
         sel.innerHTML='<option value="">Sin psicólogas - verifica el servidor</option>';        sel.innerHTML='<option value="">- Selecciona tu nombre -</option>'+
           base.map(n=>`<option value="${n}">${n}</option>`).join('');
@@ -1603,12 +1512,10 @@ async function doLoginEmail(){
   }
 
   if(!psEncontrada){
-    // Intentar buscar en el Sheet vía Apps Script
+    // Buscar directo en Supabase
     err.textContent = '⏳ Verificando...'; err.style.display='block';
-    fetch(API+'?action=getByEmail&email='+encodeURIComponent(email)+'&_='+Date.now(),{cache:'no-store'})
-      .then(r=>r.text()).then(async txt=>{
-        if(txt&&txt.charAt(0)==='{'){
-          const data=JSON.parse(txt);
+    sbApi('getByEmail',{email:email}).then(async data=>{
+        {
           // Aceptar tanto data.psicologa como data.usuario (compatibilidad)
           const rawData = data.psicologa || data.usuario;
           if(data.status==='ok' && rawData){
@@ -2076,7 +1983,7 @@ function cargarDeLocalStorage(){
   return PS.sesiones.length>0||PS.pacientes.length>0;
 }
 
-// ── SINCRONIZAR CON GOOGLE SHEET ──
+// ── SINCRONIZAR CON SUPABASE ──
 async function sync(mostrar){
   var bar=document.getElementById('syncBar');
   var ok=false;
@@ -2086,16 +1993,11 @@ async function sync(mostrar){
   if(localOk) ok=true;
 
   try{
-    var url=API+'?action=getData&sede='+encodeURIComponent(PS.sede||'Comas')+'&_='+Date.now();
-    var resp=await Promise.race([
-      fetch(url,{cache:'no-store'}),
+    var data=await Promise.race([
+      sbApi('getData',{sede:PS.sede||'Comas'}),
       new Promise(function(_,reject){setTimeout(function(){reject(new Error('Timeout 15s'));},15000);})
     ]);
-    if(!resp.ok) throw new Error('HTTP '+resp.status);
-    var txt=await resp.text();
-    console.log('[sync] GAS (80 chars):', txt.substring(0,80));
-    if(!txt||txt[0]!=='{') throw new Error('No JSON: '+txt.substring(0,40));
-    var data=JSON.parse(txt);
+    console.log('[sync] Supabase: '+(data.sesiones||[]).length+' sesiones');
     if(data.status!=='ok') throw new Error(data.msg||'status!=ok');
 
     var nomPropio=normNombrePs(PS.nombre);
@@ -2182,13 +2084,10 @@ async function sync(mostrar){
     // dispositivo/navegador o la suscripción expiró - sin esto, solo se
     // suscribía la primera vez que tocaba el botón.
     if('Notification' in window&&Notification.permission==='granted')suscribirPush();
-    // Prefetch fichas del Sheet para los pacientes del día
+    // Prefetch fichas para los pacientes del día
     if(PS.email){
-      fetch(API+'?action=getFichasPs&email='+encodeURIComponent(PS.email)+'&sede='+encodeURIComponent(PS.sede||'Comas')+'&_='+Date.now(),{cache:'no-store'})
-        .then(function(r){return r.text();})
-        .then(function(txt){
-          if(!txt||txt[0]!=='{')return;
-          var d=JSON.parse(txt);
+      sbApi('getFichasPs',{email:PS.email,sede:PS.sede||'Comas'})
+        .then(function(d){
           if(d.status==='ok'&&d.fichas){
             // Guardar por paciente en caché
             var byPac={};
@@ -2443,11 +2342,8 @@ function renderClinico(){
   const listKey='fichas_pac_'+PS.sede+'_'+pacNom.replace(/\s/g,'_');
   let fichas=_clinicoCache[listKey]||[];
   // Actualizar de Supabase en background
-  fetch(API+'?action=getFichasPs&nombre='+encodeURIComponent(PS.nombre||'')+'&sede='+encodeURIComponent(PS.sede||'')+'&pac='+encodeURIComponent(pacNom||'')+'&_='+Date.now(),{cache:'no-store'})
-    .then(function(r){return r.text();})
-    .then(function(txt){
-      if(!txt||txt[0]!=='{')return;
-      var d=JSON.parse(txt);
+  sbApi('getFichasPs',{nombre:PS.nombre||'',sede:PS.sede||''})
+    .then(function(d){
       if(d.status==='ok'&&d.fichas&&d.fichas.length>0){
         // Filtrar fichas del paciente seleccionado
         var fichasPac=d.fichas.filter(function(f){
@@ -2796,9 +2692,7 @@ async function cargarDocsEnPanel(pacNom){
   const el=document.getElementById('clDocs');if(!el)return;
   el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">⏳ Cargando...</div>';
   try{
-    const url=API+'?action=getArchivos&paciente='+encodeURIComponent(pacNom)+'&sede='+encodeURIComponent(PS.sede)+'&_='+Date.now();
-    const res=await fetch(url,{cache:'no-store'});
-    const data=JSON.parse(await res.text());
+    const data=await sbApi('getArchivos',{paciente:pacNom,sede:PS.sede});
     const archivos=data.archivos||[];
     if(!archivos.length){
       el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)"><div style="font-size:32px">📂</div><div>Sin documentos</div><div style="font-size:11px;margin-top:4px">La recepcionista puede subir documentos desde su app</div></div>';
@@ -3081,13 +2975,11 @@ function renderPacsPs(){
 function renderDocs(){
   var el=document.getElementById('listDocs');if(!el)return;
   el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)"><div style="font-size:24px">⏳</div>Cargando documentos...</div>';
-  fetch(API+'?action=getData&sede='+encodeURIComponent(PS.sede)+'&_='+Date.now(),{cache:'no-store'})
-    .then(function(r){return r.text();})
-    .then(function(txt){
-      if(!txt||txt[0]!=='{'){renderListaDocs([],el);return;}
-      var data=JSON.parse(txt);
-      renderListaDocs(data.archivos||[],el);
-    })
+  // Antes pedía 'getData' (que nunca trae un campo "archivos" en su
+  // respuesta) así que esta lista siempre salía vacía sin importar cuántos
+  // documentos hubiera - se corrige usando la acción correcta.
+  sbApi('getArchivos',{sede:PS.sede})
+    .then(function(data){renderListaDocs(data.archivos||[],el);})
     .catch(function(){renderListaDocs([],el);});
 }
 
@@ -3257,19 +3149,15 @@ function enviarMensajeChat(){
   inp.value='';
   var sede=PS.sede||'Comas';
   // El servidor (Supabase) es la única fuente: se envía y se recarga (cero duplicados)
-  fetch(API+'?action=enviarChat',{method:'POST',
-    body:JSON.stringify({action:'enviarChat',sede:sede,nombre:PS.nombre,tipo:'psicologa',msg:texto})
-  }).then(function(){return recargarChat();})
+  sbApi('enviarChat',{sede:sede,nombre:PS.nombre,tipo:'psicologa',msg:texto})
+    .then(function(){return recargarChat();})
     .catch(function(){toast('Sin conexión - mensaje no enviado','err');});
 }
 
 function recargarChat(){
   var sede=PS.sede||'Comas';
-  return fetch(API+'?action=getChat&sede='+encodeURIComponent(sede)+'&_='+Date.now(),{cache:'no-store'})
-    .then(function(r){return r.text();})
-    .then(function(txt){
-      if(!txt||txt[0]!=='{')return;
-      var data=JSON.parse(txt);
+  return sbApi('getChat',{sede:sede})
+    .then(function(data){
       if(data.status==='ok'&&data.mensajes){
         // Reemplaza por completo el caché local con lo del servidor
         localStorage.setItem('psicoluz_chat_'+sede,JSON.stringify(data.mensajes));
@@ -3717,10 +3605,7 @@ function verDocsPaciente(nombre){
 async function cargarContrato(){
   var el=document.getElementById('contratoStatus');if(!el)return;
   try{
-    var url=API+'?action=getContratoPs&nombre='+encodeURIComponent(PS.nombre||'')+'&sede='+encodeURIComponent(PS.sede||'')+'&_='+Date.now();
-    var txt=await fetch(url,{cache:'no-store'}).then(function(r){return r.text();});
-    if(!txt||txt[0]!=='{'){el.innerHTML='<div style="text-align:center;padding:10px;color:var(--muted);font-size:12px">Sin contrato cargado aún.<br><small>La administradora lo subirá pronto.</small></div>';return;}
-    var data=JSON.parse(txt);
+    var data=await sbApi('getContratoPs',{nombre:PS.nombre||'',sede:PS.sede||''});
     if(!data.url){el.innerHTML='<div style="text-align:center;padding:10px;color:var(--muted);font-size:12px">Sin contrato cargado aún.</div>';return;}
     var firmado=(data.estado==='firmado')||data.firmado;
     window._contratoUrl=data.url||'';
