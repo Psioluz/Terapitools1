@@ -1390,6 +1390,14 @@ function today(){
   return fechaLima();
 }
 function fmtF(f){if(!f)return'-';const p=String(f).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f;}
+// Comparar nombres de psicóloga por "primer nombre contenido en" fallaba
+// cuando un nombre corto es substring literal de otro (ej. "Liz" dentro de
+// "e-LIZ-abeth") - una psicóloga terminaba viendo mezclados los datos
+// (horario, sesiones, pacientes, asistencia) de otra colega con nombre
+// parecido. Se normaliza y compara el nombre COMPLETO en su lugar.
+function normNombrePs(s){
+  return (s||'').toLowerCase().replace(/lic\.?/gi,'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+}
 function normF(v){
   if(!v)return'';
   v=String(v).trim();
@@ -1878,8 +1886,8 @@ function doLogin(){
   // Leer diaEspecial, inicio, fin del localStorage de recepción
   const db=getDBFromLocalStorage(sede);
   if(db){
-    const nomB=nombre.toLowerCase().replace(/lic\./gi,'').trim().split(' ')[0];
-    const psObj=(db.psicologas||[]).find(p=>p.nombre.toLowerCase().replace(/lic\./gi,'').trim().includes(nomB));
+    const nomPropio=normNombrePs(nombre);
+    const psObj=(db.psicologas||[]).find(p=>normNombrePs(p.nombre)===nomPropio);
     if(psObj){PS.diaEspecial=psObj.diaEspecial||'';PS.inicio=psObj.inicio||'13:15';PS.fin=psObj.fin||'20:00';
       // Guardar para futuros ingresos desde otros dispositivos
       try{localStorage.setItem('psicoluz_ps_dia_'+sede+'_'+nombre,JSON.stringify({diaEspecial:psObj.diaEspecial||'',inicio:psObj.inicio||'13:15',fin:psObj.fin||'20:00'}));}catch(e){}}
@@ -2036,8 +2044,8 @@ function cargarDeLocalStorage(){
     }catch(e){}
     return false;
   }
-  const nomB=PS.nombre.toLowerCase().replace(/lic\./gi,'').trim().split(' ')[0];
-  const psObj=(db.psicologas||[]).find(p=>p.nombre.toLowerCase().replace(/lic\./gi,'').trim().includes(nomB));
+  const nomPropio=normNombrePs(PS.nombre);
+  const psObj=(db.psicologas||[]).find(p=>normNombrePs(p.nombre)===nomPropio);
   if(!psObj)return false;
   
   // Sesiones
@@ -2090,13 +2098,12 @@ async function sync(mostrar){
     var data=JSON.parse(txt);
     if(data.status!=='ok') throw new Error(data.msg||'status!=ok');
 
-    var nomB=PS.nombre.toLowerCase().replace(/lic\.?/gi,'').trim().split(' ')[0];
+    var nomPropio=normNombrePs(PS.nombre);
     var emailLow=(PS.email||'').toLowerCase();
 
-    console.log('[sync] Procesando',data.sesiones.length,'sesiones. nomB='+nomB+' email='+emailLow);
+    console.log('[sync] Procesando',data.sesiones.length,'sesiones. nomPropio='+nomPropio+' email='+emailLow);
     var misSes=(data.sesiones||[]).filter(function(s){
-      var psN=(s.psNombre||'').toLowerCase().replace(/lic\.?/gi,'').trim();
-      var byName=psN.includes(nomB)||nomB.includes(psN.split(' ')[0]);
+      var byName=normNombrePs(s.psNombre)===nomPropio;
       var byEmail=emailLow&&(s.emailRegistro||'').toLowerCase()===emailLow;
       return byName||byEmail;
     });
@@ -2149,8 +2156,7 @@ async function sync(mostrar){
     });
 
     var psData=(data.psicologas||[]).find(function(p){
-      var pn=(p.nombre||'').toLowerCase().replace(/lic\.?/gi,'').trim();
-      return pn.includes(nomB)||nomB.includes(pn.split(' ')[0]);
+      return normNombrePs(p.nombre)===nomPropio;
     });
     if(psData){
       // diaEspecial y diasSemana SÍ se sobrescriben aunque vengan vacíos -
@@ -3120,7 +3126,6 @@ async function renderMiAsistencia(){
   if(tit)tit.textContent=MESES_LARGO[mes]+' '+anio;
   var listaEl=document.getElementById('asistLista');
   if(listaEl)listaEl.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)"><div style="font-size:24px">⏳</div>Cargando...</div>';
-  var nomB=(PS.nombre||'').toLowerCase().replace(/lic\.?/gi,'').trim().split(' ')[0];
   var desde=mesStr+'-01';
   var finD=new Date(anio,mes+1,0).getDate();
   var hasta=mesStr+'-'+String(finD).padStart(2,'0');
@@ -3129,9 +3134,9 @@ async function renderMiAsistencia(){
       headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
     });
     var todos=await r.json();
+    var nomPropio=normNombrePs(PS.nombre);
     var regs=(todos||[]).filter(function(a){
-      var pn=(a.psicologa||'').toLowerCase().replace(/lic\.?/gi,'').trim();
-      return pn.includes(nomB)||nomB.includes(pn.split(' ')[0]);
+      return normNombrePs(a.psicologa)===nomPropio;
     });
     var nPres=regs.filter(function(a){return a.estado==='presente'&&!a.motivo_tardanza;}).length;
     var nTard=regs.filter(function(a){return a.estado==='presente'&&a.motivo_tardanza;}).length;
