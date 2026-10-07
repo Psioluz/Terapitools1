@@ -3764,7 +3764,17 @@ async function guardarPaqueteFlujo(){
         // "debe" recién en la sesión 8 en vez de desde la primera, dándole
         // al paciente 7 sesiones de margen antes de que el sistema avisara
         // nada.
-        cortes[yaAsignadas+1]=saldo;
+        // El monto que se estampa aquí NO debe descontar ya el adelanto de
+        // ESTA transacción - la cascada de más abajo (aplicarCascadaCheckpoints)
+        // se encarga de restarlo, igual que con las cuotas 2+. "saldo" ya
+        // viene neto (costoTotal-adelantoAcum), así que usarlo aquí directo
+        // hacía que el adelanto se restara DOS VECES: una al calcular
+        // "saldo" y otra en la cascada (ej. Efrain Escobedo: debía S/393,
+        // pero la cuota quedó en S/196 porque se le restó el adelanto de
+        // S/197 por partida doble). Se estampa el monto ANTES de aplicar
+        // el adelanto de esta transacción (solo neto de adelantos de
+        // ANTES, si los hay), para que la cascada lo descuente una sola vez.
+        cortes[yaAsignadas+1]=Math.max(0,costoTotal-(adelantoAcum-adelanto));
       }
       let nro=yaAsignadas;
       for(const ev of sim.eventos){
