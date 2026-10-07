@@ -3125,17 +3125,23 @@ async function generarSesionesRecurrentes(o){
       saltadas.push(fmtF(fStr)+' (horario ocupado)');continue;
     }
     const nroEnPaq=creadas+1;
+    // El saldo pendiente ya quedó estampado en la PRIMERA sesión (la que
+    // crea el código que llama a esta función, antes de invocarla) - las
+    // sesiones 2 en adelante nacen en saldo 0. Antes aquí se repetía
+    // o.saldoInicial en TODAS, así que un paquete de 8 sesiones con un
+    // adelanto parcial mostraba el mismo "debe S/X" duplicado en las 8
+    // filas en vez de solo en la primera.
     const fila={fecha:fStr,hora:o.hora,paciente_nombre:o.pac.nombre,paciente_tel:o.pac.tel||'',
       psicologa:psNombre,terapia:o.ter.nombre,estado:'programado',tipo:o.tipo,
       nro_en_paquete:nroEnPaq,total_paquete:o.totalSesiones,costo_total:o.costoTotal,
-      adelanto:0,saldo:o.saldoInicial,sede:DB.sede,registrado_por:DB.usuario||'',
+      adelanto:0,saldo:0,sede:DB.sede,registrado_por:DB.usuario||'',
       programa_id:o.programaId,programa_terapia_id:o.programaTerapiaId};
     try{
       const r=await sbPost('sesiones',fila);
       const nueva=(r&&r[0])||fila;
       DB.sesiones.push({id:nueva.id||('tmp-'+fStr+'-'+o.hora),fecha:fStr,hora:o.hora,
         pacId:o.pac.nombre,psId:psNombre,terId:o.ter.nombre,estado:'programado',
-        nroSes:nroEnPaq,totalPaq:o.totalSesiones,costo:o.costoTotal,saldo:o.saldoInicial,_sb:nueva});
+        nroSes:nroEnPaq,totalPaq:o.totalSesiones,costo:o.costoTotal,saldo:0,_sb:nueva});
       creadas++;
     }catch(e){console.error('[generarSesionesRecurrentes]',e);saltadas.push(fmtF(fStr)+' (error)');}
   }
@@ -3751,7 +3757,14 @@ async function guardarPaqueteFlujo(){
         });
         posicionesNuevas.forEach(function(p){cortes[p.sesion]=p.monto;});
       }else if(saldo>0){
-        cortes[totalSesiones]=saldo;
+        // Con una sola cuota, el saldo pendiente se cobra en la PRIMERA
+        // sesión nueva que se crea ahora (igual que la cuota 1 cuando hay
+        // varias cuotas) - antes quedaba en la ÚLTIMA sesión del paquete,
+        // así que un paquete de 8 sesiones con un adelanto parcial mostraba
+        // "debe" recién en la sesión 8 en vez de desde la primera, dándole
+        // al paciente 7 sesiones de margen antes de que el sistema avisara
+        // nada.
+        cortes[yaAsignadas+1]=saldo;
       }
       let nro=yaAsignadas;
       for(const ev of sim.eventos){
@@ -6092,7 +6105,14 @@ async function renderHistorial(){
   });
   const filasHuerfanas=Object.keys(gruposHuerfanos).map(function(k){
     const g=gruposHuerfanos[k];
-    return {id:'pago-'+k,fecha:g.fecha,hora:'',esPagoSuelto:true,concepto:g.concepto,pagosGrupo:g.pagos};
+    // Antes se forzaba hora:'' aquí - una fila con hora vacía siempre
+    // ordenaba ANTES que cualquier sesión con hora real del mismo día
+    // (comparación de texto fecha+hora), aunque el pago se hubiera
+    // registrado horas después de esa sesión. Se usa la hora real más
+    // temprana del grupo de pagos para que el orden visible coincida con
+    // el orden real en que pasaron las cosas.
+    const horaMin=g.pagos.reduce(function(min,p){return(!min||(p.hora&&p.hora<min))?p.hora:min;},'');
+    return {id:'pago-'+k,fecha:g.fecha,hora:horaMin||'',esPagoSuelto:true,concepto:g.concepto,pagosGrupo:g.pagos};
   });
   // El orden es siempre por fecha real - el "Paq X/Y" que se ve en cada
   // fila (_paqLabel) también se calcula por fecha (ver _rankPaqSesion), así
