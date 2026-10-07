@@ -971,8 +971,6 @@ function mostrarBienvenida(nombre){
   setTimeout(()=>el.style.opacity='0',5000);
 }
 
-var _API   = 'https://script.google.com/macros/s/AKfycbw5KLwNulWBvU_7t4RAujX_TS8Sqw_6Dx6s2FishldetECiBaXTFru8Yj4JcS8EV-ko/exec';
-var _SHEET = '***';
 var _PASS  = 'gerencia2025';
 var MESES  = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 var DIAS   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
@@ -1064,7 +1062,7 @@ function sbar(on){
     var u=SB+'/rest/v1/'+t+'?'+Object.keys(f).map(function(k){return k+'='+encodeURIComponent(f[k]);}).join('&');
     return fetch(u,{method:'PATCH',headers:HDR,body:JSON.stringify(d)}).then(function(r){return r.json();});
   }
-  function _jr(d){return new Response(JSON.stringify(d),{headers:{'Content-Type':'application/json'}});}
+  function _jr(d){return d;} // ya no se simula una Response - sbApiGer() devuelve el objeto directo
   function _fH(h){return h?h.substring(0,5):'';}
   // Gerencia no tiene una "sede actual" (administra las 4) - a diferencia de
   // psicologa.html/recepcion.html, aquí NO existe un objeto PS. Antes esto
@@ -1080,22 +1078,21 @@ function _diasTrabajoANum(txt){
     var nums=txt.split(',').map(function(s){return map[s.trim().toLowerCase()];}).filter(function(n){return n!==undefined;});
     return nums.length?nums:[1,2,3,4,5,6];
   }
-    var _oF=window.fetch;
-  window.fetch=function(url,opts){
-    if(typeof url==='string' && url.indexOf('script.google.com')>-1){
-      var qs=url.split('?')[1]||'';
-      var qp={};
-      qs.split('&').forEach(function(p){
-        var kv=p.split('=');
-        if(kv[0])qp[decodeURIComponent(kv[0])]=decodeURIComponent((kv[1]||'').replace(/\+/g,' '));
-      });
-      var action=qp.action||'';
-      var bd={};
-      try{bd=opts&&opts.body?JSON.parse(opts.body):{};}catch(e){}
-      var sede=qp.sede||bd.sede||_sede();
-      var email=(qp.email||qp.nombre||bd.email||bd.nombre||'').toLowerCase();
-      var mes=new Date(Date.now()-5*3600000); mes=mes.getFullYear()+'-'+String(mes.getMonth()+1).padStart(2,'0');
+  // Todas las lecturas/escrituras de esta app van directo a Supabase - antes
+  // pasaban por una capa que simulaba llamar a un Google Apps Script/Sheet
+  // (interceptando window.fetch) para no tener que tocar cada función que
+  // llamaba a esa URL vieja; los datos siempre vinieron de Supabase, nunca
+  // de una hoja de cálculo real. Se quitó esa capa: ahora cada función de
+  // abajo se llama directo (sbApiGer('accion',{...params})) sin URLs, sin
+  // querystring y sin el viaje de ida y vuelta por JSON.stringify/parse.
+  async function sbApiGer(action,p){
+    p=p||{};
+    var sede=p.sede||_sede();
+    var email=(p.email||p.nombre||'').toLowerCase();
+    var mes=new Date(Date.now()-5*3600000); mes=mes.getFullYear()+'-'+String(mes.getMonth()+1).padStart(2,'0');
+    var qp=p,bd=p;
 
+    {
       if(action==='getData'){
         return Promise.all([
           // Mismo bug de fondo que en Psicóloga: con "todas las sedes" (sin
@@ -1175,34 +1172,6 @@ function _diasTrabajoANum(txt){
         });
       }
 
-      if(action==='getByEmail'){
-        return _sb('psicologas',{'email':'eq.'+email,'select':'*'}).then(function(r){
-          if(r&&r.length){
-            var p=r[0];
-            var ps={id:p.id,nombre:p.nombre,sede:p.sede,email:p.email,
-              password:p.password,estado:p.estado,cop:p.cpsp||'',
-              especialidad:p.especialidad||'',inicio:_fH(p.hora_inicio)||'08:00',
-              fin:_fH(p.hora_fin)||'19:15',
-              diasSemana:_diasTrabajoANum(p.dias_trabajo),
-              fechaNac:p.fecha_nac||'',tel:p.telefono||'',diaEspecial:p.dia_completo||'',
-              cuenta:p.numero_cuenta||'',cci:p.cci||'',
-              sueldo:p.sueldo||0,fotoUrl:p.foto_url||''};
-            return _jr({status:'ok',psicologa:ps,usuario:ps});
-          }
-          return _sb('recepcionistas',{'email':'eq.'+email,'select':'*'}).then(function(r2){
-            if(r2&&r2.length){
-              var u=r2[0];
-              var ru={id:u.id,nombre:u.nombre,sede:u.sede,email:u.email,password:u.password,estado:u.estado};
-              return _jr({status:'ok',usuario:ru,psicologa:ru});
-            }
-            return _sb('usuarios_gerencia',{'email':'eq.'+email,'select':'*'}).then(function(r3){
-              if(r3&&r3.length){var g=r3[0];var gu={id:g.id,nombre:g.nombre||g.email,sede:g.sede||'Todas',email:g.email,password:g.password,estado:g.estado};return _jr({status:'ok',usuario:gu,psicologa:gu});}
-              return _jr({status:'error',msg:'Usuario no encontrado'});
-            });
-          });
-        });
-      }
-
       if(action==='getChat'||action==='cargarChat'){
         return _sb('chat_sede',Object.assign({'order':'created_at.asc','limit':'150','select':'*'},sedeFiltro(sede))).then(function(r){
           return _jr({status:'ok',ok:true,mensajes:(r||[]).map(function(m){
@@ -1218,67 +1187,6 @@ function _diasTrabajoANum(txt){
           mensaje:bd.msg||bd.texto||bd.mensaje||'',hora:h}).then(function(){return _jr({status:'ok'});});
       }
 
-      if(action==='guardarFichaSeguimiento'){
-        return _sbP('fichas_seguimiento',{
-          fecha:bd.fecha,hora:bd.hora||null,
-          paciente_nombre:bd.pacNombre||bd.paciente_nombre||'',
-          terapia:bd.terNombre||bd.terapia||'',
-          psicologa_nombre:bd.psNombre||bd.psicologa_nombre||'',
-          sede:bd.sede||sede,objetivo:bd.objetivo||'',
-          actividad:bd.actividad||'',resultados:bd.resultados||'',
-          proxima_sesion:bd.proxSesion||bd.proxima_sesion||''
-        }).then(function(r){return _jr({status:'ok',data:r});});
-      }
-
-      if(action==='getContratoPs'){
-        return _sb('contratos',{'trabajadora':'eq.'+(qp.nombre||''),'select':'*','limit':'1'}).then(function(r){
-          if(r&&r.length){
-            var c=r[0];
-            return _jr({status:'ok',url:c.url_documento||'',estado:c.estado||'pendiente',
-              monto:c.monto,fechaInicio:c.fecha_inicio,fechaFin:c.fecha_fin,tipo:c.tipo});
-          }
-          return _jr({status:'ok',url:'',estado:'sin contrato'});
-        });
-      }
-
-      if(action==='guardarFirmaContrato'){
-        return _sbU('contratos',{estado:'firmado',notas:'Firmado digitalmente el '+new Date().toLocaleDateString('es-PE')},
-          {'trabajadora':'eq.'+(bd.nombre||'')}).then(function(){return _jr({status:'ok'});});
-      }
-
-      if(action==='updateEstado'){
-        return _sbU('sesiones',{estado:bd.estado},{'id':'eq.'+(bd.id||'')}).then(function(){return _jr({status:'ok'});});
-      }
-
-      if(action==='getSeguimientoFichas'){
-        var fechaHoy=qp.fecha||fechaLima();
-        return Promise.all([
-          _sb('sesiones',{'sede':'eq.'+sede,'fecha':'eq.'+fechaHoy,'estado':'neq.programado','select':'*'}),
-          _sb('fichas_seguimiento',{'sede':'eq.'+sede,'fecha':'eq.'+fechaHoy,'select':'*'})
-        ]).then(function(res){return _jr({status:'ok',sesiones:res[0]||[],fichas:res[1]||[]});});
-      }
-
-      if(action==='append'){
-        // Insertar sesión, paciente u otro registro
-        var sheet=bd.sheet||bd.hoja||'';
-        if(sheet.toLowerCase().includes('sesion')){
-          return _sbP('sesiones',{fecha:bd.fecha,hora:bd.hora,paciente_nombre:bd.pacNombre||bd.nombre,
-            paciente_tel:bd.tel||'',psicologa:bd.psNombre||'',terapia:bd.terNombre||'',
-            estado:bd.estado||'programado',sede:sede}).then(function(){return _jr({status:'ok'});});
-        }
-        if(sheet.toLowerCase().includes('paciente')){
-          return _sbP('pacientes',{nombre:bd.nombre,telefono:bd.tel||'',diagnostico:bd.dx||'',
-            apoderado:bd.apoderado||'',paquete:bd.paq||'Paquete 12 sesiones',
-            sede:sede,estado:'activo',registrado_por:bd.registradoPor||''}).then(function(){return _jr({status:'ok'});});
-        }
-        return Promise.resolve(_jr({status:'ok'}));
-      }
-
-      if(action==='guardarFotoPs'){
-        // Ignorar - la foto se guarda localmente en el browser
-        return Promise.resolve(_jr({status:'ok',url:''}));
-      }
-
       if(action==='verificarUsuario'){
         var qpass=qp.password||bd.password||'';
         return _sb('usuarios_gerencia',{'email':'eq.'+email,'password':'eq.'+qpass,'select':'*'}).then(function(r){
@@ -1289,44 +1197,6 @@ function _diasTrabajoANum(txt){
             return _jr({status:'error',acceso:false,msg:'Credenciales incorrectas'});
           });
         });
-      }
-      if(action==='getFichasPs'){
-        var filF={'sede':'eq.'+sede,'select':'*','order':'fecha.desc','limit':'300'};
-        try{if(PS&&PS.nombre)filF['psicologa_nombre']='eq.'+PS.nombre;}catch(e){}
-        return _sb('fichas_seguimiento',filF).then(function(r){
-          return _jr({status:'ok',fichas:(r||[]).map(function(f){
-            return {pacNombre:f.paciente_nombre||'',paciente:f.paciente_nombre||'',
-              fecha:f.fecha||'',hora:f.hora||'',terapia:f.terapia||'',
-              objetivo:f.objetivo||'',actividad:f.actividad||'',
-              resultados:f.resultados||'',proxSesion:f.proxima_sesion||''};
-          })});
-        });
-      }
-
-      if(action==='getArchivos'){
-        var pacQ=qp.paciente||'';
-        return _sb('documentos',{'select':'*'}).then(function(r){
-          var docs=(r||[]).filter(function(d){
-            var dp=(d.paciente_nombre||d.paciente||d.nombre_paciente||'');
-            var ds=(d.sede||'');
-            return (!pacQ||dp===pacQ)&&(!sede||!ds||ds===sede);
-          });
-          return _jr({status:'ok',archivos:docs.map(function(d){
-            return {nombre:d.nombre||d.descripcion||d.tipo||'Documento',
-              url:d.url||d.url_archivo||'',tipo:d.tipo||'',
-              fecha:d.fecha||d.fecha_subida||(d.created_at?String(d.created_at).split('T')[0]:'')};
-          })});
-        }).catch(function(){return _jr({status:'ok',archivos:[]});});
-      }
-
-      if(action==='guardarObjetivo'){
-        return _sbP('fichas_seguimiento',{
-          fecha:qp.fecha||fechaLima(),
-          paciente_nombre:qp.pac||'',terapia:'',
-          psicologa_nombre:(function(){try{return PS.nombre||'';}catch(e){return '';}})(),
-          sede:qp.sede||sede,objetivo:qp.objetivo||'',
-          actividad:'(Objetivo clínico)',resultados:'',proxima_sesion:''
-        }).then(function(){return _jr({status:'ok'});}).catch(function(){return _jr({status:'ok'});});
       }
 
       if(action==='getDocsPsicologas'){
@@ -1343,10 +1213,10 @@ function _diasTrabajoANum(txt){
       }
 
       console.warn('[Supabase] Acción no mapeada:',action);
-      return Promise.resolve(_jr({status:'ok',data:[]}));
+      return _jr({status:'ok',data:[]});
     }
-    return _oF.apply(window,arguments);
-  };
+  }
+  window.sbApiGer=sbApiGer; // el resto de la app (otros <script>) llama a esto directo
 
   // Función extra: cargar bonos del mes para el apartado de Metas
   window.cargarBonosMes=function(psicologa,sede){
@@ -1389,11 +1259,10 @@ function doLogin(){
   var btn=document.querySelector('#loginScreen button[onclick="doLogin()"]')||document.querySelector('.lbtn');
   if(btn){btn.disabled=true;btn.textContent='Verificando...';}
 
-  fetch(_API+'?action=verificarUsuario&nombre='+encodeURIComponent(email)+'&password='+encodeURIComponent(pass)+'&tipo=gerencia&_='+Date.now())
-    .then(function(r){return r.text();})
-    .then(function(txt){
+  sbApiGer('verificarUsuario',{nombre:email,password:pass})
+    .then(function(d){
       var ok=false, nombreReal=email;
-      try{var d=JSON.parse(txt);if(d.status==='ok'&&d.acceso===true){ok=true;if(d.nombre)nombreReal=d.nombre;}}catch(e){}
+      try{if(d.status==='ok'&&d.acceso===true){ok=true;if(d.nombre)nombreReal=d.nombre;}}catch(e){}
       if(!ok&&pass===_PASS){ok=true;}
       if(ok){
         _gerEmail=email; _gerNombre=nombreReal;
@@ -1501,20 +1370,15 @@ function initApp(){
   sincronizar(false);
 }
 
-// ── SINCRONIZAR CON SHEET ────────────────────────────────────────────────────
+// ── SINCRONIZAR CON SUPABASE ────────────────────────────────────────────────────
 async function sincronizar(mostrar){
   sbar(true);
-  if(mostrar)toast('Cargando datos del Sheet...','inf');
+  if(mostrar)toast('Cargando datos...','inf');
   try{
-    var url=_API+'?action=getData&sede=&_='+Date.now();
-    var resp=await fetch(url,{cache:'no-store'});
-    if(!resp.ok)throw new Error('HTTP '+resp.status);
-    var txt=await resp.text();
-    if(!txt||txt.charAt(0)!=='{')throw new Error('Respuesta inválida');
-    var data=JSON.parse(txt);
+    var data=await sbApiGer('getData',{sede:''});
     if(data.status!=='ok')throw new Error(data.msg||'Error del servidor');
 
-    // Fusionar datos del Sheet
+    // Fusionar datos
     if(data.sesiones?.length)  G.sesiones  =data.sesiones;
     if(data.pacientes?.length) G.pacientes =data.pacientes;
     if(data.psicologas?.length)G.psicologas=data.psicologas;
@@ -3398,14 +3262,8 @@ function abrirChatGer(){
 // set completo en _lastMsgsGer y el filtro por sede se aplica del lado
 // del cliente en renderChatGer(), sin volver a pedir nada al servidor.
 async function cargarMensajesChatGer(){
-  var _API_GER=typeof _API!=='undefined'?_API:(typeof API!=='undefined'?API:'');
-  if(!_API_GER)return;
   try{
-    var url=_API_GER+'?action=getChat&sede=&desde='+_chatLastTsGer+'&_='+Date.now();
-    var res=await fetch(url,{cache:'no-store'});
-    var txt=await res.text();
-    if(!txt||txt[0]!=='{')return;
-    var data=JSON.parse(txt);
+    var data=await sbApiGer('getChat',{sede:''});
     if(data.status==='ok'&&data.mensajes){
       data.mensajes.forEach(m=>{if(m.ts>_chatLastTsGer)_chatLastTsGer=m.ts;});
       _lastMsgsGer=data.mensajes;
@@ -3461,13 +3319,10 @@ async function enviarMsgGer(){
   }
   window._chatSedeSelGerVal=sedeSel;
   input.value='';
-  var _API_GER=typeof _API!=='undefined'?_API:(typeof API!=='undefined'?API:'');
   var ts=Date.now();
   var hora=new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
   var nombre=_gerNombre||'Gerente';
-  fetch(_API_GER+'?action=enviarChat',{method:'POST',mode:'no-cors',
-    body:JSON.stringify({action:'enviarChat',sede:sedeSel,nombre,tipo:'gerencia',msg,ts,hora})
-  }).catch(()=>{});
+  sbApiGer('enviarChat',{sede:sedeSel,nombre:nombre,tipo:'gerencia',msg:msg,ts:ts,hora:hora}).catch(()=>{});
   // Mostrar optimistamente
   var msgs=[{nombre,tipo:'gerencia',msg,hora,ts,sede:sedeSel}];
   var elMsgs=document.getElementById('chatMensajesGer');
@@ -3489,12 +3344,7 @@ async function renderDocsPsicologas(){
   var filSede=getFiltSede();
   el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">⏳ Cargando...</div>';
   try{
-    var _API_GER=typeof _API!=='undefined'?_API:(typeof API!=='undefined'?API:'');
-    var url=_API_GER+'?action=getDocsPsicologas&sede='+encodeURIComponent(filSede)+'&_='+Date.now();
-    var res=await fetch(url,{cache:'no-store'});
-    var txt=await res.text();
-    if(!txt||txt[0]!=='{'){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">Sin conexión al servidor</div>';return;}
-    var data=JSON.parse(txt);
+    var data=await sbApiGer('getDocsPsicologas',{sede:filSede});
     var docs=data.documentos||[];
     if(!docs.length){
       el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)"><div style="font-size:32px;margin-bottom:10px">📂</div><div>Sin documentos cargados aún</div><div style="font-size:11px;margin-top:6px">La administradora debe subir los contratos</div></div>';
