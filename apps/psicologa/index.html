@@ -646,6 +646,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div><span style="color:#880e4f;font-weight:700">Psicóloga:</span><br><span id="fichaPsicologa" style="font-weight:800">-</span></div>
       </div>
     </div>
+    <!-- Selector de paciente cuando la sesión es compartida entre 2 (ej.
+         "Enzo y Lyam Mendoza Laboriano" - hermanos con un mismo paquete) -
+         oculto salvo que abrirFichaSeguimiento detecte el patrón " y ". -->
+    <div id="fichaPersonasBox" style="display:none;padding:0 16px 10px">
+      <div style="font-size:11px;font-weight:700;color:#880e4f;margin-bottom:6px">👥 Esta sesión es compartida entre 2 pacientes - completa la ficha de cada uno por separado:</div>
+      <div style="display:flex;gap:8px" id="fichaPersonasBtns"></div>
+    </div>
     <!-- Campos de la ficha -->
     <div class="ficha-campo">
       <label class="ficha-label" id="fichaLblObjetivo">🎯 Objetivo de la sesión</label>
@@ -777,7 +784,8 @@ function _diasTrabajoANum(txt){
                 estado:s.estado||'programado',tipo:s.tipo||'sesion',
                 nroEnPaq:s.nro_en_paquete||0,totalPaq:s.total_paquete||1,
                 costoTotal:s.costo_total||0,saldo:s.saldo||0,
-                emailRegistro:s.email_registro||''};
+                emailRegistro:s.email_registro||'',
+                maestraNom:s.maestra_nombre||'',maestraTel:s.maestra_tel||''};
             }),
             psicologas:psis.map(function(p){
               return {id:p.id,nombre:p.nombre,sede:p.sede,email:p.email,
@@ -864,10 +872,11 @@ function _diasTrabajoANum(txt){
         try{if(PS&&PS.nombre)filF['psicologa_nombre']='eq.'+PS.nombre;}catch(e){}
         return _sb('fichas_seguimiento',filF).then(function(r){
           return _jr({status:'ok',fichas:(r||[]).map(function(f){
-            return {pacNombre:f.paciente_nombre||'',paciente:f.paciente_nombre||'',
+            return {pacNombre:f.paciente_nombre||'',paciente:f.paciente_nombre||'',pac:f.paciente_nombre||'',
               fecha:f.fecha||'',hora:f.hora||'',terapia:f.terapia||'',
               objetivo:f.objetivo||'',actividad:f.actividad||'',
-              resultados:f.resultados||'',proxSesion:f.proxima_sesion||''};
+              resultados:f.resultados||'',proxSesion:f.proxima_sesion||'',
+              personaInd:f.paciente_individual||''};
           })});
         });
       }
@@ -1310,6 +1319,27 @@ function fmtF(f){if(!f)return'-';const p=String(f).split('-');return p.length===
 // parecido. Se normaliza y compara el nombre COMPLETO en su lugar.
 function normNombrePs(s){
   return (s||'').toLowerCase().replace(/lic\.?/gi,'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+}
+// Algunos pacientes comparten un mismo paquete/sesión entre 2 personas (ej.
+// hermanos) y el nombre queda guardado como "Enzo y Lyam Mendoza Laboriano"
+// - la " y " (siempre rodeada de espacios, nunca dentro de otra palabra)
+// marca la unión. Cuando la segunda parte trae más de una palabra se asume
+// que las últimas son el apellido compartido y se completa a la primera
+// parte si esta vino como un solo nombre suelto (si ya trae su propio
+// apellido, se respeta tal cual). El resultado es solo una sugerencia -
+// la psicóloga puede corregirla si no calza exactamente.
+function _dividirNombreCompartido(nombreCompleto){
+  var m=(nombreCompleto||'').match(/^(.+?)\s+y\s+(.+)$/i);
+  if(!m)return null;
+  var p1=m[1].trim(),p2=m[2].trim();
+  if(!p1||!p2)return null;
+  var p2Palabras=p2.split(/\s+/);
+  if(p2Palabras.length>1){
+    var apellido=p2Palabras.slice(1).join(' ');
+    var p1Palabras=p1.split(/\s+/);
+    if(p1Palabras.length===1)p1=p1+' '+apellido;
+  }
+  return [p1,p2];
 }
 function normF(v){
   if(!v)return'';
@@ -2225,7 +2255,8 @@ function renderSemana(){
       sw('#059669','Asistió')+sw('#dc2626','No asistió')+
       sw('#94a3b8','Reprogramado (R) / Permiso (P)')+
       '<span style="display:flex;align-items:center;gap:4px">📣 Campaña</span>'+
-      '<span style="display:flex;align-items:center;gap:4px">🩺 Consulta</span>';
+      '<span style="display:flex;align-items:center;gap:4px">🩺 Consulta</span>'+
+      '<span style="display:flex;align-items:center;gap:4px">📞 Llamada con maestra</span>';
   }
   var el=document.getElementById('gridSemana');if(!el)return;
   // Días que trabaja: si PS.diasSemana no está definido, mostrar los 6 días
@@ -2270,19 +2301,21 @@ function renderSemana(){
         // usa el color propio que la recepcionista le asignó a esta
         // psicóloga (PS.colorAgenda) en vez de un color genérico fijo.
         var esLibre=s.estado==='reprogramado'||s.estado==='permiso';
-        var bc=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':
+        var esLlamadaMaestra=s.tipo==='llamada_maestra';
+        var bc=esLlamadaMaestra?'#0891b2':s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':
           esLibre?'#94a3b8':(PS.colorAgenda||'#00a0a0');
         var letra=s.estado==='reprogramado'?'R':s.estado==='permiso'?'P':'';
         // Consulta y Campaña son ambas consultas normales para la psicóloga
         // (mismo trabajo), pero recepción las distingue para seguimiento de
         // marketing - un ícono chiquito en la ficha le deja ver de un
         // vistazo de dónde vino el paciente, sin cambiarle el color.
-        var tipoIcono=s.tipo==='Campaña'?'📣':s.tipo==='Consulta'?'🩺':'';
+        var tipoIcono=s.tipo==='Campaña'?'📣':s.tipo==='Consulta'?'🩺':esLlamadaMaestra?'📞':'';
         var partes=(s.pacNombre||'').split(' ').filter(function(w){return w.length>0;});
         var nom=partes.length>=2?(partes[0]+' '+partes[1]):partes[0]||'';
         var idx=window._semSesiones.length;
         window._semSesiones.push(s);
-        h+='<div class="sem-chip" style="background:'+bc+';cursor:pointer;position:relative'+(esLibre?';opacity:.85;text-decoration:line-through':'')+'" title="'+s.pacNombre+' · '+s.estado+(s.tipo?' · '+s.tipo:'')+'" onclick="verDetalleSesionSemana('+idx+')">'
+        var tituloChip=esLlamadaMaestra?(s.pacNombre+' · 📞 Llamada con maestra: '+(s.maestraNom||'-')):(s.pacNombre+' · '+s.estado+(s.tipo?' · '+s.tipo:''));
+        h+='<div class="sem-chip" style="background:'+bc+';cursor:pointer;position:relative'+(esLibre?';opacity:.85;text-decoration:line-through':'')+'" title="'+tituloChip+'" onclick="verDetalleSesionSemana('+idx+')">'
           +(letra?'<span style="position:absolute;top:0;right:2px;font-size:9px;font-weight:900;text-decoration:none">'+letra+'</span>':'')
           +(tipoIcono&&!letra?'<span style="position:absolute;top:0;right:2px;font-size:9px;text-decoration:none">'+tipoIcono+'</span>':'')
           +nom+'</div>';
@@ -2297,18 +2330,35 @@ function verDetalleSesionSemana(idx){
   var s=(window._semSesiones||[])[idx];if(!s)return;
   var estadoLbl={asistio:'✅ Asistió',noasistio:'❌ No asistió',permiso:'🟡 Permiso',
     reprogramado:'🔁 Reprogramado',programado:'🕐 Programado',tardanza:'⏰ Tardanza'}[s.estado]||s.estado;
-  var paqTxt=(s.tipo==='paquete'&&s.totalPaq)?('Paquete '+(s.nroEnPaq||'?')+'/'+s.totalPaq):'Sesión suelta';
   var body=document.getElementById('detalleSesionBody');
-  if(body)body.innerHTML=
-    '<div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Paciente</div>'+
-    '<div style="font-size:16px;font-weight:900;margin-bottom:10px">'+(s.pacNombre||'-')+'</div>'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">'+
-    '<div><div style="font-size:11px;color:var(--muted);font-weight:700">FECHA</div>'+(fmtF?fmtF(s.fecha):s.fecha)+'</div>'+
-    '<div><div style="font-size:11px;color:var(--muted);font-weight:700">HORA</div>'+normHora(s.hora)+'</div>'+
-    '<div><div style="font-size:11px;color:var(--muted);font-weight:700">TERAPIA</div>'+(s.terNombre||'-')+'</div>'+
-    '<div><div style="font-size:11px;color:var(--muted);font-weight:700">ESTADO</div>'+estadoLbl+'</div>'+
-    '<div style="grid-column:1/-1"><div style="font-size:11px;color:var(--muted);font-weight:700">PAQUETE</div>'+paqTxt+'</div>'+
-    '</div>';
+  if(body){
+    if(s.tipo==='llamada_maestra'){
+      body.innerHTML=
+        '<div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Paciente</div>'+
+        '<div style="font-size:16px;font-weight:900;margin-bottom:10px">'+(s.pacNombre||'-')+'</div>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">'+
+        '<div><div style="font-size:11px;color:var(--muted);font-weight:700">FECHA</div>'+(fmtF?fmtF(s.fecha):s.fecha)+'</div>'+
+        '<div><div style="font-size:11px;color:var(--muted);font-weight:700">HORA</div>'+normHora(s.hora)+'</div>'+
+        '<div><div style="font-size:11px;color:var(--muted);font-weight:700">ESTADO</div>'+estadoLbl+'</div>'+
+        '<div style="grid-column:1/-1;background:#e0f7fa;border-radius:8px;padding:8px"><div style="font-size:11px;color:#0891b2;font-weight:800">📞 LLAMAR A</div>'+
+        '<div style="font-size:14px;font-weight:800">'+(s.maestraNom||'-')+'</div>'+
+        (s.maestraTel?'<div style="font-size:13px">'+s.maestraTel+'</div>':'')+
+        '</div>'+
+        '</div>';
+    }else{
+      var paqTxt=(s.tipo==='paquete'&&s.totalPaq)?('Paquete '+(s.nroEnPaq||'?')+'/'+s.totalPaq):'Sesión suelta';
+      body.innerHTML=
+        '<div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Paciente</div>'+
+        '<div style="font-size:16px;font-weight:900;margin-bottom:10px">'+(s.pacNombre||'-')+'</div>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">'+
+        '<div><div style="font-size:11px;color:var(--muted);font-weight:700">FECHA</div>'+(fmtF?fmtF(s.fecha):s.fecha)+'</div>'+
+        '<div><div style="font-size:11px;color:var(--muted);font-weight:700">HORA</div>'+normHora(s.hora)+'</div>'+
+        '<div><div style="font-size:11px;color:var(--muted);font-weight:700">TERAPIA</div>'+(s.terNombre||'-')+'</div>'+
+        '<div><div style="font-size:11px;color:var(--muted);font-weight:700">ESTADO</div>'+estadoLbl+'</div>'+
+        '<div style="grid-column:1/-1"><div style="font-size:11px;color:var(--muted);font-weight:700">PAQUETE</div>'+paqTxt+'</div>'+
+        '</div>';
+    }
+  }
   var m=document.getElementById('modalDetalleSesion');if(m)m.classList.add('open');
 }
 
@@ -2524,6 +2574,7 @@ function renderClinico(){
             <span>🧠 ${f.terapia||'-'}</span>
             <span>👩‍⚕️ ${f.psNombre||PS.nombre}</span>
           </div>
+          ${f.personaInd?`<div style="margin-top:4px;background:rgba(255,255,255,.2);display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800">👥 Ficha de: ${f.personaInd}</div>`:''}
         </div>
         <!-- Tabla estilo la foto -->
         <div style="overflow-x:auto">
@@ -2904,6 +2955,24 @@ function cardSes(s){
   var bc=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':'var(--acc)';
   var badgeC=s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bt';
   var esPaq=s.tipo==='paquete'&&s.totalPaq;
+  // Llamada con maestra: no es una sesión de terapia (sin costo, sin
+  // ficha que llenar) - solo se muestra a quién debe llamar y con qué datos.
+  if(s.tipo==='llamada_maestra'){
+    var n0=window._fd.length;
+    window._fd.push({pac:s.pacNombre||'',ter:'Llamada con maestra',fec:s.fecha||'',hor:s.hora||''});
+    return '<div class="ses" style="border-left-color:#0891b2;padding:12px">'
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<div style="flex:1">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">'
+      +'<span style="font-size:18px;font-weight:900;color:#0891b2">'+hora+'</span>'
+      +'<span style="font-size:14px;font-weight:800">'+(s.pacNombre||'')+'</span>'
+      +'<span class="badge '+badgeC+'" style="font-size:10px">'+s.estado+'</span>'
+      +'</div>'
+      +'<div style="font-size:12px;color:#0891b2;font-weight:700">📞 Llamar a: '+(s.maestraNom||'-')+(s.maestraTel?' · '+s.maestraTel:'')+'</div>'
+      +'</div>'
+      +'</div>'
+      +'</div>';
+  }
   // El número de sesión DENTRO del paquete ya viene fijo desde que se creó
   // (nroEnPaq) - antes se recalculaba contando TODA la asistencia histórica
   // del paciente (de paquetes ya cerrados incluidos) entre el total del
@@ -3253,7 +3322,9 @@ function _plantillaFicha(terapia){
   return null;
 }
 function abrirFichaSeguimiento(pacNom,terapia,fecha,hora){
-  _fichaActual={pac:pacNom,terapia:terapia,fecha:fecha||today(),hora:hora||''};
+  var personas=_dividirNombreCompartido(pacNom);
+  _fichaActual={pac:pacNom,terapia:terapia,fecha:fecha||today(),hora:hora||'',
+    personas:personas,personaActiva:0,guardados:[false,false]};
   // Plantilla según el tipo de terapia - si no hay una específica, se
   // queda con las etiquetas/placeholders genéricos de siempre.
   var pl=_plantillaFicha(terapia);
@@ -3270,51 +3341,23 @@ function abrirFichaSeguimiento(pacNom,terapia,fecha,hora){
       if(lblEl)lblEl.textContent=(pl&&pl.lbls[campo])||LBL_DEF[campo];
       if(inputEl)inputEl.placeholder=(pl&&pl.ph[campo])||PH_DEF[campo];
     });
-  var elPac=document.getElementById('fichaPacNom');if(elPac)elPac.textContent=pacNom;
   var elFecha=document.getElementById('fichaFecha');if(elFecha)elFecha.textContent=fmtF(fecha||today());
   var elTer=document.getElementById('fichaTerapia');if(elTer)elTer.textContent=terapia||'No especificada';
   var elPs=document.getElementById('fichaPsicologa');if(elPs)elPs.textContent=PS.nombre||'-';
   var elSub=document.getElementById('fichaSubtitulo');if(elSub)elSub.textContent=(hora||'')+' · '+(terapia||'Sesión');
-  // Cargar ficha guardada. Antes solo miraba localStorage (por dispositivo),
-  // así que si la psicóloga volvía a abrir la ficha en otro celular o con el
-  // caché borrado, la veía en blanco y parecía que no se podía editar.
-  // Ahora se busca primero en las fichas ya sincronizadas desde Supabase
-  // (_clinicoCache, cargadas por getFichasPs) y solo si no está ahí se usa
-  // el respaldo local.
-  var saved={};
-  var listKeyFicha='fichas_pac_'+PS.sede+'_'+pacNom.replace(/\s/g,'_');
-  var fichasCache=_clinicoCache[listKeyFicha]||[];
-  var fichaSync=fichasCache.find(function(f){
-    return (f.fecha||'')===(fecha||today())&&(f.terapia||'')===(terapia||'')&&(f.hora||'')===(hora||'');
-  });
-  if(fichaSync){
-    saved={objetivo:fichaSync.objetivo,actividad:fichaSync.actividad,resultados:fichaSync.resultados,proxSesion:fichaSync.proxSesion};
+  var boxPersonas=document.getElementById('fichaPersonasBox');
+  if(personas&&boxPersonas){
+    boxPersonas.style.display='block';
+    var btnsEl=document.getElementById('fichaPersonasBtns');
+    if(btnsEl)btnsEl.innerHTML=personas.map(function(nom,i){
+      return '<button type="button" onclick="_fichaSeleccionarPersona('+i+')" data-pidx="'+i+'" style="flex:1;padding:8px;border-radius:10px;border:2px solid '+(i===0?'#c2185b':'#f1c7da')+';background:'+(i===0?'#c2185b':'#fff')+';color:'+(i===0?'#fff':'#880e4f')+';font-size:12px;font-weight:800;cursor:pointer">'+nom+'</button>';
+    }).join('');
+    var elPac0=document.getElementById('fichaPacNom');if(elPac0)elPac0.textContent=personas[0];
   }else{
-    var key='ficha_'+PS.sede+'_'+PS.nombre+'_'+(pacNom.replace(/\s/g,'_'))+'_'+(fecha||today())+'_'+((terapia||'').replace(/\s/g,'_').substring(0,20))+'_'+((hora||'').replace(':',''));
-    try{saved=JSON.parse(localStorage.getItem(key)||'{}');}catch(e){}
+    if(boxPersonas)boxPersonas.style.display='none';
+    var elPac=document.getElementById('fichaPacNom');if(elPac)elPac.textContent=pacNom;
   }
-  ['fichaObjetivo','fichaActividad','fichaResultados','fichaProxSesion'].forEach(function(id,i){
-    var el=document.getElementById(id);
-    if(el)el.value=saved[['objetivo','actividad','resultados','proxSesion'][i]]||'';
-  });
-  // Si no había nada en caché ni en localStorage, puede que la ficha exista
-  // en Supabase pero aún no se haya sincronizado a este dispositivo (p. ej.
-  // primera vez que se abre esta sesión ahí). Se consulta directo por si acaso,
-  // y si llega algo se rellena el formulario mientras sigue abierto.
-  if(!fichaSync&&!saved.objetivo&&!saved.actividad){
-    var filtroPref={sede:'eq.'+(PS.sede||''),paciente_nombre:'eq.'+pacNom,fecha:'eq.'+(fecha||today()),terapia:'eq.'+(terapia||'')};
-    filtroPref.hora=hora?('eq.'+hora):'is.null';
-    sbGet('fichas_seguimiento',filtroPref).then(function(r){
-      if(!r||!r.length)return;
-      if(!_fichaActual||_fichaActual.pac!==pacNom||_fichaActual.fecha!==(fecha||today()))return;
-      var f=r[0];
-      var map={fichaObjetivo:f.objetivo,fichaActividad:f.actividad,fichaResultados:f.resultados,fichaProxSesion:f.proxima_sesion};
-      Object.keys(map).forEach(function(id){
-        var el=document.getElementById(id);
-        if(el&&!el.value)el.value=map[id]||'';
-      });
-    }).catch(function(){});
-  }
+  _cargarCamposFichaPersona(personas?personas[0]:null);
   var modal=document.getElementById('modalFichaSegui');
   if(modal){
     // Siempre mover al body para evitar problemas con overflow/stacking context
@@ -3333,6 +3376,84 @@ function abrirFichaSeguimiento(pacNom,terapia,fecha,hora){
   }
 }
 
+// Carga en los 4 textareas la ficha guardada (si existe) para la persona
+// indicada - null/undefined cuando la sesión no es compartida. Misma
+// cascada de siempre: caché ya sincronizado -> localStorage del equipo ->
+// consulta directa a Supabase por si aún no llegó a este dispositivo.
+function _cargarCamposFichaPersona(personaInd){
+  var pacNom=_fichaActual.pac,terapia=_fichaActual.terapia,fecha=_fichaActual.fecha,hora=_fichaActual.hora;
+  var saved={};
+  var listKeyFicha='fichas_pac_'+PS.sede+'_'+pacNom.replace(/\s/g,'_');
+  var fichasCache=_clinicoCache[listKeyFicha]||[];
+  var fichaSync=fichasCache.find(function(f){
+    return (f.fecha||'')===(fecha||today())&&(f.terapia||'')===(terapia||'')&&(f.hora||'')===(hora||'')&&
+      (f.personaInd||'')===(personaInd||'');
+  });
+  var sufijoPersona=personaInd?('_'+personaInd.replace(/\s/g,'_')):'';
+  if(fichaSync){
+    saved={objetivo:fichaSync.objetivo,actividad:fichaSync.actividad,resultados:fichaSync.resultados,proxSesion:fichaSync.proxSesion};
+  }else{
+    var key='ficha_'+PS.sede+'_'+PS.nombre+'_'+(pacNom.replace(/\s/g,'_'))+'_'+(fecha||today())+'_'+((terapia||'').replace(/\s/g,'_').substring(0,20))+'_'+((hora||'').replace(':',''))+sufijoPersona;
+    try{saved=JSON.parse(localStorage.getItem(key)||'{}');}catch(e){}
+  }
+  ['fichaObjetivo','fichaActividad','fichaResultados','fichaProxSesion'].forEach(function(id,i){
+    var el=document.getElementById(id);
+    if(el)el.value=saved[['objetivo','actividad','resultados','proxSesion'][i]]||'';
+  });
+  // Si no había nada en caché ni en localStorage, puede que la ficha exista
+  // en Supabase pero aún no se haya sincronizado a este dispositivo (p. ej.
+  // primera vez que se abre esta sesión ahí). Se consulta directo por si acaso,
+  // y si llega algo se rellena el formulario mientras sigue abierto.
+  if(!fichaSync&&!saved.objetivo&&!saved.actividad){
+    var filtroPref={sede:'eq.'+(PS.sede||''),paciente_nombre:'eq.'+pacNom,fecha:'eq.'+(fecha||today()),terapia:'eq.'+(terapia||'')};
+    filtroPref.hora=hora?('eq.'+hora):'is.null';
+    filtroPref.paciente_individual=personaInd?('eq.'+personaInd):'is.null';
+    sbGet('fichas_seguimiento',filtroPref).then(function(r){
+      if(!r||!r.length)return;
+      if(!_fichaActual||_fichaActual.pac!==pacNom||_fichaActual.fecha!==(fecha||today()))return;
+      if((_fichaActual.personas?_fichaActual.personas[_fichaActual.personaActiva]:null)!==personaInd)return;
+      var f=r[0];
+      var map={fichaObjetivo:f.objetivo,fichaActividad:f.actividad,fichaResultados:f.resultados,fichaProxSesion:f.proxima_sesion};
+      Object.keys(map).forEach(function(id){
+        var el=document.getElementById(id);
+        if(el&&!el.value)el.value=map[id]||'';
+      });
+    }).catch(function(){});
+  }
+}
+// Cambia de persona dentro de una ficha compartida (hermanos) - guarda en
+// un buffer en memoria lo que se haya escrito para la persona que se deja,
+// para no perderlo si todavía no se guardó en Supabase, y carga/limpia los
+// campos para la persona a la que se cambia.
+function _fichaSeleccionarPersona(idx){
+  if(!_fichaActual.personas)return;
+  var actual=_fichaActual.personaActiva;
+  if(!_fichaActual.buffers)_fichaActual.buffers=[{},{}];
+  _fichaActual.buffers[actual]={
+    objetivo:document.getElementById('fichaObjetivo')?.value||'',
+    actividad:document.getElementById('fichaActividad')?.value||'',
+    resultados:document.getElementById('fichaResultados')?.value||'',
+    proxSesion:document.getElementById('fichaProxSesion')?.value||''
+  };
+  _fichaActual.personaActiva=idx;
+  var elPac=document.getElementById('fichaPacNom');if(elPac)elPac.textContent=_fichaActual.personas[idx];
+  document.querySelectorAll('#fichaPersonasBtns button').forEach(function(b){
+    var i=parseInt(b.dataset.pidx);
+    b.style.background=i===idx?'#c2185b':'#fff';
+    b.style.color=i===idx?'#fff':'#880e4f';
+    b.style.borderColor=i===idx?'#c2185b':'#f1c7da';
+  });
+  var buf=_fichaActual.buffers[idx];
+  if(buf&&(buf.objetivo||buf.actividad||buf.resultados||buf.proxSesion)){
+    var elO=document.getElementById('fichaObjetivo');if(elO)elO.value=buf.objetivo||'';
+    var elA=document.getElementById('fichaActividad');if(elA)elA.value=buf.actividad||'';
+    var elR=document.getElementById('fichaResultados');if(elR)elR.value=buf.resultados||'';
+    var elP=document.getElementById('fichaProxSesion');if(elP)elP.value=buf.proxSesion||'';
+  }else{
+    _cargarCamposFichaPersona(_fichaActual.personas[idx]);
+  }
+}
+
 function cerrarFichaSeguimiento(){
   var modal=document.getElementById('modalFichaSegui');
   if(modal){modal.classList.remove('open');modal.style.display='';document.body.style.overflow='';document.documentElement.style.overflow='';}
@@ -3342,6 +3463,13 @@ function cerrarFichaSeguimiento(){
 function guardarFichaSeguimiento(){
   var pac=_fichaActual.pac,terapia=_fichaActual.terapia,fecha=_fichaActual.fecha;
   if(!pac){showToast('Sin paciente','err');return;}
+  // Sesión compartida entre 2 pacientes (ej. hermanos con el mismo
+  // paquete) - cada ficha se guarda aparte, identificada por
+  // paciente_individual, pero paciente_nombre sigue siendo el nombre
+  // combinado de la sesión para que el Clínico de ese "paciente" (la
+  // sesión/paquete compartido) siga encontrándolas.
+  var personas=_fichaActual.personas;
+  var personaInd=personas?personas[_fichaActual.personaActiva]:null;
   var objetivo=document.getElementById('fichaObjetivo')?document.getElementById('fichaObjetivo').value.trim():'';
   var actividad=document.getElementById('fichaActividad')?document.getElementById('fichaActividad').value.trim():'';
   var resultados=document.getElementById('fichaResultados')?document.getElementById('fichaResultados').value.trim():'';
@@ -3349,26 +3477,29 @@ function guardarFichaSeguimiento(){
   if(!objetivo&&!actividad){showToast('Completa Objetivo y Actividad','err');return;}
   var ficha={pac:pac,terapia:terapia,fecha:fecha||today(),psNombre:PS.nombre,sede:PS.sede,
     objetivo:objetivo,actividad:actividad,resultados:resultados,proxSesion:proxSesion,
-    ts:Date.now(),hora:_fichaActual.hora};
+    ts:Date.now(),hora:_fichaActual.hora,personaInd:personaInd||''};
   var listKey='fichas_pac_'+PS.sede+'_'+pac.replace(/\s/g,'_');
   var fichas=_clinicoCache[listKey]||[];
-  var idx=fichas.findIndex(function(f){return f.fecha===ficha.fecha&&f.terapia===ficha.terapia&&f.hora===ficha.hora;});
+  var idx=fichas.findIndex(function(f){return f.fecha===ficha.fecha&&f.terapia===ficha.terapia&&f.hora===ficha.hora&&(f.personaInd||'')===(personaInd||'');});
   if(idx>=0)fichas[idx]=ficha;else fichas.unshift(ficha);
   _clinicoCache[listKey]=fichas;
   // Guardar en Supabase (tabla fichas_seguimiento) - directo, sin pasar por el
   // interceptor de Apps Script (que esperaba campos planos y no un objeto anidado)
   // Antes esto siempre insertaba una fila nueva, así que "editar" una ficha ya
   // guardada creaba un duplicado en vez de actualizarla. Ahora se busca primero
-  // si ya existe una fila para esta misma sesión (sede+paciente+fecha+terapia+hora)
-  // y si existe se actualiza (PATCH) en lugar de insertar otra.
+  // si ya existe una fila para esta misma sesión (sede+paciente+fecha+terapia+hora,
+  // y además paciente_individual cuando la sesión es compartida, para que las
+  // 2 fichas de los hermanos no se pisen entre sí) y si existe se actualiza
+  // (PATCH) en lugar de insertar otra.
   var filtroFicha={sede:'eq.'+(PS.sede||''),paciente_nombre:'eq.'+pac,fecha:'eq.'+(ficha.fecha||''),
     terapia:'eq.'+(terapia||''),select:'id'};
   filtroFicha.hora=ficha.hora?('eq.'+ficha.hora):'is.null';
+  filtroFicha.paciente_individual=personaInd?('eq.'+personaInd):'is.null';
   sbGet('fichas_seguimiento',filtroFicha).then(function(existentes){
     var datosFicha={
       fecha:ficha.fecha,hora:ficha.hora||null,paciente_nombre:pac,terapia:terapia||'',
       psicologa_nombre:PS.nombre||'',sede:PS.sede||'',objetivo:objetivo,actividad:actividad,
-      resultados:resultados,proxima_sesion:proxSesion
+      resultados:resultados,proxima_sesion:proxSesion,paciente_individual:personaInd||null
     };
     if(existentes&&existentes.length){
       return sbPatch('fichas_seguimiento',datosFicha,{id:'eq.'+existentes[0].id});
@@ -3382,6 +3513,18 @@ function guardarFichaSeguimiento(){
       renderClinico();
     }
   }).catch(function(e){console.warn('[ficha] error al sincronizar:',e.message);showToast('⚠️ Ficha guardada localmente, pero falló la sincronización','err');});
+  // Si la sesión es compartida y todavía falta la ficha de la otra persona,
+  // no se cierra el modal - se pasa directo a completarla, para que no se
+  // olvide la segunda ficha (el pendiente más probable de este flujo).
+  if(personas){
+    _fichaActual.guardados[_fichaActual.personaActiva]=true;
+    var faltante=_fichaActual.guardados.findIndex(function(g){return !g;});
+    if(faltante>-1){
+      showToast('✅ Ficha de '+personas[_fichaActual.personaActiva]+' guardada. Completa la de '+personas[faltante]+'.','ok');
+      _fichaSeleccionarPersona(faltante);
+      return;
+    }
+  }
   showToast('✅ Ficha guardada','ok');
   cerrarFichaSeguimiento();
   // Refrescar vista inmediatamente
@@ -4010,8 +4153,9 @@ window.cambiarFoto=function(input){
 async function renderMetas(){
   var mesStr=today().substring(0,7);
   var el=document.getElementById('mtMes');if(el)el.textContent=mesStr;
-  // Las consultas sueltas (sin programa asignado por recepción) no cuentan para la meta
-  var sesMes=(PS.sesiones||[]).filter(function(x){return (x.fecha||'').substring(0,7)===mesStr&&x.tipo!=='consulta';});
+  // Las consultas sueltas (sin programa asignado por recepción) y las
+  // llamadas con maestra (sin costo, no son terapia) no cuentan para la meta
+  var sesMes=(PS.sesiones||[]).filter(function(x){return (x.fecha||'').substring(0,7)===mesStr&&x.tipo!=='consulta'&&x.tipo!=='llamada_maestra';});
   // Puntualidad: de las sesiones donde SÍ asistió (a tiempo o tarde),
   // qué porcentaje fue a tiempo. No asistió/permiso no cuentan para
   // puntualidad (son ausencias, no llegadas tarde).

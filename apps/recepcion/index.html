@@ -371,6 +371,7 @@ try{
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-outline btn-sm" onclick="exportarAgendaPDF()">📄 PDF Agenda</button>
+        <button class="btn btn-cyan" onclick="abrirModalLlamadaMaestra()">📞 Llamada con Maestra</button>
         <button class="btn btn-primary" onclick="abrirModalAgendar()">+ Agendar Sesión</button>
       </div>
     </div>
@@ -912,6 +913,63 @@ try{
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="cancelarModalAgendar()">Cancelar</button>
     <button class="btn btn-primary" id="ag-btn-guardar" onclick="agGuardarDesdeModal()">✅ Guardar Sesión</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL LLAMADA CON MAESTRA - cita sin costo (parte del servicio del
+     centro) para que la psicóloga llame a la maestra/tutora del paciente.
+     Es un modal independiente del de Agendar Sesión a propósito: ese modal
+     está construido alrededor de la facturación de paquetes/cuotas, y esta
+     cita no tiene nada que ver con eso. -->
+<div class="modal-overlay" id="modalLlamadaMaestra">
+<div class="modal">
+  <div class="modal-header">
+    <div class="modal-title">📞 Agendar Llamada con Maestra</div>
+    <button class="modal-close" onclick="closeModal('modalLlamadaMaestra')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="alert al-info" style="margin-bottom:10px;font-size:11.5px">
+      ℹ️ Esta cita no tiene costo - es parte del servicio del centro. Solo queda asignada a un paciente y una psicóloga, con los datos de la maestra a la que debe llamar.
+    </div>
+    <div class="form-group" style="position:relative">
+      <label class="form-label">Paciente *</label>
+      <input type="text" class="form-control" id="lm-pac-search" placeholder="Escribe el nombre del paciente..." autocomplete="off" oninput="lmFiltrarPac()" onfocus="lmFiltrarPac()">
+      <input type="hidden" id="lm-pac">
+      <div id="lm-pac-list" class="autocomplete-list" style="display:none"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Psicóloga *</label>
+      <select class="form-control" id="lm-ps"></select>
+    </div>
+    <div class="grid g2">
+      <div class="form-group">
+        <label class="form-label">Fecha *</label>
+        <input type="date" class="form-control" id="lm-fecha">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hora *</label>
+        <input type="time" class="form-control" id="lm-hora">
+      </div>
+    </div>
+    <div class="grid g2">
+      <div class="form-group">
+        <label class="form-label">Nombre de la maestra/tutora *</label>
+        <input type="text" class="form-control" id="lm-maestra-nombre" placeholder="Ej. Prof. Rosa Pérez">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Teléfono de la maestra/tutora</label>
+        <input type="text" class="form-control" id="lm-maestra-tel" placeholder="Ej. 987654321">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notas</label>
+      <input class="form-control" id="lm-notas" placeholder="Motivo de la llamada, colegio, grado...">
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modalLlamadaMaestra')">Cancelar</button>
+    <button class="btn btn-primary" id="lm-btn-guardar" onclick="guardarLlamadaMaestra()">✅ Agendar Llamada</button>
   </div>
 </div>
 </div>
@@ -1485,7 +1543,7 @@ function fillSelects(){
   const psO='<option value="">- Selecciona -</option>'+DB.psicologas.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join('');
   const terO='<option value="">- Selecciona -</option>'+DB.terapias.map(t=>'<option value="'+t.id+'">'+t.nombre+'</option>').join('');
   const pacO='<option value="">- Selecciona -</option>'+DB.pacientes.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join('');
-  ['ag-ps','pg-ps'].forEach(id=>_fillPreservando(id,psO));
+  ['ag-ps','pg-ps','lm-ps'].forEach(id=>_fillPreservando(id,psO));
   ['ag-ter'].forEach(id=>_fillPreservando(id,terO));
   ['pg-pac','pg-ajustePaciente'].forEach(id=>_fillPreservando(id,pacO));
   _fillPreservando('histPac','<option value="">- Selecciona paciente -</option>'+DB.pacientes.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join(''));
@@ -1526,6 +1584,81 @@ document.addEventListener('click',function(e){
   const list=document.getElementById('ag-pac-list');
   if(list&&!e.target.closest('#ag-pac-search')&&!e.target.closest('#ag-pac-list'))list.style.display='none';
 });
+
+// ── MODAL LLAMADA CON MAESTRA (independiente de Agendar Sesión: no tiene
+// costo ni paquete, solo paciente+psicóloga+datos de la maestra) ──
+function lmFiltrarPac(){
+  const q=(document.getElementById('lm-pac-search')?.value||'').trim().toLowerCase();
+  const list=document.getElementById('lm-pac-list');if(!list)return;
+  if(!q){list.style.display='none';list.innerHTML='';return;}
+  const matches=DB.pacientes.filter(p=>(p.nombre||'').toLowerCase().includes(q)).slice(0,30);
+  if(!matches.length){
+    list.innerHTML='<div class="autocomplete-item" style="color:var(--muted)">Sin resultados</div>';
+    list.style.display='block';return;
+  }
+  list.innerHTML=matches.map(p=>'<div class="autocomplete-item" onmousedown="lmSeleccionarPac(\''+p.id+'\')">'+
+    p.nombre+(p.tel?' <span style="color:var(--muted);font-size:11px">· '+p.tel+'</span>':'')+'</div>').join('');
+  list.style.display='block';
+}
+function lmSeleccionarPac(pacId){
+  const hid=document.getElementById('lm-pac');if(hid)hid.value=pacId;
+  const pac=getPac(pacId);
+  const search=document.getElementById('lm-pac-search');if(search)search.value=pac.nombre;
+  const list=document.getElementById('lm-pac-list');if(list){list.style.display='none';list.innerHTML='';}
+  if(pac.psId){const el=document.getElementById('lm-ps');if(el)el.value=pac.psId;}
+}
+document.addEventListener('click',function(e){
+  const list=document.getElementById('lm-pac-list');
+  if(list&&!e.target.closest('#lm-pac-search')&&!e.target.closest('#lm-pac-list'))list.style.display='none';
+});
+function abrirModalLlamadaMaestra(){
+  const elS=document.getElementById('lm-pac-search');if(elS)elS.value='';
+  const elP=document.getElementById('lm-pac');if(elP)elP.value='';
+  const elL=document.getElementById('lm-pac-list');if(elL){elL.innerHTML='';elL.style.display='none';}
+  const elPs=document.getElementById('lm-ps');if(elPs)elPs.value='';
+  const elF=document.getElementById('lm-fecha');if(elF)elF.value=_agFechaSel||today();
+  const elH=document.getElementById('lm-hora');if(elH)elH.value='';
+  const elMN=document.getElementById('lm-maestra-nombre');if(elMN)elMN.value='';
+  const elMT=document.getElementById('lm-maestra-tel');if(elMT)elMT.value='';
+  const elN=document.getElementById('lm-notas');if(elN)elN.value='';
+  openModal('modalLlamadaMaestra');
+}
+async function guardarLlamadaMaestra(){
+  const pacId=document.getElementById('lm-pac').value;
+  const psId=document.getElementById('lm-ps').value;
+  const fecha=document.getElementById('lm-fecha').value;
+  const hora=document.getElementById('lm-hora').value;
+  const maestraNom=document.getElementById('lm-maestra-nombre').value.trim();
+  const maestraTel=document.getElementById('lm-maestra-tel').value.trim();
+  const notas=document.getElementById('lm-notas').value.trim();
+  if(!pacId){showToast('Selecciona un paciente','error');return;}
+  if(!psId){showToast('Selecciona una psicóloga','error');return;}
+  if(!fecha||!hora){showToast('Indica fecha y hora','error');return;}
+  if(!maestraNom){showToast('Indica el nombre de la maestra/tutora','error');return;}
+  const pac=getPac(pacId);
+  const ps=getPs(psId);
+  const btn=document.getElementById('lm-btn-guardar');
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
+  try{
+    const horaN=hora.length===5?hora+':00':hora;
+    const fila={fecha:fecha,hora:horaN,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
+      psicologa:ps.nombre,terapia:'Llamada con maestra',estado:'programado',tipo:'llamada_maestra',
+      nro_en_paquete:1,total_paquete:1,costo_total:0,adelanto:0,saldo:0,sede:DB.sede,
+      registrado_por:DB.usuario||'',notas:notas||'',maestra_nombre:maestraNom,maestra_tel:maestraTel};
+    const r=await sbPost('sesiones',fila);
+    const nueva=(r&&r[0])||fila;
+    DB.sesiones.push({id:nueva.id,fecha:fecha,hora:normHoraRec(horaN),pacId:pac.nombre,pacNom:pac.nombre,
+      psId:ps.nombre,psNom:ps.nombre,terId:'Llamada con maestra',terNom:'Llamada con maestra',
+      estado:'programado',saldo:0,tipo:'llamada_maestra',notas:notas||'',
+      nroSes:1,totalPaq:1,costo:0,costoTotal:0,tel:pac.tel||'',
+      maestraNom:maestraNom,maestraTel:maestraTel,_sb:nueva});
+    showToast('✅ Llamada con maestra agendada');
+    closeModal('modalLlamadaMaestra');
+    if(typeof renderAgenda==='function')renderAgenda();
+    if(typeof renderDashboard==='function')renderDashboard();
+  }catch(e){showToast('Error: '+e.message,'error');}
+  if(btn){btn.disabled=false;btn.textContent='✅ Agendar Llamada';}
+}
 
 // ── HORAS de psicóloga para una fecha ──
 function horasPs(psId,fecha){
@@ -1720,8 +1853,9 @@ function renderDashboard(){
           '<div style="flex:1;min-width:130px">'+
           '<div style="font-weight:800;font-size:13px;margin-bottom:3px">'+pac.nombre+'</div>'+
           '<div style="font-size:11px;color:var(--muted);margin-bottom:3px">'+ps.nombre+'</div>'+
-          terBadge(ter)+
-          progresoPacInline(pac)+'</div>'+
+          (s.tipo==='llamada_maestra'?
+            '<div style="font-size:11px;color:#0891b2;font-weight:700">📞 Llamada con maestra: '+(s.maestraNom||'-')+(s.maestraTel?' · '+s.maestraTel:'')+'</div>':
+            (terBadge(ter)+progresoPacInline(pac)))+'</div>'+
           // Los botones de acción van en su propia fila de ancho completo
           // (flex-basis:100%) y en horizontal con flex-wrap - antes quedaban
           // apilados uno encima de otro en una columna angosta aunque
@@ -1729,7 +1863,7 @@ function renderDashboard(){
           '<div style="display:flex;flex-direction:row;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center;flex-basis:100%;margin-top:4px">'+
           (s.estado!=='programado'?badgeEstadoAsistencia(s.estado):'')+
           botonesAsistenciaHTML(s)+
-          ((s.estado==='asistio'||s.estado==='tardanza')&&!pago?
+          ((s.estado==='asistio'||s.estado==='tardanza')&&!pago&&s.tipo!=='llamada_maestra'?
             '<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="btnAbrirPago(this)">💰 Cobrar</button>':'') +
           '</div></div>';
       }).join('');
@@ -1860,20 +1994,29 @@ function renderAgenda(){
           const tc='#000';
           const bordeEstado=s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':'rgba(0,0,0,.45)';
           const esPaq=s.tipo==='paquete'&&s.totalPaq;
+          const esLlamadaMaestra=s.tipo==='llamada_maestra';
           const progTxt=esPaq?(' '+_paqLabel(s)):'';
           // Sesión suelta (no paquete) sin ningún adelanto dejado - se marca
           // con un patrón de rayas diagonales para que salte a la vista
-          // distinto de un paquete o de una sesión ya con depósito.
-          const sinAdelantoSesion=!esLibre&&s.tipo!=='paquete'&&!((s._sb&&s._sb.adelanto)>0);
+          // distinto de un paquete o de una sesión ya con depósito. La
+          // llamada con maestra nunca entra aquí: su costo S/0 es a
+          // propósito (no una sesión sin cobrar), así que no debe verse
+          // como si le faltara un pago.
+          const sinAdelantoSesion=!esLibre&&!esLlamadaMaestra&&s.tipo!=='paquete'&&!((s._sb&&s._sb.adelanto)>0);
           const patronRayas=sinAdelantoSesion?';background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.16) 0 3px,transparent 3px 7px)':'';
-          const titulo=pac.nombre+' · '+ter.nombre+(progTxt?' · Paq'+progTxt:'')+' · '+ps.nombre+
+          const bcFinal=esLlamadaMaestra?'#0891b2':bc;
+          const titulo=esLlamadaMaestra?
+            (pac.nombre+' · 📞 Llamada con maestra: '+(s.maestraNom||'-')+(s.maestraTel?' ('+s.maestraTel+')':'')+' · '+ps.nombre):
+            (pac.nombre+' · '+ter.nombre+(progTxt?' · Paq'+progTxt:'')+' · '+ps.nombre+
             (esReprog?' (reprogramado - horario libre)':esPermiso?' (permiso - horario libre)':'')+
-            (sinAdelantoSesion?' · sin adelanto':'');
-          h+='<div class="ag-chip" style="position:relative;background:'+bc+';color:'+tc+';border-left:3px solid '+bordeEstado+(esLibre?';opacity:.55;text-decoration:line-through':'')+patronRayas+'" title="'+titulo+'">'+
+            (sinAdelantoSesion?' · sin adelanto':''));
+          h+='<div class="ag-chip" style="position:relative;background:'+bcFinal+';color:'+tc+';border-left:3px solid '+bordeEstado+(esLibre?';opacity:.55;text-decoration:line-through':'')+patronRayas+'" title="'+titulo+'">'+
             (letra?'<span style="position:absolute;top:1px;right:2px;font-size:9px;font-weight:900;text-decoration:none">'+letra+'</span>':'')+
             '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:800">'+pac.nombre.split(' ')[0]+'</div>'+
-            '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;opacity:.9">'+abrevTerapia(ter.nombre)+'</div>'+
-            (esPaq?'<div style="font-size:9.5px;opacity:.85">'+_paqLabel(s)+'</div>':'')+
+            (esLlamadaMaestra?
+              '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;opacity:.9">📞 '+(s.maestraNom||'Maestra')+'</div>':
+              '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;opacity:.9">'+abrevTerapia(ter.nombre)+'</div>'+
+              (esPaq?'<div style="font-size:9.5px;opacity:.85">'+_paqLabel(s)+'</div>':''))+
             '</div>';
         });
         // Si TODO lo que hay en la celda es horario liberado (reprogramado/
@@ -1931,8 +2074,9 @@ function mostrarResumenCelda(sesList,fecha,hora){
         '<span class="badge '+(s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bb')+'" style="font-size:10px">'+estadoLabel(s.estado)+'</span>'+
         '</div>'+
         '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">'+ps.nombre+
-        ' · '+terBadge(ter)+
+        ' · '+(s.tipo==='llamada_maestra'?'📞 Llamada con maestra':terBadge(ter))+
         (s.tipo==='paquete'?' · Paquete '+_paqLabel(s):'')+'</div>'+
+        (s.tipo==='llamada_maestra'?'<div style="font-size:12px;color:#0891b2;font-weight:700">👩‍🏫 '+(s.maestraNom||'-')+(s.maestraTel?' · 📱 '+s.maestraTel:'')+'</div>':'')+
         (s.costoTotal?'<div style="font-size:12px;color:var(--green)">'+
         (s.tipo==='paquete'?'Paquete S/'+s.costoTotal:'S/'+s.costoTotal)+
         (s.adelanto?' | Adelanto: S/'+s.adelanto:'')+(s.saldo?' | Saldo: S/'+s.saldo:'')+'</div>':'')+
@@ -1941,7 +2085,7 @@ function mostrarResumenCelda(sesList,fecha,hora){
         '</div>'+
         '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">'+
         botonesAsistenciaHTML(s)+
-        ((s.estado==='asistio'||s.estado==='tardanza')&&!pago?
+        ((s.estado==='asistio'||s.estado==='tardanza')&&!pago&&s.tipo!=='llamada_maestra'?
           '<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="btnAbrirPago(this)">💰 Cobrar</button>':'')+
         (s.estado==='noasistio'?
           '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':'')+
@@ -1984,8 +2128,9 @@ function renderDiaSel(){
         '<span class="ses-nombre">'+pac.nombre+'</span>'+
         '<span class="badge '+(s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bb')+'" style="font-size:10px">'+estadoLabel(s.estado)+'</span>'+
         '</div>'+
-        '<div style="font-size:12px;color:var(--muted)">'+ps.nombre+' · '+terBadge(ter)+
+        '<div style="font-size:12px;color:var(--muted)">'+ps.nombre+' · '+(s.tipo==='llamada_maestra'?'📞 Llamada con maestra':terBadge(ter))+
         (s.tipo==='paquete'?' · Paquete '+_paqLabel(s):'')+'</div>'+
+        (s.tipo==='llamada_maestra'?'<div style="font-size:12px;color:#0891b2;font-weight:700;margin-top:3px">👩‍🏫 '+(s.maestraNom||'-')+(s.maestraTel?' · 📱 '+s.maestraTel:'')+'</div>':'')+
         (s.costoTotal?'<div style="font-size:12px;color:var(--green);margin-top:3px">'+
         (s.tipo==='paquete'?'Paquete S/'+s.costoTotal:'S/'+s.costoTotal)+
         (s.adelanto?' | Adelanto: S/'+s.adelanto:'')+(s.saldo?' | Saldo: S/'+s.saldo:'')+'</div>':'')+
@@ -1997,7 +2142,7 @@ function renderDiaSel(){
         botonesAsistenciaHTML(s)+
         (s.estado==='noasistio'||s.estado==='reprogramado'?
           '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>':'') +
-        ((s.estado==='asistio'||s.estado==='tardanza')&&!pago?
+        ((s.estado==='asistio'||s.estado==='tardanza')&&!pago&&s.tipo!=='llamada_maestra'?
           '<button class="btn btn-primary btn-sm" onclick="abrirPago(\''+s.id+'\')">💰 Pago</button>':'') +
         '</div></div></div>';
     }).join('');
@@ -2253,6 +2398,7 @@ async function confirmarPermiso(){
       nro_en_paquete:nroOriginal||1,total_paquete:totalPaq||1,costo_total:s.costoTotal||0,
       adelanto:0,saldo:s.saldo||0,sede:DB.sede,registrado_por:DB.usuario||'',notas:s.notas||''};
     if(progId){filaSes.programa_id=progId;if(ptId)filaSes.programa_terapia_id=ptId;}
+    if(s.tipo==='llamada_maestra'){filaSes.maestra_nombre=s.maestraNom||'';filaSes.maestra_tel=s.maestraTel||'';}
     await sbPost('sesiones',filaSes);
     await sbPost('reprogramaciones',{fecha_reprog:today(),paciente_nombre:pac.nombre,
       psicologa_nombre:ps.nombre,fecha_original:s.fecha,hora_original:s.hora,
@@ -3926,6 +4072,13 @@ async function guardarSesion(){
         nro_en_paquete:_reprogDe.nroSes||1,total_paquete:totalPaq,costo_total:_reprogDe.costoTotal||0,
         adelanto:0,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
       if(progIdOrig){filaSesion.programa_id=progIdOrig;if(ptIdOrig)filaSesion.programa_terapia_id=ptIdOrig;}
+      // Reprogramar una "Llamada con maestra" no debe perder los datos de
+      // la maestra - la sesión original no tiene paquete que los vuelva a
+      // traer, así que se copian explícitamente a la fila nueva.
+      if(_reprogDe.tipo==='llamada_maestra'){
+        filaSesion.maestra_nombre=_reprogDe.maestraNom||'';
+        filaSesion.maestra_tel=_reprogDe.maestraTel||'';
+      }
       {const rSes=await sbPost('sesiones',filaSesion);sesionIdCreada=(rSes&&rSes[0]&&rSes[0].id)||null;}
       // La sesión original recién se marca "reprogramado" AQUÍ, cuando la
       // reprogramación se concreta de verdad (no al abrir el modal) - así,
@@ -5176,8 +5329,10 @@ function _normTxtFichaRec(s){
 }
 function _fichasFaltantesAyer(){
   const ayer=fechaLima(new Date(Date.now()-86400000));
+  // La llamada con maestra no es una sesión de terapia - no requiere ficha
+  // de seguimiento, así que no debe generar esta alerta.
   const sesionesAyer=(DB.sesiones||[]).filter(function(s){
-    return s.fecha===ayer&&(s.estado==='asistio'||s.estado==='tardanza');
+    return s.fecha===ayer&&(s.estado==='asistio'||s.estado==='tardanza')&&s.tipo!=='llamada_maestra';
   });
   if(!sesionesAyer.length)return[];
   const fichas=DB.fichasAyer||[];
@@ -6075,17 +6230,18 @@ function renderAgendaViaDia(fecha){
           '<div style="flex:1;min-width:160px">'+
           '<div style="font-size:14px;font-weight:800;margin-bottom:4px">'+pac.nombre+'</div>'+
           '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">'+
-          terBadge(ter)+
+          (s.tipo==='llamada_maestra'?'<span class="badge" style="font-size:10px;background:#0891b2;color:#fff">📞 Llamada con maestra</span>':terBadge(ter))+
           badgeEstadoAsistencia(s.estado)+
           (s.tipo==='paquete'?'<span class="badge bb" style="font-size:10px">Paq '+_paqLabel(s)+'</span>':'')+
           '</div>'+
+          (s.tipo==='llamada_maestra'?'<div style="font-size:12px;color:#0891b2;font-weight:700">👩‍🏫 '+(s.maestraNom||'-')+(s.maestraTel?' · 📱 '+s.maestraTel:'')+'</div>':'')+
           (s.costoTotal?'<div style="font-size:12px;color:var(--green)">'+(s.tipo==='paquete'?'Paq S/'+s.costoTotal:'S/'+s.costoTotal)+(s.saldo>0?' | Saldo S/'+s.saldo:'')+'</div>':'')+
           progresoPac(pac)+
           (pago?'<div style="font-size:11px;color:var(--green);margin-top:2px">✅ S/'+pago.monto+' '+pago.metodo+'</div>':'')+
           '</div>'+
           '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'+
           botonesAsistenciaHTML(s)+
-          ((s.estado==='asistio'||s.estado==='tardanza')&&!pago?'<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="btnAbrirPago(this)">💰 Cobrar</button>':'')+
+          ((s.estado==='asistio'||s.estado==='tardanza')&&!pago&&s.tipo!=='llamada_maestra'?'<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="btnAbrirPago(this)">💰 Cobrar</button>':'')+
           '</div></div>';
       });
     }
@@ -6729,7 +6885,8 @@ async function cargarDesdeSB(silencioso) {
     const sesionesVentana=(res[0]||[]).map(function(s){return{id:s.id,fecha:s.fecha,hora:normHoraRec(s.hora),
       pacId:s.paciente_nombre,pacNom:s.paciente_nombre,psId:s.psicologa,psNom:s.psicologa,
       terId:s.terapia,terNom:s.terapia,estado:s.estado,saldo:s.saldo||0,tipo:s.tipo||'sesion',notas:s.notas||'',
-      nroSes:s.nro_en_paquete,totalPaq:s.total_paquete,costo:s.costo_total||0,costoTotal:s.costo_total||0,tel:s.paciente_tel||'',_sb:s};});
+      nroSes:s.nro_en_paquete,totalPaq:s.total_paquete,costo:s.costo_total||0,costoTotal:s.costo_total||0,tel:s.paciente_tel||'',
+      maestraNom:s.maestra_nombre||'',maestraTel:s.maestra_tel||'',_sb:s};});
     // La carga normal solo trae los últimos 45 días de ESTA sede -
     // "Cargar historial completo" trae sesiones más antiguas de un
     // paciente puntual, y para un paciente compartido entre sedes (ver
