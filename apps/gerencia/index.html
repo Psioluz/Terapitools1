@@ -391,6 +391,7 @@ select.fsel{
     <div class="ger-nav-item" id="gnav-tPersonal" onclick="goTab('tPersonal',this);if(typeof renderMetasPsicologas==='function')renderMetasPsicologas()">👩‍⚕️ Personal</div>
     <div class="ger-nav-item" id="gnav-tAccesos" onclick="goTab('tAccesos',this);if(typeof renderAccesos==='function')renderAccesos()">🔐 Accesos</div>
     <div class="ger-nav-item" id="gnav-tAsistHist" onclick="goTab('tAsistHist',this);if(typeof renderAsistHist==='function')renderAsistHist()">🕐 Asistencia</div>
+    <div class="ger-nav-item" id="gnav-tFichas" onclick="goTab('tFichas',this);if(typeof renderFichasIndicador==='function')renderFichasIndicador()">📝 Fichas</div>
     <div class="ger-nav-section">Sedes</div>
     <div class="ger-nav-item" id="gnav-tSedes" onclick="goTab('tSedes',this)">🏥 Sedes</div>
     <div class="ger-nav-item" id="gnav-tAgenda" onclick="goTab('tAgenda',this);if(typeof renderAgendaGer==='function')renderAgendaGer()">🗓️ Agenda</div>
@@ -896,6 +897,35 @@ async function eliminarPagoRecurrente(id){
     </div>
   </div>
 
+  <!-- ══ INDICADOR DE LLENADO DE FICHAS (por día y sede) ══ -->
+  <div class="page" id="tFichas" style="padding:14px">
+    <div class="card" style="margin-bottom:14px">
+      <div class="ch"><div class="ct">📝 Llenado de Fichas por Sesión</div></div>
+      <div style="padding:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">Fecha</label>
+          <input type="date" id="fichasFecha" class="fsel" style="padding:8px 10px">
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">Sede</label>
+          <select id="fichasSedeSel" class="fsel">
+            <option value="">🌐 Todas las sedes</option>
+          </select>
+        </div>
+        <button onclick="renderFichasIndicador()" style="padding:9px 18px;background:var(--acc);color:#fff;border:none;border-radius:8px;font-weight:800;cursor:pointer">🔍 Buscar</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">📋 Detalle por Sede y Psicóloga</div></div>
+      <div class="cb" id="fichasIndicadorBody" style="overflow-x:auto;padding:14px">
+        <div style="text-align:center;padding:30px;color:var(--muted)">
+          <div style="font-size:32px;margin-bottom:10px">📝</div>
+          <div>Cargando...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ══ CHAT GERENCIA (todas las sedes) ══ -->
   <div class="page" id="tChat" style="display:flex;flex-direction:column;height:calc(100vh - 64px)">
     <div style="padding:12px 16px;background:linear-gradient(135deg,#3d0c28,#ad1457);color:#fff;flex-shrink:0">
@@ -989,6 +1019,7 @@ let G = {
   honorarios : [],
   programas  : [],   // programas_paciente activos, para el saldo real (deuda de paquete)
   pagosLocal : [],   // pagos, cargados de Supabase en sincronizar()
+  fichas     : [],   // fichas_seguimiento, para el indicador de llenado de fichas
   loaded     : false,
   ts         : null
 };
@@ -1106,7 +1137,7 @@ function _diasTrabajoANum(txt){
           _sb('recepcionistas',Object.assign({'estado':'eq.activa','select':'*'},sedeFiltro(sede))),
           _sb('pacientes',Object.assign({'estado':'eq.activo','select':'*'},sedeFiltro(sede))),
           _sb('terapias',{'select':'*'}),
-          _sb('fichas_seguimiento',Object.assign({'select':'*','order':'fecha.desc','limit':'500'},sedeFiltro(sede))),
+          _sbAll('fichas_seguimiento',Object.assign({'select':'*','order':'fecha.desc'},sedeFiltro(sede))),
           _sb('bonos_diarios',Object.assign({'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'},sedeFiltro(sede))),
           _sb('honorarios',Object.assign({'mes':'eq.'+mes,'select':'*'},sedeFiltro(sede))),
           _sb('contratos',Object.assign({'select':'*'},sedeFiltro(sede))),
@@ -1397,6 +1428,7 @@ async function sincronizar(mostrar){
     if(data.gastos?.length)    G.gastos    =data.gastos;
     if(data.programas)         G.programas =data.programas;
     if(data.pagos?.length)     G.pagosLocal=data.pagos.map(p=>Object.assign({},p,{_sede:p.sede||p._sede||''}));
+    if(data.fichas?.length)    G.fichas    =data.fichas;
 
     // Fusionar honorarios del Sheet con los del admin local
     if(data.honorarios?.length){
@@ -2223,6 +2255,89 @@ function guardarPDF(doc,filename){
     }catch(e){console.error('[guardarPDF ios]',e);}
   }
   try{doc.save(filename);}catch(e2){console.error('[guardarPDF]',e2);}
+}
+// ── INDICADOR DE LLENADO DE FICHAS ───────────────────────────────────────────
+// Por cada sesión atendida (asistió/tardanza) de un día, busca si existe su
+// ficha de seguimiento correspondiente (misma sede+fecha+paciente+terapia).
+// La comparación de texto se normaliza (minúsculas, sin tildes, espacios
+// colapsados) porque el nombre de la terapia o del paciente puede tener
+// variaciones menores entre la sesión y la ficha guardada.
+function _normTxtFicha(s){
+  return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ');
+}
+var _fichasSelectsListos=false;
+function renderFichasIndicador(){
+  if(!_fichasSelectsListos){
+    var selSede=document.getElementById('fichasSedeSel');
+    if(selSede&&selSede.options.length<=1){
+      _todasLasSedes().forEach(function(sd){
+        var o=document.createElement('option');o.value=sd;o.textContent=sd;selSede.appendChild(o);
+      });
+    }
+    _fichasSelectsListos=true;
+  }
+  var elF=document.getElementById('fichasFecha');
+  if(elF&&!elF.value)elF.value=today();
+  var fecha=elF?elF.value:today();
+  var sedeFiltrada=document.getElementById('fichasSedeSel')?.value||'';
+
+  var sesionesDia=(G.sesiones||[]).filter(function(s){
+    return s.fecha===fecha&&(s.estado==='asistio'||s.estado==='tardanza');
+  });
+  if(sedeFiltrada)sesionesDia=sesionesDia.filter(function(s){return(s.sede||'')===sedeFiltrada;});
+
+  var fichasDia=(G.fichas||[]).filter(function(f){return f.fecha===fecha;});
+
+  var sedes={};
+  sesionesDia.forEach(function(s){
+    var sd=s.sede||'-';
+    var ps=s.psNombre||'-';
+    sedes[sd]=sedes[sd]||{};
+    sedes[sd][ps]=sedes[sd][ps]||{atendidas:0,llenadas:0,pendientes:[]};
+    sedes[sd][ps].atendidas++;
+    var tieneFicha=fichasDia.some(function(f){
+      return _normTxtFicha(f.sede)===_normTxtFicha(sd)&&
+        _normTxtFicha(f.paciente_nombre)===_normTxtFicha(s.pacNombre)&&
+        _normTxtFicha(f.terapia)===_normTxtFicha(s.terNombre);
+    });
+    if(tieneFicha)sedes[sd][ps].llenadas++;
+    else sedes[sd][ps].pendientes.push(s.pacNombre);
+  });
+
+  var cont=document.getElementById('fichasIndicadorBody');
+  if(!cont)return;
+  var sdNombres=Object.keys(sedes).sort();
+  if(!sdNombres.length){
+    cont.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">No hay sesiones atendidas (asistió/tardanza) registradas en esa fecha'+(sedeFiltrada?' para '+sedeFiltrada:'')+'.</div>';
+    return;
+  }
+  var h='';
+  sdNombres.forEach(function(sd){
+    var totAt=0,totLl=0;
+    Object.keys(sedes[sd]).forEach(function(ps){totAt+=sedes[sd][ps].atendidas;totLl+=sedes[sd][ps].llenadas;});
+    var pctSede=totAt?Math.round(totLl/totAt*100):0;
+    h+='<div style="margin-bottom:20px">';
+    h+='<div style="font-weight:800;font-size:13px;margin-bottom:6px;color:var(--acc)">🏥 '+sd+' <span style="font-weight:600;color:var(--muted);font-size:11px">('+totLl+'/'+totAt+' · '+pctSede+'%)</span></div>';
+    h+='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8f5fb">'+
+       '<th style="text-align:left;padding:8px;font-size:11px">Psicóloga</th>'+
+       '<th style="padding:8px;font-size:11px">Atendidas</th>'+
+       '<th style="padding:8px;font-size:11px">Fichas llenadas</th>'+
+       '<th style="padding:8px;font-size:11px">% Completado</th></tr></thead><tbody>';
+    Object.keys(sedes[sd]).sort().forEach(function(ps){
+      var d=sedes[sd][ps];
+      var pct=d.atendidas?Math.round(d.llenadas/d.atendidas*100):0;
+      var color=pct===100?'#2e7d32':(pct>=50?'#f57f17':'#c62828');
+      h+='<tr style="border-top:1px solid var(--border)">'+
+         '<td style="padding:8px;font-weight:700;font-size:12px">'+ps+'</td>'+
+         '<td style="text-align:center;padding:8px;font-size:12px">'+d.atendidas+'</td>'+
+         '<td style="text-align:center;padding:8px;font-size:12px">'+d.llenadas+'</td>'+
+         '<td style="text-align:center;padding:8px;font-weight:800;font-size:12px;color:'+color+'">'+pct+'%'+
+           (d.pendientes.length?' <span style="font-weight:400;color:var(--muted);font-size:11px">('+d.pendientes.join(', ')+')</span>':'')+
+         '</td></tr>';
+    });
+    h+='</tbody></table></div>';
+  });
+  cont.innerHTML=h;
 }
 function exportarCajaPDF(){
   var d=_prepCajaExport();
