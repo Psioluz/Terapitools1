@@ -40,7 +40,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   padding:14px 18px;display:flex;align-items:center;justify-content:space-between;
   position:relative;z-index:10;gap:10px}
 .hdr-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
-.hdr-logo{width:36px;height:36px;border-radius:8px;object-fit:cover;flex-shrink:0}
+.hdr-logo{display:none}
 .hdr-title{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hdr-sub{font-size:10px;opacity:.65;margin-top:1px}
 .hdr-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -1663,23 +1663,25 @@ function renderCrecimiento(){
   setText('crLTV','S/'+(pacs.length>0?Math.round(ltv/pacs.length):0).toLocaleString());
 
   // ── ROI psicólogas ───────────────────────────────────────────
-  var honMes=G.honorarios.filter(h=>h.mes===mes).reduce((a,h)=>a+(h.neto||h.montoBase||0),0);
+  var honMes=G.honorarios.filter(h=>h.mes===mes&&(!filtSede||(h.sede||'')===filtSede)).reduce((a,h)=>a+(h.neto||h.montoBase||0),0);
   var roi=honMes>0?(ingMes/honMes).toFixed(1)+'x':'-';
   setText('crROI',roi);
 
   // ── OCUPACIÓN DE AGENDA ──────────────────────────────────────
-  var slotsDisp=G.psicologas.filter(p=>p.estado!=='inactiva'&&p.estado!=='cesada').length * 6 * 5;
+  var slotsDisp=G.psicologas.filter(p=>p.estado!=='inactiva'&&p.estado!=='cesada'&&(!filtSede||(p.sede||p._sede||'')===filtSede)).length * 6 * 5;
   var ocupacion=slotsDisp>0?pct(sesMes.length,slotsDisp):0;
   setText('crOcupacion',ocupacion+'%');
 
-  // ── NUEVOS PACIENTES ─────────────────────────────────────────
+  // ── NUEVOS PACIENTES ───────────────────────────────────────── (ambos
+  // conjuntos ignoraban el filtro de sede - un paciente nuevo de otra
+  // sede igual contaba aquí aunque se viera una sede puntual arriba)
   var pacNuevosMes=new Set();
-  G.sesiones.filter(s=>s.fecha&&s.fecha.startsWith(mes)).forEach(s=>{
+  G.sesiones.filter(s=>s.fecha&&s.fecha.startsWith(mes)&&(!filtSede||(s.sede||s._sede||'')===filtSede)).forEach(s=>{
     var primeraS=G.sesiones.filter(x=>x.pacNombre===s.pacNombre||x.pacId===s.pacId).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0];
     if(primeraS?.fecha?.startsWith(mes))pacNuevosMes.add(s.pacNombre||s.pacId);
   });
   var pacNuevosPrev=new Set();
-  G.sesiones.filter(s=>s.fecha&&s.fecha.startsWith(mesPrev)).forEach(s=>{
+  G.sesiones.filter(s=>s.fecha&&s.fecha.startsWith(mesPrev)&&(!filtSede||(s.sede||s._sede||'')===filtSede)).forEach(s=>{
     var primeraS=G.sesiones.filter(x=>x.pacNombre===s.pacNombre||x.pacId===s.pacId).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0];
     if(primeraS?.fecha?.startsWith(mesPrev))pacNuevosPrev.add(s.pacNombre||s.pacId);
   });
@@ -1690,7 +1692,8 @@ function renderCrecimiento(){
 
   // ── RevPAS y ARPP ────────────────────────────────────────────
   var revpas=slotsDisp>0?Math.round(ingMes/slotsDisp):0;
-  var arpp=G.psicologas.length>0?Math.round(ingMes/G.psicologas.length):0;
+  var psArpp=G.psicologas.filter(p=>!filtSede||(p.sede||p._sede||'')===filtSede);
+  var arpp=psArpp.length>0?Math.round(ingMes/psArpp.length):0;
   setText('crRevPAS','S/'+revpas);
   setText('crARPP','S/'+arpp.toLocaleString());
 
@@ -2400,8 +2403,11 @@ function renderPacientes(){
   var mes  = getFiltMes()!=='todos'?getFiltMes():mesActual();
 
   // Nuevos este mes: pacientes que tienen primera sesión en el mes actual
+  // (y en la sede elegida - antes ignoraba el filtro de sede y contaba
+  // pacientes nuevos de TODA la clínica aunque se viera una sede puntual).
+  var sdNuevos=getFiltSede();
   var pacNuevos=new Set();
-  G.sesiones.filter(s=>s.fecha&&s.fecha.startsWith(mes)).forEach(s=>{
+  G.sesiones.filter(s=>s.fecha&&s.fecha.startsWith(mes)&&(!sdNuevos||(s.sede||s._sede||'')===sdNuevos)).forEach(s=>{
     var pacId=s.pacId||s.pacNombre;
     if(!G.sesiones.filter(x=>x.pacId===s.pacId&&x.fecha<s.fecha.substring(0,7)).length)
       pacNuevos.add(pacId);
@@ -2484,7 +2490,10 @@ function renderPacientes(){
 // ════════════════════════════════════════════════════════════════════════════
 function renderRendimientoRecepcionGer(){
   var cont=document.getElementById('rendimientoRecepcionCont');if(!cont)return;
-  var mes=mesActual();var sede=getFiltSede();
+  // Antes siempre usaba el mes REAL de hoy (mesActual()), sin importar qué
+  // mes hubiera elegido la gerencia en el filtro de arriba - esta tabla
+  // nunca cambiaba aunque se mirara un mes pasado.
+  var mes=getFiltMes()!=='todos'?getFiltMes():mesActual();var sede=getFiltSede();
   var q={mes:'eq.'+mes,select:'*'};if(sede)q.sede='eq.'+sede;
   accGet('rendimiento_recepcion',q).then(function(rows){
     rows=rows||[];
@@ -2507,15 +2516,19 @@ function renderPersonal(){
   var psList = filtPac(G.psicologas);
   var ses    = filtSes(G.sesiones);
   var hoy    = today();
+  var mesPersonal = getFiltMes()!=='todos'?getFiltMes():mesActual();
   renderRendimientoRecepcionGer();
-  var asistHoy = G.asistencia.filter(a=>a.fecha===hoy&&a.estado==='presente');
+  var sdFiltroAsist=getFiltSede();
+  var asistHoy = G.asistencia.filter(a=>a.fecha===hoy&&a.estado==='presente'&&(!sdFiltroAsist||(a.sede||'')===sdFiltroAsist));
   // Los honorarios son otra tabla, sin relación directa al estado ACTUAL
   // de la psicóloga (si ya cesó, pero su honorario del mes se generó
   // antes de irse, seguía sumando a la planilla igual) - se cruza contra
-  // G.psicologas (ya filtrado solo a activas) para que una psicóloga que
-  // ya no está no siga apareciendo en el total a pagar.
-  var nombresPsActivas=new Set(G.psicologas.map(p=>p.nombre));
-  var hon    = G.honorarios.filter(h=>h.mes===mesActual()&&nombresPsActivas.has(h.nombre));
+  // psList (ya filtrado solo a activas Y a la sede elegida) para que una
+  // psicóloga que ya no está, o que es de otra sede, no siga apareciendo
+  // en el total a pagar. Antes también usaba siempre mesActual() (el mes
+  // real de hoy) en vez del mes elegido en el filtro de arriba.
+  var nombresPsActivas=new Set(psList.map(p=>p.nombre));
+  var hon    = G.honorarios.filter(h=>h.mes===mesPersonal&&nombresPsActivas.has(h.nombre));
   // Los pagos no traen a qué psicóloga corresponden directamente - se
   // averigua a través de la sesión que el pago trae ligada (sesion_id).
   // Un pago de adelanto que todavía no tiene ninguna sesión ligada no se
@@ -2524,8 +2537,11 @@ function renderPersonal(){
   var sesPorId={};ses.forEach(function(s){sesPorId[s.id]=s;});
   var pagosConPs=filtPagos(G.pagosLocal).filter(function(p){return p.sesion_id&&sesPorId[p.sesion_id];});
 
-  setText('psTotal',     G.psicologas.length);
-  setText('psActivas',   G.psicologas.filter(p=>p.estado==='activa'||(p.estado||'activa')==='activa').length);
+  // psTotal/psActivas ignoraban el filtro de sede (siempre contaban TODAS
+  // las psicólogas de la clínica aunque se hubiera elegido una sede
+  // puntual arriba) - ahora usan psList, que ya viene filtrado por sede.
+  setText('psTotal',     psList.length);
+  setText('psActivas',   psList.filter(p=>p.estado==='activa'||(p.estado||'activa')==='activa').length);
   // La planilla mensual solo sumaba los honorarios de psicólogas (tabla
   // honorarios, que varía mes a mes) - las recepcionistas activas también
   // son personal y tienen un sueldo fijo (recepcionistas.sueldo), pero
@@ -2536,11 +2552,11 @@ function renderPersonal(){
     .reduce(function(a,r){return a+(r.sueldo||0);},0);
   var totalPlanilla=hon.reduce((a,h)=>a+(h.neto||h.montoBase||0),0)+recepActivasSueldo;
   setText('psHonorarios','S/'+totalPlanilla.toLocaleString());
-  var asistPct=G.psicologas.length?pct(asistHoy.length,G.psicologas.length):0;
+  var asistPct=psList.length?pct(asistHoy.length,psList.length):0;
   setText('psAsistHoy',  asistPct+'%');
 
   // Productividad (sesiones por psicóloga en el período)
-  var prodData=G.psicologas.map(ps=>{
+  var prodData=psList.map(ps=>{
     var sesPsic=ses.filter(s=>(s.psNombre||'')===ps.nombre&&s.tipo!=='consulta'&&s.tipo!=='llamada_maestra');
     return{label:(ps.nombre||'-').replace('Lic.','').trim(), val:sesPsic.length,
       asist:sesPsic.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length};
@@ -2558,7 +2574,7 @@ function renderPersonal(){
     var asist=sesPsic.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
     var noPac=sesPsic.filter(s=>s.estado==='noasistio').length;
     var numPacs=new Set(sesPsic.map(s=>s.pacNombre)).size;
-    var honPs=G.honorarios.filter(h=>h.nombre===ps.nombre&&h.mes===mesActual());
+    var honPs=G.honorarios.filter(h=>h.nombre===ps.nombre&&h.mes===mesPersonal);
     var sueldoPs=honPs.reduce((a,h)=>a+(h.neto||h.montoBase||0),0);
     var asistHoyPs=asistHoy.find(a=>a.nombre===ps.nombre);
     var ingFinal=pagosConPs.filter(function(p){return sesPorId[p.sesion_id].psNombre===ps.nombre;})
@@ -2661,11 +2677,16 @@ function abrirDetallePersonal(nombre,tipo){
   var body=document.getElementById('detallePersonalBody');
   if(tipo==='psicologa'){
     var ps=G.psicologas.find(function(p){return p.nombre===nombre;})||{};
-    var ses=G.sesiones.filter(function(s){return (s.psNombre||'')===nombre&&s.tipo!=='consulta'&&s.tipo!=='llamada_maestra';});
+    // Mismo período (mes+sede) que la tarjeta desde la que se abrió este
+    // detalle - antes usaba G.sesiones/mesActual() sin filtrar, así que el
+    // modal mostraba números distintos (todo el historial) a los que
+    // acababan de verse en la tarjeta filtrada.
+    var ses=filtSes(G.sesiones).filter(function(s){return (s.psNombre||'')===nombre&&s.tipo!=='consulta'&&s.tipo!=='llamada_maestra';});
     var asist=ses.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
     var noAs=ses.filter(function(s){return s.estado==='noasistio';}).length;
     var pacs=new Set(ses.map(function(s){return s.pacNombre;})).size;
-    var hon=G.honorarios.filter(function(h){return h.nombre===nombre&&h.mes===mesActual();});
+    var mesDet=getFiltMes()!=='todos'?getFiltMes():mesActual();
+    var hon=G.honorarios.filter(function(h){return h.nombre===nombre&&h.mes===mesDet;});
     var sueldo=hon.reduce(function(a,h){return a+(h.neto||h.montoBase||0);},0);
     var asistHist=(G.asistencia||[]).filter(function(a){return a.nombre===nombre;}).sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');}).slice(0,10);
     body.innerHTML='<div style="font-weight:900;font-size:16px;margin-bottom:4px">'+nombre+'</div>'+
@@ -2703,6 +2724,13 @@ function renderSedes(){
   var sedes=getSedes();
   var ses  =filtSes(G.sesiones);
   var pacs =filtPac(G.pacientes);
+  // Antes ing/gas usaban G.pagosLocal/G.gastos SIN filtrar por mes (solo
+  // por sede, a mano, dentro del map) - esta tabla mostraba sesiones/
+  // pacientes del mes elegido pero ingresos/gastos de TODA la historia,
+  // sin relación entre sí. filtPagos/filtGas ya respetan mes+sede igual
+  // que filtSes/filtPac de arriba.
+  var pagosF=filtPagos(G.pagosLocal);
+  var gastosF=filtGas(G.gastos);
 
   var tbl=document.getElementById('tblSedes');
   if(tbl){
@@ -2710,8 +2738,8 @@ function renderSedes(){
       var sesSd=ses.filter(s=>(s.sede||s._sede||'')===sd);
       var pacSd=pacs.filter(p=>(p.sede||p._sede||'')===sd);
       var psSd =G.psicologas.filter(p=>(p.sede||p._sede||'')===sd);
-      var ing  =G.pagosLocal.filter(p=>(p._sede||p.sede)===sd).reduce((a,p)=>a+(p.monto||0),0);
-      var gas  =G.gastos.filter(g=>(g.sede||'')===sd).reduce((a,g)=>a+(g.monto||0),0);
+      var ing  =pagosF.filter(p=>(p._sede||p.sede)===sd).reduce((a,p)=>a+(p.monto||0),0);
+      var gas  =gastosF.filter(g=>(g.sede||'')===sd).reduce((a,g)=>a+(g.monto||0),0);
       var neto =ing-gas;
       return`<tr>
         <td><strong>${sd}</strong></td>
@@ -2726,7 +2754,7 @@ function renderSedes(){
 
   // Participación
   var partData=sedes.map(sd=>{
-    var ing=G.pagosLocal.filter(p=>(p._sede||p.sede)===sd).reduce((a,p)=>a+(p.monto||0),0);
+    var ing=pagosF.filter(p=>(p._sede||p.sede)===sd).reduce((a,p)=>a+(p.monto||0),0);
     return{label:sd,val:ing};
   }).filter(x=>x.val>0);
   renderDonut('chartPartSede', partData);
@@ -2739,7 +2767,7 @@ function renderSedes(){
       var pacSd=pacs.filter(p=>(p.sede||p._sede||'')===sd);
       var psSd =G.psicologas.filter(p=>(p.sede||p._sede||'')===sd);
       var asistPctSd=sesSd.length?pct(sesSd.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length,sesSd.length):0;
-      var ing=G.pagosLocal.filter(p=>(p._sede||p.sede)===sd).reduce((a,p)=>a+(p.monto||0),0);
+      var ing=pagosF.filter(p=>(p._sede||p.sede)===sd).reduce((a,p)=>a+(p.monto||0),0);
       var sedeInfo=G.sedes.find(s=>s.nombre===sd)||{};
       return`<div class="card" style="border-top:4px solid ${COLORES[idx%COLORES.length]}">
         <div class="ch"><div class="ct" style="color:${COLORES[idx%COLORES.length]}">🏥 ${sd}</div>
