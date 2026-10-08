@@ -2281,8 +2281,10 @@ function renderFichasIndicador(){
   var fecha=elF?elF.value:today();
   var sedeFiltrada=document.getElementById('fichasSedeSel')?.value||'';
 
+  // La llamada con maestra no es una sesión de terapia - no requiere ficha
+  // de seguimiento, así que no debe contar como pendiente aquí.
   var sesionesDia=(G.sesiones||[]).filter(function(s){
-    return s.fecha===fecha&&(s.estado==='asistio'||s.estado==='tardanza');
+    return s.fecha===fecha&&(s.estado==='asistio'||s.estado==='tardanza')&&s.tipo!=='llamada_maestra';
   });
   if(sedeFiltrada)sesionesDia=sesionesDia.filter(function(s){return(s.sede||'')===sedeFiltrada;});
 
@@ -2539,7 +2541,7 @@ function renderPersonal(){
 
   // Productividad (sesiones por psicóloga en el período)
   var prodData=G.psicologas.map(ps=>{
-    var sesPsic=ses.filter(s=>(s.psNombre||'')===ps.nombre&&s.tipo!=='consulta');
+    var sesPsic=ses.filter(s=>(s.psNombre||'')===ps.nombre&&s.tipo!=='consulta'&&s.tipo!=='llamada_maestra');
     return{label:(ps.nombre||'-').replace('Lic.','').trim(), val:sesPsic.length,
       asist:sesPsic.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length};
   }).filter(x=>x.val>0).sort((a,b)=>b.val-a.val);
@@ -2552,7 +2554,7 @@ function renderPersonal(){
   var psActivas=(psList.length?psList:G.psicologas).filter(p=>p.estado!=='cesada');
   var psCesadas=(psList.length?psList:G.psicologas).filter(p=>p.estado==='cesada');
   el.innerHTML=psActivas.map((ps,idx)=>{
-    var sesPsic=ses.filter(s=>(s.psNombre||'')===ps.nombre&&s.tipo!=='consulta');
+    var sesPsic=ses.filter(s=>(s.psNombre||'')===ps.nombre&&s.tipo!=='consulta'&&s.tipo!=='llamada_maestra');
     var asist=sesPsic.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
     var noPac=sesPsic.filter(s=>s.estado==='noasistio').length;
     var numPacs=new Set(sesPsic.map(s=>s.pacNombre)).size;
@@ -2659,7 +2661,7 @@ function abrirDetallePersonal(nombre,tipo){
   var body=document.getElementById('detallePersonalBody');
   if(tipo==='psicologa'){
     var ps=G.psicologas.find(function(p){return p.nombre===nombre;})||{};
-    var ses=G.sesiones.filter(function(s){return (s.psNombre||'')===nombre&&s.tipo!=='consulta';});
+    var ses=G.sesiones.filter(function(s){return (s.psNombre||'')===nombre&&s.tipo!=='consulta'&&s.tipo!=='llamada_maestra';});
     var asist=ses.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).length;
     var noAs=ses.filter(function(s){return s.estado==='noasistio';}).length;
     var pacs=new Set(ses.map(function(s){return s.pacNombre;})).size;
