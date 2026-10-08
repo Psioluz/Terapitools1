@@ -5163,7 +5163,36 @@ function contarAlertas(){
   // las de HOY no cuentan porque todavía es normal que sigan en
   // "programado" hasta que ocurran.
   DB.sesiones.filter(s=>s.estado==='programado'&&s.fecha<hoy).forEach(()=>c++);
+  c+=_fichasFaltantesAyer().length;
   return c;
+}
+// Psicólogas de esta sede que atendieron sesiones AYER (asistió/tardanza)
+// pero cuya ficha de seguimiento no quedó registrada - una por psicóloga,
+// con la lista de pacientes pendientes. Se compara por paciente+terapia
+// normalizados (sin tildes/mayúsculas/espacios de más) porque ese texto
+// puede variar levemente entre la sesión y la ficha guardada.
+function _normTxtFichaRec(s){
+  return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ');
+}
+function _fichasFaltantesAyer(){
+  const ayer=fechaLima(new Date(Date.now()-86400000));
+  const sesionesAyer=(DB.sesiones||[]).filter(function(s){
+    return s.fecha===ayer&&(s.estado==='asistio'||s.estado==='tardanza');
+  });
+  if(!sesionesAyer.length)return[];
+  const fichas=DB.fichasAyer||[];
+  const porPs={};
+  sesionesAyer.forEach(function(s){
+    const tieneFicha=fichas.some(function(f){
+      return _normTxtFichaRec(f.paciente_nombre)===_normTxtFichaRec(s.pacNom)&&
+        _normTxtFichaRec(f.terapia)===_normTxtFichaRec(s.terNom);
+    });
+    if(!tieneFicha){
+      const ps=s.psNom||'-';
+      (porPs[ps]=porPs[ps]||[]).push(s.pacNom);
+    }
+  });
+  return Object.keys(porPs).map(function(ps){return{psicologa:ps,pacientes:porPs[ps],fecha:ayer};});
 }
 // Sesiones "programado" con fecha ANTERIOR a hoy - se le quedaron sin
 // marcar asistencia a la recepcionista. Se excluyen las de hoy a propósito
@@ -5205,6 +5234,11 @@ function renderAlertas(){
     h+='<div class="alert al-danger" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
       '<span>⏰ <strong>'+pac.nombre+'</strong> - Sesión del '+fmtF(s.fecha)+' '+s.hora+' sin marcar asistencia</span>'+
       '<button class="btn btn-outline btn-sm" onclick="irAReporteFecha(\''+s.fecha+'\')">Ver e ir al Reporte</button></div>';
+  });
+  // Psicóloga(s) que no completaron sus fichas de las sesiones de AYER.
+  _fichasFaltantesAyer().forEach(function(f){
+    h+='<div class="alert al-danger">📝 <strong>'+f.psicologa+'</strong> no completó '+f.pacientes.length+
+      ' ficha(s) de seguimiento de sus sesiones del '+fmtF(f.fecha)+' ('+f.pacientes.join(', ')+')</div>';
   });
   // Aquí solo aparece la deuda ya VENCIDA (en rojo) - el saldo a favor y
   // las cuotas que todavía no llegan a su fecha se ven en la ficha del
@@ -6673,6 +6707,7 @@ async function cargarDesdeSB(silencioso) {
   try {
     var hoy = today();
     var desde = fechaLima(new Date(Date.now()-45*86400000));
+    var ayer = fechaLima(new Date(Date.now()-86400000));
     var res = await Promise.all([
       sbGet('sesiones',{sede:'eq.'+DB.sede,fecha:'gte.'+desde,select:'*',order:'fecha.asc,hora.asc',limit:'1500'}),
       sbGet('pacientes',{sede:'eq.'+DB.sede,estado:'eq.activo',select:'*',order:'nombre.asc'}),
@@ -6683,9 +6718,14 @@ async function cargarDesdeSB(silencioso) {
       sbGet('tarifas_sede',{sede:'eq.'+DB.sede,select:'*'}).catch(function(){return[];}),
       sbGet('programas_paciente',{sede:'eq.'+DB.sede,estado:'eq.activo',select:'*,programa_terapias(*)'}).catch(function(){return[];}),
       sbGet('feriados',{estado:'eq.activo',select:'*'}).catch(function(){return[];}),
-      sbGet('avisos_recepcion',{sede:'eq.'+DB.sede,leido:'eq.false',select:'*',order:'created_at.desc',limit:'50'}).catch(function(){return[];})
+      sbGet('avisos_recepcion',{sede:'eq.'+DB.sede,leido:'eq.false',select:'*',order:'created_at.desc',limit:'50'}).catch(function(){return[];}),
+      // Fichas de ayer de esta sede, para la alerta de "psicóloga no completó
+      // sus fichas del día anterior" (renderAlertas) - se piden aparte porque
+      // la ventana normal de sesiones no trae fichas_seguimiento.
+      sbGet('fichas_seguimiento',{sede:'eq.'+DB.sede,fecha:'eq.'+ayer,select:'*'}).catch(function(){return[];})
     ]);
     DB.avisosBot=res[9]||[];
+    DB.fichasAyer=res[10]||[];
     const sesionesVentana=(res[0]||[]).map(function(s){return{id:s.id,fecha:s.fecha,hora:normHoraRec(s.hora),
       pacId:s.paciente_nombre,pacNom:s.paciente_nombre,psId:s.psicologa,psNom:s.psicologa,
       terId:s.terapia,terNom:s.terapia,estado:s.estado,saldo:s.saldo||0,tipo:s.tipo||'sesion',notas:s.notas||'',
