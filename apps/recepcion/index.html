@@ -1409,7 +1409,7 @@ let _paqFiltro='';
 // "Asistió" después de la hora programada, y terminaba apareciendo en
 // casi todas las sesiones marcadas realmente a tiempo). Solo quedan
 // estos 5 estados.
-const ESTADO_LABELS={programado:'Programado',asistio:'Asistió',noasistio:'No asistió',permiso:'Permiso',reprogramado:'Reprogramado',cancelado:'Cancelado'};
+const ESTADO_LABELS={programado:'Programado',asistio:'Asistió',noasistio:'No asistió',permiso:'Permiso',reprogramado:'Reprogramado',cancelado:'Cancelado',congelado:'Congelada'};
 function estadoLabel(estado){return ESTADO_LABELS[estado]||(estado?estado.charAt(0).toUpperCase()+estado.slice(1):'');}
 const diaES=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const diaFull=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -2177,7 +2177,7 @@ function _rankPaqSesion(s){
   const progId=s&&s._sb&&s._sb.programa_id;
   if(!progId||s.tipo!=='paquete')return{rank:s.nroSes,total:s.totalPaq};
   const delPrograma=DB.sesiones.filter(function(x){
-    return x._sb&&x._sb.programa_id===progId&&x.tipo==='paquete'&&x.estado!=='permiso'&&x.estado!=='reprogramado'&&x.estado!=='cancelado';
+    return x._sb&&x._sb.programa_id===progId&&x.tipo==='paquete'&&x.estado!=='permiso'&&x.estado!=='reprogramado'&&x.estado!=='cancelado'&&x.estado!=='congelado';
   }).sort(function(a,b){return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
   const idx=delPrograma.findIndex(function(x){return x.id===s.id;});
   if(idx===-1)return{rank:s.nroSes,total:s.totalPaq};
@@ -2355,8 +2355,13 @@ async function _verificarTopePaquete(ses,accion){
 }
 async function reprogramar(sesId){
   const ses=DB.sesiones.find(s=>s.id===sesId);if(!ses)return;
-  const errTope=await _verificarTopePaquete(ses,'reprog');
-  if(errTope){showToast('🚫 '+errTope,'error');return;}
+  // Descongelar una sesión (reagendarla con fecha nueva) no debe gastar
+  // el tope de reprogramaciones del paquete - congelar es por una razón
+  // médica/de fuerza mayor, no una reprogramación normal del paciente.
+  if(ses.estado!=='congelado'){
+    const errTope=await _verificarTopePaquete(ses,'reprog');
+    if(errTope){showToast('🚫 '+errTope,'error');return;}
+  }
   _reprogDe=ses;
   // El cambio a "reprogramado" solo se guarda en Supabase cuando la
   // reprogramación se CONFIRMA de verdad (ver guardarSesion, rama
@@ -2380,6 +2385,49 @@ async function reprogramar(sesId){
 function cancelarModalAgendar(){
   if(_reprogDe){_reprogDe.estado=_reprogDe._estadoAntesDeReprog||'programado';delete _reprogDe._estadoAntesDeReprog;_reprogDe=null;}
   closeModal('modalAgendar');
+}
+
+// ══ CONGELAR SESIÓN ══
+// Para pausas de fuerza mayor (tratamiento médico, licencia...) donde el
+// paciente no puede asistir por un tiempo pero el paquete sigue vigente -
+// a diferencia de Permiso/Reprogramar, no cuenta contra ningún tope ni se
+// le exige evidencia. La sesión queda marcada "congelado" (no cuenta como
+// falta, no pide cuota) hasta que se reagenda con el botón 🔄 normal, que
+// ya la reconoce y no le cobra el tope de reprogramaciones.
+async function congelarSesion(sesId){
+  const ses=DB.sesiones.find(s=>s.id===sesId);if(!ses||!ses._sb)return;
+  const motivo=prompt('Motivo de la congelación (ej. tratamiento médico, licencia...):');
+  if(motivo===null)return;
+  if(!motivo.trim()){showToast('Indica un motivo','error');return;}
+  if(!confirm('¿Congelar esta sesión? No cuenta como falta ni genera cobro - queda pendiente de reagendar cuando el paciente pueda volver.'))return;
+  try{
+    const notaPrevia=ses._sb.notas||'';
+    const notaNueva=(notaPrevia?notaPrevia+' · ':'')+'❄️ Congelada: '+motivo.trim();
+    await sbPatch('sesiones',{estado:'congelado',saldo:0,notas:notaNueva},{id:'eq.'+ses._sb.id});
+    showToast('❄️ Sesión congelada');
+    await cargarDesdeSB();
+  }catch(e){showToast('Error al congelar: '+e.message,'error');console.error('[congelar]',e);}
+}
+// ══ REVERTIR A PROGRAMADO ══
+// Para deshacer una marca puesta por error (Asistió/No asistió/Permiso/
+// Congelada) sin tener que pedir el cambio a mano. Se bloquea si la
+// sesión ya tiene un pago ligado (ahí sí hace falta revisarlo con
+// cuidado, no basta con cambiar el estado).
+async function revertirSesion(sesId){
+  const ses=DB.sesiones.find(s=>s.id===sesId);if(!ses||!ses._sb)return;
+  try{
+    const pagoLigado=await sbGet('pagos',{sesion_id:'eq.'+ses._sb.id,select:'id'});
+    if(pagoLigado&&pagoLigado.length){
+      showToast('⚠️ Esta sesión tiene un pago registrado - no se puede revertir sola, pide que lo revisen a mano.','error');
+      return;
+    }
+  }catch(e){}
+  if(!confirm('¿Volver esta sesión a "Programado"? Se quita la marca de "'+estadoLabel(ses.estado)+'" actual.'))return;
+  try{
+    await sbPatch('sesiones',{estado:'programado'},{id:'eq.'+ses._sb.id});
+    showToast('↩️ Sesión vuelta a Programado');
+    await cargarDesdeSB();
+  }catch(e){showToast('Error al revertir: '+e.message,'error');console.error('[revertir]',e);}
 }
 
 // ══ PERMISO ══
@@ -6644,7 +6692,7 @@ async function renderHistorial(){
         }
         const psH=getPs(s.psId);const terH=getTer(s.terId);
         const esReprogFila=s.estado==='reprogramado';
-        const ec=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':esReprogFila?'var(--muted)':'var(--orange)';
+        const ec=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':esReprogFila?'var(--muted)':s.estado==='congelado'?'#0891b2':'var(--orange)';
         // El costo/saldo se toma de la propia sesión (lo que ya mantiene al
         // día toda la lógica de paquetes/cuotas y saldo corriente), no de
         // buscar un pago con la misma fecha+hora exacta de la sesión - casi
@@ -6652,7 +6700,7 @@ async function renderHistorial(){
         // recibe, no la hora de la sesión) y por eso Costo salía casi
         // siempre vacío aunque el paciente sí hubiera pagado.
         let costoCelda;
-        if(esReprogFila){costoCelda='-';}
+        if(esReprogFila||s.estado==='congelado'){costoCelda='-';}
         else if(s.tipo==='paquete'){
           // Solo la sesión-checkpoint de una cuota tiene algo que decir a
           // nivel de fila - el resto no es "al día", simplemente no le
@@ -6689,7 +6737,7 @@ async function renderHistorial(){
         return '<tr'+(esReprogFila?' style="background:var(--bg);opacity:.65"':'')+'><td style="white-space:nowrap">'+fmtF(s.fecha)+' <span style="color:var(--muted)">'+s.hora+'</span></td><td>'+psH.nombre.replace('Lic.','').trim()+'</td>'+
           '<td>'+terBadge(terH)+'</td>'+
           '<td><span style="color:'+ec+';font-weight:700">'+estadoLabel(s.estado)+'</span></td>'+
-          '<td><span class="badge bk" style="font-size:10px">'+((esReprogFila||s.estado==='permiso')?'-':s.tipo==='paquete'?'Paq '+_paqLabel(s):s.tipo)+'</span></td>'+
+          '<td><span class="badge bk" style="font-size:10px">'+((esReprogFila||s.estado==='permiso'||s.estado==='congelado')?'-':s.tipo==='paquete'?'Paq '+_paqLabel(s):s.tipo)+'</span></td>'+
           '<td style="white-space:nowrap">'+costoCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
           '<td style="white-space:nowrap">'+((s.estado==='programado'||s.estado==='noasistio'||s.estado==='permiso')?botonesAsistenciaCompactoHTML(s):
@@ -7194,9 +7242,17 @@ function botonesAsistenciaHTML(s){
   // Una sesión ya marcada "No Asistió" antes no tenía ninguna acción
   // disponible, aunque siguiera contando en el saldo o en el paquete -
   // se le deja solo el botón de Cancelar (con motivo) para poder sacarla.
-  if(s.estado==='noasistio'){
-    return '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="abrirModalCancelarSesion(\''+s.id+'\')">🚫 Cancelar</button>';
+  // Revertir: para deshacer una marca puesta por error sin pedir el
+  // cambio a mano (ver revertirSesion).
+  var btnRevertirF=['asistio','noasistio','permiso','congelado'].indexOf(s.estado)>-1?
+    ' <button class="btn btn-outline btn-sm" onclick="revertirSesion(\''+s.id+'\')">↩️ Revertir</button>':'';
+  if(s.estado==='congelado'){
+    return '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reagendar</button>'+btnRevertirF;
   }
+  if(s.estado==='noasistio'){
+    return '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="abrirModalCancelarSesion(\''+s.id+'\')">🚫 Cancelar</button>'+btnRevertirF;
+  }
+  if(s.estado==='asistio'||s.estado==='permiso')return btnRevertirF;
   if(s.estado!=='programado')return '';
   // Permiso y Reprogramar van juntos al costado de Asistió/No Asistió - ambos
   // exigen evidencia (foto/sustento) y mueven la sesión: Permiso la reubica
@@ -7206,6 +7262,7 @@ function botonesAsistenciaHTML(s){
     ' <button class="btn btn-danger btn-sm" data-sid="'+s.id+'" data-est="noasistio" onclick="btnMarcarAs(this)">❌ No Asistió</button>'+
     ' <button class="btn btn-sm" style="background:#fef3c7;color:#92400e;font-weight:800" onclick="abrirModalPermiso(\''+s.id+'\')">🟡 Permiso</button>'+
     ' <button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reprogramar</button>'+
+    ' <button class="btn btn-sm" style="background:#cffafe;color:#0e7490;font-weight:800" title="Pausa médica/fuerza mayor - no cuenta como falta" onclick="congelarSesion(\''+s.id+'\')">❄️ Congelar</button>'+
     ' <button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="abrirModalCancelarSesion(\''+s.id+'\')">🚫 Cancelar</button>';
 }
 // Misma acción que botonesAsistenciaHTML pero solo con el ícono (sin el
@@ -7216,18 +7273,25 @@ function botonesAsistenciaHTML(s){
 function botonesAsistenciaCompactoHTML(s){
   // Ver nota en botonesAsistenciaHTML: reprogramar una fila ya reubicada
   // por Permiso crea una reposición duplicada.
-  if(s.estado==='noasistio'){
-    return '<button class="btn btn-outline btn-sm" style="padding:4px 7px;color:var(--red)" title="Cancelar" onclick="abrirModalCancelarSesion(\''+s.id+'\')">🚫</button>';
+  var btnRevertirC=['asistio','noasistio','permiso','congelado'].indexOf(s.estado)>-1?
+    ' <button class="btn btn-outline btn-sm" style="padding:4px 7px" title="Revertir a Programado" onclick="revertirSesion(\''+s.id+'\')">↩️</button>':'';
+  if(s.estado==='congelado'){
+    return '<button class="btn btn-outline btn-sm" style="padding:4px 7px" title="Reagendar" onclick="reprogramar(\''+s.id+'\')">🔄</button>'+btnRevertirC;
   }
+  if(s.estado==='noasistio'){
+    return '<button class="btn btn-outline btn-sm" style="padding:4px 7px;color:var(--red)" title="Cancelar" onclick="abrirModalCancelarSesion(\''+s.id+'\')">🚫</button>'+btnRevertirC;
+  }
+  if(s.estado==='asistio'||s.estado==='permiso')return btnRevertirC;
   if(s.estado!=='programado')return '';
   return '<button class="btn btn-success btn-sm" style="padding:4px 7px" data-sid="'+s.id+'" data-est="asistio" title="Asistió" onclick="btnMarcarAs(this)">✅</button>'+
     ' <button class="btn btn-danger btn-sm" style="padding:4px 7px" data-sid="'+s.id+'" data-est="noasistio" title="No Asistió" onclick="btnMarcarAs(this)">❌</button>'+
     ' <button class="btn btn-sm" style="padding:4px 7px;background:#fef3c7;color:#92400e;font-weight:800" title="Permiso" onclick="abrirModalPermiso(\''+s.id+'\')">🟡</button>'+
     ' <button class="btn btn-outline btn-sm" style="padding:4px 7px" title="Reprogramar" onclick="reprogramar(\''+s.id+'\')">🔄</button>'+
+    ' <button class="btn btn-sm" style="padding:4px 7px;background:#cffafe;color:#0e7490;font-weight:800" title="Congelar (pausa médica, no cuenta como falta)" onclick="congelarSesion(\''+s.id+'\')">❄️</button>'+
     ' <button class="btn btn-outline btn-sm" style="padding:4px 7px;color:var(--red)" title="Cancelar" onclick="abrirModalCancelarSesion(\''+s.id+'\')">🚫</button>';
 }
 function badgeEstadoAsistencia(estado){
-  var map={asistio:['bg','✅ Asistió'],noasistio:['br','❌ No asistió'],permiso:['bb','🟡 Permiso'],reprogramado:['bk','🔁 Reprogramado']};
+  var map={asistio:['bg','✅ Asistió'],noasistio:['br','❌ No asistió'],permiso:['bb','🟡 Permiso'],reprogramado:['bk','🔁 Reprogramado'],congelado:['bc','❄️ Congelada']};
   var m=map[estado];
   return m?'<span class="badge '+m[0]+'" style="font-size:10px">'+m[1]+'</span>':'';
 }
