@@ -676,7 +676,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         style="flex:1;padding:12px;background:#f1f5f9;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;color:#64748b">
         Cancelar
       </button>
-      <button onclick="guardarFichaSeguimiento()"
+      <button onclick="guardarFichaSeguimiento()" id="fichaBtnGuardar"
         style="flex:2;padding:12px;background:linear-gradient(135deg,#4a0e2e,#c2185b);color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:800;cursor:pointer">
         💾 Guardar Ficha
       </button>
@@ -3388,37 +3388,46 @@ function _cargarCamposFichaPersona(personaInd){
     return (f.fecha||'')===(fecha||today())&&(f.terapia||'')===(terapia||'')&&(f.hora||'')===(hora||'')&&
       (f.personaInd||'')===(personaInd||'');
   });
-  var sufijoPersona=personaInd?('_'+personaInd.replace(/\s/g,'_')):'';
   if(fichaSync){
     saved={objetivo:fichaSync.objetivo,actividad:fichaSync.actividad,resultados:fichaSync.resultados,proxSesion:fichaSync.proxSesion};
-  }else{
-    var key='ficha_'+PS.sede+'_'+PS.nombre+'_'+(pacNom.replace(/\s/g,'_'))+'_'+(fecha||today())+'_'+((terapia||'').replace(/\s/g,'_').substring(0,20))+'_'+((hora||'').replace(':',''))+sufijoPersona;
-    try{saved=JSON.parse(localStorage.getItem(key)||'{}');}catch(e){}
   }
+  var placeholdersOrig={};
   ['fichaObjetivo','fichaActividad','fichaResultados','fichaProxSesion'].forEach(function(id,i){
     var el=document.getElementById(id);
-    if(el)el.value=saved[['objetivo','actividad','resultados','proxSesion'][i]]||'';
+    if(el){
+      placeholdersOrig[id]=el.placeholder;
+      el.value=saved[['objetivo','actividad','resultados','proxSesion'][i]]||'';
+      if(!el.value)el.placeholder='Verificando si ya la llenaste...';
+    }
   });
-  // Si no había nada en caché ni en localStorage, puede que la ficha exista
-  // en Supabase pero aún no se haya sincronizado a este dispositivo (p. ej.
-  // primera vez que se abre esta sesión ahí). Se consulta directo por si acaso,
-  // y si llega algo se rellena el formulario mientras sigue abierto.
-  if(!fichaSync&&!saved.objetivo&&!saved.actividad){
-    var filtroPref={sede:'eq.'+(PS.sede||''),paciente_nombre:'eq.'+pacNom,fecha:'eq.'+(fecha||today()),terapia:'eq.'+(terapia||'')};
-    filtroPref.hora=hora?('eq.'+hora):'is.null';
-    filtroPref.paciente_individual=personaInd?('eq.'+personaInd):'is.null';
-    sbGet('fichas_seguimiento',filtroPref).then(function(r){
-      if(!r||!r.length)return;
-      if(!_fichaActual||_fichaActual.pac!==pacNom||_fichaActual.fecha!==(fecha||today()))return;
-      if((_fichaActual.personas?_fichaActual.personas[_fichaActual.personaActiva]:null)!==personaInd)return;
-      var f=r[0];
-      var map={fichaObjetivo:f.objetivo,fichaActividad:f.actividad,fichaResultados:f.resultados,fichaProxSesion:f.proxima_sesion};
-      Object.keys(map).forEach(function(id){
-        var el=document.getElementById(id);
-        if(el&&!el.value)el.value=map[id]||'';
-      });
-    }).catch(function(){});
+  // Siempre se confirma contra Supabase (fuente real), no solo cuando la
+  // caché en memoria está vacía: la caché se reinicia cada vez que se
+  // recarga la app (es intencional, no guarda nada clínico en el
+  // dispositivo), así que antes, si la psicóloga volvía a entrar, el
+  // formulario se quedaba mostrando vacío aunque la ficha sí existiera en
+  // el servidor - parecía que "se había perdido" lo que ya había llenado.
+  var filtroPref={sede:'eq.'+(PS.sede||''),paciente_nombre:'eq.'+pacNom,fecha:'eq.'+(fecha||today()),terapia:'eq.'+(terapia||'')};
+  filtroPref.hora=hora?('eq.'+hora):'is.null';
+  filtroPref.paciente_individual=personaInd?('eq.'+personaInd):'is.null';
+  function _restorePh(){
+    Object.keys(placeholdersOrig).forEach(function(id){
+      var el=document.getElementById(id);
+      if(el&&!el.value)el.placeholder=placeholdersOrig[id];
+    });
   }
+  sbGet('fichas_seguimiento',filtroPref).then(function(r){
+    if(!r||!r.length){_restorePh();return;}
+    if(!_fichaActual||_fichaActual.pac!==pacNom||_fichaActual.fecha!==(fecha||today())){_restorePh();return;}
+    if((_fichaActual.personas?_fichaActual.personas[_fichaActual.personaActiva]:null)!==personaInd){_restorePh();return;}
+    var f=r[0];
+    var map={fichaObjetivo:f.objetivo,fichaActividad:f.actividad,fichaResultados:f.resultados,fichaProxSesion:f.proxima_sesion};
+    Object.keys(map).forEach(function(id){
+      var el=document.getElementById(id);
+      if(!el)return;
+      if(!el.value)el.value=map[id]||'';
+    });
+    _restorePh();
+  }).catch(function(){_restorePh();});
 }
 // Cambia de persona dentro de una ficha compartida (hermanos) - guarda en
 // un buffer en memoria lo que se haya escrito para la persona que se deja,
@@ -3478,10 +3487,14 @@ function guardarFichaSeguimiento(){
     objetivo:objetivo,actividad:actividad,resultados:resultados,proxSesion:proxSesion,
     ts:Date.now(),hora:_fichaActual.hora,personaInd:personaInd||''};
   var listKey='fichas_pac_'+PS.sede+'_'+pac.replace(/\s/g,'_');
-  var fichas=_clinicoCache[listKey]||[];
-  var idx=fichas.findIndex(function(f){return f.fecha===ficha.fecha&&f.terapia===ficha.terapia&&f.hora===ficha.hora&&(f.personaInd||'')===(personaInd||'');});
-  if(idx>=0)fichas[idx]=ficha;else fichas.unshift(ficha);
-  _clinicoCache[listKey]=fichas;
+  // Antes el botón mostraba "Ficha guardada" y cerraba el modal de
+  // inmediato, sin esperar a que el guardado en Supabase terminara -
+  // si la psicóloga salía de la app justo después (lo normal, porque ya
+  // había visto el mensaje de éxito) la petición se podía cortar a medias
+  // y la ficha nunca llegaba a quedar guardada en el servidor. Ahora se
+  // espera la confirmación real antes de avisar que se guardó.
+  var btnGuardar=document.getElementById('fichaBtnGuardar');
+  if(btnGuardar){btnGuardar.disabled=true;btnGuardar.textContent='⏳ Guardando...';btnGuardar.style.opacity='.65';}
   // Guardar en Supabase (tabla fichas_seguimiento) - directo, sin pasar por el
   // interceptor de Apps Script (que esperaba campos planos y no un objeto anidado)
   // Antes esto siempre insertaba una fila nueva, así que "editar" una ficha ya
@@ -3506,30 +3519,33 @@ function guardarFichaSeguimiento(){
     return sbPost('fichas_seguimiento',datosFicha);
   }).then(function(){
     console.log('[ficha] guardada en Supabase');
-    // Refrescar fichas en renderClinico si está activo
-    if(document.getElementById('clFichas')&&
-       document.getElementById('clFichas').style.display!=='none'){
-      renderClinico();
+    // Recién ahora que el guardado en el servidor está confirmado se
+    // actualiza la caché local, se avisa al usuario y se puede cerrar.
+    var fichas=_clinicoCache[listKey]||[];
+    var idx=fichas.findIndex(function(f){return f.fecha===ficha.fecha&&f.terapia===ficha.terapia&&f.hora===ficha.hora&&(f.personaInd||'')===(personaInd||'');});
+    if(idx>=0)fichas[idx]=ficha;else fichas.unshift(ficha);
+    _clinicoCache[listKey]=fichas;
+    if(btnGuardar){btnGuardar.disabled=false;btnGuardar.textContent='💾 Guardar Ficha';btnGuardar.style.opacity='1';}
+    // Si la sesión es compartida y todavía falta la ficha de la otra persona,
+    // no se cierra el modal - se pasa directo a completarla, para que no se
+    // olvide la segunda ficha (el pendiente más probable de este flujo).
+    if(personas){
+      _fichaActual.guardados[_fichaActual.personaActiva]=true;
+      var faltante=_fichaActual.guardados.findIndex(function(g){return !g;});
+      if(faltante>-1){
+        showToast('✅ Ficha de '+personas[_fichaActual.personaActiva]+' guardada. Completa la de '+personas[faltante]+'.','ok');
+        _fichaSeleccionarPersona(faltante);
+        return;
+      }
     }
-  }).catch(function(e){console.warn('[ficha] error al sincronizar:',e.message);showToast('⚠️ Ficha guardada localmente, pero falló la sincronización','err');});
-  // Si la sesión es compartida y todavía falta la ficha de la otra persona,
-  // no se cierra el modal - se pasa directo a completarla, para que no se
-  // olvide la segunda ficha (el pendiente más probable de este flujo).
-  if(personas){
-    _fichaActual.guardados[_fichaActual.personaActiva]=true;
-    var faltante=_fichaActual.guardados.findIndex(function(g){return !g;});
-    if(faltante>-1){
-      showToast('✅ Ficha de '+personas[_fichaActual.personaActiva]+' guardada. Completa la de '+personas[faltante]+'.','ok');
-      _fichaSeleccionarPersona(faltante);
-      return;
-    }
-  }
-  showToast('✅ Ficha guardada','ok');
-  cerrarFichaSeguimiento();
-  // Refrescar vista inmediatamente
-  setTimeout(function(){
+    showToast('✅ Ficha guardada','ok');
+    cerrarFichaSeguimiento();
     if(typeof renderClinico==='function') renderClinico();
-  }, 500);
+  }).catch(function(e){
+    console.warn('[ficha] error al guardar:',e&&e.message);
+    if(btnGuardar){btnGuardar.disabled=false;btnGuardar.textContent='💾 Guardar Ficha';btnGuardar.style.opacity='1';}
+    showToast('⚠️ No se pudo guardar la ficha. Revisa tu conexión e inténtalo de nuevo (no cierres sin ver "Ficha guardada").','err');
+  });
 }
 
 // ══ NOTIFICACIONES ══════════════════════════════════════════
