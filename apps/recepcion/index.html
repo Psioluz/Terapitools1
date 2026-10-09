@@ -300,6 +300,7 @@ try{
     <div class="nav-item" onclick="showPage('fichasAud',this)">📝 Fichas de Psicólogas</div>
     <div class="nav-item" onclick="showPage('solicitudesWeb',this)">📥 Solicitudes Web <span class="nav-badge" id="solicWebBadge" style="display:none">0</span></div>
     <div class="nav-item" onclick="showPage('historial',this)">📚 Historial Clínico</div>
+    <div class="nav-item" onclick="showPage('recalcular',this)">🧮 Recalcular Saldo</div>
     <div class="nav-item" onclick="showPage('cumpleanos',this)">🎂 Cumpleaños</div>
     <div class="nav-item" onclick="showPage('chat',this)">💬 Chat <span class="nav-badge" id="chatBadgeRec" style="display:none">0</span></div>
   </div>
@@ -604,6 +605,29 @@ try{
     <div class="card-header"><div class="card-title">🔔 Alertas del Sistema</div></div>
     <div style="padding:0 16px" id="notifRecepBox"></div>
     <div style="padding:12px" id="alertasPage"></div>
+  </div>
+</div>
+
+<!-- ═══ RECALCULAR SALDO ═══ -->
+<div id="page-recalcular" class="page">
+  <div class="card">
+    <div class="card-header"><div class="card-title">🧮 Recalcular Saldo de un Paciente</div></div>
+    <div style="padding:16px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
+        Úsalo cuando un paciente muestre una cuota pendiente que ya pagó, o al revés - por un pago duplicado,
+        borrado, o que quedó sin vincular a su paquete. Vuelve a calcular, desde los pagos reales registrados,
+        cuánto se debe en CADA sesión-checkpoint de todos sus paquetes (no solo un total general).
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-group" style="flex:1;min-width:220px;margin:0">
+          <label class="form-label">Paciente</label>
+          <input type="text" class="form-control" id="recalc-pac-search" placeholder="Buscar paciente..." list="recalc-pac-list" oninput="renderRecalcularSaldo()">
+          <datalist id="recalc-pac-list"></datalist>
+        </div>
+        <button class="btn btn-success" onclick="recalcularSaldoPacienteUI()">🧮 Recalcular</button>
+      </div>
+      <div id="recalcResultado" style="margin-top:16px"></div>
+    </div>
   </div>
 </div>
 
@@ -1777,7 +1801,7 @@ const _PAGE_TITULOS={dashboard:'Inicio',agenda:'Agenda',pacientes:'Pacientes',pa
   asistPersonal:'Asistencia Personal',psicologas:'Psicólogas',terapias:'Terapias',
   paquetes:'Servicios y Tarifas',reportes:'Reporte del Día',whatsapp:'WhatsApp',alertas:'Alertas',
   solicitudesWeb:'Solicitudes Web',historial:'Historial Clínico',cumpleanos:'Cumpleaños',chat:'Chat',
-  fichasAud:'Fichas de Psicólogas'};
+  fichasAud:'Fichas de Psicólogas',recalcular:'Recalcular Saldo'};
 // El botón ☰ colapsa el sidebar fijo en escritorio (más espacio de
 // pantalla, se recuerda con localStorage) y abre/cierra el drawer en móvil.
 function toggleSidebarRec(){
@@ -1806,7 +1830,8 @@ function showPage(name,el){
     pagos:renderPagos,asistPersonal:renderAsistPersonal,psicologas:renderPsicologas,
     terapias:renderTerapias,paquetes:()=>renderPaquetes(_paqFiltro),
     whatsapp:renderWA,alertas:renderAlertas,reportes:generarReporte,
-    cumpleanos:renderCumpleanos,chat:abrirChatRec,fichasAud:renderFichasAcumuladoRec};
+    cumpleanos:renderCumpleanos,chat:abrirChatRec,fichasAud:renderFichasAcumuladoRec,
+    recalcular:renderRecalcularSaldo};
   if(fn[name])fn[name]();
 }
 
@@ -3780,6 +3805,121 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
   if(total<=0)return 0;
   await Promise.all(huerfanos.map(function(p){return sbPatch('pagos',{programa_id:progId},{id:'eq.'+p.id});}));
   return Math.round(total*100)/100;
+}
+
+// ══ RECALCULAR SALDO (herramienta de "Sistema → Recalcular Saldo") ══
+// Mismo reparto de cuotas-checkpoint que guardarPaqueteFlujo() al crear un
+// paquete - se repite aquí (en vez de compartir la función) porque ahí
+// hace falta además la parte de "ya asignadas"/sobrante de una creación
+// incremental, que no aplica a un recálculo desde cero.
+const _CUOTAS_CHECKPOINTS_RECALC={8:[1],12:[1,3],16:[1,4,9],20:[1,5,12],30:[1,7,16,24]};
+const _CUOTAS_CHECKPOINTS_EXCEPCION_RECALC={
+  'Luke Drake Yuto Villaorduña':{16:[1,5,10]},
+  'Dylan Corrillanca':{16:[1,5,10]},
+  'Jeyko De la cruz Flores':{16:[1,5,10]},
+  'Dylan Benjamin Salvador Huaman':{20:[1,6,14]},
+  'Tobias Alejandro Escobedo Mamani':{20:[1,6,14]},
+  'Efrain Alexander Escobedo Mamani':{20:[1,6,14]}
+};
+function _checkpointsDePaquete(totalSesiones,nroCuotas,costoTotal,pacNombre){
+  nroCuotas=Math.max(1,nroCuotas||1);
+  costoTotal=costoTotal||0;
+  if(nroCuotas===1)return[{sesion:1,monto:Math.round(costoTotal*100)/100}];
+  const montoBase=Math.floor(costoTotal/nroCuotas);
+  const checkpoints=(_CUOTAS_CHECKPOINTS_EXCEPCION_RECALC[pacNombre]&&_CUOTAS_CHECKPOINTS_EXCEPCION_RECALC[pacNombre][totalSesiones])||_CUOTAS_CHECKPOINTS_RECALC[totalSesiones];
+  if(checkpoints&&checkpoints.length===nroCuotas){
+    return checkpoints.map(function(sesionCobro,j){
+      const esUltima=j===checkpoints.length-1;
+      const monto=esUltima?Math.round((costoTotal-montoBase*(nroCuotas-1))*100)/100:montoBase;
+      return{sesion:sesionCobro,monto:monto};
+    });
+  }
+  const sesionesPorCuota=Math.floor(totalSesiones/nroCuotas);
+  const posiciones=[];
+  for(let j=0;j<nroCuotas;j++){
+    const esUltima=j===nroCuotas-1;
+    const sesionCobro=j===0?1:Math.max(1,sesionesPorCuota*j);
+    const monto=esUltima?Math.round((costoTotal-montoBase*(nroCuotas-1))*100)/100:montoBase;
+    posiciones.push({sesion:sesionCobro,monto:monto});
+  }
+  return posiciones;
+}
+// Recalcula, desde los pagos REALES registrados en Supabase (no desde lo
+// que haya quedado guardado en programas_paciente/sesiones, que puede
+// estar desincronizado por duplicados, pagos borrados o huérfanos sin
+// vincular), el saldo de CADA paquete del paciente - y lo aplica a CADA
+// sesión-checkpoint suya, una por una, no solo a un total general. Trae
+// todo fresco de Supabase (nunca de DB.sesiones/DB.pagos en memoria).
+async function recalcularSaldoPaciente(pacNombre){
+  const progs=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pacNombre,select:'*'})||[];
+  const resultado=[];
+  for(const prog of progs){
+    const pagosProg=await sbGet('pagos',{programa_id:'eq.'+prog.id,select:'monto'})||[];
+    const totalPagado=Math.round(pagosProg.reduce(function(a,p){return a+(parseFloat(p.monto)||0);},0)*100)/100;
+    const sesionesProg=await sbGet('sesiones',{programa_id:'eq.'+prog.id,tipo:'eq.paquete',select:'id,nro_en_paquete,estado,saldo'})||[];
+    // Reinicia en 0 el saldo de TODAS sus sesiones del paquete - la
+    // cascada de abajo solo vuelve a poner algo en las que de verdad
+    // quedan con una cuota pendiente.
+    await Promise.all(sesionesProg.map(function(s){
+      return (s.saldo||0)!==0?sbPatch('sesiones',{saldo:0},{id:'eq.'+s.id}):Promise.resolve();
+    }));
+    const vivas=sesionesProg.filter(function(s){
+      return s.estado!=='permiso'&&s.estado!=='reprogramado'&&s.estado!=='cancelado'&&s.estado!=='congelado';
+    });
+    const porNro={};
+    vivas.forEach(function(s){if(!porNro[s.nro_en_paquete])porNro[s.nro_en_paquete]=s;});
+    const checkpoints=_checkpointsDePaquete(prog.nro_sesiones_total,prog.nro_cuotas,prog.costo_total,pacNombre);
+    let restante=totalPagado;
+    const patches=[];
+    checkpoints.forEach(function(cp){
+      const sesDestino=porNro[cp.sesion];
+      if(!sesDestino)return;
+      const aplicado=Math.max(0,Math.min(restante,cp.monto));
+      const saldoCuota=Math.round((cp.monto-aplicado)*100)/100;
+      restante=Math.round((restante-aplicado)*100)/100;
+      if(saldoCuota>0)patches.push(sbPatch('sesiones',{saldo:saldoCuota},{id:'eq.'+sesDestino.id}));
+    });
+    await Promise.all(patches);
+    const saldoProg=Math.max(0,Math.round((prog.costo_total-totalPagado)*100)/100);
+    await sbPatch('programas_paciente',{adelanto_acumulado:totalPagado,saldo:saldoProg},{id:'eq.'+prog.id});
+    resultado.push({paquete:prog.paquete_nombre||('Paquete '+prog.nro_sesiones_total+' sesiones'),
+      costoTotal:prog.costo_total,totalPagado:totalPagado,saldo:saldoProg});
+  }
+  return resultado;
+}
+function renderRecalcularSaldo(){
+  const dl=document.getElementById('recalc-pac-list');if(!dl)return;
+  const q=(document.getElementById('recalc-pac-search')?.value||'').toLowerCase();
+  const pacs=DB.pacientes.filter(function(p){return !q||p.nombre.toLowerCase().includes(q);}).slice(0,30);
+  dl.innerHTML=pacs.map(function(p){return '<option value="'+p.nombre.replace(/"/g,'')+'">';}).join('');
+}
+async function recalcularSaldoPacienteUI(){
+  const nombre=(document.getElementById('recalc-pac-search')?.value||'').trim();
+  if(!nombre){showToast('Escribe o selecciona un paciente','error');return;}
+  const el=document.getElementById('recalcResultado');
+  if(el)el.innerHTML='<div style="color:var(--muted);text-align:center;padding:14px">⏳ Recalculando...</div>';
+  showToast('⏳ Recalculando saldo de '+nombre+'...');
+  try{
+    const resultado=await recalcularSaldoPaciente(nombre);
+    if(!resultado.length){
+      if(el)el.innerHTML='<div style="color:var(--muted);text-align:center;padding:14px">Este paciente no tiene ningún paquete registrado.</div>';
+      showToast('Sin paquetes para '+nombre,'info');
+      return;
+    }
+    if(el)el.innerHTML='<div class="card" style="border:1px solid var(--border)"><table style="width:100%;font-size:12px"><thead><tr style="text-align:left"><th style="padding:8px">Paquete</th><th style="padding:8px">Costo</th><th style="padding:8px">Pagado (real)</th><th style="padding:8px">Saldo pendiente</th></tr></thead><tbody>'+
+      resultado.map(function(r){
+        return '<tr style="border-top:1px solid var(--border)"><td style="padding:8px">'+r.paquete+'</td>'+
+          '<td style="padding:8px">S/'+r.costoTotal+'</td>'+
+          '<td style="padding:8px;color:var(--green);font-weight:700">S/'+r.totalPagado+'</td>'+
+          '<td style="padding:8px;font-weight:700;color:'+(r.saldo>0?'var(--orange)':'var(--green)')+'">S/'+r.saldo+'</td></tr>';
+      }).join('')+
+      '</tbody></table></div>';
+    showToast('✅ Saldo recalculado para '+nombre+' en cada sesión de sus paquetes');
+    await cargarDesdeSB();
+  }catch(e){
+    showToast('Error al recalcular: '+e.message,'error');console.error('[recalcular saldo UI]',e);
+    if(el)el.innerHTML='';
+  }
 }
 
 // Registra el paquete UNA sola vez con todas sus terapias (nuevo, o
