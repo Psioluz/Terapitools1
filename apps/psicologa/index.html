@@ -3477,6 +3477,12 @@ function cerrarFichaSeguimiento(){
 function guardarFichaSeguimiento(){
   var pac=_fichaActual.pac,terapia=_fichaActual.terapia,fecha=_fichaActual.fecha;
   if(!pac){showToast('Sin paciente','err');return;}
+  // Si ya hay un guardado en curso (doble clic/doble-tap muy rápido) se
+  // ignora el segundo intento - sin esto, las dos llamadas alcanzan a
+  // consultar "¿ya existe esta ficha?" antes de que la primera termine de
+  // insertar, y ambas terminan creando una fila cada una (ficha duplicada).
+  var btnGuardarChk=document.getElementById('fichaBtnGuardar');
+  if(btnGuardarChk&&btnGuardarChk.disabled)return;
   // Sesión compartida entre 2 pacientes (ej. hermanos con el mismo
   // paquete) - cada ficha se guarda aparte, identificada por
   // paciente_individual, pero paciente_nombre sigue siendo el nombre
