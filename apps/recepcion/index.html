@@ -6445,14 +6445,19 @@ async function renderHistorial(){
     const horaMin=g.pagos.reduce(function(min,p){return(!min||(p.hora&&p.hora<min))?p.hora:min;},'');
     return {id:'pago-'+k,fecha:g.fecha,hora:horaMin||'',esPagoSuelto:true,concepto:g.concepto,pagosGrupo:g.pagos};
   });
-  // El orden es siempre por fecha real - el "Paq X/Y" que se ve en cada
-  // fila (_paqLabel) también se calcula por fecha (ver _rankPaqSesion), así
-  // que orden visible y número visible SIEMPRE coinciden: la sesión que
-  // aparece primero en la lista es la "1/N", la que sigue es la "2/N", etc.
-  // nro_en_paquete (el campo fijo en Supabase) ya no se usa para ordenar -
-  // solo sigue existiendo puertas adentro para anclar cuotas/checkpoints.
+  // Orden: más reciente primero (igual que el resto de listas de
+  // historial de recepción - Fichas, Pagos, Historial de Asistencia).
+  // Antes esta tabla era la única en orden cronológico ascendente, lo que
+  // hacía que en la ficha de un paciente las sesiones fueran de más
+  // antigua a más nueva mientras que, justo debajo, la tarjeta de Fichas
+  // de Seguimiento iba de más nueva a más antigua - un recepcionista que
+  // revisaba ambas tablas en la misma pantalla veía el orden "intercalado".
+  // El "Paq X/Y" que se ve en cada fila (_paqLabel) se calcula aparte, con
+  // su propio orden cronológico interno (ver _rankPaqSesion) - no depende
+  // del orden en que esta tabla se muestra, así que invertir el orden
+  // visible de la tabla no afecta esos números.
   const filasTabla=sesPac.concat(filasHuerfanas).sort(function(a,b){
-    return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));
+    return(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||''));
   });
   // Si tiene un paquete, las tarjetas de arriba deben reflejar SOLO el
   // paquete VIGENTE (igual que "Progreso paquete") - mezclar sesiones de
