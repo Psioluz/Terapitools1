@@ -2297,8 +2297,52 @@ let _reprogDe=null;
 // botón de una fila puntual) - permite atar el pago a ESA sesión exacta
 // en vez de adivinar por fecha, y decrementar solo su saldo.
 let _pagoSesionId=null;
-function reprogramar(sesId){
+// Tope de reprogramaciones/permisos por paquete, según su tamaño (número
+// total de sesiones contratadas) - una vez alcanzado, recepción ya no
+// puede reprogramar/dar permiso en ESE paquete (sí puede en otro paquete
+// nuevo que el paciente contrate después). Tamaños de paquete que no
+// están en esta tabla (ej. servicios sueltos, paquetes a medida) no
+// tienen tope.
+const LIMITES_REPROG_PERMISO={
+  8:  {reprog:1,permiso:1},
+  12: {reprog:2,permiso:1},
+  16: {reprog:2,permiso:1},
+  20: {reprog:2,permiso:1},
+  30: {reprog:2,permiso:2}
+};
+// Cuenta directo en Supabase (no en DB.sesiones, que solo trae los
+// últimos 45 días salvo que se haya cargado el historial completo) cuántas
+// sesiones de ESTE paquete ya quedaron en "reprogramado" o "permiso".
+async function _contarReprogPermisoPaquete(progId){
+  const filas=await sbGet('sesiones',{programa_id:'eq.'+progId,select:'estado'}).catch(function(){return[];});
+  let reprog=0,permiso=0;
+  (filas||[]).forEach(function(f){
+    if(f.estado==='reprogramado')reprog++;
+    else if(f.estado==='permiso')permiso++;
+  });
+  return{reprog:reprog,permiso:permiso};
+}
+// Verifica el tope ANTES de dejar reprogramar/dar permiso. Devuelve null si
+// no hay problema, o un mensaje de error si ya se llegó al tope.
+async function _verificarTopePaquete(ses,accion){
+  if(!ses||ses.tipo!=='paquete'||!ses.totalPaq)return null;
+  const limite=LIMITES_REPROG_PERMISO[ses.totalPaq];
+  if(!limite)return null;
+  const progId=ses._sb&&ses._sb.programa_id;
+  if(!progId)return null;
+  const usados=await _contarReprogPermisoPaquete(progId);
+  const tope=accion==='reprog'?limite.reprog:limite.permiso;
+  const usadosAccion=accion==='reprog'?usados.reprog:usados.permiso;
+  if(usadosAccion>=tope){
+    const etiqueta=accion==='reprog'?'reprogramaciones':'permisos';
+    return 'Este paquete de '+ses.totalPaq+' sesiones ya usó sus '+tope+' '+etiqueta+' permitidas('+usadosAccion+'/'+tope+'). No se puede '+(accion==='reprog'?'reprogramar':'dar permiso en')+' otra sesión de este paquete.';
+  }
+  return null;
+}
+async function reprogramar(sesId){
   const ses=DB.sesiones.find(s=>s.id===sesId);if(!ses)return;
+  const errTope=await _verificarTopePaquete(ses,'reprog');
+  if(errTope){showToast('🚫 '+errTope,'error');return;}
   _reprogDe=ses;
   // El cambio a "reprogramado" solo se guarda en Supabase cuando la
   // reprogramación se CONFIRMA de verdad (ver guardarSesion, rama
@@ -2330,8 +2374,10 @@ function cancelarModalAgendar(){
 // día de la semana/hora/terapia/psicóloga que el paciente ya lleva. Igual
 // que Reprogramar, exige evidencia (foto/sustento) y admite una nota.
 let _permisoSesId=null;
-function abrirModalPermiso(sesId){
+async function abrirModalPermiso(sesId){
   const s=DB.sesiones.find(x=>x.id===sesId);if(!s)return;
+  const errTope=await _verificarTopePaquete(s,'permiso');
+  if(errTope){showToast('🚫 '+errTope,'error');return;}
   _permisoSesId=sesId;
   const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
   const info=document.getElementById('permiso-info');
