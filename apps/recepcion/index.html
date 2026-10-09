@@ -2310,18 +2310,19 @@ const LIMITES_REPROG_PERMISO={
   20: {reprog:2,permiso:1},
   30: {reprog:2,permiso:2}
 };
-// Cuenta directo en la tabla reprogramaciones (el log), filtrando por
-// programa_id - así el tope rige SOLO sobre el paquete actual del
-// paciente y SOLO desde ahora en adelante: las reprogramaciones/permisos
-// de antes de este cambio nunca llevaron programa_id guardado (esa
-// columna recién se agregó junto con el tope), así que quedan null y no
-// cuentan para el tope, sin importar cuántas haya habido en el pasado.
+// Cuenta directo en Supabase (no en DB.sesiones, que solo trae los
+// últimos 45 días salvo que se haya cargado el historial completo)
+// cuántas sesiones de ESTE paquete (programa_id) ya quedaron en
+// "reprogramado" o "permiso" - incluye lo que haya pasado desde que se
+// creó el paquete actual, no solo desde hoy, pero nunca cuenta nada de
+// un paquete ANTERIOR ya cerrado del mismo paciente (ese tiene otro
+// programa_id, distinto al que se está por tocar ahora).
 async function _contarReprogPermisoPaquete(progId){
-  const filas=await sbGet('reprogramaciones',{programa_id:'eq.'+progId,select:'tipo'}).catch(function(){return[];});
+  const filas=await sbGet('sesiones',{programa_id:'eq.'+progId,select:'estado'}).catch(function(){return[];});
   let reprog=0,permiso=0;
   (filas||[]).forEach(function(f){
-    if(f.tipo==='reprogramacion')reprog++;
-    else if(f.tipo==='permiso')permiso++;
+    if(f.estado==='reprogramado')reprog++;
+    else if(f.estado==='permiso')permiso++;
   });
   return{reprog:reprog,permiso:permiso};
 }
