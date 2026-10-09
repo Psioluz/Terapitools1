@@ -5709,6 +5709,21 @@ function _renderAvisoPendientesReporte(){
     }).join('')+
     '</div>';
 }
+// Un pago puede tener sesion_id pero apuntar a una sesión de OTRA fecha
+// (ej. el pago se cobró y registró el 07/10, pero es el pago real de una
+// sesión agendada el 09/10) - antes esos pagos desaparecían del reporte
+// del día: no salían bajo ninguna fila de sesión (esa sesión no es de
+// HOY) ni en "Otros pagos del día" (que los excluía solo por tener
+// sesion_id, sin fijarse de qué fecha es esa sesión). Se cuenta como
+// "sin sesión del día" tanto un pago sin sesion_id como uno cuya sesión
+// ligada cae en otra fecha - así siempre queda una fila donde verlo.
+function _pagosSinSesionDelDia(pagsDia,fecha){
+  return pagsDia.filter(function(p){
+    if(!(p._sb&&p._sb.sesion_id))return true;
+    var sesLigada=DB.sesiones.find(function(s){return s.id===p._sb.sesion_id;});
+    return !sesLigada||sesLigada.fecha!==fecha;
+  });
+}
 // Antes de armar el Reporte del Día (en pantalla o en PDF) se refresca
 // sesiones y pagos de ESA fecha exacta directo desde Supabase - no basta
 // con lo que ya esté en DB.sesiones/DB.pagos (ventana de 45 días + sync
@@ -5795,7 +5810,7 @@ async function generarReporte(){
   // (no si el paciente "tiene o no psicóloga", ni si tiene OTRA sesión
   // cualquiera ese mismo día - eso hacía que un pago ya mostrado en su
   // propia fila de sesión se repitiera aquí abajo).
-  const pagsSinPs=pags.filter(function(p){return!(p._sb&&p._sb.sesion_id);});
+  const pagsSinPs=_pagosSinSesionDelDia(pags,fecha);
   if(pagsSinPs.length){
     rptHTML+='<div style="margin-bottom:16px;border:1px solid var(--border);border-radius:12px;overflow:hidden">'+
       '<div style="background:linear-gradient(135deg,#6b214d,#e91e8c);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'+
@@ -6033,7 +6048,7 @@ async function exportarPDF(){
   // ── OTROS PAGOS DEL DÍA - pagos que dejaron "separado" un paquete/sesión
   // SIN que todavía exista una sesión concreta agendada (mismo criterio
   // que en la vista de pantalla: sin sesion_id, no "sin psicóloga"). ──
-  const pagsSinPsPDF=pags.filter(function(p){return!(p._sb&&p._sb.sesion_id);});
+  const pagsSinPsPDF=_pagosSinSesionDelDia(pags,fecha);
   if(pagsSinPsPDF.length){
     const rowH2=8,headerH2=12;
     if(y+headerH2+rowH2>190){doc.addPage();y=20;}
