@@ -2181,7 +2181,17 @@ function _rankPaqSesion(s){
   }).sort(function(a,b){return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
   const idx=delPrograma.findIndex(function(x){return x.id===s.id;});
   if(idx===-1)return{rank:s.nroSes,total:s.totalPaq};
-  return{rank:idx+1,total:delPrograma.length};
+  // El total nunca debe mostrar MENOS que lo realmente contratado
+  // (s.totalPaq, el total_paquete guardado) - en un paquete con varias
+  // terapias las sesiones se generan por partes, así que puede haber
+  // momentos en que todavía no existan filas para TODAS las contratadas
+  // (ej. un paquete de 30 con solo 5 generadas hasta ahora). Contar solo
+  // las filas que YA existen en esos casos hacía ver "Paq 1/5" en vez de
+  // "Paq 1/30" (pasó con Grecia Alarcon). Se toma el mayor de los dos -
+  // delPrograma.length sigue mandando cuando hay reprogramaciones que
+  // desincronizan el total_paquete guardado (motivo original de calcularlo
+  // así), pero nunca por debajo de lo contratado.
+  return{rank:idx+1,total:Math.max(delPrograma.length,s.totalPaq||0)};
 }
 function _paqLabel(s){
   const r=_rankPaqSesion(s);
@@ -3317,6 +3327,13 @@ function renderProgramasPac(pacNombre){
 // se creó fuera de esta función). Salta feriados no laborables y horarios
 // ya ocupados de esa psicóloga, corriendo la fecha una semana más.
 async function generarSesionesRecurrentes(o){
+  // totalPaquete (lo que se estampa como "total_paquete"/lo que se ve en
+  // "Paq X/Y") puede ser distinto de totalSesiones (cuántas sesiones se
+  // generan AQUÍ) cuando se agrega una terapia nueva a un paquete que ya
+  // tiene otras - totalSesiones es el reparto de ESTA terapia, totalPaquete
+  // es el paquete completo. Si no se pasa, son el mismo número (caso normal
+  // de un paquete de una sola terapia).
+  const totalPaqueteLbl=o.totalPaquete||o.totalSesiones;
   const restantes=o.totalSesiones-1;
   if(restantes<=0)return;
   const psNombre=o.ps.nombre;
@@ -3342,7 +3359,7 @@ async function generarSesionesRecurrentes(o){
     // filas en vez de solo en la primera.
     const fila={fecha:fStr,hora:o.hora,paciente_nombre:o.pac.nombre,paciente_tel:o.pac.tel||'',
       psicologa:psNombre,terapia:o.ter.nombre,estado:'programado',tipo:o.tipo,
-      nro_en_paquete:nroEnPaq,total_paquete:o.totalSesiones,costo_total:o.costoTotal,
+      nro_en_paquete:nroEnPaq,total_paquete:totalPaqueteLbl,costo_total:o.costoTotal,
       adelanto:0,saldo:0,sede:DB.sede,registrado_por:DB.usuario||'',
       programa_id:o.programaId,programa_terapia_id:o.programaTerapiaId};
     try{
@@ -3350,7 +3367,7 @@ async function generarSesionesRecurrentes(o){
       const nueva=(r&&r[0])||fila;
       DB.sesiones.push({id:nueva.id||('tmp-'+fStr+'-'+o.hora),fecha:fStr,hora:o.hora,
         pacId:o.pac.nombre,psId:psNombre,terId:o.ter.nombre,estado:'programado',
-        nroSes:nroEnPaq,totalPaq:o.totalSesiones,costo:o.costoTotal,saldo:0,_sb:nueva});
+        nroSes:nroEnPaq,totalPaq:totalPaqueteLbl,costo:o.costoTotal,saldo:0,_sb:nueva});
       creadas++;
     }catch(e){console.error('[generarSesionesRecurrentes]',e);saltadas.push(fmtF(fStr)+' (error)');}
   }
@@ -3564,7 +3581,13 @@ async function reemplazarPendientesPaquete(){
     for(const ptId in quitarPorPt){
       const nuevoAsignadas=Math.max(0,(ptAsignadasActual[ptId]||0)-quitarPorPt[ptId]);
       ptAsignadasActual[ptId]=nuevoAsignadas;
-      await sbPatch('programa_terapias',{sesiones_asignadas:nuevoAsignadas,sesiones_realizadas:nuevoAsignadas},{id:'eq.'+ptId});
+      // sesiones_realizadas NO se toca aquí: reprogramar el horario de
+      // sesiones pendientes no cambia cuántas ya se asistieron de verdad.
+      // Antes se pisaba con nuevoAsignadas (la cantidad de pendientes), así
+      // que el conteo de "realizadas" perdía su historial real y el
+      // siguiente "Paq X/Y" calculado a partir de él salía mal (pasó con
+      // Grecia Alarcon: un paquete de 30 terminó viéndose como "Paq 1/5").
+      await sbPatch('programa_terapias',{sesiones_asignadas:nuevoAsignadas},{id:'eq.'+ptId});
     }
 
     // Borrar SOLO las sesiones que se liberan - las que no cambiaron
@@ -3607,11 +3630,14 @@ async function reemplazarPendientesPaquete(){
       if(ptIdPrevio){
         const nuevoAsignadas=(ptAsignadasActual[ptIdPrevio]||0)+c.sesiones;
         ptAsignadasActual[ptIdPrevio]=nuevoAsignadas;
-        await sbPatch('programa_terapias',{sesiones_asignadas:nuevoAsignadas,sesiones_realizadas:nuevoAsignadas},{id:'eq.'+ptIdPrevio});
+        await sbPatch('programa_terapias',{sesiones_asignadas:nuevoAsignadas},{id:'eq.'+ptIdPrevio});
         ptId=ptIdPrevio;
       }else{
+        // sesiones_realizadas empieza en 0 - son sesiones recién agendadas,
+        // ninguna se atendió todavía (antes se creaba ya con c.sesiones,
+        // como si estuvieran todas hechas de entrada).
         const ptRows=await sbPost('programa_terapias',{programa_id:progRow.id,terapia:c.terapia,
-          psicologa:c.psicologaNombre,sesiones_asignadas:c.sesiones,sesiones_realizadas:c.sesiones});
+          psicologa:c.psicologaNombre,sesiones_asignadas:c.sesiones,sesiones_realizadas:0});
         ptId=ptRows&&ptRows[0]&&ptRows[0].id;
       }
       c.filaIdxs.forEach(function(i){ptIdPorFila[i]=ptId;});
@@ -3952,13 +3978,19 @@ async function guardarPaqueteFlujo(){
           yaAplicadoAExistentes+=Math.max(0,p.monto-saldoActual);
         });
         // Un paquete NUEVO ya nace con el adelanto de ESTA transacción
-        // metido en progRow.adelanto_acumulado (se creó así, arriba) - hay
-        // que descontarlo aquí para no aplicarlo dos veces (la cascada de
-        // más abajo ya se encarga de él). Un paquete que CONTINÚA no tiene
-        // ese problema: progRow es el objeto cargado antes de esta llamada,
-        // todavía sin el adelanto de ahora.
-        const adelantoYaContadoAparte=progId?0:adelanto;
-        let sobranteSinAplicar=Math.max(0,Math.round(((progRow.adelanto_acumulado||0)-adelantoYaContadoAparte-yaAplicadoAExistentes)*100)/100);
+        // metido en progRow.adelanto_acumulado (se creó así, arriba). Antes
+        // se descontaba aquí a propósito (dejando sobranteSinAplicar en 0),
+        // confiando en que la cascada posterior (aplicarCascadaCheckpoints,
+        // más abajo) lo aplicaría re-consultando Supabase DESPUÉS de crear
+        // las sesiones - pero esa segunda vuelta podía no alcanzar a
+        // reflejarse en la cuota-checkpoint recién creada (pasó con Emma
+        // Valentina Matos: pagó el adelanto exacto de la cuota 1 al
+        // registrar el paquete, pero la cuota 1 se quedó marcada
+        // pendiente). Ahora se aplica aquí mismo, en el mismo paso que
+        // estampa los montos - para un paquete nuevo no hay nada "de antes"
+        // que cascadear aparte, así que no hace falta esa segunda vuelta
+        // (se evita además llamando a aplicarCascadaCheckpoints más abajo).
+        let sobranteSinAplicar=Math.max(0,Math.round(((progRow.adelanto_acumulado||0)-yaAplicadoAExistentes)*100)/100);
         posicionesNuevas.forEach(function(p){
           const aplicado=Math.min(sobranteSinAplicar,p.monto);
           p.monto=Math.round((p.monto-aplicado)*100)/100;
@@ -4015,11 +4047,14 @@ async function guardarPaqueteFlujo(){
     }
 
     if(adelanto>0){
-      // Cascada del adelanto sobre TODAS las cuotas-checkpoint pendientes
-      // del paquete (las recién creadas arriba y cualquiera de un registro
-      // anterior), trayéndolas frescas de Supabase - nunca fiarse de lo que
-      // ya está en memoria en este punto.
-      await aplicarCascadaCheckpoints(progRow.id,adelanto);
+      // Cascada del adelanto sobre cuotas-checkpoint que YA EXISTÍAN antes
+      // de esta llamada (de un registro anterior) - solo aplica cuando se
+      // está CONTINUANDO un paquete (progId). Para un paquete NUEVO ya no
+      // hace falta: su propio adelanto se acaba de aplicar arriba, directo
+      // sobre los montos al crearlos, sin pasar por una segunda consulta a
+      // Supabase - llamarla igual aquí duplicaría el descuento (o lo
+      // aplicaría a la cuota equivocada, la 2 en vez de la 1).
+      if(progId)await aplicarCascadaCheckpoints(progRow.id,adelanto);
       const n=new Date();
       const horaPago=horaLima(n);
       const filasPago=agFilasPagoParaGuardar(adelanto);
@@ -4189,7 +4224,13 @@ async function guardarSesion(){
       const sesAsig=parseInt(document.getElementById('ag-sesAsignadas')?.value)||0;
       if(sesAsig<1){showToast('Indica cuántas sesiones de este paquete son para esta terapia','error');return;}
       const adelantoAcum=(prog.adelanto_acumulado||0)+adelanto;
-      totalPaq=sesAsig;
+      // total_paquete debe reflejar el paquete COMPLETO (todas sus
+      // terapias juntas, prog.nro_sesiones_total), no solo cuántas de esas
+      // sesiones le tocan a ESTA terapia (sesAsig) - si no, el "Paq X/Y"
+      // que se ve en la agenda/historial muestra el sub-total de una sola
+      // terapia en vez de las sesiones totales contratadas (pasó con
+      // Grecia Alarcon: un paquete de 30 se veía como "Paq 1/5").
+      totalPaq=prog.nro_sesiones_total||sesAsig;
       saldo=Math.max(0,(prog.costo_total||0)-adelantoAcum);
       const ptRows=await sbPost('programa_terapias',{programa_id:prog.id,terapia:ter.nombre,
         psicologa:ps.nombre,sesiones_asignadas:sesAsig,sesiones_realizadas:sinSesionHoyEfectivo?0:1});
@@ -4206,8 +4247,11 @@ async function guardarSesion(){
       }
       await sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldo},{id:'eq.'+prog.id});
       if(modoPaqEfectivo==='generar'&&ptId){
+        // Se generan solo las sesiones de ESTA terapia (sesAsig) - el
+        // "total_paquete" que se estampa en cada fila sigue siendo el del
+        // paquete completo (totalPaq), no sesAsig.
         await generarSesionesRecurrentes({pac:pac,ps:ps,ter:ter,fechaInicio:fecha,hora:hora,tipo:tipo,
-          programaId:prog.id,programaTerapiaId:ptId,totalSesiones:totalPaq,
+          programaId:prog.id,programaTerapiaId:ptId,totalSesiones:sesAsig,totalPaquete:totalPaq,
           costoTotal:prog.costo_total,saldoInicial:saldo});
       }
     } else {
