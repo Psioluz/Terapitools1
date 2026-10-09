@@ -2757,9 +2757,8 @@ async function cargarDocsEnPanel(pacNom){
           <div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.nombre}</div>
           <div style="font-size:10px;color:var(--muted)">${a.fecha||''}</div>
         </div>
-        <button data-url="${a.url||''}" data-nom="${a.nombre||''}" data-tipo="${a.tipo||''}"
-          onclick="abrirDocExterno(this.dataset.url,this.dataset.nom,this.dataset.tipo)"
-          style="padding:6px 10px;background:var(--acc);color:#fff;border:none;border-radius:8px;font-size:10px;font-weight:700;cursor:pointer">📂 Abrir</button>
+        ${a.url?`<a href="${a.url}" target="_blank" rel="noopener"
+          style="padding:6px 10px;background:var(--acc);color:#fff;border:none;border-radius:8px;font-size:10px;font-weight:700;cursor:pointer;text-decoration:none">📂 Abrir</a>`:''}
       </div>`;
     }).join('')+'</div>';
   }catch(e){
