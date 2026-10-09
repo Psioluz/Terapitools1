@@ -915,11 +915,23 @@ async function eliminarPagoRecurrente(id){
         <button onclick="renderFichasIndicador()" style="padding:9px 18px;background:var(--acc);color:#fff;border:none;border-radius:8px;font-weight:800;cursor:pointer">🔍 Buscar</button>
       </div>
     </div>
-    <div class="card">
+    <div class="card" style="margin-bottom:14px">
       <div class="ch"><div class="ct">📋 Detalle por Sede y Psicóloga</div></div>
       <div class="cb" id="fichasIndicadorBody" style="overflow-x:auto;padding:14px">
         <div style="text-align:center;padding:30px;color:var(--muted)">
           <div style="font-size:32px;margin-bottom:10px">📝</div>
+          <div>Cargando...</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">📊 Resumen acumulado por psicóloga (desde su primer ingreso a la app)</div></div>
+      <div style="padding:10px 16px;font-size:11.5px;color:var(--muted)">
+        Cuenta solo desde el día que cada licenciada entró por primera vez a su aplicativo - no se le audita por días en que el sistema todavía no estaba en uso.
+      </div>
+      <div class="cb" id="fichasAcumuladoBody" style="overflow-x:auto;padding:14px">
+        <div style="text-align:center;padding:30px;color:var(--muted)">
+          <div style="font-size:32px;margin-bottom:10px">📊</div>
           <div>Cargando...</div>
         </div>
       </div>
@@ -1020,6 +1032,7 @@ let G = {
   programas  : [],   // programas_paciente activos, para el saldo real (deuda de paquete)
   pagosLocal : [],   // pagos, cargados de Supabase en sincronizar()
   fichas     : [],   // fichas_seguimiento, para el indicador de llenado de fichas
+  primerIngresoPs: {}, // {nombrePsicologa: 'YYYY-MM-DD' de su primer login a la app Psicóloga}
   loaded     : false,
   ts         : null
 };
@@ -1144,11 +1157,24 @@ function _diasTrabajoANum(txt){
           _sb('pagos',Object.assign({'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'},sedeFiltro(sede))),
           _sb('gastos',Object.assign({'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'},sedeFiltro(sede))),
           _sb('asistencia_personal',Object.assign({'select':'*','order':'fecha.desc','limit':'500'},sedeFiltro(sede))),
-          _sb('programas_paciente',Object.assign({'estado':'eq.activo','select':'*'},sedeFiltro(sede)))
+          _sb('programas_paciente',Object.assign({'estado':'eq.activo','select':'*'},sedeFiltro(sede))),
+          // Primer ingreso real de cada psicóloga a SU app - para que el
+          // resumen acumulado de fichas (ver renderFichasIndicador) no la
+          // audite por días antes de que siquiera hubiera entrado a usar
+          // el sistema.
+          _sb('log_accesos',{'app':'eq.psicologa','select':'usuario,created_at','order':'created_at.asc'}).catch(function(){return[];})
         ]).then(function(r){
           var ses=r[0]||[],psis=r[1]||[],recs=r[2]||[],pacs=r[3]||[],ters=r[4]||[];
           var fichas=r[5]||[],bonos=r[6]||[],hon=r[7]||[],conts=r[8]||[];
           var pagos=r[9]||[],gastos=r[10]||[],asistPers=r[11]||[],progs=r[12]||[];
+          var logsPs=r[13]||[];
+          var primerIngresoPs={};
+          logsPs.forEach(function(l){
+            var u=l.usuario||'';
+            if(!u)return;
+            var f=(l.created_at||'').split('T')[0];
+            if(!primerIngresoPs[u]||f<primerIngresoPs[u])primerIngresoPs[u]=f;
+          });
           return _jr({
             status:'ok',
             sesiones:ses.map(function(s){
@@ -1175,6 +1201,7 @@ function _diasTrabajoANum(txt){
                 password:p.password,estado:p.estado,fechaNac:p.fecha_nac||'',tel:p.telefono||'',
                 sueldo:p.sueldo||0,fotoUrl:'',rol:'recepcion'};
             }),
+            primerIngresoPs:primerIngresoPs,
             pacientes:pacs.map(function(p){
               return {id:p.id,nombre:p.nombre,tel:p.telefono||'',
                 sede:p.sede||'',psNombre:p.psicologa||'',terNombre:p.terapia||'',mod:'paquete',
@@ -1429,6 +1456,7 @@ async function sincronizar(mostrar){
     if(data.programas)         G.programas =data.programas;
     if(data.pagos?.length)     G.pagosLocal=data.pagos.map(p=>Object.assign({},p,{_sede:p.sede||p._sede||''}));
     if(data.fichas?.length)    G.fichas    =data.fichas;
+    if(data.primerIngresoPs)   G.primerIngresoPs=data.primerIngresoPs;
 
     // Fusionar honorarios del Sheet con los del admin local
     if(data.honorarios?.length){
@@ -2342,6 +2370,66 @@ function renderFichasIndicador(){
     });
     h+='</tbody></table></div>';
   });
+  cont.innerHTML=h;
+  renderFichasAcumulado();
+}
+
+// Resumen acumulado por psicóloga, desde el día de su primer login real a
+// la app Psicóloga (tabla log_accesos) hasta hoy - para que la auditoría
+// de llenado de fichas sea justa y no cuente días antes de que cada
+// licenciada empezara a usar el sistema (todas entraron por primera vez
+// entre fines de septiembre y la primera semana de octubre 2026).
+function renderFichasAcumulado(){
+  var cont=document.getElementById('fichasAcumuladoBody');
+  if(!cont)return;
+  var sedeFiltrada=document.getElementById('fichasSedeSel')?.value||'';
+  var hoy=today();
+
+  var porPs={};
+  (G.sesiones||[]).forEach(function(s){
+    if(s.estado!=='asistio'&&s.estado!=='tardanza')return;
+    if(s.tipo==='llamada_maestra')return;
+    if(sedeFiltrada&&(s.sede||'')!==sedeFiltrada)return;
+    var ps=s.psNombre||'-';
+    var desde=G.primerIngresoPs[ps];
+    if(desde&&s.fecha<desde)return; // antes de que ella empezara a usar la app
+    porPs[ps]=porPs[ps]||{atendidas:0,llenadas:0,desde:desde||null,sede:s.sede||'-'};
+    porPs[ps].atendidas++;
+    var tieneFicha=(G.fichas||[]).some(function(f){
+      return _normTxtFicha(f.sede)===_normTxtFicha(s.sede)&&
+        _normTxtFicha(f.paciente_nombre)===_normTxtFicha(s.pacNombre)&&
+        _normTxtFicha(f.terapia)===_normTxtFicha(s.terNombre)&&
+        f.fecha===s.fecha;
+    });
+    if(tieneFicha)porPs[ps].llenadas++;
+  });
+
+  var nombres=Object.keys(porPs).sort();
+  if(!nombres.length){
+    cont.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">No hay sesiones atendidas registradas'+(sedeFiltrada?' en '+sedeFiltrada:'')+'.</div>';
+    return;
+  }
+  var h='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8f5fb">'+
+    '<th style="text-align:left;padding:8px;font-size:11px">Psicóloga</th>'+
+    '<th style="text-align:left;padding:8px;font-size:11px">Sede</th>'+
+    '<th style="padding:8px;font-size:11px">Primer ingreso</th>'+
+    '<th style="padding:8px;font-size:11px">Atendidas</th>'+
+    '<th style="padding:8px;font-size:11px">Fichas llenadas</th>'+
+    '<th style="padding:8px;font-size:11px">% Completado</th></tr></thead><tbody>';
+  nombres.forEach(function(ps){
+    var d=porPs[ps];
+    var pct=d.atendidas?Math.round(d.llenadas/d.atendidas*100):0;
+    var color=pct===100?'#2e7d32':(pct>=50?'#f57f17':'#c62828');
+    h+='<tr style="border-top:1px solid var(--border)">'+
+       '<td style="padding:8px;font-weight:700;font-size:12px">'+ps+'</td>'+
+       '<td style="padding:8px;font-size:12px">'+d.sede+'</td>'+
+       '<td style="text-align:center;padding:8px;font-size:11px;color:var(--muted)">'+(d.desde?fmtF(d.desde):'<span style="color:#c62828">sin registro</span>')+'</td>'+
+       '<td style="text-align:center;padding:8px;font-size:12px">'+d.atendidas+'</td>'+
+       '<td style="text-align:center;padding:8px;font-size:12px">'+d.llenadas+'</td>'+
+       '<td style="text-align:center;padding:8px;font-weight:800;font-size:12px;color:'+color+'">'+pct+'%</td>'+
+       '</tr>';
+  });
+  h+='</tbody></table>';
   cont.innerHTML=h;
 }
 function exportarCajaPDF(){
