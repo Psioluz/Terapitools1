@@ -6569,7 +6569,12 @@ async function subirPDF(){
     const sedeC=(DB.sede||'General').replace(/\s+/g,'_');
     const pacC=(pac.nombre||'paciente').replace(/[^a-zA-Z0-9]/g,'_');
     const ext=file.name.split('.').pop();
-    const path=sedeC+'/'+pacC+'/'+tipo.replace(/\s/g,'_')+'_'+Date.now()+'.'+ext;
+    // El tipo de documento (ej. "Evaluación", "Historia Clínica") solo
+    // reemplazaba espacios, dejando tildes/ñ intactas - Supabase Storage
+    // rechaza esos bytes en la key del archivo ("InvalidKey"), así que la
+    // subida fallaba justo con los tipos más comunes del selector.
+    const tipoC=tipo.replace(/[^a-zA-Z0-9]/g,'_');
+    const path=sedeC+'/'+pacC+'/'+tipoC+'_'+Date.now()+'.'+ext;
     const url=await sbUpload('fichas',path,file,file.type||'application/pdf');
     await sbPost('documentos',{paciente_nombre:pac.nombre,tipo:tipo,nombre:desc,url:url,
       sede:DB.sede,fecha:today(),subido_por:DB.usuario||'',mime:file.type||'',
