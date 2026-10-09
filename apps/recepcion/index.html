@@ -297,6 +297,7 @@ try{
     <div class="nav-item" onclick="showPage('reportes',this)">📋 Reporte del Día</div>
     <div class="nav-item" onclick="showPage('whatsapp',this)">📱 WhatsApp</div>
     <div class="nav-item" onclick="showPage('alertas',this)">🔔 Alertas <span class="nav-badge" id="alertasBadge" style="display:none">0</span></div>
+    <div class="nav-item" onclick="showPage('fichasAud',this)">📝 Fichas de Psicólogas</div>
     <div class="nav-item" onclick="showPage('solicitudesWeb',this)">📥 Solicitudes Web <span class="nav-badge" id="solicWebBadge" style="display:none">0</span></div>
     <div class="nav-item" onclick="showPage('historial',this)">📚 Historial Clínico</div>
     <div class="nav-item" onclick="showPage('cumpleanos',this)">🎂 Cumpleaños</div>
@@ -603,6 +604,17 @@ try{
     <div class="card-header"><div class="card-title">🔔 Alertas del Sistema</div></div>
     <div style="padding:0 16px" id="notifRecepBox"></div>
     <div style="padding:12px" id="alertasPage"></div>
+  </div>
+</div>
+
+<!-- ═══ FICHAS DE PSICÓLOGAS (resumen acumulado) ═══ -->
+<div id="page-fichasAud" class="page">
+  <div class="card">
+    <div class="card-header"><div class="card-title">📝 Llenado de Fichas por Psicóloga</div></div>
+    <div style="padding:0 16px 10px;font-size:11.5px;color:var(--muted,#64748b)">
+      Sesiones atendidas vs. fichas de seguimiento llenadas, desde el día que cada psicóloga entró por primera vez a su aplicativo hasta hoy - no se audita por días antes de eso.
+    </div>
+    <div style="padding:12px;overflow-x:auto" id="fichasAudBody">Cargando…</div>
   </div>
 </div>
 
@@ -1764,7 +1776,8 @@ document.querySelectorAll('.modal-overlay').forEach(o=>{
 const _PAGE_TITULOS={dashboard:'Inicio',agenda:'Agenda',pacientes:'Pacientes',pagos:'Caja / Pagos',
   asistPersonal:'Asistencia Personal',psicologas:'Psicólogas',terapias:'Terapias',
   paquetes:'Servicios y Tarifas',reportes:'Reporte del Día',whatsapp:'WhatsApp',alertas:'Alertas',
-  solicitudesWeb:'Solicitudes Web',historial:'Historial Clínico',cumpleanos:'Cumpleaños',chat:'Chat'};
+  solicitudesWeb:'Solicitudes Web',historial:'Historial Clínico',cumpleanos:'Cumpleaños',chat:'Chat',
+  fichasAud:'Fichas de Psicólogas'};
 // El botón ☰ colapsa el sidebar fijo en escritorio (más espacio de
 // pantalla, se recuerda con localStorage) y abre/cierra el drawer en móvil.
 function toggleSidebarRec(){
@@ -1793,7 +1806,7 @@ function showPage(name,el){
     pagos:renderPagos,asistPersonal:renderAsistPersonal,psicologas:renderPsicologas,
     terapias:renderTerapias,paquetes:()=>renderPaquetes(_paqFiltro),
     whatsapp:renderWA,alertas:renderAlertas,reportes:generarReporte,
-    cumpleanos:renderCumpleanos,chat:abrirChatRec};
+    cumpleanos:renderCumpleanos,chat:abrirChatRec,fichasAud:renderFichasAcumuladoRec};
   if(fn[name])fn[name]();
 }
 
@@ -5348,6 +5361,73 @@ function _fichasFaltantesAyer(){
     }
   });
   return Object.keys(porPs).map(function(ps){return{psicologa:ps,pacientes:porPs[ps],fecha:ayer};});
+}
+
+// Resumen acumulado de llenado de fichas por psicóloga, desde el día de
+// su primer login real a la app Psicóloga (tabla log_accesos) hasta hoy -
+// igual que el resumen de Gerencia, pero acotado a esta sede. Se pide
+// aparte (no entra en el refresco de cada 30s de cargarDesdeSB) porque
+// necesita TODO el historial de fichas de la sede, no solo las de ayer.
+async function renderFichasAcumuladoRec(){
+  var cont=document.getElementById('fichasAudBody');
+  if(!cont)return;
+  cont.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">⏳ Cargando...</div>';
+  var fichasTodas,logs;
+  try{
+    var res=await Promise.all([
+      sbGet('fichas_seguimiento',{sede:'eq.'+DB.sede,select:'*'}),
+      sbGet('log_accesos',{app:'eq.psicologa',sede:'eq.'+DB.sede,select:'usuario,created_at',order:'created_at.asc'})
+    ]);
+    fichasTodas=res[0]||[];logs=res[1]||[];
+  }catch(e){cont.innerHTML='<div style="color:var(--red);padding:14px">Error: '+e.message+'</div>';return;}
+
+  var primerIngreso={};
+  logs.forEach(function(l){
+    var u=l.usuario||'';if(!u)return;
+    var f=(l.created_at||'').split('T')[0];
+    if(!primerIngreso[u]||f<primerIngreso[u])primerIngreso[u]=f;
+  });
+
+  var porPs={};
+  DB.sesiones.filter(function(s){return s.estado==='asistio'||s.estado==='tardanza';}).forEach(function(s){
+    if(s.tipo==='llamada_maestra')return;
+    var ps=s.psNom||'-';
+    var desde=primerIngreso[ps];
+    if(desde&&s.fecha<desde)return; // antes de que ella empezara a usar la app
+    porPs[ps]=porPs[ps]||{atendidas:0,llenadas:0,desde:desde||null};
+    porPs[ps].atendidas++;
+    var tieneFicha=fichasTodas.some(function(f){
+      return _normTxtFichaRec(f.paciente_nombre)===_normTxtFichaRec(s.pacNom)&&
+        _normTxtFichaRec(f.terapia)===_normTxtFichaRec(s.terNom)&&f.fecha===s.fecha;
+    });
+    if(tieneFicha)porPs[ps].llenadas++;
+  });
+
+  var nombres=Object.keys(porPs).sort();
+  if(!nombres.length){
+    cont.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)">Sin sesiones atendidas registradas.</div>';
+    return;
+  }
+  var h='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--bg)">'+
+    '<th style="text-align:left;padding:8px">Psicóloga</th>'+
+    '<th style="padding:8px">Primer ingreso</th>'+
+    '<th style="padding:8px">Atendidas</th>'+
+    '<th style="padding:8px">Fichas llenadas</th>'+
+    '<th style="padding:8px">% Completado</th></tr></thead><tbody>';
+  nombres.forEach(function(ps){
+    var d=porPs[ps];
+    var pct=d.atendidas?Math.round(d.llenadas/d.atendidas*100):0;
+    var color=pct===100?'var(--green)':(pct>=50?'#d97706':'var(--red)');
+    h+='<tr style="border-top:1px solid var(--border)">'+
+       '<td style="padding:8px;font-weight:700">'+ps+'</td>'+
+       '<td style="text-align:center;padding:8px;color:var(--muted)">'+(d.desde?fmtF(d.desde):'<span style="color:var(--red)">sin registro</span>')+'</td>'+
+       '<td style="text-align:center;padding:8px">'+d.atendidas+'</td>'+
+       '<td style="text-align:center;padding:8px">'+d.llenadas+'</td>'+
+       '<td style="text-align:center;padding:8px;font-weight:800;color:'+color+'">'+pct+'%</td>'+
+       '</tr>';
+  });
+  h+='</tbody></table>';
+  cont.innerHTML=h;
 }
 // Sesiones "programado" con fecha ANTERIOR a hoy - se le quedaron sin
 // marcar asistencia a la recepcionista. Se excluyen las de hoy a propósito
