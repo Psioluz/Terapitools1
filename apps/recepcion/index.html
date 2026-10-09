@@ -5661,8 +5661,33 @@ function _renderAvisoPendientesReporte(){
     }).join('')+
     '</div>';
 }
-function generarReporte(){
+// Antes de armar el Reporte del Día (en pantalla o en PDF) se refresca
+// sesiones y pagos de ESA fecha exacta directo desde Supabase - no basta
+// con lo que ya esté en DB.sesiones/DB.pagos (ventana de 45 días + sync
+// cada 30s): un pago o sesión registrado hace instantes, o un reporte
+// generado en otro momento/dispositivo que no alcanzó a sincronizar,
+// podía quedar fuera (ej. un "Ajuste de caja" guardado correctamente en
+// la base pero ausente de "Otros pagos del día" en el reporte).
+async function _refrescarDatosReporteFecha(fecha){
+  try{
+    var r=await Promise.all([
+      sbGet('sesiones',{sede:'eq.'+DB.sede,fecha:'eq.'+fecha,select:'*'}),
+      sbGet('pagos',{sede:'eq.'+DB.sede,fecha:'eq.'+fecha,select:'*'})
+    ]);
+    var sesFrescas=(r[0]||[]).map(function(s){return{id:s.id,fecha:s.fecha,hora:normHoraRec(s.hora),
+      pacId:s.paciente_nombre,pacNom:s.paciente_nombre,psId:s.psicologa,psNom:s.psicologa,
+      terId:s.terapia,terNom:s.terapia,estado:s.estado,saldo:s.saldo||0,tipo:s.tipo||'sesion',notas:s.notas||'',
+      nroSes:s.nro_en_paquete,totalPaq:s.total_paquete,costo:s.costo_total||0,costoTotal:s.costo_total||0,tel:s.paciente_tel||'',
+      maestraNom:s.maestra_nombre||'',maestraTel:s.maestra_tel||'',_sb:s};});
+    DB.sesiones=(DB.sesiones||[]).filter(function(s){return!(s.fecha===fecha&&(!s._sb||s._sb.sede===DB.sede));}).concat(sesFrescas);
+    var pagsFrescos=(r[1]||[]).map(function(p){return{id:p.id,fecha:p.fecha,hora:p.hora||'',pacId:p.paciente_nombre,
+      psId:p.psicologa_nombre||'',concepto:p.concepto||'',monto:p.monto||0,metodo:p.metodo||'efectivo',notas:p.notas||'',_sb:p};});
+    DB.pagos=(DB.pagos||[]).filter(function(p){return!(p.fecha===fecha&&(!p._sb||p._sb.sede===DB.sede));}).concat(pagsFrescos);
+  }catch(e){console.error('[refrescar reporte fecha]',e);}
+}
+async function generarReporte(){
   const fecha=document.getElementById('rptFecha')?.value||today();
+  await _refrescarDatosReporteFecha(fecha);
   _renderAvisoPendientesReporte();
   const ses=DB.sesiones.filter(s=>s.fecha===fecha);
   const pags=DB.pagos.filter(p=>p.fecha===fecha);
@@ -5764,7 +5789,7 @@ function guardarPDF(doc,filename){
   }
   try{doc.save(filename);}catch(e2){console.error('[guardarPDF]',e2);}
 }
-function exportarPDF(){
+async function exportarPDF(){
   // Intentar obtener jsPDF de distintas formas
   let jsPDF=null;
   if(typeof window.jspdf!=='undefined')jsPDF=window.jspdf.jsPDF;
@@ -5781,12 +5806,13 @@ function exportarPDF(){
     } else {setTimeout(exportarPDF,1000);}
     return;
   }
+  const fecha=document.getElementById('rptFecha')?.value||today();
+  await _refrescarDatosReporteFecha(fecha);
   try{
   // Horizontal (landscape): la tabla por psicóloga tiene varias columnas de
   // chips (terapia, paquete, estado, pago) que en vertical se cortaban.
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
   const W=297,M=14;let y=10;
-  const fecha=document.getElementById('rptFecha')?.value||today();
   const ses=DB.sesiones.filter(s=>s.fecha===fecha);
   const pags=DB.pagos.filter(p=>p.fecha===fecha);
   const asist=ses.filter(s=>s.estado==='asistio').length;
