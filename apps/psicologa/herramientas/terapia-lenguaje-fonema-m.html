@@ -674,6 +674,18 @@
   if(window.speechSynthesis){
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
+    // En Android, justo al abrir la página, getVoices() puede devolver
+    // vacío durante un par de segundos hasta que el sistema termina de
+    // listar las voces instaladas - si el paciente toca las primeras
+    // sílabas en ese ratito, se habla con la voz genérica de respaldo
+    // (que pronuncia mal), y recién las últimas suenan bien porque para
+    // entonces ya cargó la voz correcta. Esto "despierta" el motor de
+    // voz apenas carga la página, antes de que se toque nada.
+    try{
+      var warm = new SpeechSynthesisUtterance(' ');
+      warm.volume = 0;
+      window.speechSynthesis.speak(warm);
+    }catch(eWarm){}
   }
 
   function pickSpanishVoice(){
@@ -686,24 +698,26 @@
     return voices.find(function(v){ return v.lang && v.lang.toLowerCase().indexOf("es") === 0; }) || null;
   }
 
-  function speak(text){
+  function speak(text, _esReintento){
     if(!window.speechSynthesis) return;
     try{
       window.speechSynthesis.cancel();
-      // Una sílaba suelta muy corta (ej. "ma", "pa") muchas voces la
-      // deletrean como sigla ("eme, a") en vez de pronunciarla como
-      // sílaba. Solo alargar la vocal final (intento anterior) no
-      // alcanza: el motor sigue leyendo la consonante inicial como
-      // nombre de letra porque el patrón sigue viéndose como
-      // "letra + vocal", no como una palabra real. Repetir la sílaba
-      // completa sí funciona: "mama", "papa", "tata" etc. son patrones
-      // consonante-vocal-consonante-vocal naturales del español, un
-      // patrón que ningún motor confunde con una sigla - y de paso
-      // refuerza el sonido por repetición, que ayuda en articulación.
       var spoken = text.toLowerCase();
+      // "mama", "papa", "tata" etc. (sílaba repetida) son patrones
+      // consonante-vocal-consonante-vocal naturales del español, más
+      // fáciles de pronunciar bien que una sílaba suelta de 2 letras -
+      // y de paso refuerzan el sonido por repetición (útil en articulación).
       if(spoken.length<=4) spoken = spoken + spoken;
-      var u = new SpeechSynthesisUtterance(spoken);
       var voice = pickSpanishVoice();
+      // Si todavía no hay ninguna voz en español cargada (pasa sobre todo
+      // en Android justo al entrar al juego) se reintenta una vez tras
+      // una pausa corta, en vez de hablar ya con la voz genérica del
+      // sistema - que es la que pronuncia mal.
+      if(!voice && !_esReintento){
+        setTimeout(function(){ speak(text, true); }, 350);
+        return;
+      }
+      var u = new SpeechSynthesisUtterance(spoken);
       if(voice){ u.voice = voice; u.lang = voice.lang; } else { u.lang = "es-ES"; }
       u.rate = 0.82;
       u.pitch = 1.05;
