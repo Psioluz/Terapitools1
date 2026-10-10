@@ -1573,13 +1573,17 @@ async function doLoginEmail(){
               // dispositivo (huella guardada en este navegador); desde otro
               // dispositivo, con la misma cuenta, queda bloqueado hasta que
               // Administración la "libere" (ej. cambió de celular).
-              const miDispositivo = _getDeviceId();
-              if(ps2.deviceId && ps2.deviceId !== miDispositivo){
-                showErr('Esta cuenta ya está en uso en otro dispositivo. Si cambiaste de celular, pide a Administración que te libere el acceso.');
-                return;
-              }
-              if(!ps2.deviceId){
-                try{ await sbPatch('psicologas',{device_id:miDispositivo},{id:'eq.'+ps2.id}); }catch(eDev){console.warn('[device_id]',eDev);}
+              // Las cuentas de prueba (estado='prueba') quedan exentas: se usan
+              // justamente para probar la app desde varios dispositivos a la vez.
+              if(ps2.estado!=='prueba'){
+                const miDispositivo = _getDeviceId();
+                if(ps2.deviceId && ps2.deviceId !== miDispositivo){
+                  showErr('Esta cuenta ya está en uso en otro dispositivo. Si cambiaste de celular, pide a Administración que te libere el acceso.');
+                  return;
+                }
+                if(!ps2.deviceId){
+                  try{ await sbPatch('psicologas',{device_id:miDispositivo},{id:'eq.'+ps2.id}); }catch(eDev){console.warn('[device_id]',eDev);}
+                }
               }
               // Guardar perfil completo para acceso offline (sin contraseña;
               // completarLoginConPs se encarga de cachear el hash de la clave)
