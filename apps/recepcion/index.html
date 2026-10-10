@@ -300,7 +300,6 @@ try{
     <div class="nav-item" onclick="showPage('fichasAud',this)">📝 Fichas de Psicólogas</div>
     <div class="nav-item" onclick="showPage('solicitudesWeb',this)">📥 Solicitudes Web <span class="nav-badge" id="solicWebBadge" style="display:none">0</span></div>
     <div class="nav-item" onclick="showPage('historial',this)">📚 Historial Clínico</div>
-    <div class="nav-item" onclick="showPage('recalcular',this)">🧮 Recalcular Saldo</div>
     <div class="nav-item" onclick="showPage('cumpleanos',this)">🎂 Cumpleaños</div>
     <div class="nav-item" onclick="showPage('chat',this)">💬 Chat <span class="nav-badge" id="chatBadgeRec" style="display:none">0</span></div>
   </div>
@@ -605,29 +604,6 @@ try{
     <div class="card-header"><div class="card-title">🔔 Alertas del Sistema</div></div>
     <div style="padding:0 16px" id="notifRecepBox"></div>
     <div style="padding:12px" id="alertasPage"></div>
-  </div>
-</div>
-
-<!-- ═══ RECALCULAR SALDO ═══ -->
-<div id="page-recalcular" class="page">
-  <div class="card">
-    <div class="card-header"><div class="card-title">🧮 Recalcular Saldo de un Paciente</div></div>
-    <div style="padding:16px">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
-        Úsalo cuando un paciente muestre una cuota pendiente que ya pagó, o al revés - por un pago duplicado,
-        borrado, o que quedó sin vincular a su paquete. Vuelve a calcular, desde los pagos reales registrados,
-        cuánto se debe en CADA sesión-checkpoint de todos sus paquetes (no solo un total general).
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-        <div class="form-group" style="flex:1;min-width:220px;margin:0">
-          <label class="form-label">Paciente</label>
-          <input type="text" class="form-control" id="recalc-pac-search" placeholder="Buscar paciente..." list="recalc-pac-list" oninput="renderRecalcularSaldo()">
-          <datalist id="recalc-pac-list"></datalist>
-        </div>
-        <button class="btn btn-success" onclick="recalcularSaldoPacienteUI()">🧮 Recalcular</button>
-      </div>
-      <div id="recalcResultado" style="margin-top:16px"></div>
-    </div>
   </div>
 </div>
 
@@ -1801,7 +1777,7 @@ const _PAGE_TITULOS={dashboard:'Inicio',agenda:'Agenda',pacientes:'Pacientes',pa
   asistPersonal:'Asistencia Personal',psicologas:'Psicólogas',terapias:'Terapias',
   paquetes:'Servicios y Tarifas',reportes:'Reporte del Día',whatsapp:'WhatsApp',alertas:'Alertas',
   solicitudesWeb:'Solicitudes Web',historial:'Historial Clínico',cumpleanos:'Cumpleaños',chat:'Chat',
-  fichasAud:'Fichas de Psicólogas',recalcular:'Recalcular Saldo'};
+  fichasAud:'Fichas de Psicólogas'};
 // El botón ☰ colapsa el sidebar fijo en escritorio (más espacio de
 // pantalla, se recuerda con localStorage) y abre/cierra el drawer en móvil.
 function toggleSidebarRec(){
@@ -1830,8 +1806,7 @@ function showPage(name,el){
     pagos:renderPagos,asistPersonal:renderAsistPersonal,psicologas:renderPsicologas,
     terapias:renderTerapias,paquetes:()=>renderPaquetes(_paqFiltro),
     whatsapp:renderWA,alertas:renderAlertas,reportes:generarReporte,
-    cumpleanos:renderCumpleanos,chat:abrirChatRec,fichasAud:renderFichasAcumuladoRec,
-    recalcular:renderRecalcularSaldo};
+    cumpleanos:renderCumpleanos,chat:abrirChatRec,fichasAud:renderFichasAcumuladoRec};
   if(fn[name])fn[name]();
 }
 
@@ -3807,8 +3782,10 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
   return Math.round(total*100)/100;
 }
 
-// ══ RECALCULAR SALDO (herramienta de "Sistema → Recalcular Saldo") ══
-// Mismo reparto de cuotas-checkpoint que guardarPaqueteFlujo() al crear un
+// ══ RECALCULAR SALDO (automático, sin botón) ══
+// Se dispara solo al abrir el Historial Clínico de un paciente (ver
+// renderHistorial) - nadie tiene que acordarse de ir a buscarlo. Mismo
+// reparto de cuotas-checkpoint que guardarPaqueteFlujo() al crear un
 // paquete - se repite aquí (en vez de compartir la función) porque ahí
 // hace falta además la parte de "ya asignadas"/sobrante de una creación
 // incremental, que no aplica a un recálculo desde cero.
@@ -3852,6 +3829,16 @@ function _checkpointsDePaquete(totalSesiones,nroCuotas,costoTotal,pacNombre){
 // todo fresco de Supabase (nunca de DB.sesiones/DB.pagos en memoria).
 async function recalcularSaldoPaciente(pacNombre){
   const progs=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pacNombre,select:'*'})||[];
+  // Si hay EXACTAMENTE un paquete activo, de paso se intenta enganchar
+  // cualquier pago que haya quedado totalmente huérfano (sin sesión NI
+  // paquete) a ese paquete - el mismo caso de Kylian Castillo: el pago se
+  // registra antes de que el paquete exista, y nadie vuelve a revisarlo
+  // después. Con 2+ paquetes activos no se adivina a cuál pertenece - se
+  // deja para revisión manual, igual que antes.
+  const activos=progs.filter(function(p){return p.estado==='activo';});
+  if(activos.length===1){
+    await _vincularPagosHuerfanosAPrograma(pacNombre,activos[0].sede,activos[0].id);
+  }
   const resultado=[];
   for(const prog of progs){
     const pagosProg=await sbGet('pagos',{programa_id:'eq.'+prog.id,select:'monto'})||[];
@@ -3886,40 +3873,6 @@ async function recalcularSaldoPaciente(pacNombre){
       costoTotal:prog.costo_total,totalPagado:totalPagado,saldo:saldoProg});
   }
   return resultado;
-}
-function renderRecalcularSaldo(){
-  const dl=document.getElementById('recalc-pac-list');if(!dl)return;
-  const q=(document.getElementById('recalc-pac-search')?.value||'').toLowerCase();
-  const pacs=DB.pacientes.filter(function(p){return !q||p.nombre.toLowerCase().includes(q);}).slice(0,30);
-  dl.innerHTML=pacs.map(function(p){return '<option value="'+p.nombre.replace(/"/g,'')+'">';}).join('');
-}
-async function recalcularSaldoPacienteUI(){
-  const nombre=(document.getElementById('recalc-pac-search')?.value||'').trim();
-  if(!nombre){showToast('Escribe o selecciona un paciente','error');return;}
-  const el=document.getElementById('recalcResultado');
-  if(el)el.innerHTML='<div style="color:var(--muted);text-align:center;padding:14px">⏳ Recalculando...</div>';
-  showToast('⏳ Recalculando saldo de '+nombre+'...');
-  try{
-    const resultado=await recalcularSaldoPaciente(nombre);
-    if(!resultado.length){
-      if(el)el.innerHTML='<div style="color:var(--muted);text-align:center;padding:14px">Este paciente no tiene ningún paquete registrado.</div>';
-      showToast('Sin paquetes para '+nombre,'info');
-      return;
-    }
-    if(el)el.innerHTML='<div class="card" style="border:1px solid var(--border)"><table style="width:100%;font-size:12px"><thead><tr style="text-align:left"><th style="padding:8px">Paquete</th><th style="padding:8px">Costo</th><th style="padding:8px">Pagado (real)</th><th style="padding:8px">Saldo pendiente</th></tr></thead><tbody>'+
-      resultado.map(function(r){
-        return '<tr style="border-top:1px solid var(--border)"><td style="padding:8px">'+r.paquete+'</td>'+
-          '<td style="padding:8px">S/'+r.costoTotal+'</td>'+
-          '<td style="padding:8px;color:var(--green);font-weight:700">S/'+r.totalPagado+'</td>'+
-          '<td style="padding:8px;font-weight:700;color:'+(r.saldo>0?'var(--orange)':'var(--green)')+'">S/'+r.saldo+'</td></tr>';
-      }).join('')+
-      '</tbody></table></div>';
-    showToast('✅ Saldo recalculado para '+nombre+' en cada sesión de sus paquetes');
-    await cargarDesdeSB();
-  }catch(e){
-    showToast('Error al recalcular: '+e.message,'error');console.error('[recalcular saldo UI]',e);
-    if(el)el.innerHTML='';
-  }
 }
 
 // Registra el paquete UNA sola vez con todas sus terapias (nuevo, o
@@ -5141,7 +5094,7 @@ async function guardarPago(){
         }
       }catch(eProg){console.error('[pago->programa]',eProg);}
       if(!_pagoVinculado){
-        showToast('⚠️ El pago de '+pac.nombre+' se guardó, pero no se pudo vincular a ningún paquete/sesión pendiente - el saldo puede seguir saliendo como pendiente. Ve a Sistema → Recalcular Saldo para corregirlo.','error');
+        showToast('⚠️ El pago de '+pac.nombre+' se guardó, pero no se pudo vincular a ningún paquete/sesión pendiente - el saldo puede seguir saliendo como pendiente. Se corrige solo la próxima vez que se abra su Historial Clínico.','error');
       }
     }
     // pacientes.saldo YA NO se toca a mano aquí: el trigger de Supabase
@@ -6675,6 +6628,21 @@ async function renderHistorial(){
   // ── Renderizar ──
   if(cardArch)cardArch.style.display='block';
   const pac2=getPac(pacId);const ps2=getPs(pac2.psId);const ter2=getTer(pac2.terId);
+  // Recalcula el saldo de ESTE paciente, en cada sesión-checkpoint de sus
+  // paquetes, cada vez que se abre su Historial - automático, sin botón ni
+  // que nadie tenga que acordarse de ir a buscarlo. Desde los pagos REALES
+  // registrados en Supabase (no desde lo que ya esté guardado, que puede
+  // estar desincronizado por duplicados, pagos borrados o huérfanos sin
+  // vincular). Una sola vez por selección de paciente, no en cada
+  // re-render (ej. al cambiar el filtro "todo/último paquete").
+  if(window._ultimoRecalcAutoPac!==pacId){
+    window._ultimoRecalcAutoPac=pacId;
+    recalcularSaldoPaciente(pac2.nombre).then(function(){
+      return cargarDesdeSB(true);
+    }).then(function(){
+      if(document.getElementById('histPac')?.value===pacId)renderHistorial();
+    }).catch(function(e){console.error('[recalcular saldo auto]',e);});
+  }
   let sesPac=DB.sesiones.filter(s=>s.pacId===pac2.nombre).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
   // "Solo el último paquete": con el tiempo la lista de un paciente crece
   // mucho (varios paquetes ya terminados) - este filtro deja ver solo el
