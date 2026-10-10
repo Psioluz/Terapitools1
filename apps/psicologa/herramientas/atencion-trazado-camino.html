@@ -110,8 +110,14 @@
     document.getElementById('btnBack').onclick=backFn;
   }
 
+  function salirHerramienta(){
+    if (new URLSearchParams(location.search).get('from') === 'hub') { location.href = 'atencion-concentracion.html'; return; }
+    if (window.parent && window.parent !== window && typeof window.parent.cerrarHerramienta === 'function') { window.parent.cerrarHerramienta(); }
+    else { window.close(); if(!window.closed) history.back(); }
+  }
+
   function renderWelcome(){
-    setTopbar('Trazado del Camino', null, function(){ window.close(); if(!window.closed) history.back(); });
+    setTopbar('Trazado del Camino', null, salirHerramienta);
     stage.innerHTML='<div class="center-screen">'+
       '<div class="big-emoji">✏️</div>'+
       '<h1>Trazado del Camino</h1>'+

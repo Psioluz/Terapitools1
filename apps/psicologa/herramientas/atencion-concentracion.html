@@ -57,29 +57,29 @@
 
 <div class="app">
   <div class="topbar">
-    <button class="back-btn" onclick="window.close(); if(!window.closed) history.back();">←</button>
+    <button class="back-btn" id="btnBackHub">←</button>
     <span class="top-title">Atención y Concentración</span>
   </div>
   <div class="stage">
     <h1 class="game-title">Elige un ejercicio</h1>
     <p class="sub">4 formatos distintos para trabajar atención sostenida, selectiva y discriminación visual con el paciente.</p>
     <div class="game-list">
-      <a class="game-card" href="atencion-cancelacion-simbolos.html" target="_blank">
+      <a class="game-card" href="atencion-cancelacion-simbolos.html?from=hub">
         <div class="game-icon" style="background:linear-gradient(135deg,#4a0e2e,#12B5AC)">🔎</div>
         <div class="game-info"><div class="gname">Cancelación de Símbolos</div><div class="gdesc">Tocar todas las apariciones de un símbolo entre distractores · atención sostenida y selectiva</div></div>
         <div class="arrow">→</div>
       </a>
-      <a class="game-card" href="atencion-trazado-camino.html" target="_blank">
+      <a class="game-card" href="atencion-trazado-camino.html?from=hub">
         <div class="game-icon" style="background:linear-gradient(135deg,#4a0e2e,#e91e8c)">✏️</div>
         <div class="game-info"><div class="gname">Trazado del Camino</div><div class="gdesc">Delinear un camino con el dedo sin salirse · control motor fino y atención visomotora</div></div>
         <div class="arrow">→</div>
       </a>
-      <a class="game-card" href="atencion-clasificacion-color-forma.html" target="_blank">
+      <a class="game-card" href="atencion-clasificacion-color-forma.html?from=hub">
         <div class="game-icon" style="background:linear-gradient(135deg,#4a0e2e,#FF6A57)">🔷</div>
         <div class="game-info"><div class="gname">Clasifica por Color y Forma</div><div class="gdesc">Tocar solo las figuras que cumplen 2 criterios a la vez · discriminación visual más exigente</div></div>
         <div class="arrow">→</div>
       </a>
-      <a class="game-card" href="atencion-encuentra-diferencias.html" target="_blank">
+      <a class="game-card" href="atencion-encuentra-diferencias.html?from=hub">
         <div class="game-icon" style="background:linear-gradient(135deg,#4a0e2e,#7c3aed)">🧩</div>
         <div class="game-info"><div class="gname">Encuentra las Diferencias</div><div class="gdesc">Comparar dos tableros casi iguales y hallar lo distinto · atención a detalles y memoria visual</div></div>
         <div class="arrow">→</div>
@@ -88,3 +88,16 @@
   </div>
   <footer class="credit">Psicoluz · Herramientas para terapia</footer>
 </div>
+<script>
+  // Si vive dentro del iframe de la app (modal a pantalla completa), "atrás"
+  // cierra la herramienta y vuelve a la pestaña Herramientas del app, sin
+  // salir del PWA. Si se abre suelto (ej. probando el archivo), se comporta
+  // como antes (cierra la pestaña / vuelve en el historial del navegador).
+  document.getElementById('btnBackHub').onclick = function(){
+    if (window.parent && window.parent !== window && typeof window.parent.cerrarHerramienta === 'function') {
+      window.parent.cerrarHerramienta();
+    } else {
+      window.close(); if(!window.closed) history.back();
+    }
+  };
+</script>

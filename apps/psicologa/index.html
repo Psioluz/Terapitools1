@@ -387,7 +387,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="ch">🧰 Herramientas para Terapias</div>
       <div class="cb" style="font-size:12px;color:var(--muted)">Juegos y actividades interactivas para usar durante la sesión. Se abren en una pestaña nueva.</div>
     </div>
-    <div class="card" style="cursor:pointer" onclick="window.open('herramientas/terapia-lenguaje-fonema-m.html','_blank')">
+    <div class="card" style="cursor:pointer" onclick="abrirHerramienta('herramientas/terapia-lenguaje-fonema-m.html')">
       <div class="cb" style="display:flex;align-items:center;gap:14px">
         <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#4a0e2e,#e91e8c);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">🗣️</div>
         <div style="flex:1">
@@ -397,7 +397,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div style="font-size:20px;color:var(--muted)">→</div>
       </div>
     </div>
-    <div class="card" style="cursor:pointer;margin-top:10px" onclick="window.open('herramientas/atencion-concentracion.html','_blank')">
+    <div class="card" style="cursor:pointer;margin-top:10px" onclick="abrirHerramienta('herramientas/atencion-concentracion.html')">
       <div class="cb" style="display:flex;align-items:center;gap:14px">
         <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#4a0e2e,#12B5AC);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">🔎</div>
         <div style="flex:1">
@@ -622,6 +622,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 </div><!-- /ps-content -->
   </div><!-- /ps-main -->
+
+<!-- ══ MODAL HERRAMIENTA (fonemas, atención/concentración) - pantalla completa dentro del app ══ -->
+<div id="modalHerramienta" style="display:none;position:fixed;inset:0;z-index:10000;background:#fff">
+  <button onclick="cerrarHerramienta()" aria-label="Cerrar herramienta"
+    style="position:absolute;top:max(10px,env(safe-area-inset-top));right:10px;z-index:2;background:rgba(0,0,0,.45);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+  <iframe id="iframeHerramienta" src="about:blank" title="Herramienta"
+    style="width:100%;height:100%;border:none;display:block"></iframe>
+</div>
 
 <!-- ══ MODAL FICHA DE SEGUIMIENTO ══ -->
 <div class="ficha-modal" id="modalDetalleSesion">
@@ -1904,6 +1912,27 @@ function _doLogout(){
   showToast('Sesión cerrada','ok');
 }
 
+
+// ── HERRAMIENTAS (fonemas, atención/concentración) ──
+// Antes abrían en una pestaña nueva del navegador, lo que sacaba a la
+// psicóloga del PWA instalado. Ahora se cargan en un iframe a pantalla
+// completa dentro del propio app - cada herramienta sabe volver (ver
+// window.parent.cerrarHerramienta en sus propios botones de regreso).
+function abrirHerramienta(url){
+  var modal=document.getElementById('modalHerramienta');
+  var ifr=document.getElementById('iframeHerramienta');
+  if(!modal||!ifr)return;
+  ifr.src=url;
+  modal.style.display='block';
+  document.body.style.overflow='hidden';
+}
+function cerrarHerramienta(){
+  var modal=document.getElementById('modalHerramienta');
+  var ifr=document.getElementById('iframeHerramienta');
+  if(modal)modal.style.display='none';
+  if(ifr)ifr.src='about:blank';
+  document.body.style.overflow='';
+}
 
 // ── MATERIALES DE APOYO ──
 var _materialesCache=null;
