@@ -1,0 +1,315 @@
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="mobile-web-app-capable" content="yes" />
+<title>Psicoluz — Atención y Concentración</title>
+<style>
+  :root{
+    color-scheme: light;
+    --navy:#4a0e2e;
+    --teal:#12B5AC;
+    --coral:#FF6A57;
+    --gold:#e91e8c;
+    --mint:#E4FBF3;
+    --paper:#FFFCF3;
+    --ink:#14171C;
+    --ink-soft:#495468;
+    --card:#FFFFFF;
+    --ring:#DCEFEA;
+    --shadow: 0 12px 28px -12px rgba(18,41,79,0.28);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, var(--mint), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, color-mix(in srgb, var(--gold) 18%, transparent), transparent 55%),
+      var(--paper);
+    font-family: ui-rounded, "SF Pro Rounded", "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+    color:var(--ink);
+    overflow-x:hidden;
+    display:flex; justify-content:center;
+    padding:20px 14px 48px;
+    -webkit-text-size-adjust:100%; text-size-adjust:100%;
+    -webkit-user-select:none; user-select:none;
+  }
+  .app{position:relative; z-index:1; width:100%; max-width:480px;}
+  .topbar{
+    background:var(--navy); border-radius:26px; padding:14px 16px;
+    display:flex; align-items:center; gap:12px; box-shadow:var(--shadow);
+  }
+  .back-btn{
+    border:none; background:rgba(255,255,255,0.12); color:#fff;
+    width:38px;height:38px;border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; cursor:pointer;
+  }
+  .back-btn:active{transform:scale(0.92);}
+  .top-meta{flex:1; display:flex; flex-direction:column; gap:6px; min-width:0;}
+  .top-title{color:#fff; font-weight:800; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .level-pill{
+    align-self:flex-start; font-size:11px; font-weight:800; letter-spacing:.04em;
+    color:var(--navy); background:var(--gold); padding:3px 10px; border-radius:999px;
+  }
+  .timer-wrap{display:flex; align-items:center; gap:6px; flex-shrink:0;}
+  .timer{
+    font-weight:800; font-size:14px; color:#fff; background:rgba(255,255,255,0.1);
+    padding:6px 12px; border-radius:999px; min-width:46px; text-align:center;
+  }
+  .timer.low{background:var(--coral);}
+
+  .stage{
+    margin-top:16px; background:var(--card); border-radius:28px; box-shadow:var(--shadow);
+    padding:22px 20px 26px; position:relative; min-height:520px; display:flex; flex-direction:column;
+  }
+  h1.game-title{font-size:24px; margin:2px 0 4px; text-wrap:balance;}
+  .sub{color:var(--ink-soft); font-size:14.5px; margin:0 0 18px;}
+
+  .center-screen{display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px; flex:1; justify-content:center; padding:10px 4px;}
+  .center-screen .big-emoji{font-size:64px; animation: idleBob 2.4s ease-in-out infinite;}
+  @keyframes idleBob{0%,100%{transform:translateY(0) rotate(0);} 50%{transform:translateY(-6px) rotate(-4deg);}}
+  .center-screen h1{font-size:26px; margin:0; text-wrap:balance;}
+  .center-screen p{color:var(--ink-soft); font-size:15px; max-width:340px; margin:0;}
+  .cta{
+    border:none; border-radius:18px; padding:16px 30px; background:var(--teal); color:#fff;
+    font-weight:800; font-size:17px; cursor:pointer; box-shadow:0 6px 0 #157a75; margin-top:8px; min-height:52px;
+  }
+  .cta:active{transform:translateY(4px); box-shadow:0 2px 0 #157a75;}
+  .cta.secondary{background:var(--card); color:var(--navy); border:2.5px solid var(--ring); box-shadow:0 6px 0 var(--ring);}
+  .cta.secondary:active{box-shadow:0 3px 0 var(--ring);}
+  .link-btn{border:none; background:none; color:var(--ink-soft); font-size:13px; font-weight:700; text-decoration:underline; cursor:pointer; margin-top:2px; padding:6px;}
+
+  .level-list{display:flex; flex-direction:column; gap:12px; margin-top:16px;}
+  .level-card{
+    border:2.5px solid var(--ring); background:var(--card); border-radius:20px; padding:16px;
+    display:flex; align-items:center; gap:14px; cursor:pointer; box-shadow:0 6px 0 var(--ring);
+    transition: transform .08s ease;
+  }
+  .level-card:active{transform:translateY(3px); box-shadow:0 3px 0 var(--ring);}
+  .level-num{
+    width:44px;height:44px;border-radius:50%; flex-shrink:0; background:var(--mint); color:var(--navy);
+    font-weight:800; font-size:18px; display:flex; align-items:center; justify-content:center;
+  }
+  .level-info{flex:1; text-align:left;}
+  .level-info .lname{font-weight:800; font-size:16px;}
+  .level-info .ldesc{font-size:12.5px; color:var(--ink-soft); margin-top:2px;}
+
+  .target-panel{
+    background:var(--mint); border:2px solid var(--ring); border-radius:22px; padding:14px 16px;
+    display:flex; align-items:center; gap:14px; margin-bottom:16px;
+  }
+  .target-panel .lbl{font-size:12.5px; font-weight:800; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em;}
+  .target-panel .sym{font-size:38px; line-height:1;}
+  .target-stats{margin-left:auto; display:flex; flex-direction:column; gap:3px; text-align:right;}
+  .target-stats .n{font-weight:800; font-size:15px; color:var(--navy);}
+  .target-stats .l{font-size:10.5px; color:var(--ink-soft); font-weight:700;}
+
+  .grid{display:grid; gap:8px; margin:0 0 10px;}
+  .cell{
+    aspect-ratio:1; border-radius:14px; background:var(--card); border:2.5px solid var(--ring);
+    display:flex; align-items:center; justify-content:center; font-size:26px; cursor:pointer;
+    box-shadow:0 4px 0 var(--ring); transition: transform .06s ease;
+  }
+  .cell:active{transform:translateY(2px); box-shadow:0 2px 0 var(--ring);}
+  .cell.found{background:color-mix(in srgb, var(--teal) 24%, var(--card)); border-color:var(--teal); box-shadow:0 4px 0 var(--teal); animation:pop .25s ease;}
+  .cell.wrong{background:color-mix(in srgb, var(--coral) 22%, var(--card)); border-color:var(--coral); box-shadow:0 4px 0 var(--coral); animation:shake .3s ease;}
+  .cell.disabled{cursor:default;}
+  @keyframes pop{0%{transform:scale(.7);} 60%{transform:scale(1.1);} 100%{transform:scale(1);}}
+  @keyframes shake{0%,100%{transform:translateX(0);} 25%{transform:translateX(-6px);} 75%{transform:translateX(6px);}}
+
+  .result-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; width:100%; margin-top:6px;}
+  .result-card{background:var(--mint); border:2px solid var(--ring); border-radius:16px; padding:12px; text-align:center;}
+  .result-card .v{font-size:22px; font-weight:800; color:var(--navy);}
+  .result-card .k{font-size:11px; color:var(--ink-soft); font-weight:700; margin-top:2px;}
+  .final-stars{font-size:38px; letter-spacing:6px;}
+
+  footer.credit{text-align:center; margin-top:14px; font-size:11.5px; color:var(--ink-soft);}
+
+  @media (max-width:380px){
+    body{padding:14px 10px 36px;}
+    .stage{padding:18px 14px 20px;}
+    h1.game-title{font-size:21px;}
+    .center-screen h1{font-size:23px;}
+    .cell{font-size:22px;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001s !important; transition-duration:0.001s !important;}
+  }
+</style>
+
+<div class="app">
+  <div class="topbar" id="topbar"></div>
+  <div class="stage" id="stage"></div>
+  <footer class="credit">Psicoluz · Herramienta para terapia</footer>
+</div>
+
+<script>
+(function(){
+  var topbar = document.getElementById('topbar');
+  var stage = document.getElementById('stage');
+
+  // Pool de símbolos: formas y colores bien diferenciables entre sí, para
+  // que el contraste no dependa de reconocer una figura ambigua.
+  var SYMBOL_POOL = ["⭐","🔴","🔵","🟢","🟡","⚫","⬜","🔺","🔶","🍀","🌙","☀️","❤️","💙","💚","💛","🟣","🔻","✳️","✴️","⬛","🟠","🔷","⚽"];
+
+  var LEVELS = [
+    {n:1, name:"Nivel 1 · Fácil", cols:4, rows:4, distractores:3, segundos:45, desc:"16 casillas · pocas distracciones"},
+    {n:2, name:"Nivel 2 · Intermedio", cols:5, rows:5, distractores:4, segundos:40, desc:"25 casillas · más distracciones"},
+    {n:3, name:"Nivel 3 · Avanzado", cols:6, rows:6, distractores:6, segundos:35, desc:"36 casillas · ritmo más exigente"}
+  ];
+
+  var state = { level:null, grid:[], targetEmoji:null, totalTarget:0, found:0, wrong:0, timeLeft:0, timerId:null, startedAt:0, finished:false };
+
+  function shuffle(arr){
+    for (var i=arr.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=arr[i]; arr[i]=arr[j]; arr[j]=t; }
+    return arr;
+  }
+  function pickDistinct(n){
+    var pool = SYMBOL_POOL.slice(); shuffle(pool);
+    return pool.slice(0, n);
+  }
+
+  function setTopbar(title, pill, showTimer, backFn){
+    var html = '';
+    html += '<button class="back-btn" id="btnBack">←</button>';
+    html += '<div class="top-meta"><span class="top-title">'+title+'</span>'+(pill?'<span class="level-pill">'+pill+'</span>':'')+'</div>';
+    if (showTimer) html += '<div class="timer-wrap"><div class="timer" id="timerBox">--</div></div>';
+    topbar.innerHTML = html;
+    var btn = document.getElementById('btnBack');
+    if (btn) btn.onclick = backFn;
+  }
+
+  function renderWelcome(){
+    clearTimer();
+    setTopbar('Atención y Concentración', null, false, function(){ window.close(); if(!window.closed) history.back(); });
+    stage.innerHTML =
+      '<div class="center-screen">'+
+        '<div class="big-emoji">🔎</div>'+
+        '<h1>Cancelación de Símbolos</h1>'+
+        '<p>Aparece un símbolo objetivo arriba. El paciente debe tocar <b>todas</b> las casillas que tengan ese mismo símbolo antes de que se acabe el tiempo, ignorando el resto.</p>'+
+        '<button class="cta" id="btnStart">Elegir nivel →</button>'+
+      '</div>';
+    document.getElementById('btnStart').onclick = renderLevelPicker;
+  }
+
+  function renderLevelPicker(){
+    setTopbar('Elige un nivel', null, false, renderWelcome);
+    var html = '<h1 class="game-title">Niveles</h1><p class="sub">Empieza por el Nivel 1 si es la primera vez con este paciente.</p><div class="level-list">';
+    LEVELS.forEach(function(lv){
+      html += '<div class="level-card" data-n="'+lv.n+'">'+
+        '<div class="level-num">'+lv.n+'</div>'+
+        '<div class="level-info"><div class="lname">'+lv.name+'</div><div class="ldesc">'+lv.desc+' · '+lv.segundos+'s</div></div>'+
+      '</div>';
+    });
+    html += '</div>';
+    stage.innerHTML = html;
+    Array.prototype.forEach.call(document.querySelectorAll('.level-card'), function(card){
+      card.onclick = function(){ startLevel(parseInt(card.dataset.n,10)); };
+    });
+  }
+
+  function clearTimer(){ if (state.timerId){ clearInterval(state.timerId); state.timerId=null; } }
+
+  function startLevel(n){
+    var lv = LEVELS.find(function(l){ return l.n===n; });
+    var total = lv.cols*lv.rows;
+    var distractEmojis = pickDistinct(lv.distractores + 1);
+    var targetEmoji = distractEmojis.pop();
+    // número de objetivos: entre ~18% y ~30% de las casillas, según nivel
+    var ratio = n===1 ? 0.28 : (n===2 ? 0.24 : 0.20);
+    var totalTarget = Math.max(5, Math.round(total*ratio));
+
+    var cells = [];
+    for (var i=0;i<totalTarget;i++) cells.push({emoji:targetEmoji, isTarget:true});
+    for (var i=cells.length;i<total;i++) cells.push({emoji:distractEmojis[i % distractEmojis.length], isTarget:false});
+    shuffle(cells);
+    cells.forEach(function(c){ c.state='idle'; });
+
+    state = { level:lv, grid:cells, targetEmoji:targetEmoji, totalTarget:totalTarget, found:0, wrong:0,
+      timeLeft:lv.segundos, timerId:null, startedAt:Date.now(), finished:false };
+
+    renderGame();
+    state.timerId = setInterval(function(){
+      state.timeLeft--;
+      updateTimerBox();
+      if (state.timeLeft<=0){ finishGame(); }
+    }, 1000);
+  }
+
+  function updateTimerBox(){
+    var box = document.getElementById('timerBox');
+    if (!box) return;
+    box.textContent = state.timeLeft+'s';
+    box.classList.toggle('low', state.timeLeft<=10);
+  }
+
+  function renderGame(){
+    setTopbar('Cancelación de Símbolos', state.level.name.replace('Nivel '+state.level.n+' · ',''), true, function(){
+      clearTimer(); renderLevelPicker();
+    });
+    var html = '';
+    html += '<div class="target-panel"><span class="lbl">Buscar:</span><span class="sym">'+state.targetEmoji+'</span>'+
+      '<div class="target-stats"><span class="n" id="foundCount">0 / '+state.totalTarget+'</span><span class="l">encontrados</span></div></div>';
+    html += '<div class="grid" id="grid" style="grid-template-columns:repeat('+state.level.cols+',1fr)"></div>';
+    stage.innerHTML = html;
+    updateTimerBox();
+    var grid = document.getElementById('grid');
+    state.grid.forEach(function(cell, idx){
+      var div = document.createElement('div');
+      div.className = 'cell';
+      div.textContent = cell.emoji;
+      div.dataset.idx = idx;
+      div.onclick = function(){ onCellTap(idx, div); };
+      grid.appendChild(div);
+    });
+  }
+
+  function onCellTap(idx, el){
+    if (state.finished) return;
+    var cell = state.grid[idx];
+    if (cell.state !== 'idle') return;
+    if (cell.isTarget){
+      cell.state = 'found'; state.found++;
+      el.classList.add('found','disabled');
+      var fc = document.getElementById('foundCount');
+      if (fc) fc.textContent = state.found+' / '+state.totalTarget;
+      if (state.found >= state.totalTarget){ finishGame(); }
+    } else {
+      cell.state = 'wrong'; state.wrong++;
+      el.classList.add('wrong','disabled');
+    }
+  }
+
+  function finishGame(){
+    if (state.finished) return;
+    state.finished = true;
+    clearTimer();
+    var usedSeconds = state.level.segundos - Math.max(0, state.timeLeft);
+    var omitidos = state.totalTarget - state.found;
+    var precision = state.found+state.wrong>0 ? Math.round((state.found/(state.found+state.wrong))*100) : 0;
+    var stars = 1;
+    if (state.found===state.totalTarget && state.wrong===0) stars = 3;
+    else if (omitidos<=1 && state.wrong<=2) stars = 2;
+
+    setTopbar('Resultado', null, false, renderLevelPicker);
+    var html = '<div class="center-screen">';
+    html += '<div class="final-stars">'+('⭐'.repeat(stars))+('☆'.repeat(3-stars))+'</div>';
+    html += '<h1>'+(stars===3?'¡Excelente!':(stars===2?'¡Buen trabajo!':'¡Completado!'))+'</h1>';
+    html += '<div class="result-grid">'+
+      '<div class="result-card"><div class="v">'+state.found+'/'+state.totalTarget+'</div><div class="k">ENCONTRADOS</div></div>'+
+      '<div class="result-card"><div class="v">'+state.wrong+'</div><div class="k">ERRORES</div></div>'+
+      '<div class="result-card"><div class="v">'+omitidos+'</div><div class="k">OMITIDOS</div></div>'+
+      '<div class="result-card"><div class="v">'+precision+'%</div><div class="k">PRECISIÓN</div></div>'+
+    '</div>';
+    html += '<p style="margin-top:10px">Tiempo usado: '+usedSeconds+'s de '+state.level.segundos+'s</p>';
+    html += '<button class="cta" id="btnRetry">Repetir este nivel</button>';
+    html += '<button class="cta secondary" id="btnLevels">Elegir otro nivel</button>';
+    html += '</div>';
+    stage.innerHTML = html;
+    document.getElementById('btnRetry').onclick = function(){ startLevel(state.level.n); };
+    document.getElementById('btnLevels').onclick = renderLevelPicker;
+  }
+
+  renderWelcome();
+})();
+</script>

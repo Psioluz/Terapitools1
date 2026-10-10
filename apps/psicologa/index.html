@@ -397,16 +397,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div style="font-size:20px;color:var(--muted)">→</div>
       </div>
     </div>
-  </div>
-  <div class="pg" id="tabMateriales">
-    <div class="card">
-      <div class="ch">📚 Materiales</div>
-      <div class="cb" style="text-align:center;padding:40px 16px;color:var(--muted)">
-        <div style="font-size:40px;margin-bottom:10px">🚧</div>
-        <div style="font-size:15px;font-weight:800;color:#1e293b">Próximamente</div>
-        <div style="font-size:12px;margin-top:6px">Aquí vas a encontrar materiales de apoyo para tus sesiones.</div>
+    <div class="card" style="cursor:pointer;margin-top:10px" onclick="window.open('herramientas/atencion-cancelacion-simbolos.html','_blank')">
+      <div class="cb" style="display:flex;align-items:center;gap:14px">
+        <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#4a0e2e,#12B5AC);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">🔎</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:800">Atención y Concentración</div>
+          <div style="font-size:11px;color:var(--muted)">Cancelación de símbolos - 3 niveles, con cronómetro y puntaje</div>
+        </div>
+        <div style="font-size:20px;color:var(--muted)">→</div>
       </div>
     </div>
+  </div>
+  <div class="pg" id="tabMateriales">
+    <div class="card" style="margin-bottom:10px">
+      <div class="ch">📚 Materiales de Apoyo</div>
+      <div class="cb" style="font-size:12px;color:var(--muted)">Fichas, guías y cuadernillos descargables para usar en sesión o enviar a los padres. Se abren en una pestaña nueva.</div>
+    </div>
+    <div id="materialesBox"><div style="color:var(--muted);font-size:12px;text-align:center;padding:20px">⏳ Cargando...</div></div>
   </div>
   <div class="pg" id="tabChat">
     <!-- Encabezado del chat -->
@@ -1894,6 +1901,57 @@ function _doLogout(){
 }
 
 
+// ── MATERIALES DE APOYO ──
+var _materialesCache=null;
+async function renderMateriales(){
+  var box=document.getElementById('materialesBox');
+  if(!box)return;
+  try{
+    if(!_materialesCache){
+      _materialesCache=await sbGet('materiales_apoyo',{select:'*',activo:'eq.true'})||[];
+    }
+    var items=_materialesCache;
+    if(!items.length){
+      box.innerHTML='<div class="card"><div class="cb" style="text-align:center;padding:30px 16px;color:var(--muted)">'+
+        '<div style="font-size:36px;margin-bottom:8px">🗂️</div>'+
+        '<div style="font-size:14px;font-weight:800;color:#1e293b">Todavía no hay materiales cargados</div>'+
+        '<div style="font-size:12px;margin-top:6px">Avísale a Sistema si tienes una ficha o guía para subir aquí.</div>'+
+      '</div></div>';
+      return;
+    }
+    var porCat={},ordenCat=[];
+    items.slice().sort(function(a,b){return(a.orden||0)-(b.orden||0);}).forEach(function(it){
+      var cat=it.categoria||'Otros';
+      if(!porCat[cat]){porCat[cat]=[];ordenCat.push(cat);}
+      porCat[cat].push(it);
+    });
+    var html='';
+    ordenCat.forEach(function(cat){
+      html+='<div class="card" style="margin-bottom:10px"><div class="ch">'+cat+'</div><div class="cb" style="padding:4px 0">';
+      porCat[cat].forEach(function(it,i){
+        html+='<div class="mat-item" data-url="'+String(it.url||'').replace(/"/g,'&quot;')+'" '+
+          'style="display:flex;align-items:center;gap:12px;padding:10px 4px;cursor:pointer'+
+          (i<porCat[cat].length-1?';border-bottom:1px solid #f1f5f9':'')+'">'+
+          '<div style="width:40px;height:40px;border-radius:10px;background:var(--mint,#E4FBF3);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📄</div>'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="font-size:13px;font-weight:800;color:#1e293b">'+(it.titulo||'')+'</div>'+
+            (it.descripcion?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+it.descripcion+'</div>':'')+
+          '</div>'+
+          '<div style="font-size:18px;color:var(--muted)">↗</div>'+
+        '</div>';
+      });
+      html+='</div></div>';
+    });
+    box.innerHTML=html;
+    Array.prototype.forEach.call(box.querySelectorAll('.mat-item'),function(el){
+      el.onclick=function(){ var u=el.dataset.url; if(u)window.open(u,'_blank'); };
+    });
+  }catch(e){
+    console.warn('[materiales]',e);
+    box.innerHTML='<div class="card"><div class="cb" style="text-align:center;padding:20px;color:var(--muted)">No se pudieron cargar los materiales. Intenta de nuevo.</div></div>';
+  }
+}
+
 // ── TABS ──
 function goTab(tabId, el){
   // Limpiar TODAS las páginas (class Y style inline para evitar acumulación)
@@ -1946,6 +2004,7 @@ function goTab(tabId, el){
   else if(tabId==='tabPacs')    renderPacsPs();
   else if(tabId==='tabClinico') renderPacsPs();
   else if(tabId==='tabDocs')    { if(typeof renderDocs==='function') renderDocs(); }
+  else if(tabId==='tabMateriales') { if(typeof renderMateriales==='function') renderMateriales(); }
   else if(tabId==='tabChat')    { if(typeof renderChat==='function') renderChat(); }
   else if(tabId==='tabAsistencia') { if(typeof renderMiAsistencia==='function') renderMiAsistencia(); }
   else if(tabId==='tabPerfil'){
