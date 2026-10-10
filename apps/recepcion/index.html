@@ -1144,7 +1144,7 @@ try{
   </div>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal('modalPago')">Cancelar</button>
-    <button class="btn btn-success" onclick="guardarPago()">💰 Guardar Pago</button>
+    <button class="btn btn-success" id="pg-btnGuardar" onclick="guardarPago()">💰 Guardar Pago</button>
   </div>
 </div>
 </div>
@@ -5044,7 +5044,22 @@ async function reconciliarCheckpoints(programaId){
   if(patches.length)await Promise.all(patches);
 }
 
+// Envoltorio fino: deshabilita "Guardar Pago" apenas se hace clic y lo
+// reactiva pase lo que pase (éxito, error o validación fallida) - evita que
+// un doble clic (o un tap lento en el celular que el dedo repite) cree dos
+// pagos duplicados para el mismo cobro, el mismo bug ya corregido antes en
+// guardarFichaSeguimiento().
 async function guardarPago(){
+  const btnGuardar=document.getElementById('pg-btnGuardar');
+  const btnGuardarHtmlOriginal=btnGuardar?btnGuardar.innerHTML:'';
+  if(btnGuardar){btnGuardar.disabled=true;btnGuardar.innerHTML='⏳ Guardando...';}
+  try{
+    await _guardarPagoInterno();
+  } finally {
+    if(btnGuardar){btnGuardar.disabled=false;btnGuardar.innerHTML=btnGuardarHtmlOriginal;}
+  }
+}
+async function _guardarPagoInterno(){
   const fecha=document.getElementById('pg-fecha').value||today();
   const monto=parseFloat(document.getElementById('pg-monto').value)||0;
   const notas=document.getElementById('pg-notas')?.value||'';
