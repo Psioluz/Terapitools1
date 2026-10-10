@@ -1,0 +1,306 @@
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="mobile-web-app-capable" content="yes" />
+<title>Psicoluz — Trazado del Camino</title>
+<style>
+  :root{
+    color-scheme: light;
+    --navy:#4a0e2e; --teal:#12B5AC; --coral:#FF6A57; --gold:#e91e8c;
+    --mint:#E4FBF3; --paper:#FFFCF3; --ink:#14171C; --ink-soft:#495468;
+    --card:#FFFFFF; --ring:#DCEFEA; --shadow: 0 12px 28px -12px rgba(18,41,79,0.28);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, var(--mint), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, color-mix(in srgb, var(--gold) 18%, transparent), transparent 55%),
+      var(--paper);
+    font-family: ui-rounded, "SF Pro Rounded", "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+    color:var(--ink); overflow-x:hidden; display:flex; justify-content:center;
+    padding:20px 14px 48px; -webkit-user-select:none; user-select:none;
+  }
+  .app{width:100%; max-width:480px;}
+  .topbar{
+    background:var(--navy); border-radius:26px; padding:14px 16px;
+    display:flex; align-items:center; gap:12px; box-shadow:var(--shadow);
+  }
+  .back-btn{
+    border:none; background:rgba(255,255,255,0.12); color:#fff; width:38px;height:38px;border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; flex-shrink:0;
+  }
+  .back-btn:active{transform:scale(0.92);}
+  .top-meta{flex:1; display:flex; flex-direction:column; gap:6px; min-width:0;}
+  .top-title{color:#fff; font-weight:800; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .level-pill{align-self:flex-start; font-size:11px; font-weight:800; letter-spacing:.04em; color:var(--navy); background:var(--gold); padding:3px 10px; border-radius:999px;}
+
+  .stage{
+    margin-top:16px; background:var(--card); border-radius:28px; box-shadow:var(--shadow);
+    padding:22px 20px 26px; min-height:520px; display:flex; flex-direction:column;
+  }
+  h1.game-title{font-size:24px; margin:2px 0 4px; text-wrap:balance;}
+  .sub{color:var(--ink-soft); font-size:14.5px; margin:0 0 18px;}
+  .center-screen{display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px; flex:1; justify-content:center; padding:10px 4px;}
+  .center-screen .big-emoji{font-size:64px;}
+  .center-screen h1{font-size:26px; margin:0; text-wrap:balance;}
+  .center-screen p{color:var(--ink-soft); font-size:15px; max-width:340px; margin:0;}
+  .cta{
+    border:none; border-radius:18px; padding:16px 30px; background:var(--teal); color:#fff;
+    font-weight:800; font-size:17px; cursor:pointer; box-shadow:0 6px 0 #157a75; margin-top:8px; min-height:52px;
+  }
+  .cta:active{transform:translateY(4px); box-shadow:0 2px 0 #157a75;}
+  .cta.secondary{background:var(--card); color:var(--navy); border:2.5px solid var(--ring); box-shadow:0 6px 0 var(--ring);}
+  .cta.secondary:active{box-shadow:0 3px 0 var(--ring);}
+
+  .level-list{display:flex; flex-direction:column; gap:12px; margin-top:16px;}
+  .level-card{
+    border:2.5px solid var(--ring); background:var(--card); border-radius:20px; padding:16px;
+    display:flex; align-items:center; gap:14px; cursor:pointer; box-shadow:0 6px 0 var(--ring);
+  }
+  .level-card:active{transform:translateY(3px); box-shadow:0 3px 0 var(--ring);}
+  .level-num{width:44px;height:44px;border-radius:50%; flex-shrink:0; background:var(--mint); color:var(--navy); font-weight:800; font-size:18px; display:flex; align-items:center; justify-content:center;}
+  .level-info{flex:1; text-align:left;}
+  .level-info .lname{font-weight:800; font-size:16px;}
+  .level-info .ldesc{font-size:12.5px; color:var(--ink-soft); margin-top:2px;}
+
+  .progress-wrap{margin-bottom:10px;}
+  .progress-track{height:10px; border-radius:999px; background:var(--ring); overflow:hidden;}
+  .progress-fill{height:100%; background:var(--teal); width:0%; transition: width .15s ease;}
+  .progress-lbl{font-size:11px; font-weight:700; color:var(--ink-soft); margin-top:4px; text-align:right;}
+
+  .canvas-wrap{
+    position:relative; border-radius:18px; overflow:hidden; background:var(--mint);
+    border:2px solid var(--ring); touch-action:none; flex:1; min-height:360px;
+  }
+  canvas{display:block; width:100%; height:100%;}
+
+  .result-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; width:100%; margin-top:6px;}
+  .result-card{background:var(--mint); border:2px solid var(--ring); border-radius:16px; padding:12px; text-align:center;}
+  .result-card .v{font-size:22px; font-weight:800; color:var(--navy);}
+  .result-card .k{font-size:11px; color:var(--ink-soft); font-weight:700; margin-top:2px;}
+  .final-stars{font-size:38px; letter-spacing:6px;}
+
+  footer.credit{text-align:center; margin-top:14px; font-size:11.5px; color:var(--ink-soft);}
+  @media (prefers-reduced-motion: reduce){*{transition-duration:0.001s !important;}}
+</style>
+
+<div class="app">
+  <div class="topbar" id="topbar"></div>
+  <div class="stage" id="stage"></div>
+  <footer class="credit">Psicoluz · Herramienta para terapia</footer>
+</div>
+
+<script>
+(function(){
+  var topbar=document.getElementById('topbar');
+  var stage=document.getElementById('stage');
+
+  var LEVELS=[
+    {n:1, name:"Nivel 1 · Fácil", amp:0.16, freq1:1.1, freq2:0, tolerance:0.085, desc:"Camino suave, una sola curva amplia"},
+    {n:2, name:"Nivel 2 · Intermedio", amp:0.20, freq1:2.0, freq2:0.0, tolerance:0.07, desc:"Más curvas, un poco más angosto"},
+    {n:3, name:"Nivel 3 · Avanzado", amp:0.22, freq1:2.6, freq2:3.7, tolerance:0.055, desc:"Camino sinuoso con quiebres - más angosto"}
+  ];
+
+  var state=null;
+
+  function setTopbar(title, pill, backFn){
+    topbar.innerHTML='<button class="back-btn" id="btnBack">←</button>'+
+      '<div class="top-meta"><span class="top-title">'+title+'</span>'+(pill?'<span class="level-pill">'+pill+'</span>':'')+'</div>';
+    document.getElementById('btnBack').onclick=backFn;
+  }
+
+  function renderWelcome(){
+    setTopbar('Trazado del Camino', null, function(){ window.close(); if(!window.closed) history.back(); });
+    stage.innerHTML='<div class="center-screen">'+
+      '<div class="big-emoji">✏️</div>'+
+      '<h1>Trazado del Camino</h1>'+
+      '<p>El paciente debe recorrer con el dedo todo el camino desde el inicio (verde) hasta la meta (🏁), sin despegarse demasiado del trazo.</p>'+
+      '<button class="cta" id="btnStart">Elegir nivel →</button>'+
+    '</div>';
+    document.getElementById('btnStart').onclick=renderLevelPicker;
+  }
+
+  function renderLevelPicker(){
+    setTopbar('Elige un nivel', null, renderWelcome);
+    var html='<h1 class="game-title">Niveles</h1><p class="sub">El camino se genera distinto cada vez que entras.</p><div class="level-list">';
+    LEVELS.forEach(function(lv){
+      html+='<div class="level-card" data-n="'+lv.n+'"><div class="level-num">'+lv.n+'</div>'+
+        '<div class="level-info"><div class="lname">'+lv.name+'</div><div class="ldesc">'+lv.desc+'</div></div></div>';
+    });
+    html+='</div>';
+    stage.innerHTML=html;
+    Array.prototype.forEach.call(document.querySelectorAll('.level-card'), function(card){
+      card.onclick=function(){ startLevel(parseInt(card.dataset.n,10)); };
+    });
+  }
+
+  function genPath(lv, w, h){
+    var pts=[], N=400;
+    var cx=w/2, margin=w*0.14, amp=(w/2-margin)*lv.amp/0.22*0.9;
+    amp = Math.min(amp, w/2 - margin);
+    for(var i=0;i<=N;i++){
+      var t=i/N;
+      var y=t*h;
+      var x=cx + amp*Math.sin(2*Math.PI*lv.freq1*t) ;
+      if(lv.freq2) x += amp*0.35*Math.sin(2*Math.PI*lv.freq2*t + 1.3);
+      pts.push({x:x,y:y});
+    }
+    return pts;
+  }
+
+  function startLevel(n){
+    var lv=LEVELS.find(function(l){return l.n===n;});
+    renderGame(lv);
+  }
+
+  function renderGame(lv){
+    setTopbar('Trazado del Camino', lv.name.replace('Nivel '+lv.n+' · ',''), function(){ renderLevelPicker(); });
+    stage.innerHTML=
+      '<div class="progress-wrap"><div class="progress-track"><div class="progress-fill" id="pfill"></div></div>'+
+      '<div class="progress-lbl" id="plbl">0% recorrido</div></div>'+
+      '<div class="canvas-wrap" id="canvasWrap"><canvas id="cv"></canvas></div>';
+
+    var wrap=document.getElementById('canvasWrap');
+    var canvas=document.getElementById('cv');
+    var ctx=canvas.getContext('2d');
+    var dpr=Math.max(1, window.devicePixelRatio||1);
+    var cw=wrap.clientWidth, ch=wrap.clientHeight;
+    canvas.width=cw*dpr; canvas.height=ch*dpr;
+    ctx.scale(dpr,dpr);
+
+    var path=genPath(lv, cw, ch);
+    var tolerancePx = cw*lv.tolerance;
+    var maxIdx=0, salidas=0, offTrackNow=false, finished=false, startedAt=Date.now();
+    var lastPoint=null;
+
+    function nearestIdx(x,y, fromIdx, windowSize){
+      var best=-1, bestD=Infinity;
+      var lo=Math.max(0, fromIdx-5), hi=Math.min(path.length-1, fromIdx+windowSize);
+      for(var i=lo;i<=hi;i++){
+        var dx=path[i].x-x, dy=path[i].y-y, d=dx*dx+dy*dy;
+        if(d<bestD){bestD=d; best=i;}
+      }
+      return {idx:best, dist:Math.sqrt(bestD)};
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,cw,ch);
+      // camino completo (gris punteado)
+      ctx.setLineDash([2,10]);
+      ctx.lineWidth=tolerancePx*2;
+      ctx.strokeStyle='rgba(73,84,104,0.10)';
+      ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.beginPath();
+      path.forEach(function(p,i){ if(i===0)ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+      ctx.stroke();
+      // guía central punteada
+      ctx.setLineDash([6,8]);
+      ctx.lineWidth=2;
+      ctx.strokeStyle='rgba(73,84,104,0.35)';
+      ctx.beginPath();
+      path.forEach(function(p,i){ if(i===0)ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // tramo recorrido (teal)
+      if(maxIdx>0){
+        ctx.lineWidth=8; ctx.strokeStyle='#12B5AC';
+        ctx.beginPath();
+        for(var i=0;i<=maxIdx;i++){ if(i===0)ctx.moveTo(path[i].x,path[i].y); else ctx.lineTo(path[i].x,path[i].y); }
+        ctx.stroke();
+      }
+      // inicio
+      ctx.beginPath(); ctx.arc(path[0].x,path[0].y,14,0,7); ctx.fillStyle='#12B5AC'; ctx.fill();
+      ctx.fillStyle='#fff'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('IN', path[0].x, path[0].y);
+      // meta
+      var last=path[path.length-1];
+      ctx.font='26px sans-serif'; ctx.fillText('🏁', last.x, last.y);
+      // puntero actual
+      if(lastPoint){
+        ctx.beginPath(); ctx.arc(lastPoint.x,lastPoint.y,10,0,7);
+        ctx.fillStyle= offTrackNow? '#FF6A57' : '#e91e8c';
+        ctx.fill();
+      }
+    }
+    draw();
+
+    function updateProgress(){
+      var pct=Math.round((maxIdx/(path.length-1))*100);
+      var fill=document.getElementById('pfill'); if(fill)fill.style.width=pct+'%';
+      var lbl=document.getElementById('plbl'); if(lbl)lbl.textContent=pct+'% recorrido';
+      return pct;
+    }
+
+    var tracing=false;
+    function toLocal(e){
+      var r=canvas.getBoundingClientRect();
+      var cx = (e.touches? e.touches[0].clientX : e.clientX) - r.left;
+      var cy = (e.touches? e.touches[0].clientY : e.clientY) - r.top;
+      return {x:cx,y:cy};
+    }
+    function onDown(e){
+      if(finished)return;
+      var p=toLocal(e);
+      var near=nearestIdx(p.x,p.y,0,60);
+      if(near.dist<=tolerancePx*1.4){ tracing=true; lastPoint=p; draw(); }
+      e.preventDefault();
+    }
+    function onMove(e){
+      if(!tracing||finished)return;
+      var p=toLocal(e);
+      lastPoint=p;
+      var near=nearestIdx(p.x,p.y,maxIdx,35);
+      if(near.dist<=tolerancePx){
+        offTrackNow=false;
+        if(near.idx>maxIdx)maxIdx=near.idx;
+      } else {
+        if(!offTrackNow){ salidas++; }
+        offTrackNow=true;
+      }
+      var pct=updateProgress();
+      draw();
+      if(pct>=96 && !finished){ finishGame(); }
+      e.preventDefault();
+    }
+    function onUp(e){ tracing=false; offTrackNow=false; draw(); }
+
+    canvas.addEventListener('pointerdown', onDown);
+    canvas.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    canvas.addEventListener('touchstart', onDown, {passive:false});
+    canvas.addEventListener('touchmove', onMove, {passive:false});
+    canvas.addEventListener('touchend', onUp);
+
+    function finishGame(){
+      if(finished)return;
+      finished=true;
+      canvas.removeEventListener('pointerdown', onDown);
+      canvas.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('touchstart', onDown);
+      canvas.removeEventListener('touchmove', onMove);
+      var usedSeconds=Math.round((Date.now()-startedAt)/1000);
+      var stars=1;
+      if(salidas===0)stars=3; else if(salidas<=3)stars=2;
+      setTopbar('Resultado', null, renderLevelPicker);
+      var html='<div class="center-screen">';
+      html+='<div class="final-stars">'+('⭐'.repeat(stars))+('☆'.repeat(3-stars))+'</div>';
+      html+='<h1>'+(stars===3?'¡Camino perfecto!':(stars===2?'¡Buen trabajo!':'¡Completado!'))+'</h1>';
+      html+='<div class="result-grid">'+
+        '<div class="result-card"><div class="v">100%</div><div class="k">RECORRIDO</div></div>'+
+        '<div class="result-card"><div class="v">'+salidas+'</div><div class="k">SALIDAS DEL CAMINO</div></div>'+
+        '<div class="result-card"><div class="v">'+usedSeconds+'s</div><div class="k">TIEMPO</div></div>'+
+        '<div class="result-card"><div class="v">'+lv.n+'</div><div class="k">NIVEL</div></div>'+
+      '</div>';
+      html+='<button class="cta" id="btnRetry">Repetir este nivel</button>';
+      html+='<button class="cta secondary" id="btnLevels">Elegir otro nivel</button>';
+      html+='</div>';
+      stage.innerHTML=html;
+      document.getElementById('btnRetry').onclick=function(){ startLevel(lv.n); };
+      document.getElementById('btnLevels').onclick=renderLevelPicker;
+    }
+  }
+
+  renderWelcome();
+})();
+</script>
