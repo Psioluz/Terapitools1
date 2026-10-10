@@ -690,18 +690,22 @@
     if(!window.speechSynthesis) return;
     try{
       window.speechSynthesis.cancel();
-      // Una sílaba suelta muy corta (ej. "ma", "pa") a veces la voz del
-      // sistema la confunde con una abreviatura y la deletrea ("eme, a")
-      // en vez de pronunciarla como sílaba - pasa con unas sílabas sí y
-      // otras no, según la voz. Alargar la vocal final evita que la
-      // tome como sigla sin cambiar lo que se ve en pantalla (eso sigue
-      // mostrando "ma", solo se pronuncia distinto).
+      // Una sílaba suelta muy corta (ej. "ma", "pa") muchas voces la
+      // deletrean como sigla ("eme, a") en vez de pronunciarla como
+      // sílaba. Solo alargar la vocal final (intento anterior) no
+      // alcanza: el motor sigue leyendo la consonante inicial como
+      // nombre de letra porque el patrón sigue viéndose como
+      // "letra + vocal", no como una palabra real. Repetir la sílaba
+      // completa sí funciona: "mama", "papa", "tata" etc. son patrones
+      // consonante-vocal-consonante-vocal naturales del español, un
+      // patrón que ningún motor confunde con una sigla - y de paso
+      // refuerza el sonido por repetición, que ayuda en articulación.
       var spoken = text.toLowerCase();
-      if(spoken.length<=3)spoken=spoken+spoken.slice(-1)+spoken.slice(-1);
+      if(spoken.length<=4) spoken = spoken + spoken;
       var u = new SpeechSynthesisUtterance(spoken);
       var voice = pickSpanishVoice();
       if(voice){ u.voice = voice; u.lang = voice.lang; } else { u.lang = "es-ES"; }
-      u.rate = 0.88;
+      u.rate = 0.82;
       u.pitch = 1.05;
       window.speechSynthesis.speak(u);
     }catch(e){}
