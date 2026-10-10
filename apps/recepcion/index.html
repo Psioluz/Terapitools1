@@ -911,9 +911,16 @@ try{
         <label class="form-label">Notas</label>
         <input class="form-control" id="ag-notas" placeholder="Observaciones...">
 <div id="ag-evidenciaBox" style="display:none;margin-top:10px;background:#fff7ed;border:1.5px dashed #fdba74;border-radius:10px;padding:10px">
-  <label style="font-size:11px;font-weight:800;color:#9a3412;display:block;margin-bottom:6px">📎 Evidencia del paciente (obligatoria para reprogramar)</label>
-  <input type="file" class="form-control" id="ag-evidencia" accept="application/pdf,image/jpeg,image/png">
-  <div style="font-size:10px;color:#9a3412;margin-top:4px">Captura del mensaje, certificado médico, etc. (PDF o imagen, máx. 10MB)</div>
+  <label style="font-size:11px;font-weight:800;color:#9a3412;display:block;margin-bottom:6px">¿Quién es responsable de esta reprogramación?</label>
+  <select class="form-control" id="ag-responsable" onchange="_toggleResponsableReprog()" style="margin-bottom:8px">
+    <option value="paciente">Paciente (cuenta contra su tope del paquete)</option>
+    <option value="centro">Centro de Terapias - feriado, cambio de licenciada, licenciada no asiste (no cuenta contra el tope)</option>
+  </select>
+  <div id="ag-evidenciaInner">
+    <label style="font-size:11px;font-weight:800;color:#9a3412;display:block;margin-bottom:6px">📎 Evidencia del paciente (obligatoria para reprogramar)</label>
+    <input type="file" class="form-control" id="ag-evidencia" accept="application/pdf,image/jpeg,image/png">
+    <div style="font-size:10px;color:#9a3412;margin-top:4px">Captura del mensaje, certificado médico, etc. (PDF o imagen, máx. 10MB)</div>
+  </div>
 </div>
       </div>
     </div>
@@ -1210,12 +1217,19 @@ try{
       Esta sesión no se pierde: se corre al final, en el mismo día de la semana, hora y terapia que ya lleva el paciente.
     </div>
     <div class="form-group">
+      <label class="form-label">¿Quién es responsable de este permiso?</label>
+      <select class="form-control" id="permiso-responsable" onchange="_toggleResponsablePermiso()">
+        <option value="paciente">Paciente (cuenta contra su tope del paquete)</option>
+        <option value="centro">Centro de Terapias - feriado, cambio de licenciada, licenciada no asiste (no cuenta contra el tope)</option>
+      </select>
+    </div>
+    <div class="form-group" id="permiso-evidenciaBox">
       <label class="form-label">📎 Evidencia del paciente (obligatoria)</label>
       <input type="file" class="form-control" id="permiso-evidencia" accept="application/pdf,image/jpeg,image/png">
       <div style="font-size:10px;color:var(--muted);margin-top:4px">Captura del mensaje, certificado médico, etc. (PDF o imagen, máx. 10MB)</div>
     </div>
     <div class="form-group">
-      <label class="form-label">Nota (opcional)</label>
+      <label class="form-label" id="permiso-nota-label">Nota (opcional)</label>
       <input class="form-control" id="permiso-nota" placeholder="Motivo del permiso...">
     </div>
   </div>
@@ -2328,9 +2342,15 @@ const LIMITES_REPROG_PERMISO={
 // un paquete ANTERIOR ya cerrado del mismo paciente (ese tiene otro
 // programa_id, distinto al que se está por tocar ahora).
 async function _contarReprogPermisoPaquete(progId){
-  const filas=await sbGet('sesiones',{programa_id:'eq.'+progId,select:'estado'}).catch(function(){return[];});
+  const filas=await sbGet('sesiones',{programa_id:'eq.'+progId,select:'estado,responsable'}).catch(function(){return[];});
   let reprog=0,permiso=0;
   (filas||[]).forEach(function(f){
+    // Si fue responsabilidad del centro (feriado, cambio de licenciada,
+    // licenciada no asistió) no es culpa del paciente, así que no debe
+    // gastarle su tope - solo cuentan las que sí fueron decisión/motivo
+    // del paciente (responsable='paciente' o sin dato, por compatibilidad
+    // con registros de antes de que existiera este campo).
+    if(f.responsable==='centro')return;
     if(f.estado==='reprogramado')reprog++;
     else if(f.estado==='permiso')permiso++;
   });
@@ -2355,13 +2375,11 @@ async function _verificarTopePaquete(ses,accion){
 }
 async function reprogramar(sesId){
   const ses=DB.sesiones.find(s=>s.id===sesId);if(!ses)return;
-  // Descongelar una sesión (reagendarla con fecha nueva) no debe gastar
-  // el tope de reprogramaciones del paquete - congelar es por una razón
-  // médica/de fuerza mayor, no una reprogramación normal del paciente.
-  if(ses.estado!=='congelado'){
-    const errTope=await _verificarTopePaquete(ses,'reprog');
-    if(errTope){showToast('🚫 '+errTope,'error');return;}
-  }
+  // El tope de reprogramaciones del paquete se valida al CONFIRMAR (en
+  // guardarSesion), no aquí al abrir el modal - recién ahí se sabe si el
+  // responsable es el paciente (si cuenta contra el tope) o el centro
+  // (feriado, cambio de licenciada... no cuenta, así que no debe bloquear
+  // la entrada al modal aunque el tope ya esté lleno).
   _reprogDe=ses;
   // El cambio a "reprogramado" solo se guarda en Supabase cuando la
   // reprogramación se CONFIRMA de verdad (ver guardarSesion, rama
@@ -2438,8 +2456,9 @@ async function revertirSesion(sesId){
 let _permisoSesId=null;
 async function abrirModalPermiso(sesId){
   const s=DB.sesiones.find(x=>x.id===sesId);if(!s)return;
-  const errTope=await _verificarTopePaquete(s,'permiso');
-  if(errTope){showToast('🚫 '+errTope,'error');return;}
+  // El tope se valida al CONFIRMAR (confirmarPermiso), ya con el
+  // responsable elegido - si termina siendo "centro" no debe bloquear ni
+  // siquiera la entrada al modal, aunque el tope ya esté lleno.
   _permisoSesId=sesId;
   const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
   const info=document.getElementById('permiso-info');
@@ -2447,17 +2466,47 @@ async function abrirModalPermiso(sesId){
     '<br>Sesión original: '+fmtF(s.fecha)+' '+s.hora+(s.tipo==='paquete'?' (Paq '+_paqLabel(s)+')':'');
   const evInp=document.getElementById('permiso-evidencia');if(evInp)evInp.value='';
   const notaInp=document.getElementById('permiso-nota');if(notaInp)notaInp.value='';
+  const respInp=document.getElementById('permiso-responsable');if(respInp)respInp.value='paciente';
+  _toggleResponsablePermiso();
   openModal('modalPermiso');
+}
+// Cuando el responsable es el centro (feriado, cambio de licenciada,
+// licenciada no asiste) ya no tiene sentido pedirle "evidencia del
+// paciente" - ahí no hubo nada que el paciente mandara. En ese caso basta
+// con el motivo en la nota, que pasa a ser obligatoria.
+function _toggleResponsablePermiso(){
+  const esCentro=document.getElementById('permiso-responsable')?.value==='centro';
+  const evBox=document.getElementById('permiso-evidenciaBox');
+  const notaLbl=document.getElementById('permiso-nota-label');
+  if(evBox)evBox.style.display=esCentro?'none':'block';
+  if(notaLbl)notaLbl.textContent=esCentro?'Motivo (obligatorio)':'Nota (opcional)';
+}
+// Mismo criterio que _toggleResponsablePermiso pero para el modal de
+// Reprogramar (ag-*): si el centro es el responsable, no se pide
+// evidencia - el motivo va en el campo de Notas, que ya existe en ese modal.
+function _toggleResponsableReprog(){
+  const esCentro=document.getElementById('ag-responsable')?.value==='centro';
+  const evInner=document.getElementById('ag-evidenciaInner');
+  if(evInner)evInner.style.display=esCentro?'none':'block';
 }
 function _fechaMasDias(fecha,n){const d=new Date(fecha+'T12:00:00');d.setDate(d.getDate()+n);return fechaLima(d);}
 async function confirmarPermiso(){
   const s=DB.sesiones.find(x=>x.id===_permisoSesId);
   if(!s){showToast('Sesión no encontrada','error');closeModal('modalPermiso');return;}
+  const responsable=document.getElementById('permiso-responsable')?.value==='centro'?'centro':'paciente';
   const evInp=document.getElementById('permiso-evidencia');
   const file=evInp&&evInp.files&&evInp.files[0];
-  if(!file){showToast('Adjunta la evidencia del paciente para registrar el permiso','error');return;}
-  if(file.size>10*1024*1024){showToast('Evidencia supera 10MB','error');return;}
   const nota=(document.getElementById('permiso-nota')?.value||'').trim();
+  if(responsable==='centro'){
+    if(!nota){showToast('Escribe el motivo (feriado, cambio de licenciada, etc.)','error');return;}
+  }else{
+    if(!file){showToast('Adjunta la evidencia del paciente para registrar el permiso','error');return;}
+    if(file.size>10*1024*1024){showToast('Evidencia supera 10MB','error');return;}
+    // El tope solo aplica cuando el responsable es el paciente - ya elegido
+    // acá, recién se puede saber si corresponde bloquear o no.
+    const errTope=await _verificarTopePaquete(s,'permiso');
+    if(errTope){showToast('🚫 '+errTope,'error');return;}
+  }
   const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
   const progId=(s._sb&&s._sb.programa_id)||null;
   const ptId=(s._sb&&s._sb.programa_terapia_id)||null;
@@ -2493,17 +2542,22 @@ async function confirmarPermiso(){
   }
   showToast('⏳ Guardando permiso...');
   try{
-    const sedeC=(DB.sede||'General').replace(/\s+/g,'_');
-    const pacC=(pac.nombre||'paciente').replace(/[^a-zA-Z0-9]/g,'_');
-    const extEv=file.name.split('.').pop();
-    const urlEv=await sbUpload('evidencias',sedeC+'/'+pacC+'/permiso_'+Date.now()+'.'+extEv,file,file.type||'application/pdf');
+    // Si es responsabilidad del centro no hay evidencia del paciente que
+    // subir - el motivo escrito basta.
+    let urlEv='';
+    if(responsable!=='centro'){
+      const sedeC=(DB.sede||'General').replace(/\s+/g,'_');
+      const pacC=(pac.nombre||'paciente').replace(/[^a-zA-Z0-9]/g,'_');
+      const extEv=file.name.split('.').pop();
+      urlEv=await sbUpload('evidencias',sedeC+'/'+pacC+'/permiso_'+Date.now()+'.'+extEv,file,file.type||'application/pdf');
+    }
     const sbId=(s._sb&&s._sb.id)||s.id;
     // La sesión original queda con saldo 0 y SIN número de paquete: un
     // permiso ya no cuenta un cupo (nro_en_paquete=null la saca de la
     // cuenta), queda solo como constancia de la fecha excusada - el
     // checkpoint de cuota (si tenía uno) se MUEVE a la sesión nueva de
     // abajo, no se duplica.
-    await sbPatch('sesiones',{estado:'permiso',saldo:0,nro_en_paquete:null},{id:'eq.'+sbId});
+    await sbPatch('sesiones',{estado:'permiso',saldo:0,nro_en_paquete:null,responsable:responsable},{id:'eq.'+sbId});
     // La reposición toma EXACTAMENTE el número que dejó libre el permiso -
     // nunca se corren los demás números ni se agrega uno nuevo al final.
     // (Antes esto empujaba a todas las sesiones posteriores un puesto
@@ -2524,7 +2578,7 @@ async function confirmarPermiso(){
     await sbPost('reprogramaciones',{fecha_reprog:today(),paciente_nombre:pac.nombre,
       psicologa_nombre:ps.nombre,fecha_original:s.fecha,hora_original:s.hora,
       fecha_nueva:nuevaFecha,hora_nueva:s.hora,sede:DB.sede,reprogramado_por:DB.usuario||'',
-      url_evidencia:urlEv,tipo:'permiso',nota:nota,programa_id:progId||null});
+      url_evidencia:urlEv,tipo:'permiso',nota:nota,programa_id:progId||null,responsable:responsable});
     s.estado='permiso';s.saldo=0;s.nroSes=null;
     // La reposición cae en una fecha bien posterior - igual que al
     // reprogramar, eso puede correr en rank real a las sesiones de en
@@ -2575,6 +2629,9 @@ function abrirModalAgendar(fecha,hora,sesOrig){
   const evInp=document.getElementById('ag-evidencia');
   if(evInp)evInp.value='';
   if(evBox)evBox.style.display=sesOrig?'block':'none';
+  const respSelReprog=document.getElementById('ag-responsable');
+  if(respSelReprog)respSelReprog.value='paciente';
+  _toggleResponsableReprog();
   if(!sesOrig)_reprogDe=null;
 
   if(sesOrig){
@@ -4267,11 +4324,25 @@ async function guardarSesion(){
 
   const pac=getPac(pacId);const ps=getPs(psId);const ter=getTer(terId);
 
-  // Validar evidencia si es reprogramación
+  // Validar evidencia si es reprogramación - salvo que sea responsabilidad
+  // del centro (feriado, cambio de licenciada, licenciada no asiste), ahí
+  // no hay evidencia del paciente que pedir, basta el motivo en Notas.
   const _evInp=document.getElementById('ag-evidencia');
   const _esReprog=!!_reprogDe;
-  if(_esReprog&&(!_evInp||!_evInp.files||!_evInp.files[0])){
+  const _respReprog=document.getElementById('ag-responsable')?.value==='centro'?'centro':'paciente';
+  if(_esReprog&&_respReprog!=='centro'&&(!_evInp||!_evInp.files||!_evInp.files[0])){
     showToast('Adjunta la evidencia del paciente para reprogramar','error');return;
+  }
+  if(_esReprog&&_respReprog==='centro'&&!(document.getElementById('ag-notas')?.value||'').trim()){
+    showToast('Escribe el motivo en Notas (feriado, cambio de licenciada, etc.)','error');return;
+  }
+  // Tope del paquete: solo aplica si el responsable es el paciente y no es
+  // un descongelamiento (eso tampoco gasta tope - ver congelarSesion). Se
+  // valida aquí, ya con el responsable elegido, para no bloquear la
+  // entrada al modal cuando en realidad va a terminar siendo "centro".
+  if(_esReprog&&_respReprog==='paciente'&&_reprogDe._estadoAntesDeReprog!=='congelado'){
+    const errTope=await _verificarTopePaquete(_reprogDe,'reprog');
+    if(errTope){showToast('🚫 '+errTope,'error');return;}
   }
   // Reprogramar mueve UNA sesión puntual - nunca dispara la generación
   // semanal automática ni el modo "solo paquete y pago".
@@ -4326,7 +4397,7 @@ async function guardarSesion(){
       // nueva de arriba, así que aquí se limpia para que no quede
       // duplicado ni siga contando como "cuota vencida" en una fecha ya
       // pasada.
-      if(_reprogDe._sb&&_reprogDe._sb.id)await sbPatch('sesiones',{estado:'reprogramado',saldo:0},{id:'eq.'+_reprogDe._sb.id});
+      if(_reprogDe._sb&&_reprogDe._sb.id)await sbPatch('sesiones',{estado:'reprogramado',saldo:0,responsable:_respReprog},{id:'eq.'+_reprogDe._sb.id});
       _reprogDe.saldo=0;
       // La sesión que se acaba de mover pudo haber "saltado" por encima o
       // por detrás de otras del mismo paquete en el orden real por fecha -
@@ -4446,21 +4517,25 @@ async function guardarSesion(){
           costoTotal:costoTotal,saldoInicial:saldo});
       }
     }
-    // Registrar la reprogramación con su evidencia
+    // Registrar la reprogramación con su evidencia (si el responsable es
+    // el centro, no hay evidencia del paciente que subir - el motivo ya
+    // quedó validado arriba en el campo Notas).
     if(_esReprog){
       try{
         let urlEv='';
-        const fEv=_evInp.files[0];
-        if(fEv.size>10*1024*1024)throw new Error('Evidencia supera 10MB');
-        const sedeC=(DB.sede||'General').replace(/\s+/g,'_');
-        const pacC=(pac.nombre||'paciente').replace(/[^a-zA-Z0-9]/g,'_');
-        const extEv=fEv.name.split('.').pop();
-        urlEv=await sbUpload('evidencias',sedeC+'/'+pacC+'/reprog_'+Date.now()+'.'+extEv,fEv,fEv.type||'application/pdf');
+        if(_respReprog!=='centro'){
+          const fEv=_evInp.files[0];
+          if(fEv.size>10*1024*1024)throw new Error('Evidencia supera 10MB');
+          const sedeC=(DB.sede||'General').replace(/\s+/g,'_');
+          const pacC=(pac.nombre||'paciente').replace(/[^a-zA-Z0-9]/g,'_');
+          const extEv=fEv.name.split('.').pop();
+          urlEv=await sbUpload('evidencias',sedeC+'/'+pacC+'/reprog_'+Date.now()+'.'+extEv,fEv,fEv.type||'application/pdf');
+        }
         await sbPost('reprogramaciones',{fecha_reprog:today(),paciente_nombre:pac.nombre,
           psicologa_nombre:ps.nombre,fecha_original:_reprogDe.fecha||'',hora_original:_reprogDe.hora||'',
           fecha_nueva:fecha,hora_nueva:hora,sede:DB.sede,reprogramado_por:DB.usuario||'',url_evidencia:urlEv,
           tipo:'reprogramacion',nota:(document.getElementById('ag-notas')?.value||'').trim(),
-          programa_id:progIdOrig||null});
+          programa_id:progIdOrig||null,responsable:_respReprog});
       }catch(eEv){showToast('Sesión creada, pero la evidencia falló: '+eEv.message,'error');console.error('[evidencia]',eEv);}
       _reprogDe=null;
     }
@@ -6849,6 +6924,7 @@ async function renderHistorial(){
           return r.paciente_nombre===s.pacId&&r.fecha_original===s.fecha&&(r.hora_original||'').slice(0,5)===s.hora;
         }):null;
         const evCelda=evReg?[
+          evReg.responsable==='centro'?'🏢 Responsable: Centro de Terapias':'',
           evReg.nota?'📝 '+evReg.nota:'',
           evReg.url_evidencia?'<a href="'+evReg.url_evidencia+'" target="_blank">📎 Ver evidencia</a>':''
         ].filter(Boolean).join('<br>'):'';
