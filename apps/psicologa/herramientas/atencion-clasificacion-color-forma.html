@@ -1,0 +1,263 @@
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="mobile-web-app-capable" content="yes" />
+<title>Psicoluz — Clasifica por Color y Forma</title>
+<style>
+  :root{
+    color-scheme: light;
+    --navy:#4a0e2e; --teal:#12B5AC; --coral:#FF6A57; --gold:#e91e8c;
+    --mint:#E4FBF3; --paper:#FFFCF3; --ink:#14171C; --ink-soft:#495468;
+    --card:#FFFFFF; --ring:#DCEFEA; --shadow: 0 12px 28px -12px rgba(18,41,79,0.28);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, var(--mint), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, color-mix(in srgb, var(--gold) 18%, transparent), transparent 55%),
+      var(--paper);
+    font-family: ui-rounded, "SF Pro Rounded", "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+    color:var(--ink); overflow-x:hidden; display:flex; justify-content:center;
+    padding:20px 14px 48px; -webkit-user-select:none; user-select:none;
+  }
+  .app{width:100%; max-width:480px;}
+  .topbar{background:var(--navy); border-radius:26px; padding:14px 16px; display:flex; align-items:center; gap:12px; box-shadow:var(--shadow);}
+  .back-btn{border:none; background:rgba(255,255,255,0.12); color:#fff; width:38px;height:38px;border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; flex-shrink:0;}
+  .back-btn:active{transform:scale(0.92);}
+  .top-meta{flex:1; display:flex; flex-direction:column; gap:6px; min-width:0;}
+  .top-title{color:#fff; font-weight:800; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .level-pill{align-self:flex-start; font-size:11px; font-weight:800; letter-spacing:.04em; color:var(--navy); background:var(--gold); padding:3px 10px; border-radius:999px;}
+  .timer-wrap{display:flex; align-items:center; gap:6px; flex-shrink:0;}
+  .timer{font-weight:800; font-size:14px; color:#fff; background:rgba(255,255,255,0.1); padding:6px 12px; border-radius:999px; min-width:46px; text-align:center;}
+  .timer.low{background:var(--coral);}
+
+  .stage{margin-top:16px; background:var(--card); border-radius:28px; box-shadow:var(--shadow); padding:22px 20px 26px; min-height:520px; display:flex; flex-direction:column;}
+  h1.game-title{font-size:24px; margin:2px 0 4px; text-wrap:balance;}
+  .sub{color:var(--ink-soft); font-size:14.5px; margin:0 0 18px;}
+  .center-screen{display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px; flex:1; justify-content:center; padding:10px 4px;}
+  .center-screen .big-emoji{font-size:64px;}
+  .center-screen h1{font-size:26px; margin:0; text-wrap:balance;}
+  .center-screen p{color:var(--ink-soft); font-size:15px; max-width:340px; margin:0;}
+  .cta{border:none; border-radius:18px; padding:16px 30px; background:var(--teal); color:#fff; font-weight:800; font-size:17px; cursor:pointer; box-shadow:0 6px 0 #157a75; margin-top:8px; min-height:52px;}
+  .cta:active{transform:translateY(4px); box-shadow:0 2px 0 #157a75;}
+  .cta.secondary{background:var(--card); color:var(--navy); border:2.5px solid var(--ring); box-shadow:0 6px 0 var(--ring);}
+  .cta.secondary:active{box-shadow:0 3px 0 var(--ring);}
+
+  .level-list{display:flex; flex-direction:column; gap:12px; margin-top:16px;}
+  .level-card{border:2.5px solid var(--ring); background:var(--card); border-radius:20px; padding:16px; display:flex; align-items:center; gap:14px; cursor:pointer; box-shadow:0 6px 0 var(--ring);}
+  .level-card:active{transform:translateY(3px); box-shadow:0 3px 0 var(--ring);}
+  .level-num{width:44px;height:44px;border-radius:50%; flex-shrink:0; background:var(--mint); color:var(--navy); font-weight:800; font-size:18px; display:flex; align-items:center; justify-content:center;}
+  .level-info{flex:1; text-align:left;}
+  .level-info .lname{font-weight:800; font-size:16px;}
+  .level-info .ldesc{font-size:12.5px; color:var(--ink-soft); margin-top:2px;}
+
+  .target-panel{background:var(--mint); border:2px solid var(--ring); border-radius:22px; padding:14px 16px; display:flex; align-items:center; gap:14px; margin-bottom:16px;}
+  .target-panel .lbl{font-size:11.5px; font-weight:800; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em;}
+  .target-panel .sym{width:44px;height:44px;}
+  .target-panel .crit{font-size:13px;font-weight:800;color:var(--navy);margin-top:2px}
+  .target-stats{margin-left:auto; display:flex; flex-direction:column; gap:3px; text-align:right;}
+  .target-stats .n{font-weight:800; font-size:15px; color:var(--navy);}
+  .target-stats .l{font-size:10.5px; color:var(--ink-soft); font-weight:700;}
+
+  .grid{display:grid; gap:8px; margin:0 0 10px;}
+  .cell{aspect-ratio:1; border-radius:14px; background:var(--card); border:2.5px solid var(--ring); display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 0 var(--ring); transition: transform .06s ease; padding:14%;}
+  .cell:active{transform:translateY(2px); box-shadow:0 2px 0 var(--ring);}
+  .cell.found{background:color-mix(in srgb, var(--teal) 24%, var(--card)); border-color:var(--teal); box-shadow:0 4px 0 var(--teal); animation:pop .25s ease;}
+  .cell.wrong{background:color-mix(in srgb, var(--coral) 22%, var(--card)); border-color:var(--coral); box-shadow:0 4px 0 var(--coral); animation:shake .3s ease;}
+  .cell svg{width:100%;height:100%;}
+  @keyframes pop{0%{transform:scale(.7);} 60%{transform:scale(1.1);} 100%{transform:scale(1);}}
+  @keyframes shake{0%,100%{transform:translateX(0);} 25%{transform:translateX(-6px);} 75%{transform:translateX(6px);}}
+
+  .result-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; width:100%; margin-top:6px;}
+  .result-card{background:var(--mint); border:2px solid var(--ring); border-radius:16px; padding:12px; text-align:center;}
+  .result-card .v{font-size:22px; font-weight:800; color:var(--navy);}
+  .result-card .k{font-size:11px; color:var(--ink-soft); font-weight:700; margin-top:2px;}
+  .final-stars{font-size:38px; letter-spacing:6px;}
+  footer.credit{text-align:center; margin-top:14px; font-size:11.5px; color:var(--ink-soft);}
+</style>
+
+<div class="app">
+  <div class="topbar" id="topbar"></div>
+  <div class="stage" id="stage"></div>
+  <footer class="credit">Psicoluz · Herramienta para terapia</footer>
+</div>
+
+<script>
+(function(){
+  var topbar=document.getElementById('topbar');
+  var stage=document.getElementById('stage');
+
+  var COLORS={rojo:'#ef4444',azul:'#3b82f6',verde:'#22c55e',amarillo:'#eab308',morado:'#8b5cf6',naranja:'#f97316'};
+  var SHAPES={
+    circulo:'<circle cx="50" cy="50" r="42"/>',
+    cuadrado:'<rect x="12" y="12" width="76" height="76" rx="12"/>',
+    triangulo:'<polygon points="50,8 92,88 8,88"/>',
+    estrella:'<polygon points="50,4 61,36 96,36 67,57 78,90 50,70 22,90 33,57 4,36 39,36"/>',
+    pentagono:'<polygon points="50,5 96,38 78,92 22,92 4,38"/>'
+  };
+  function shapeSvg(shapeKey,colorHex){
+    return '<svg viewBox="0 0 100 100" fill="'+colorHex+'" stroke="rgba(0,0,0,.15)" stroke-width="2">'+SHAPES[shapeKey]+'</svg>';
+  }
+
+  var LEVELS=[
+    {n:1, name:"Nivel 1 · Fácil", cols:4, rows:4, colors:['rojo','azul','verde'], shapes:['circulo','cuadrado','triangulo'], segundos:50, nearMiss:0, desc:"3 colores y 3 formas · sin trampas"},
+    {n:2, name:"Nivel 2 · Intermedio", cols:5, rows:5, colors:['rojo','azul','verde','amarillo'], shapes:['circulo','cuadrado','triangulo','estrella'], segundos:45, nearMiss:0.16, desc:"4 colores y 4 formas · con parecidos"},
+    {n:3, name:"Nivel 3 · Avanzado", cols:5, rows:6, colors:['rojo','azul','verde','amarillo','morado','naranja'], shapes:['circulo','cuadrado','triangulo','estrella','pentagono'], segundos:42, nearMiss:0.26, desc:"6 colores y 5 formas · más parecidos"}
+  ];
+
+  var state={level:null, grid:[], targetColor:null, targetShape:null, totalTarget:0, found:0, wrong:0, timeLeft:0, timerId:null, startedAt:0, finished:false};
+
+  function shuffle(arr){ for(var i=arr.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=arr[i]; arr[i]=arr[j]; arr[j]=t; } return arr; }
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+  function setTopbar(title, pill, showTimer, backFn){
+    var html='<button class="back-btn" id="btnBack">←</button>'+
+      '<div class="top-meta"><span class="top-title">'+title+'</span>'+(pill?'<span class="level-pill">'+pill+'</span>':'')+'</div>';
+    if(showTimer) html+='<div class="timer-wrap"><div class="timer" id="timerBox">--</div></div>';
+    topbar.innerHTML=html;
+    document.getElementById('btnBack').onclick=backFn;
+  }
+
+  function renderWelcome(){
+    clearTimer();
+    setTopbar('Clasifica por Color y Forma', null, false, function(){ window.close(); if(!window.closed) history.back(); });
+    stage.innerHTML='<div class="center-screen">'+
+      '<div class="big-emoji">🔷</div>'+
+      '<h1>Clasifica por Color y Forma</h1>'+
+      '<p>Arriba aparece una figura de ejemplo (un color + una forma). El paciente debe tocar <b>solo</b> las figuras que combinen exactamente ese color y esa forma, ignorando las que se parecen pero no son iguales.</p>'+
+      '<button class="cta" id="btnStart">Elegir nivel →</button>'+
+    '</div>';
+    document.getElementById('btnStart').onclick=renderLevelPicker;
+  }
+
+  function renderLevelPicker(){
+    clearTimer();
+    setTopbar('Elige un nivel', null, false, renderWelcome);
+    var html='<h1 class="game-title">Niveles</h1><p class="sub">El Nivel 2+ incluye figuras "parecidas" (mismo color, otra forma / misma forma, otro color).</p><div class="level-list">';
+    LEVELS.forEach(function(lv){
+      html+='<div class="level-card" data-n="'+lv.n+'"><div class="level-num">'+lv.n+'</div>'+
+        '<div class="level-info"><div class="lname">'+lv.name+'</div><div class="ldesc">'+lv.desc+' · '+lv.segundos+'s</div></div></div>';
+    });
+    html+='</div>';
+    stage.innerHTML=html;
+    Array.prototype.forEach.call(document.querySelectorAll('.level-card'), function(card){
+      card.onclick=function(){ startLevel(parseInt(card.dataset.n,10)); };
+    });
+  }
+
+  function clearTimer(){ if(state.timerId){ clearInterval(state.timerId); state.timerId=null; } }
+
+  function startLevel(n){
+    var lv=LEVELS.find(function(l){return l.n===n;});
+    var total=lv.cols*lv.rows;
+    var targetColor=pick(lv.colors), targetShape=pick(lv.shapes);
+    var ratio = lv.n===1?0.26:(lv.n===2?0.22:0.18);
+    var totalTarget=Math.max(5, Math.round(total*ratio));
+    var totalNearMiss=Math.round(total*lv.nearMiss);
+
+    var cells=[];
+    for(var i=0;i<totalTarget;i++) cells.push({color:targetColor, shape:targetShape, isTarget:true});
+    var nm=0;
+    while(nm<totalNearMiss && cells.length<total){
+      if(nm%2===0){
+        var s=pick(lv.shapes.filter(function(s){return s!==targetShape;}));
+        cells.push({color:targetColor, shape:s, isTarget:false});
+      } else {
+        var c=pick(lv.colors.filter(function(c){return c!==targetColor;}));
+        cells.push({color:c, shape:targetShape, isTarget:false});
+      }
+      nm++;
+    }
+    while(cells.length<total){
+      var c2=pick(lv.colors), s2=pick(lv.shapes);
+      if(c2===targetColor && s2===targetShape) continue;
+      cells.push({color:c2, shape:s2, isTarget:false});
+    }
+    shuffle(cells);
+    cells.forEach(function(c){ c.state='idle'; });
+
+    state={level:lv, grid:cells, targetColor:targetColor, targetShape:targetShape, totalTarget:totalTarget,
+      found:0, wrong:0, timeLeft:lv.segundos, timerId:null, startedAt:Date.now(), finished:false};
+
+    renderGame();
+    state.timerId=setInterval(function(){
+      state.timeLeft--; updateTimerBox();
+      if(state.timeLeft<=0) finishGame();
+    },1000);
+  }
+
+  function updateTimerBox(){
+    var box=document.getElementById('timerBox'); if(!box)return;
+    box.textContent=state.timeLeft+'s';
+    box.classList.toggle('low', state.timeLeft<=10);
+  }
+
+  function renderGame(){
+    setTopbar('Clasifica por Color y Forma', state.level.name.replace('Nivel '+state.level.n+' · ',''), true, function(){ clearTimer(); renderLevelPicker(); });
+    var html='<div class="target-panel"><div><div class="lbl">Buscar</div><div class="crit">'+cap(state.targetColor)+' + '+cap(state.targetShape)+'</div></div>'+
+      '<div class="sym">'+shapeSvg(state.targetShape, COLORS[state.targetColor])+'</div>'+
+      '<div class="target-stats"><span class="n" id="foundCount">0 / '+state.totalTarget+'</span><span class="l">encontradas</span></div></div>';
+    html+='<div class="grid" id="grid" style="grid-template-columns:repeat('+state.level.cols+',1fr)"></div>';
+    stage.innerHTML=html;
+    updateTimerBox();
+    var grid=document.getElementById('grid');
+    state.grid.forEach(function(cell,idx){
+      var div=document.createElement('div');
+      div.className='cell';
+      div.innerHTML=shapeSvg(cell.shape, COLORS[cell.color]);
+      div.dataset.idx=idx;
+      div.onclick=function(){ onCellTap(idx, div); };
+      grid.appendChild(div);
+    });
+  }
+
+  function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+  function onCellTap(idx, el){
+    if(state.finished)return;
+    var cell=state.grid[idx];
+    if(cell.state!=='idle')return;
+    if(cell.isTarget){
+      cell.state='found'; state.found++;
+      el.classList.add('found');
+      var fc=document.getElementById('foundCount'); if(fc)fc.textContent=state.found+' / '+state.totalTarget;
+      if(state.found>=state.totalTarget) finishGame();
+    } else {
+      cell.state='wrong'; state.wrong++;
+      el.classList.add('wrong');
+    }
+  }
+
+  function finishGame(){
+    if(state.finished)return;
+    state.finished=true; clearTimer();
+    var usedSeconds=state.level.segundos-Math.max(0,state.timeLeft);
+    var omitidos=state.totalTarget-state.found;
+    var precision = state.found+state.wrong>0 ? Math.round((state.found/(state.found+state.wrong))*100) : 0;
+    var stars=1;
+    if(state.found===state.totalTarget && state.wrong===0) stars=3;
+    else if(omitidos<=1 && state.wrong<=2) stars=2;
+
+    setTopbar('Resultado', null, false, renderLevelPicker);
+    var html='<div class="center-screen">';
+    html+='<div class="final-stars">'+('⭐'.repeat(stars))+('☆'.repeat(3-stars))+'</div>';
+    html+='<h1>'+(stars===3?'¡Excelente!':(stars===2?'¡Buen trabajo!':'¡Completado!'))+'</h1>';
+    html+='<div class="result-grid">'+
+      '<div class="result-card"><div class="v">'+state.found+'/'+state.totalTarget+'</div><div class="k">ENCONTRADAS</div></div>'+
+      '<div class="result-card"><div class="v">'+state.wrong+'</div><div class="k">ERRORES</div></div>'+
+      '<div class="result-card"><div class="v">'+omitidos+'</div><div class="k">OMITIDAS</div></div>'+
+      '<div class="result-card"><div class="v">'+precision+'%</div><div class="k">PRECISIÓN</div></div>'+
+    '</div>';
+    html+='<p style="margin-top:10px">Tiempo usado: '+usedSeconds+'s de '+state.level.segundos+'s</p>';
+    html+='<button class="cta" id="btnRetry">Repetir este nivel</button>';
+    html+='<button class="cta secondary" id="btnLevels">Elegir otro nivel</button>';
+    html+='</div>';
+    stage.innerHTML=html;
+    document.getElementById('btnRetry').onclick=function(){ startLevel(state.level.n); };
+    document.getElementById('btnLevels').onclick=renderLevelPicker;
+  }
+
+  renderWelcome();
+})();
+</script>

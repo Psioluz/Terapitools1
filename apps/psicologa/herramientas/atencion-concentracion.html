@@ -1,0 +1,90 @@
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="mobile-web-app-capable" content="yes" />
+<title>Psicoluz — Atención y Concentración</title>
+<style>
+  :root{
+    color-scheme: light;
+    --navy:#4a0e2e; --teal:#12B5AC; --coral:#FF6A57; --gold:#e91e8c;
+    --mint:#E4FBF3; --paper:#FFFCF3; --ink:#14171C; --ink-soft:#495468;
+    --card:#FFFFFF; --ring:#DCEFEA; --shadow: 0 12px 28px -12px rgba(18,41,79,0.28);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, var(--mint), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, color-mix(in srgb, var(--gold) 18%, transparent), transparent 55%),
+      var(--paper);
+    font-family: ui-rounded, "SF Pro Rounded", "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+    color:var(--ink); overflow-x:hidden; display:flex; justify-content:center;
+    padding:20px 14px 48px;
+  }
+  .app{width:100%; max-width:480px;}
+  .topbar{
+    background:var(--navy); border-radius:26px; padding:14px 16px;
+    display:flex; align-items:center; gap:12px; box-shadow:var(--shadow);
+  }
+  .back-btn{
+    border:none; background:rgba(255,255,255,0.12); color:#fff; width:38px;height:38px;border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; flex-shrink:0;
+  }
+  .top-title{color:#fff; font-weight:800; font-size:15px;}
+  .stage{
+    margin-top:16px; background:var(--card); border-radius:28px; box-shadow:var(--shadow);
+    padding:22px 20px 26px;
+  }
+  h1.game-title{font-size:23px; margin:2px 0 4px;}
+  .sub{color:var(--ink-soft); font-size:14px; margin:0 0 18px;}
+  .game-list{display:flex; flex-direction:column; gap:12px;}
+  .game-card{
+    border:2.5px solid var(--ring); background:var(--card); border-radius:20px; padding:16px;
+    display:flex; align-items:center; gap:14px; cursor:pointer; box-shadow:0 6px 0 var(--ring);
+    transition: transform .08s ease; text-decoration:none; color:inherit;
+  }
+  .game-card:active{transform:translateY(3px); box-shadow:0 3px 0 var(--ring);}
+  .game-icon{
+    width:52px;height:52px;border-radius:16px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    font-size:26px; color:#fff;
+  }
+  .game-info{flex:1; text-align:left;}
+  .game-info .gname{font-weight:800; font-size:15px;}
+  .game-info .gdesc{font-size:12px; color:var(--ink-soft); margin-top:3px; line-height:1.4;}
+  .arrow{font-size:18px; color:var(--ink-soft);}
+  footer.credit{text-align:center; margin-top:14px; font-size:11.5px; color:var(--ink-soft);}
+</style>
+
+<div class="app">
+  <div class="topbar">
+    <button class="back-btn" onclick="window.close(); if(!window.closed) history.back();">←</button>
+    <span class="top-title">Atención y Concentración</span>
+  </div>
+  <div class="stage">
+    <h1 class="game-title">Elige un ejercicio</h1>
+    <p class="sub">4 formatos distintos para trabajar atención sostenida, selectiva y discriminación visual con el paciente.</p>
+    <div class="game-list">
+      <a class="game-card" href="atencion-cancelacion-simbolos.html" target="_blank">
+        <div class="game-icon" style="background:linear-gradient(135deg,#4a0e2e,#12B5AC)">🔎</div>
+        <div class="game-info"><div class="gname">Cancelación de Símbolos</div><div class="gdesc">Tocar todas las apariciones de un símbolo entre distractores · atención sostenida y selectiva</div></div>
+        <div class="arrow">→</div>
+      </a>
+      <a class="game-card" href="atencion-trazado-camino.html" target="_blank">
+        <div class="game-icon" style="background:linear-gradient(135deg,#4a0e2e,#e91e8c)">✏️</div>
+        <div class="game-info"><div class="gname">Trazado del Camino</div><div class="gdesc">Delinear un camino con el dedo sin salirse · control motor fino y atención visomotora</div></div>
+        <div class="arrow">→</div>
+      </a>
+      <a class="game-card" href="atencion-clasificacion-color-forma.html" target="_blank">
+        <div class="game-icon" style="background:linear-gradient(135deg,#4a0e2e,#FF6A57)">🔷</div>
+        <div class="game-info"><div class="gname">Clasifica por Color y Forma</div><div class="gdesc">Tocar solo las figuras que cumplen 2 criterios a la vez · discriminación visual más exigente</div></div>
+        <div class="arrow">→</div>
+      </a>
+      <a class="game-card" href="atencion-encuentra-diferencias.html" target="_blank">
+        <div class="game-icon" style="background:linear-gradient(135deg,#4a0e2e,#7c3aed)">🧩</div>
+        <div class="game-info"><div class="gname">Encuentra las Diferencias</div><div class="gdesc">Comparar dos tableros casi iguales y hallar lo distinto · atención a detalles y memoria visual</div></div>
+        <div class="arrow">→</div>
+      </a>
+    </div>
+  </div>
+  <footer class="credit">Psicoluz · Herramientas para terapia</footer>
+</div>
