@@ -845,6 +845,13 @@ try{
             <option value="adultos">🧑 Adultos</option>
           </select>
         </div>
+        <div class="form-group" id="ag-grp-paqGratuito">
+          <label class="form-label">Tipo de paquete</label>
+          <select class="form-control" id="ag-paqGratuito" onchange="agOnPaqGratuito()">
+            <option value="regular">💰 Paquete regular (con costo)</option>
+            <option value="gratuito">🎁 Paquete gratuito (paciente especial, S/0)</option>
+          </select>
+        </div>
         <div class="form-group" id="ag-grp-paq">
           <label class="form-label">Seleccionar Paquete</label>
           <select class="form-control" id="ag-paqId" onchange="agOnPaq()">
@@ -2620,6 +2627,7 @@ function abrirModalAgendar(fecha,hora,sesOrig){
   document.getElementById('ag-resumen').style.display='none';
   const elProg=document.getElementById('ag-progExist');if(elProg)elProg.innerHTML='<option value="">🆕 Nuevo paquete</option>';
   const elPaqCat=document.getElementById('ag-paqCategoria');if(elPaqCat)elPaqCat.value='ninos';
+  const elPaqGrat=document.getElementById('ag-paqGratuito');if(elPaqGrat)elPaqGrat.value='regular';
   const elModoPaq=document.getElementById('ag-modoPaq');if(elModoPaq)elModoPaq.value='generar';
   const elFrec=document.getElementById('ag-frecuencia');if(elFrec)elFrec.value='1';
   agOnFrecuencia();
@@ -2891,17 +2899,27 @@ function agCargarFilasDesdeProgPendiente(){
 
 // Llena "Seleccionar Paquete" solo con los paquetes de catálogo de la
 // categoría elegida (Niños/Adultos) - así nunca se mezclan precios de
-// una categoría con la otra al armar un paquete nuevo.
+// una categoría con la otra al armar un paquete nuevo. También separa
+// los paquetes gratuitos (pacientes especiales, S/0) de los regulares -
+// antes salían todos mezclados en una sola lista larga y era fácil
+// elegir el equivocado por error.
 function agPoblarPaqCatalogo(){
   const sel=document.getElementById('ag-paqId');if(!sel)return;
   const categoria=document.getElementById('ag-paqCategoria')?.value||'ninos';
+  const esGratuito=document.getElementById('ag-paqGratuito')?.value==='gratuito';
   sel.innerHTML='<option value="">- Elige el paquete -</option>'+
-    DB.paquetes.filter(function(p){return p.tipo==='Paquete'&&(p.categoria||'ninos')===categoria;}).map(function(p){
+    DB.paquetes.filter(function(p){
+      return p.tipo==='Paquete'&&(p.categoria||'ninos')===categoria&&
+        (esGratuito?(p.costoTotal||0)===0:(p.costoTotal||0)>0);
+    }).map(function(p){
       return '<option value="'+p.id+'">'+p.nombre+' - S/'+p.costoTotal+'</option>';
     }).join('');
   agOnPaq();
 }
 function agOnPaqCategoria(){
+  agPoblarPaqCatalogo();
+}
+function agOnPaqGratuito(){
   agPoblarPaqCatalogo();
 }
 
