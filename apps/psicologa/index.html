@@ -2641,14 +2641,22 @@ function renderClinico(){
           (f.terapia||'')===(s.terNombre||'') &&
           (f.hora||'')===(s.hora||'')
         );
-        var _rn=window._fd.length;
-        window._fd.push({pac:pacNom||'',ter:s.terNombre||'',fec:s.fecha||'',hor:s.hora||''});
+        // Antes esto guardaba los datos en window._fd (un arreglo global
+        // compartido con la agenda "Hoy") y el botón solo recordaba su
+        // posición ahí - si esa pantalla se refrescaba mientras este panel
+        // seguía abierto (pasa con el auto-sync cada 30s), el arreglo se
+        // reiniciaba y la posición guardada quedaba apuntando a otra cosa
+        // o a nada: el botón dejaba de reaccionar, sin ningún error visible.
+        // Ahora el botón lleva sus propios datos (sin depender de nada
+        // externo que se pueda resetear por fuera).
+        const _pacEsc=(pacNom||'').replace(/'/g,"\\'");
+        const _terEsc=(s.terNombre||'').replace(/'/g,"\\'");
         return`<div style="padding:10px 12px;border-left:4px solid ${bc};margin-bottom:1px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px">
           <div>
             <div style="font-size:12px;font-weight:800;color:var(--acc)">${fmtF(s.fecha)} ${normHora(s.hora)}</div>
             <div style="font-size:11px;color:var(--muted)">${s.terNombre||'Sin terapia'} · <span style="font-weight:700">${s.estado}</span></div>
           </div>
-          ${sinFicha?'':`<button onclick="window._openFicha(${_rn})" style="padding:5px 10px;background:${hasFicha?'var(--green)':'var(--acc)'};color:#fff;border:none;border-radius:8px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0">
+          ${sinFicha?'':`<button onclick="abrirFichaSeguimiento('${_pacEsc}','${_terEsc}','${s.fecha||''}','${s.hora||''}')" style="padding:5px 10px;background:${hasFicha?'var(--green)':'var(--acc)'};color:#fff;border:none;border-radius:8px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0">
             ${hasFicha?'✏️ Editar ficha':'✍️ Llenar Ficha'}
           </button>`}
         </div>`;
