@@ -179,9 +179,18 @@
     if (btn) btn.onclick = backFn;
   }
 
+  // Si se llegó desde el hub de Atención y Concentración (?from=hub), "salir"
+  // vuelve al hub en el mismo iframe. Si no, cierra la herramienta completa
+  // (modal del app) o, si se abrió suelta, se comporta como una pestaña normal.
+  function salirHerramienta(){
+    if (new URLSearchParams(location.search).get('from') === 'hub') { location.href = 'atencion-concentracion.html'; return; }
+    if (window.parent && window.parent !== window && typeof window.parent.cerrarHerramienta === 'function') { window.parent.cerrarHerramienta(); }
+    else { window.close(); if(!window.closed) history.back(); }
+  }
+
   function renderWelcome(){
     clearTimer();
-    setTopbar('Atención y Concentración', null, false, function(){ window.close(); if(!window.closed) history.back(); });
+    setTopbar('Atención y Concentración', null, false, salirHerramienta);
     stage.innerHTML =
       '<div class="center-screen">'+
         '<div class="big-emoji">🔎</div>'+
