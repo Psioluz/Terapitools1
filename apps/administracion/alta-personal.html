@@ -80,7 +80,7 @@
 
   <div class="solo-psico" id="bloquePsico">
     <div class="grid2">
-      <div><label>CPSP / Colegiatura *</label><input id="fCpsp" placeholder="Ej: 12345"></div>
+      <div><label>CPSP / Colegiatura (opcional)</label><input id="fCpsp" placeholder="Ej: 12345"></div>
       <div><label>Especialidad *</label><input id="fEsp" placeholder="Ej: Psicología Clínica Infantil"></div>
     </div>
   </div>
@@ -193,7 +193,9 @@ elegirRol('psicologa');
 //   la puerta a que cualquiera con el enlace reescribiera datos de otra
 //   persona (DNI, cuenta bancaria, etc.) - antes esto mostraba a TODO el
 //   personal de la sede, activo o no, completo o no.
-var REQ_PSICO=['dni','fecha_nac','telefono','grado_academico','banco','numero_cuenta','cci','cpsp','especialidad'];
+// cpsp NO es obligatorio (muchas aún no tienen colegiatura) - no cuenta
+// como "falta" para efectos de aparecer o no en la lista.
+var REQ_PSICO=['dni','fecha_nac','telefono','grado_academico','banco','numero_cuenta','cci','especialidad'];
 var REQ_RECEP=['dni','fecha_nac','telefono','grado_academico','banco','numero_cuenta','cci'];
 async function cargarPersonasDeLaSede(){
   var sede=document.getElementById('fSede').value;
@@ -318,7 +320,6 @@ async function enviarRegistro(){
   if(!cuenta){mostrarError('Escribe tu número de cuenta.');return;}
   if(cci.length!==20){mostrarError('El CCI debe tener exactamente 20 dígitos (lo da tu banco).');return;}
   if(ROL==='psicologa'){
-    if(!cpsp){mostrarError('Escribe tu CPSP / número de colegiatura.');return;}
     if(!esp){mostrarError('Escribe tu especialidad.');return;}
   }
 
