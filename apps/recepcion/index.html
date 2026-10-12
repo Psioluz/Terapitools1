@@ -2492,22 +2492,77 @@ function cancelarModalAgendar(){
 
 // ══ CONGELAR SESIÓN ══
 // Para pausas de fuerza mayor (tratamiento médico, licencia...) donde el
-// paciente no puede asistir por un tiempo pero el paquete sigue vigente -
-// a diferencia de Permiso/Reprogramar, no cuenta contra ningún tope ni se
-// le exige evidencia. La sesión queda marcada "congelado" (no cuenta como
-// falta, no pide cuota) hasta que se reagenda con el botón 🔄 normal, que
-// ya la reconoce y no le cobra el tope de reprogramaciones.
+// paciente no puede asistir pero el paquete sigue vigente - a diferencia
+// de Permiso/Reprogramar, no cuenta contra ningún tope ni se le exige
+// evidencia. Igual que Permiso, se le crea de una vez una sesión de
+// reposición más adelante (mismo día de la semana, siguiente semana libre)
+// para que el paciente siga pudiendo completar TODAS sus sesiones
+// contratadas - antes la sesión solo quedaba marcada "congelado" sin
+// ninguna reposición automática, y si nadie se acordaba de reagendarla a
+// mano con el botón 🔄, el paquete terminaba con una sesión de menos sin
+// que el paciente la hubiera "gastado" de verdad. Si el paciente sigue sin
+// poder volver cuando llegue esa fecha, esa misma reposición se puede
+// volver a congelar (encadenar cuantas veces haga falta).
+// Una sesión suelta (sin paquete) no tiene "total contratado" que
+// completar, así que ahí se mantiene el comportamiento simple de antes:
+// solo queda marcada "congelado", sin reposición.
 async function congelarSesion(sesId){
   const ses=DB.sesiones.find(s=>s.id===sesId);if(!ses||!ses._sb)return;
   const motivo=prompt('Motivo de la congelación (ej. tratamiento médico, licencia...):');
   if(motivo===null)return;
   if(!motivo.trim()){showToast('Indica un motivo','error');return;}
-  if(!confirm('¿Congelar esta sesión? No cuenta como falta ni genera cobro - queda pendiente de reagendar cuando el paciente pueda volver.'))return;
+  const progId=(ses._sb&&ses._sb.programa_id)||null;
+  const ptId=(ses._sb&&ses._sb.programa_terapia_id)||null;
+  if(progId){
+    const progActual=(DB.programas||[]).find(function(p){return p.id===progId;});
+    if(progActual&&progActual.nro_sesiones_total>0){
+      const realesSinEsta=DB.sesiones.filter(function(x){
+        return x._sb&&x._sb.programa_id===progId&&x.tipo==='paquete'&&x.id!==ses.id&&
+          x.estado!=='permiso'&&x.estado!=='reprogramado'&&x.estado!=='cancelado'&&x.estado!=='congelado';
+      }).length;
+      if(realesSinEsta>=progActual.nro_sesiones_total){
+        if(!confirm('⚠️ Este paquete ya tiene las '+progActual.nro_sesiones_total+' sesiones contratadas completas (sin contar esta). Si continúas, la reposición va a quedar como una sesión de más, sin cobrar. ¿Seguro que quieres congelar de todas formas?'))return;
+      }
+    }
+  }
+  if(!confirm(progId
+    ?'¿Congelar esta sesión? No cuenta como falta ni genera cobro - se crea automáticamente una reposición más adelante (como en Permiso) para que el paciente complete igual todas sus sesiones.'
+    :'¿Congelar esta sesión? No cuenta como falta ni genera cobro - queda pendiente de reagendar cuando el paciente pueda volver.'))return;
   try{
     const notaPrevia=ses._sb.notas||'';
     const notaNueva=(notaPrevia?notaPrevia+' · ':'')+'❄️ Congelada: '+motivo.trim();
-    await sbPatch('sesiones',{estado:'congelado',saldo:0,notas:notaNueva},{id:'eq.'+ses._sb.id});
-    showToast('❄️ Sesión congelada');
+    if(!progId){
+      await sbPatch('sesiones',{estado:'congelado',saldo:0,notas:notaNueva},{id:'eq.'+ses._sb.id});
+      showToast('❄️ Sesión congelada');
+      await cargarDesdeSB();
+      return;
+    }
+    // Misma lógica de "siguiente fecha" que usa confirmarPermiso: mismo día
+    // de la semana que esta terapia ya usa, después de la última sesión
+    // real que exista para ese día, saltando si el horario ya está ocupado.
+    const pac=getPac(ses.pacId);const ps=getPs(ses.psId);const ter=getTer(ses.terId);
+    const diaObjetivo=new Date(ses.fecha+'T12:00:00').getDay();
+    let base=ses.fecha;
+    DB.sesiones.forEach(function(x){
+      if(x.id!==ses.id&&x.pacId===ses.pacId&&x.terId===ses.terId&&x.psId===ses.psId&&
+         new Date(x.fecha+'T12:00:00').getDay()===diaObjetivo&&x.fecha>base)base=x.fecha;
+    });
+    let nuevaFecha=_fechaMasDias(base,7);
+    let intentos=0;
+    while(intentos<12&&DB.sesiones.some(function(x){return x.psId===ses.psId&&x.fecha===nuevaFecha&&x.hora===ses.hora;})){
+      nuevaFecha=_fechaMasDias(nuevaFecha,7);intentos++;
+    }
+    await sbPatch('sesiones',{estado:'congelado',saldo:0,nro_en_paquete:null,notas:notaNueva},{id:'eq.'+ses._sb.id});
+    const nroOriginal=ses.nroSes||0;
+    const totalPaq=ses.totalPaq||0;
+    const filaSes={fecha:nuevaFecha,hora:ses.hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
+      psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:ses.tipo,
+      nro_en_paquete:nroOriginal||1,total_paquete:totalPaq||1,costo_total:ses.costoTotal||0,
+      adelanto:0,saldo:ses.saldo||0,sede:DB.sede,registrado_por:DB.usuario||'',notas:ses.notas||''};
+    if(progId){filaSes.programa_id=progId;if(ptId)filaSes.programa_terapia_id=ptId;}
+    await sbPost('sesiones',filaSes);
+    if(progId)await reconciliarCheckpoints(progId);
+    showToast('❄️ Sesión congelada - nueva sesión el '+fmtF(nuevaFecha));
     await cargarDesdeSB();
   }catch(e){showToast('Error al congelar: '+e.message,'error');console.error('[congelar]',e);}
 }
@@ -7626,7 +7681,13 @@ function botonesAsistenciaHTML(s){
   var btnRevertirF=['asistio','noasistio','permiso','congelado'].indexOf(s.estado)>-1?
     ' <button class="btn btn-outline btn-sm" onclick="revertirSesion(\''+s.id+'\')">↩️ Revertir</button>':'';
   if(s.estado==='congelado'){
-    return '<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reagendar</button>'+btnRevertirF;
+    // Si era de un paquete, congelarSesion() YA le creó su reposición
+    // automática (igual que Permiso) - reagendar esta fila original de
+    // nuevo duplicaría la reposición. Una sesión suelta (sin paquete) no
+    // tuvo reposición automática, así que ahí sí sigue haciendo falta
+    // reagendarla a mano.
+    var esDePaquete=!!(s._sb&&s._sb.programa_id);
+    return (esDePaquete?'':'<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reagendar</button>')+btnRevertirF;
   }
   if(s.estado==='noasistio'){
     return '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="abrirModalCancelarSesion(\''+s.id+'\')">🚫 Cancelar</button>'+btnRevertirF;
@@ -7655,7 +7716,10 @@ function botonesAsistenciaCompactoHTML(s){
   var btnRevertirC=['asistio','noasistio','permiso','congelado'].indexOf(s.estado)>-1?
     ' <button class="btn btn-outline btn-sm" style="padding:4px 7px" title="Revertir a Programado" onclick="revertirSesion(\''+s.id+'\')">↩️</button>':'';
   if(s.estado==='congelado'){
-    return '<button class="btn btn-outline btn-sm" style="padding:4px 7px" title="Reagendar" onclick="reprogramar(\''+s.id+'\')">🔄</button>'+btnRevertirC;
+    // Ver nota en botonesAsistenciaHTML: si era de un paquete ya tiene su
+    // reposición automática, no se reagenda esta fila de nuevo.
+    var esDePaqueteC=!!(s._sb&&s._sb.programa_id);
+    return (esDePaqueteC?'':'<button class="btn btn-outline btn-sm" style="padding:4px 7px" title="Reagendar" onclick="reprogramar(\''+s.id+'\')">🔄</button>')+btnRevertirC;
   }
   if(s.estado==='noasistio'){
     return '<button class="btn btn-outline btn-sm" style="padding:4px 7px;color:var(--red)" title="Cancelar" onclick="abrirModalCancelarSesion(\''+s.id+'\')">🚫</button>'+btnRevertirC;
