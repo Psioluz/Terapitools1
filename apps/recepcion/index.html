@@ -434,9 +434,14 @@ try{
       <div style="font-size:36px;font-weight:900" id="efTotal">S/0</div>
       <div style="font-size:11px;opacity:.8">Total cobrado</div>
     </div>
-    <button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1.5px solid rgba(255,255,255,.4);font-size:13px;padding:10px 18px" onclick="abrirModalPagoGenerico()">+ Registrar Pago</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1.5px solid rgba(255,255,255,.4);font-size:13px;padding:10px 18px" onclick="abrirModalPagoGenerico()">+ Registrar Pago</button>
+      <button class="btn btn-sm" style="background:rgba(0,0,0,.18);color:#fff;border:1.5px solid rgba(255,255,255,.4);font-size:13px;padding:10px 18px" onclick="abrirModalGasto()">- Registrar Gasto</button>
+    </div>
   </div>
-  <!-- Desglose por método -->
+  <!-- Desglose por método - YA con los gastos del día descontados (ver
+       renderPagos): esto es lo que de verdad debería haber en caja de cada
+       método, no solo lo cobrado bruto. -->
   <div class="grid g3" style="margin-bottom:16px">
     <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:12px;padding:14px;text-align:center">
       <div style="width:40px;height:40px;margin:0 auto 8px;border-radius:10px;background:#10b981;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 8px rgba(16,185,129,.5)">💵</div>
@@ -454,9 +459,30 @@ try{
       <div style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.3px;margin-top:2px">Transferencia</div>
     </div>
   </div>
-  <div class="card">
+  <!-- Resumen ingresos brutos / gastos / neto - para que no se confunda
+       "Total cobrado" (arriba, ya neto) con lo que efectivamente ingresó
+       en pagos de pacientes antes de restar gastos. -->
+  <div class="grid g3" style="margin-bottom:16px">
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+      <div style="font-size:18px;font-weight:900;color:var(--text)" id="efIngresoBruto">S/0</div>
+      <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">Ingresos del día</div>
+    </div>
+    <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:12px;text-align:center">
+      <div style="font-size:18px;font-weight:900;color:#ef4444" id="efGastoTotal">S/0</div>
+      <div style="font-size:10.5px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.3px">Gastos del día</div>
+    </div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+      <div style="font-size:18px;font-weight:900;color:var(--text)" id="efNeto">S/0</div>
+      <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">Neto (= Total cobrado)</div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
     <div class="card-header"><div class="card-title">📋 Detalle de Pagos</div></div>
     <div style="padding:12px" id="pagosLista"></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">💸 Gastos del Día</div></div>
+    <div style="padding:12px" id="gastosLista"></div>
   </div>
 </div>
 
@@ -1149,6 +1175,58 @@ try{
 </div>
 </div>
 
+<!-- MODAL GASTOS - gastos operativos (insumos, movilidad, mantenimiento,
+     etc.) registrados desde Recepción. Van a la misma tabla "gastos" que
+     usa Administración/Gerencia, con su método de pago para poder
+     descontarlos de la Caja del Día (ver renderPagos) y del cuadre de caja
+     de Gerencia (ver renderVerifCaja en apps/gerencia). -->
+<div class="modal-overlay" id="modalGasto">
+<div class="modal">
+  <div class="modal-header">
+    <div class="modal-title">💸 Registrar Gasto</div>
+    <button class="modal-close" onclick="closeModal('modalGasto')">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="grid g2">
+      <div class="form-group">
+        <label class="form-label">Fecha</label>
+        <input type="date" class="form-control" id="gs-fecha">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Monto (S/) *</label>
+        <input type="number" class="form-control" id="gs-monto" placeholder="0" min="0" style="font-size:20px;font-weight:800;color:#ef4444">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tipo de Pago</label>
+        <select class="form-control" id="gs-metodo">
+          <option value="Efectivo">💵 Efectivo</option>
+          <option value="Yape">📱 Yape</option>
+          <option value="Plin">📱 Plin</option>
+          <option value="Transferencia">🏦 Transferencia</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Categoría</label>
+        <select class="form-control" id="gs-categoria">
+          <option value="Insumos">Insumos</option>
+          <option value="Movilidad">Movilidad</option>
+          <option value="Mantenimiento">Mantenimiento</option>
+          <option value="Limpieza">Limpieza</option>
+          <option value="Otros">Otros</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Motivo *</label>
+        <input class="form-control" id="gs-motivo" placeholder="Ej: Compra de hojas y lapiceros">
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal('modalGasto')">Cancelar</button>
+    <button class="btn btn-success" id="gs-btnGuardar" onclick="guardarGasto()">💸 Guardar Gasto</button>
+  </div>
+</div>
+</div>
 
 <!-- MODAL ADJUNTAR ARCHIVOS -->
 <div class="modal-overlay" id="modalPDFs">
@@ -1410,7 +1488,7 @@ function mostrarError(el, msg) {
 
 
 // ── STATE ──
-let DB={sede:'',usuario:'',psicologas:[],terapias:[],paquetes:[],pacientes:[],sesiones:[],pagos:[],programas:[],feriados:[],fichas:[]};
+let DB={sede:'',usuario:'',psicologas:[],terapias:[],paquetes:[],pacientes:[],sesiones:[],pagos:[],programas:[],feriados:[],fichas:[],gastos:[]};
 // terapias.sede puede estar vacía (todas las sedes), tener UNA sede, o
 // varias separadas por coma (ej. "Comas, Flecha") -- esto último para
 // terapias que se dan en más de una sede pero no en todas.
@@ -1516,7 +1594,7 @@ function cerrarSesion(){
   clearInterval(_tickTimer);
   document.getElementById('app').style.display='none';
   document.getElementById('loginScreen').style.display='flex';
-  _sede='';DB={sede:'',usuario:'',psicologas:[],terapias:[],paquetes:[],pacientes:[],sesiones:[],pagos:[],programas:[]};
+  _sede='';DB={sede:'',usuario:'',psicologas:[],terapias:[],paquetes:[],pacientes:[],sesiones:[],pagos:[],programas:[],gastos:[]};
 }
 
 // ── TICK ──
@@ -5226,25 +5304,88 @@ function renderPagos(){
   const desde=document.getElementById('efDesde')?.value||today();
   const cajaTit=document.getElementById('cajaTituloFecha');if(cajaTit)cajaTit.textContent=fmtF(desde);
   const pagos=DB.pagos.filter(p=>p.fecha===desde);
-  const ef=pagos.filter(p=>p.metodo==='Efectivo').reduce((a,p)=>a+p.monto,0);
-  const yp=pagos.filter(p=>p.metodo==='Yape'||p.metodo==='Plin').reduce((a,p)=>a+p.monto,0);
-  const tr=pagos.filter(p=>p.metodo==='Transferencia'||p.metodo==='Tarjeta').reduce((a,p)=>a+p.monto,0);
+  const efIng=pagos.filter(p=>p.metodo==='Efectivo').reduce((a,p)=>a+p.monto,0);
+  const ypIng=pagos.filter(p=>p.metodo==='Yape'||p.metodo==='Plin').reduce((a,p)=>a+p.monto,0);
+  const trIng=pagos.filter(p=>p.metodo==='Transferencia'||p.metodo==='Tarjeta').reduce((a,p)=>a+p.monto,0);
+  const ingresoBruto=efIng+ypIng+trIng;
+  // Gastos del día, por método de pago - se descuentan de la caja de CADA
+  // método (un gasto en Yape no saca plata física de la caja, pero sí hay
+  // que restarlo de lo que de verdad "sobra" en esa billetera/cuenta).
+  const gastos=(DB.gastos||[]).filter(g=>g.fecha===desde);
+  const efGas=gastos.filter(g=>g.metodo==='Efectivo').reduce((a,g)=>a+g.monto,0);
+  const ypGas=gastos.filter(g=>g.metodo==='Yape'||g.metodo==='Plin').reduce((a,g)=>a+g.monto,0);
+  const trGas=gastos.filter(g=>g.metodo==='Transferencia'||g.metodo==='Tarjeta').reduce((a,g)=>a+g.monto,0);
+  const gastoTotal=efGas+ypGas+trGas;
+  const ef=Math.max(0,efIng-efGas);
+  const yp=Math.max(0,ypIng-ypGas);
+  const tr=Math.max(0,trIng-trGas);
   const tot=ef+yp+tr;
-  [['efTotal','S/'+tot.toLocaleString()],['efEfec','S/'+ef.toLocaleString()],['efYape','S/'+yp.toLocaleString()],['efTrans','S/'+tr.toLocaleString()]].forEach(([id,v])=>{
+  [['efTotal','S/'+tot.toLocaleString()],['efEfec','S/'+ef.toLocaleString()],['efYape','S/'+yp.toLocaleString()],['efTrans','S/'+tr.toLocaleString()],
+   ['efIngresoBruto','S/'+ingresoBruto.toLocaleString()],['efGastoTotal','S/'+gastoTotal.toLocaleString()],['efNeto','S/'+tot.toLocaleString()]].forEach(([id,v])=>{
     const el=document.getElementById(id);if(el)el.textContent=v;
   });
-  const lista=document.getElementById('pagosLista');if(!lista)return;
-  if(!pagos.length){lista.innerHTML='<div style="color:var(--muted);padding:14px;text-align:center">Sin pagos en este período.</div>';return;}
-  lista.innerHTML=pagos.sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora)).map(p=>{
-    const pac=getPac(p.pacId);
-    return '<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg);border-radius:10px;margin-bottom:6px">'+
-      '<div style="flex:1;min-width:0">'+
-      '<div style="font-weight:700;font-size:13px">'+pac.nombre+'</div>'+
-      '<div style="font-size:11px;color:var(--muted)">'+fmtF(p.fecha)+' · '+p.concepto+'</div></div>'+
-      '<div style="text-align:right">'+
-      '<div style="font-size:18px;font-weight:900;color:var(--green)">S/'+p.monto.toLocaleString()+'</div>'+
-      '<span class="badge bk" style="font-size:10px">'+p.metodo+'</span></div></div>';
-  }).join('');
+  const lista=document.getElementById('pagosLista');
+  if(lista){
+    lista.innerHTML=!pagos.length?'<div style="color:var(--muted);padding:14px;text-align:center">Sin pagos en este período.</div>':
+      pagos.sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora)).map(p=>{
+        const pac=getPac(p.pacId);
+        return '<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg);border-radius:10px;margin-bottom:6px">'+
+          '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:700;font-size:13px">'+pac.nombre+'</div>'+
+          '<div style="font-size:11px;color:var(--muted)">'+fmtF(p.fecha)+' · '+p.concepto+'</div></div>'+
+          '<div style="text-align:right">'+
+          '<div style="font-size:18px;font-weight:900;color:var(--green)">S/'+p.monto.toLocaleString()+'</div>'+
+          '<span class="badge bk" style="font-size:10px">'+p.metodo+'</span></div></div>';
+      }).join('');
+  }
+  const listaGas=document.getElementById('gastosLista');
+  if(listaGas){
+    listaGas.innerHTML=!gastos.length?'<div style="color:var(--muted);padding:14px;text-align:center">Sin gastos en este período.</div>':
+      gastos.map(function(g){
+        return '<div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg);border-radius:10px;margin-bottom:6px">'+
+          '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:700;font-size:13px">'+(g.concepto||'Gasto')+'</div>'+
+          '<div style="font-size:11px;color:var(--muted)">'+fmtF(g.fecha)+(g.categoria?' · '+g.categoria:'')+(g.registradoPor?' · '+g.registradoPor:'')+'</div></div>'+
+          '<div style="text-align:right">'+
+          '<div style="font-size:18px;font-weight:900;color:#ef4444">-S/'+g.monto.toLocaleString()+'</div>'+
+          '<span class="badge bk" style="font-size:10px">'+g.metodo+'</span></div></div>';
+      }).join('');
+  }
+}
+// Registra un gasto operativo (insumos, movilidad, mantenimiento...) en la
+// misma tabla "gastos" que usa Administración/Gerencia - con su método de
+// pago, para que la Caja del Día (ver renderPagos) y la Verificación de
+// Caja de Gerencia lo descuenten del método correcto, y para que entre
+// también en los gastos del mes de Administración (misma tabla, sin
+// cambios ahí).
+function abrirModalGasto(){
+  document.getElementById('gs-fecha').value=today();
+  document.getElementById('gs-monto').value='';
+  document.getElementById('gs-metodo').value='Efectivo';
+  document.getElementById('gs-categoria').value='Insumos';
+  document.getElementById('gs-motivo').value='';
+  openModal('modalGasto');
+}
+async function guardarGasto(){
+  const btnGuardar=document.getElementById('gs-btnGuardar');
+  const btnHtmlOriginal=btnGuardar?btnGuardar.innerHTML:'';
+  if(btnGuardar){btnGuardar.disabled=true;btnGuardar.innerHTML='⏳ Guardando...';}
+  try{
+    const fecha=document.getElementById('gs-fecha').value||today();
+    const monto=parseFloat(document.getElementById('gs-monto').value)||0;
+    const metodo=document.getElementById('gs-metodo').value||'Efectivo';
+    const categoria=document.getElementById('gs-categoria').value||'Otros';
+    const motivo=document.getElementById('gs-motivo').value.trim();
+    if(monto<=0){showToast('Indica el monto del gasto','error');return;}
+    if(!motivo){showToast('Indica el motivo del gasto','error');return;}
+    showToast('⏳ Registrando gasto...');
+    await sbPost('gastos',{fecha:fecha,monto:monto,metodo_pago:metodo,categoria:categoria,
+      concepto:motivo,sede:DB.sede,registrado_por:DB.usuario||''});
+    closeModal('modalGasto');
+    showToast('✅ Gasto S/'+monto+' ('+metodo+') registrado');
+    await cargarDesdeSB();
+  }catch(e){showToast('Error al registrar el gasto: '+e.message,'error');console.error('[gasto SB]',e);}
+  finally{if(btnGuardar){btnGuardar.disabled=false;btnGuardar.innerHTML=btnHtmlOriginal;}}
 }
 
 // ══════════════════════════════════════════════════
@@ -7369,10 +7510,16 @@ async function cargarDesdeSB(silencioso) {
       // Fichas de ayer de esta sede, para la alerta de "psicóloga no completó
       // sus fichas del día anterior" (renderAlertas) - se piden aparte porque
       // la ventana normal de sesiones no trae fichas_seguimiento.
-      sbGet('fichas_seguimiento',{sede:'eq.'+DB.sede,fecha:'eq.'+ayer,select:'*'}).catch(function(){return[];})
+      sbGet('fichas_seguimiento',{sede:'eq.'+DB.sede,fecha:'eq.'+ayer,select:'*'}).catch(function(){return[];}),
+      // Gastos de esta sede (ventana de 45 días, igual que pagos) - para
+      // descontarlos de la Caja del Día por método de pago (ver renderPagos).
+      sbGet('gastos',{sede:'eq.'+DB.sede,fecha:'gte.'+desde,select:'*',order:'fecha.desc'}).catch(function(){return[];})
     ]);
     DB.avisosBot=res[9]||[];
     DB.fichasAyer=res[10]||[];
+    DB.gastos=(res[11]||[]).map(function(g){return{id:g.id,fecha:g.fecha,monto:g.monto||0,
+      metodo:g.metodo_pago||'Efectivo',concepto:g.concepto||'',categoria:g.categoria||'',
+      registradoPor:g.registrado_por||'',_sb:g};});
     const sesionesVentana=(res[0]||[]).map(function(s){return{id:s.id,fecha:s.fecha,hora:normHoraRec(s.hora),
       pacId:s.paciente_nombre,pacNom:s.paciente_nombre,psId:s.psicologa,psNom:s.psicologa,
       terId:s.terapia,terNom:s.terapia,estado:s.estado,saldo:s.saldo||0,tipo:s.tipo||'sesion',notas:s.notas||'',
