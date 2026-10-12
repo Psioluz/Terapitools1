@@ -7098,6 +7098,7 @@ async function renderHistorial(){
     // si hay un paquete VIGENTE (activo) que cancelar.
     (_progVigHist&&_progVigHist.estado==='activo'?
       '<div style="margin-top:10px;text-align:right">'+
+      '<button class="btn btn-outline btn-sm" style="color:#0e7490;border-color:#67e8f9" onclick="congelarPaquete(\''+_progVigHist.id+'\',\''+(pac2.nombre||'').replace(/'/g,"\\'")+'\')">❄️ Congelar paquete</button> '+
       '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="cancelarPaquete(\''+_progVigHist.id+'\',\''+(pac2.nombre||'').replace(/'/g,"\\'")+'\')">🚫 Cancelar paquete</button>'+
       '</div>':'')+
     '</div>'+
@@ -7681,13 +7682,15 @@ function botonesAsistenciaHTML(s){
   var btnRevertirF=['asistio','noasistio','permiso','congelado'].indexOf(s.estado)>-1?
     ' <button class="btn btn-outline btn-sm" onclick="revertirSesion(\''+s.id+'\')">↩️ Revertir</button>':'';
   if(s.estado==='congelado'){
-    // Si era de un paquete, congelarSesion() YA le creó su reposición
-    // automática (igual que Permiso) - reagendar esta fila original de
-    // nuevo duplicaría la reposición. Una sesión suelta (sin paquete) no
-    // tuvo reposición automática, así que ahí sí sigue haciendo falta
-    // reagendarla a mano.
-    var esDePaquete=!!(s._sb&&s._sb.programa_id);
-    return (esDePaquete?'':'<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reagendar</button>')+btnRevertirF;
+    // Si era de un paquete y congelarSesion() (sesión por sesión) le creó
+    // su reposición automática (igual que Permiso), ésta queda sin número
+    // (nro_en_paquete null) porque la reposición ya lo reocupó - reagendar
+    // esta fila original de nuevo la duplicaría. En cambio, si vino de
+    // "❄️ Congelar paquete" (todas de golpe, sin reposición porque no se
+    // sabe cuándo vuelve) o es una sesión suelta, el número sigue puesto -
+    // ahí SÍ hace falta reagendarla a mano con este botón.
+    var yaTieneReposicionAuto=!!(s._sb&&s._sb.programa_id)&&(s.nroSes===null||s.nroSes===undefined);
+    return (yaTieneReposicionAuto?'':'<button class="btn btn-outline btn-sm" onclick="reprogramar(\''+s.id+'\')">🔄 Reagendar</button>')+btnRevertirF;
   }
   if(s.estado==='noasistio'){
     return '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="abrirModalCancelarSesion(\''+s.id+'\')">🚫 Cancelar</button>'+btnRevertirF;
@@ -7716,10 +7719,10 @@ function botonesAsistenciaCompactoHTML(s){
   var btnRevertirC=['asistio','noasistio','permiso','congelado'].indexOf(s.estado)>-1?
     ' <button class="btn btn-outline btn-sm" style="padding:4px 7px" title="Revertir a Programado" onclick="revertirSesion(\''+s.id+'\')">↩️</button>':'';
   if(s.estado==='congelado'){
-    // Ver nota en botonesAsistenciaHTML: si era de un paquete ya tiene su
-    // reposición automática, no se reagenda esta fila de nuevo.
-    var esDePaqueteC=!!(s._sb&&s._sb.programa_id);
-    return (esDePaqueteC?'':'<button class="btn btn-outline btn-sm" style="padding:4px 7px" title="Reagendar" onclick="reprogramar(\''+s.id+'\')">🔄</button>')+btnRevertirC;
+    // Ver nota en botonesAsistenciaHTML: solo se oculta si ya tiene su
+    // reposición automática (nro_en_paquete en null).
+    var yaTieneReposicionAutoC=!!(s._sb&&s._sb.programa_id)&&(s.nroSes===null||s.nroSes===undefined);
+    return (yaTieneReposicionAutoC?'':'<button class="btn btn-outline btn-sm" style="padding:4px 7px" title="Reagendar" onclick="reprogramar(\''+s.id+'\')">🔄</button>')+btnRevertirC;
   }
   if(s.estado==='noasistio'){
     return '<button class="btn btn-outline btn-sm" style="padding:4px 7px;color:var(--red)" title="Cancelar" onclick="abrirModalCancelarSesion(\''+s.id+'\')">🚫</button>'+btnRevertirC;
@@ -7896,6 +7899,37 @@ async function cancelarUnaSesionDePaquete(sesRef,motivo){
     showToast('✅ Sesión del paquete cancelada');
     await cargarDesdeSB();
   }catch(e){showToast('Error al cancelar: '+e.message,'error');console.error('[cancelarUnaSesionDePaquete]',e);}
+}
+// "Congelar paquete" es para cuando el paciente va a estar de pausa un
+// buen tiempo y TODAVÍA NO SE SABE cuándo retoma (a diferencia de
+// congelar sesión por sesión, que sí asume que vuelve la próxima semana y
+// por eso le crea una reposición automática - ver congelarSesion). Acá se
+// congelan TODAS las sesiones futuras pendientes del paquete de una sola
+// vez, SIN crear ninguna reposición (no hay fecha cierta a la que
+// apuntarlas) - el paquete sigue activo y cada sesión se reagenda luego a
+// mano, una por una con el botón 🔄, recién cuando el paciente avise que
+// puede volver.
+async function congelarPaquete(programaId,pacienteNombre){
+  if(!programaId){showToast('No se encontró el paquete de este paciente','error');return;}
+  const motivo=prompt('Motivo de la congelación del paquete completo (ej. viaje largo, tratamiento médico...):');
+  if(motivo===null)return;
+  if(!motivo.trim()){showToast('Indica un motivo','error');return;}
+  if(!confirm('¿Congelar TODO el paquete de '+(pacienteNombre||'este paciente')+'? Se congelan todas sus sesiones futuras pendientes (no cuentan como falta ni generan cobro) y se liberan esos horarios. Úsalo solo cuando AÚN NO se sabe cuándo retoma - cada sesión se reagenda después a mano, una por una.'))return;
+  showToast('⏳ Congelando paquete...');
+  try{
+    // A diferencia de congelarSesion() (que sí limpia nro_en_paquete porque
+    // crea de una vez la reposición que reocupa ese número), acá se deja
+    // el número tal cual - igual que una reprogramación normal, que ya
+    // sabe preservarlo cuando más adelante se reagende esta fila a mano.
+    const pendientes=await sbGet('sesiones',{programa_id:'eq.'+programaId,estado:'eq.programado',select:'id,notas'});
+    for(const s of (pendientes||[])){
+      const notaPrevia=s.notas||'';
+      const notaNueva=(notaPrevia?notaPrevia+' · ':'')+'❄️ Congelada (paquete completo): '+motivo.trim();
+      await sbPatch('sesiones',{estado:'congelado',saldo:0,notas:notaNueva},{id:'eq.'+s.id});
+    }
+    showToast('❄️ Paquete congelado - '+(pendientes||[]).length+' sesión(es) pendiente(s) de reagendar cuando el paciente vuelva');
+    await cargarDesdeSB();
+  }catch(e){showToast('Error al congelar el paquete: '+e.message,'error');console.error('[congelarPaquete]',e);}
 }
 // "Cancelar paquete" es para cuando el paciente NO continúa el
 // tratamiento: se cancelan TODAS las sesiones futuras (estado
