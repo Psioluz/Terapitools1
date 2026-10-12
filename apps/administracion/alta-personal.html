@@ -23,6 +23,10 @@
   .rol-tab.active{background:linear-gradient(135deg,var(--dark),var(--acc));color:#fff;border-color:transparent}
   .solo-psico{display:none}
   .solo-psico.show{display:block}
+  .solo-recep{display:none}
+  .solo-recep.show{display:block}
+  .lbl-doc{font-size:12px;font-weight:600;color:var(--dark);text-transform:none;letter-spacing:0;margin-top:10px}
+  input[type=file]{width:100%;padding:9px 10px;border:1.5px dashed #f3bcd4;border-radius:10px;font-size:12.5px;font-family:inherit;background:#fef8fb;color:#333}
   .btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--dark),var(--acc));color:#fff;border:none;
     border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;margin-top:20px}
   .btn:active{opacity:.85}
@@ -87,7 +91,18 @@
     <div><label>Número de cuenta *</label><input id="fCuenta" placeholder="Número de cuenta"></div>
   </div>
   <input id="fCci" maxlength="20" inputmode="numeric" placeholder="CCI (20 dígitos) *" style="margin-top:10px">
-  <div class="hint">Tu foto de perfil la subes directamente desde la app, en "Mi Perfil", una vez que tengas tu acceso - aquí no hace falta.</div>
+  <div class="hint solo-psico" id="hintFotoPsico">Tu foto de perfil la subes directamente desde la app, en "Mi Perfil", una vez que tengas tu acceso - aquí no hace falta.</div>
+
+  <div class="solo-recep" id="bloqueRecepDocs">
+    <label>Documentos</label>
+    <div class="hint" style="margin-top:0">Sube los que tengas a mano ahora - si te falta alguno, se lo puedes alcanzar después a Coordinación.</div>
+    <label class="lbl-doc">Curriculum Vitae (CV)</label>
+    <input type="file" id="fDocCv" accept="application/pdf,image/*">
+    <label class="lbl-doc">Certificado de Antecedentes Penales</label>
+    <input type="file" id="fDocAntecedentes" accept="application/pdf,image/*">
+    <label class="lbl-doc">CertiJoven</label>
+    <input type="file" id="fDocCertijoven" accept="application/pdf,image/*">
+  </div>
 
   <div class="err" id="errMsg"></div>
   <button class="btn" id="btnEnviar" onclick="enviarRegistro()">Enviar mis datos</button>
@@ -106,6 +121,39 @@ const SBH={apikey:SBK,'Authorization':'Bearer '+SBK,'Content-Type':'application/
 async function sbGet(t,p){p=p||{};var u=SBU+'/rest/v1/'+t;var q=Object.entries(p).map(function(e){return e[0]+'='+encodeURIComponent(e[1]);}).join('&');if(q)u+='?'+q;var r=await fetch(u,{headers:SBH});if(!r.ok)throw new Error(await r.text());return r.json();}
 async function sbPost(t,d){var r=await fetch(SBU+'/rest/v1/'+t,{method:'POST',headers:SBH,body:JSON.stringify(d)});if(!r.ok)throw new Error(await r.text());return r.json();}
 async function sbPatch(t,d,f){var q=Object.entries(f).map(function(e){return e[0]+'='+encodeURIComponent(e[1]);}).join('&');var r=await fetch(SBU+'/rest/v1/'+t+'?'+q,{method:'PATCH',headers:SBH,body:JSON.stringify(d)});if(!r.ok)throw new Error(await r.text());return r.json();}
+async function sbUpload(bucket,path,file){
+  var h={apikey:SBK,'Authorization':'Bearer '+SBK,'Content-Type':file.type||'application/octet-stream','x-upsert':'true'};
+  var r=await fetch(SBU+'/storage/v1/object/'+bucket+'/'+path,{method:'POST',headers:h,body:file});
+  if(!r.ok)throw new Error(await r.text());
+  return SBU+'/storage/v1/object/public/'+bucket+'/'+path;
+}
+// Sube (si se eligió) cada documento al bucket "documentos-personal" y deja
+// su fila en la tabla "documentos_personal" - la misma que ya usa Gerencia
+// en "Documentos del Personal" para mostrarlos, así quedan visibles ahí sin
+// tocar nada en esa pantalla. No bloquea el registro si alguno falla (el
+// dato de la persona ya quedó guardado, que es lo importante).
+async function _subirDocsRecepcion(nombre,sede){
+  var docs=[
+    {id:'fDocCv',desc:'CV'},
+    {id:'fDocAntecedentes',desc:'Certificado de Antecedentes Penales'},
+    {id:'fDocCertijoven',desc:'CertiJoven'}
+  ];
+  var fallos=[];
+  for(var i=0;i<docs.length;i++){
+    var input=document.getElementById(docs[i].id);
+    var file=input&&input.files&&input.files[0];
+    if(!file)continue;
+    try{
+      var safeNombre=nombre.replace(/[^a-zA-Z0-9]+/g,'_');
+      var path=(sede||'Sin_sede')+'/'+safeNombre+'/'+Date.now()+'_'+docs[i].id+'_'+file.name.replace(/[^a-zA-Z0-9.\-]+/g,'_');
+      var url=await sbUpload('documentos-personal',path,file);
+      await sbPost('documentos_personal',{nombre:nombre,tipo:file.type||'',sede:sede||'',
+        descripcion_doc:docs[i].desc,url_archivo:url,fecha_subida:(new Date(Date.now()-5*3600000)).toISOString().split('T')[0],
+        subido_por:nombre+' (formulario de registro)'});
+    }catch(e){console.error('[subir doc]',docs[i].desc,e);fallos.push(docs[i].desc);}
+  }
+  return fallos;
+}
 
 var ROL='psicologa';
 var PERSONAS_SEDE=[]; // candidatos ya existentes en la sede elegida, para no duplicarlos
@@ -115,6 +163,8 @@ function elegirRol(r){
   document.getElementById('tabPsico').classList.toggle('active',r==='psicologa');
   document.getElementById('tabRecep').classList.toggle('active',r==='recepcionista');
   document.getElementById('bloquePsico').classList.toggle('show',r==='psicologa');
+  document.getElementById('hintFotoPsico').classList.toggle('show',r==='psicologa');
+  document.getElementById('bloqueRecepDocs').classList.toggle('show',r==='recepcionista');
   limpiarSeleccionExistente();
   cargarPersonasDeLaSede();
 }
@@ -253,6 +303,12 @@ async function enviarRegistro(){
       grado_academico:grado,banco:banco,numero_cuenta:cuenta,cci:cci
     };
     if(ROL==='psicologa'){datos.cpsp=cpsp;datos.especialidad=esp;}
+    // Todas las recepcionistas manejan el mismo horario - no tiene caso
+    // pedírselo en el formulario (ni perjudica que quede así por defecto,
+    // Coordinación lo ajusta después si hiciera falta un caso puntual).
+    if(ROL==='recepcionista'&&!idExistente){
+      datos.hora_inicio='08:00';datos.hora_fin='20:00';datos.dias_trabajo='Lunes-Sabado';
+    }
     var tabla=ROL==='psicologa'?'psicologas':'recepcionistas';
 
     if(idExistente){
@@ -269,9 +325,18 @@ async function enviarRegistro(){
       await sbPost(tabla,datos);
     }
 
+    // Documentos (CV, antecedentes, certijoven) - solo aplica a
+    // recepcionistas (ver bloqueRecepDocs) y nunca bloquea el registro: la
+    // persona ya quedó guardada aunque algún archivo falle al subir.
+    var fallosDocs=[];
+    if(ROL==='recepcionista'){
+      fallosDocs=await _subirDocsRecepcion(nombre,sede).catch(function(){return[];});
+    }
+
     document.getElementById('formBox').style.display='none';
     document.getElementById('okBox').style.display='block';
     if(idExistente)document.querySelector('#okBox p').textContent='Gracias, actualizamos tus datos correctamente.';
+    if(fallosDocs.length)document.querySelector('#okBox p').textContent+=' (No se pudieron subir: '+fallosDocs.join(', ')+' - inténtalo de nuevo o entrégalo directo a Coordinación.)';
   }catch(e){
     console.error(e);
     mostrarError('No se pudo enviar. Revisa tu conexión e intenta de nuevo. ('+e.message.slice(0,120)+')');
