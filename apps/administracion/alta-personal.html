@@ -184,8 +184,17 @@ elegirRol('psicologa');
 
 // Busca quién ya está registrada en esa sede (con ese rol) para poder
 // elegir "soy yo" y así rellenar lo que ya tiene en vez de crear un
-// duplicado. Se muestra a cualquiera (activa o pendiente) - por ejemplo
-// alguien ya activa pero a la que le falta DNI/banco/etc.
+// duplicado. Solo se ofrece a quien de verdad puede necesitarlo:
+// - Nunca a inactiva/cesada (ya no trabaja ahí - no tiene sentido que
+//   aparezca, y menos que alguien pueda tocar sus datos desde un enlace
+//   público sin login).
+// - Nunca a alguien que YA tiene todos sus datos completos: si no le falta
+//   nada, no hay nada que autocompletar, y dejarla en la lista solo abría
+//   la puerta a que cualquiera con el enlace reescribiera datos de otra
+//   persona (DNI, cuenta bancaria, etc.) - antes esto mostraba a TODO el
+//   personal de la sede, activo o no, completo o no.
+var REQ_PSICO=['dni','fecha_nac','telefono','grado_academico','banco','numero_cuenta','cci','cpsp','especialidad'];
+var REQ_RECEP=['dni','fecha_nac','telefono','grado_academico','banco','numero_cuenta','cci'];
 async function cargarPersonasDeLaSede(){
   var sede=document.getElementById('fSede').value;
   var bloque=document.getElementById('bloquePersonaExistente');
@@ -193,10 +202,17 @@ async function cargarPersonasDeLaSede(){
   limpiarSeleccionExistente();
   if(!sede){bloque.style.display='none';return;}
   var tabla=ROL==='psicologa'?'psicologas':'recepcionistas';
+  var req=ROL==='psicologa'?REQ_PSICO:REQ_RECEP;
+  var todas=[];
   try{
     var cols='id,nombre,email,estado,dni,fecha_nac,telefono,grado_academico,banco,numero_cuenta,cci'+(ROL==='psicologa'?',cpsp,especialidad':'');
-    PERSONAS_SEDE=await sbGet(tabla,{select:cols,sede:'eq.'+sede,order:'nombre.asc'});
-  }catch(e){PERSONAS_SEDE=[];}
+    todas=await sbGet(tabla,{select:cols,sede:'eq.'+sede,order:'nombre.asc'});
+  }catch(e){todas=[];}
+  PERSONAS_SEDE=todas.filter(function(p){
+    var estado=(p.estado||'').toLowerCase();
+    if(estado==='inactiva'||estado==='cesada')return false;
+    return req.some(function(k){return !p[k];});
+  });
   bloque.style.display=PERSONAS_SEDE.length?'block':'none';
   sel.innerHTML='<option value="">- Selecciona tu nombre -</option>'+
     PERSONAS_SEDE.map(function(p){return '<option value="'+p.id+'">'+p.nombre+'</option>';}).join('')+
@@ -210,8 +226,20 @@ function limpiarSeleccionExistente(){
   TIENE_EMAIL_INSTITUCIONAL=false;
   document.getElementById('fEmailPersonal').parentNode.style.display='';
   ['fNombre','fDni','fNac','fTel','fGrado','fBanco','fCuenta','fCci','fCpsp','fEsp','fEmailPersonal'].forEach(function(id){
-    var e=document.getElementById(id);if(e)e.value='';
+    var e=document.getElementById(id);if(e){e.value='';e.disabled=false;e.style.background='';e.style.color='';}
   });
+}
+// Un dato que YA tiene un valor guardado queda bloqueado (no editable) -
+// este enlace es público y sin login, así que no debe permitir que
+// cualquiera pase y le cambie un DNI, cuenta bancaria, etc. a otra persona.
+// Solo los campos que de verdad están vacíos quedan disponibles para
+// completarlos.
+function _setCampoExistente(id,valor){
+  var el=document.getElementById(id);if(!el)return;
+  el.value=valor||'';
+  el.disabled=!!valor;
+  el.style.background=valor?'#f1f5f9':'';
+  el.style.color=valor?'#94a3b8':'';
 }
 
 function elegirPersonaExistente(){
@@ -227,16 +255,16 @@ function elegirPersonaExistente(){
   document.getElementById('fId').value=p.id;
   document.getElementById('fNombre').value=p.nombre||'';
   document.getElementById('bloqueNombre').style.display='none'; // ya sabemos quién es
-  document.getElementById('fDni').value=p.dni||'';
-  document.getElementById('fNac').value=p.fecha_nac||'';
-  document.getElementById('fTel').value=p.telefono||'';
-  document.getElementById('fGrado').value=p.grado_academico||'';
-  document.getElementById('fBanco').value=p.banco||'';
-  document.getElementById('fCuenta').value=p.numero_cuenta||'';
-  document.getElementById('fCci').value=p.cci||'';
+  _setCampoExistente('fDni',p.dni);
+  _setCampoExistente('fNac',p.fecha_nac);
+  _setCampoExistente('fTel',p.telefono);
+  _setCampoExistente('fGrado',p.grado_academico);
+  _setCampoExistente('fBanco',p.banco);
+  _setCampoExistente('fCuenta',p.numero_cuenta);
+  _setCampoExistente('fCci',p.cci);
   if(ROL==='psicologa'){
-    document.getElementById('fCpsp').value=p.cpsp||'';
-    document.getElementById('fEsp').value=p.especialidad||'';
+    _setCampoExistente('fCpsp',p.cpsp);
+    _setCampoExistente('fEsp',p.especialidad);
   }
   // Si su "email" guardado ya es el institucional (@psicoluz.pe), no lo
   // pisamos con el correo personal - se deja en blanco para que ponga el suyo,
