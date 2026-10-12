@@ -773,7 +773,7 @@ select.fsel{
       </div>
     </div>
     <div class="cb" style="overflow-x:auto">
-      <table id="tblCajaVerif"><thead><tr><th>Fecha</th><th>Efectivo</th><th>Yape/Plin</th><th>Transferencia</th><th>Vuelto (Coord.)</th><th>Total</th><th></th></tr></thead>
+      <table id="tblCajaVerif"><thead><tr><th>Fecha</th><th>Efectivo</th><th>Yape/Plin</th><th>Transferencia</th><th>Vuelto (Coord.)</th><th>Gastos</th><th>Total</th><th></th></tr></thead>
       <tbody id="tblCajaVerifBody"></tbody>
       <tfoot id="tblCajaVerifFoot"></tfoot></table>
     </div>
@@ -2015,11 +2015,21 @@ function renderVerifCaja(){
     if(sede&&(p._sede||p.sede||'')!==sede)return false;
     return true;
   });
+  // Gastos del mismo rango/sede - se restan de la caja de cada método (ver
+  // comentario en _prepCajaExport, que comparte esta misma lógica para que
+  // los exports PDF/Excel muestren exactamente lo mismo que la pantalla).
+  var gastosRango=(G.gastos||[]).filter(function(g){
+    if(!g.fecha)return false;
+    if(desde&&g.fecha<desde)return false;
+    if(hasta&&g.fecha>hasta)return false;
+    if(sede&&(g.sede||'')!==sede)return false;
+    return true;
+  });
 
   var porDia={}, porDiaPagos={};
   pagos.forEach(function(p){
     var f=p.fecha;
-    if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0,vuelto:0};
+    if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0,vuelto:0,gastos:0};
     (porDiaPagos[f]=porDiaPagos[f]||[]).push(p);
     if(_esVueltoCoord(p)){porDia[f].vuelto+=p.monto||0;return;}
     var m2=p.metodo||'Efectivo';
@@ -2027,8 +2037,20 @@ function renderVerifCaja(){
     else if(m2==='Transferencia'||m2==='Tarjeta')porDia[f].transferencia+=p.monto||0;
     else porDia[f].efectivo+=p.monto||0;
   });
+  var porDiaGastos={};
+  gastosRango.forEach(function(g){
+    var f=g.fecha;
+    if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0,vuelto:0,gastos:0};
+    (porDiaGastos[f]=porDiaGastos[f]||[]).push(g);
+    porDia[f].gastos+=g.monto||0;
+    var m2=g.metodo_pago||'Efectivo';
+    if(m2==='Yape'||m2==='Plin')porDia[f].yape=Math.max(0,porDia[f].yape-(g.monto||0));
+    else if(m2==='Transferencia'||m2==='Tarjeta')porDia[f].transferencia=Math.max(0,porDia[f].transferencia-(g.monto||0));
+    else porDia[f].efectivo=Math.max(0,porDia[f].efectivo-(g.monto||0));
+  });
   var diasOrd=Object.keys(porDia).sort().reverse();
   window._ingDiaPagosPorFecha=porDiaPagos;
+  window._ingDiaGastosPorFecha=porDiaGastos;
   window._cvRango={desde:desde,hasta:hasta,sede:sede};
 
   var bodyDia=document.getElementById('tblCajaVerifBody');
@@ -2042,6 +2064,7 @@ function renderVerifCaja(){
         '<td>📱 S/'+d.yape.toLocaleString()+'</td>'+
         '<td>🏦 S/'+d.transferencia.toLocaleString()+'</td>'+
         '<td>🔄 S/'+d.vuelto.toLocaleString()+'</td>'+
+        '<td style="color:#dc2626">💸 S/'+d.gastos.toLocaleString()+'</td>'+
         '<td style="min-width:150px">'+
           '<div style="display:flex;align-items:center;gap:8px">'+
             '<div style="flex:1;background:#f1e9f5;border-radius:6px;height:8px;overflow:hidden">'+
@@ -2049,7 +2072,7 @@ function renderVerifCaja(){
             '<span style="font-weight:900;color:var(--dark);white-space:nowrap">S/'+tot.toLocaleString()+'</span>'+
           '</div></td>'+
         '<td><a href="#" onclick="verDetalleIngresosDia(\''+f+'\');return false" style="color:var(--acc);font-weight:700;font-size:11.5px;white-space:nowrap">Ver más detalle →</a></td></tr>';
-    }).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:14px">Sin pagos en el período</td></tr>';
+    }).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:14px">Sin pagos en el período</td></tr>';
   }
   var footDia=document.getElementById('tblCajaVerifFoot');
   if(footDia){
@@ -2057,10 +2080,12 @@ function renderVerifCaja(){
     var totYp=diasOrd.reduce(function(a,f){return a+porDia[f].yape;},0);
     var totTr=diasOrd.reduce(function(a,f){return a+porDia[f].transferencia;},0);
     var totVu=diasOrd.reduce(function(a,f){return a+porDia[f].vuelto;},0);
+    var totGa=diasOrd.reduce(function(a,f){return a+porDia[f].gastos;},0);
     var totAll=totEf+totYp+totTr+totVu;
     footDia.innerHTML=diasOrd.length?('<tr style="background:#fdf2f8;font-weight:900"><td>TOTAL</td>'+
       '<td>S/'+totEf.toLocaleString()+'</td><td>S/'+totYp.toLocaleString()+'</td>'+
       '<td>S/'+totTr.toLocaleString()+'</td><td>S/'+totVu.toLocaleString()+'</td>'+
+      '<td style="color:#dc2626">S/'+totGa.toLocaleString()+'</td>'+
       '<td>S/'+totAll.toLocaleString()+'</td><td></td></tr>'):'';
   }
 }
@@ -2132,10 +2157,17 @@ function _prepCajaExport(){
     if(sede&&(p._sede||p.sede||'')!==sede)return false;
     return true;
   });
+  var gastosRango=(G.gastos||[]).filter(function(g){
+    if(!g.fecha)return false;
+    if(desde&&g.fecha<desde)return false;
+    if(hasta&&g.fecha>hasta)return false;
+    if(sede&&(g.sede||'')!==sede)return false;
+    return true;
+  });
   var porDia={},porDiaPagos={};
   pagosRango.forEach(function(p){
     var f=p.fecha;if(!f)return;
-    if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0,vuelto:0};
+    if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0,vuelto:0,gastos:0};
     if(!porDiaPagos[f])porDiaPagos[f]=[];
     porDiaPagos[f].push(p);
     if(_esVueltoCoord(p)){porDia[f].vuelto+=p.monto||0;return;}
@@ -2143,6 +2175,18 @@ function _prepCajaExport(){
     if(m2==='Yape'||m2==='Plin')porDia[f].yape+=p.monto||0;
     else if(m2==='Transferencia'||m2==='Tarjeta')porDia[f].transferencia+=p.monto||0;
     else porDia[f].efectivo+=p.monto||0;
+  });
+  // Mismo descuento por método que renderVerifCaja (ver comentario ahí) -
+  // esta función la comparten los exports PDF/Excel, así que netear acá
+  // basta para que ambos salgan iguales a la pantalla sin tocarlos aparte.
+  gastosRango.forEach(function(g){
+    var f=g.fecha;if(!f)return;
+    if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0,vuelto:0,gastos:0};
+    porDia[f].gastos+=g.monto||0;
+    var m2=g.metodo_pago||'Efectivo';
+    if(m2==='Yape'||m2==='Plin')porDia[f].yape=Math.max(0,porDia[f].yape-(g.monto||0));
+    else if(m2==='Transferencia'||m2==='Tarjeta')porDia[f].transferencia=Math.max(0,porDia[f].transferencia-(g.monto||0));
+    else porDia[f].efectivo=Math.max(0,porDia[f].efectivo-(g.monto||0));
   });
   var diasOrd=Object.keys(porDia).sort().reverse();
   var rangoLbl=(desde?fmtF(desde):'-')+' al '+(hasta?fmtF(hasta):'-');
@@ -2193,6 +2237,7 @@ function exportarCajaExcel(){
   var totYp=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].yape;},0);
   var totTr=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].transferencia;},0);
   var totVu=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].vuelto;},0);
+  var totGa=d.diasOrd.reduce(function(a,f){return a+(d.porDia[f].gastos||0);},0);
   var totAll=totEf+totYp+totTr+totVu;
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function cT(val,style){return '<Cell'+(style?' ss:StyleID="'+style+'"':'')+'><Data ss:Type="String">'+esc(val)+'</Data></Cell>';}
@@ -2202,8 +2247,8 @@ function exportarCajaExcel(){
   var filasResumen=d.diasOrd.map(function(f,i){
     var r=d.porDia[f];var tot=r.efectivo+r.yape+r.transferencia+r.vuelto;
     var sT=i%2?'sRowAlt':'sRow',sM=i%2?'sMoneyAlt':'sMoney',sMB=i%2?'sMoneyBoldAlt':'sMoneyBold';
-    return row([cT(fmtF(f),sT),cN(r.efectivo,sM),cN(r.yape,sM),cN(r.transferencia,sM),cN(r.vuelto,sM),cN(tot,sMB)]);
-  }).join('')+row([cT('TOTAL','sTotal'),cN(totEf,'sTotalMoney'),cN(totYp,'sTotalMoney'),cN(totTr,'sTotalMoney'),cN(totVu,'sTotalMoney'),cN(totAll,'sTotalMoney')]);
+    return row([cT(fmtF(f),sT),cN(r.efectivo,sM),cN(r.yape,sM),cN(r.transferencia,sM),cN(r.vuelto,sM),cN(r.gastos||0,sM),cN(tot,sMB)]);
+  }).join('')+row([cT('TOTAL','sTotal'),cN(totEf,'sTotalMoney'),cN(totYp,'sTotalMoney'),cN(totTr,'sTotalMoney'),cN(totVu,'sTotalMoney'),cN(totGa,'sTotalMoney'),cN(totAll,'sTotalMoney')]);
 
   var flat=_pagosFlatSorted(d);
   var filasDetalle=flat.map(function(p,i){
@@ -2229,8 +2274,8 @@ function exportarCajaExcel(){
     '</Styles>'+
     '<Worksheet ss:Name="Resumen">'+
       '<Table>'+
-      '<Column ss:Width="80"/><Column ss:Width="70"/><Column ss:Width="70"/><Column ss:Width="90"/><Column ss:Width="90"/><Column ss:Width="80"/>'+
-      row([cT('Fecha','sHead'),cT('Efectivo','sHead'),cT('Yape/Plin','sHead'),cT('Transferencia','sHead'),cT('Vuelto (Coord.)','sHead'),cT('Total','sHead')])+
+      '<Column ss:Width="80"/><Column ss:Width="70"/><Column ss:Width="70"/><Column ss:Width="90"/><Column ss:Width="90"/><Column ss:Width="70"/><Column ss:Width="80"/>'+
+      row([cT('Fecha','sHead'),cT('Efectivo','sHead'),cT('Yape/Plin','sHead'),cT('Transferencia','sHead'),cT('Vuelto (Coord.)','sHead'),cT('Gastos','sHead'),cT('Total','sHead')])+
       filasResumen+
       '</Table>'+
     '</Worksheet>'+
@@ -2450,14 +2495,15 @@ function exportarCajaPDF(){
       var totYp=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].yape;},0);
       var totTr=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].transferencia;},0);
       var totVu=d.diasOrd.reduce(function(a,f){return a+d.porDia[f].vuelto;},0);
+      var totGa=d.diasOrd.reduce(function(a,f){return a+(d.porDia[f].gastos||0);},0);
       var totAll=totEf+totYp+totTr+totVu;
       var filasResumen=d.diasOrd.map(function(f){
         var r=d.porDia[f];var tot=r.efectivo+r.yape+r.transferencia+r.vuelto;
-        return[fmtF(f),'S/'+r.efectivo.toLocaleString(),'S/'+r.yape.toLocaleString(),'S/'+r.transferencia.toLocaleString(),'S/'+r.vuelto.toLocaleString(),'S/'+tot.toLocaleString()];
+        return[fmtF(f),'S/'+r.efectivo.toLocaleString(),'S/'+r.yape.toLocaleString(),'S/'+r.transferencia.toLocaleString(),'S/'+r.vuelto.toLocaleString(),'S/'+(r.gastos||0).toLocaleString(),'S/'+tot.toLocaleString()];
       });
-      filasResumen.push(['TOTAL','S/'+totEf.toLocaleString(),'S/'+totYp.toLocaleString(),'S/'+totTr.toLocaleString(),'S/'+totVu.toLocaleString(),'S/'+totAll.toLocaleString()]);
+      filasResumen.push(['TOTAL','S/'+totEf.toLocaleString(),'S/'+totYp.toLocaleString(),'S/'+totTr.toLocaleString(),'S/'+totVu.toLocaleString(),'S/'+totGa.toLocaleString(),'S/'+totAll.toLocaleString()]);
       doc.autoTable({startY:24,margin:{left:M,right:M},
-        head:[['Fecha','Efectivo','Yape/Plin','Transferencia','Vuelto (Coord.)','Total']],
+        head:[['Fecha','Efectivo','Yape/Plin','Transferencia','Vuelto (Coord.)','Gastos','Total']],
         body:filasResumen,
         headStyles:{fillColor:[74,14,46],textColor:255,fontStyle:'bold'},
         alternateRowStyles:{fillColor:[248,250,255]},
