@@ -2746,8 +2746,9 @@ function abrirModalAgendar(fecha,hora,sesOrig){
   // Resetear form
   ['ag-ps','ag-ter'].forEach(id=>{const el=document.getElementById(id);if(el)el.selectedIndex=0;});
   const elPacHid=document.getElementById('ag-pac');if(elPacHid)elPacHid.value='';
-  const elPacSearch=document.getElementById('ag-pac-search');if(elPacSearch)elPacSearch.value='';
+  const elPacSearch=document.getElementById('ag-pac-search');if(elPacSearch){elPacSearch.value='';elPacSearch.disabled=false;elPacSearch.style.background='';elPacSearch.style.color='';}
   const elPacList=document.getElementById('ag-pac-list');if(elPacList){elPacList.style.display='none';elPacList.innerHTML='';}
+  const elTipoReset=document.getElementById('ag-tipo');if(elTipoReset){elTipoReset.disabled=false;elTipoReset.style.background='';elTipoReset.style.color='';}
   document.getElementById('ag-tipo').value='paquete';
   document.getElementById('ag-adelanto').value='0';
   agInicializarMetodos('');
@@ -2783,6 +2784,14 @@ function abrirModalAgendar(fecha,hora,sesOrig){
     const elT=document.getElementById('ag-ter');if(elT)elT.value=sesOrig.terId;
     document.getElementById('ag-tipo').value=sesOrig.tipo||'paquete';
     document.getElementById('ag-notas').value='Reprog. de '+fmtF(sesOrig.fecha)+' '+sesOrig.hora;
+    // Al reprogramar se mueve ESTA sesión puntual - paciente y tipo de
+    // servicio ya quedaron fijados desde que se registró originalmente, no
+    // tiene sentido volver a tocarlos acá (y hacerlo por error reasignaba
+    // la sesión a otro paciente - ver guardarSesion/_esReprog, que además
+    // ahora ignora estos campos y siempre usa los de la sesión original).
+    if(elPSearch){elPSearch.disabled=true;elPSearch.style.background='#f1f5f9';elPSearch.style.color='#94a3b8';}
+    const elTipoLock=document.getElementById('ag-tipo');
+    if(elTipoLock){elTipoLock.disabled=true;elTipoLock.style.background='#f1f5f9';elTipoLock.style.color='#94a3b8';}
   }
 
   agOnPs();// llena horas
@@ -2883,7 +2892,14 @@ function agOnProgExist(){
   // aplica para "Precio exclusivo" - ahí el costo/sesiones se escriben a
   // mano, así que nunca debe reaparecer aunque no haya un paquete activo
   // elegido en "ag-progExist".
-  if(grpPaq)grpPaq.style.display=(!progId&&!esExclusivo)?'block':'none';
+  const _mostrarCatalogo=(!progId&&!esExclusivo);
+  if(grpPaq)grpPaq.style.display=_mostrarCatalogo?'block':'none';
+  // "Tipo de paquete" (Regular/Gratuito) solo filtra ESE catálogo - si el
+  // catálogo no se muestra (paquete ya activo elegido, o precio exclusivo),
+  // este selector tampoco pinta nada y antes se quedaba visible igual,
+  // como si hubiera algo más que elegir.
+  const grpPaqGrat=document.getElementById('ag-grp-paqGratuito');
+  if(grpPaqGrat)grpPaqGrat.style.display=_mostrarCatalogo?'block':'none';
   // "Categoría" (Niños/Adultos) solo aplica al REGISTRAR un paquete nuevo
   // - un paquete ya activo (progId elegido) ya quedó fijado con su
   // categoría desde que se creó, no tiene sentido volver a preguntarla.
@@ -3115,6 +3131,10 @@ function agOnTipo(){
     if(grpCostoSimple)grpCostoSimple.style.display='block';
     if(grpBuilder)grpBuilder.style.display='none';
     document.getElementById('ag-costo').value='';
+    // Reprogramar nunca cambia el costo (guardarSesion siempre usa el de
+    // la sesión original) - mostrarlo como si se pudiera editar aquí solo
+    // confundía, ya que cualquier valor que se escribiera se descartaba.
+    if(_reprogDe&&grpCostoSimple)grpCostoSimple.style.display='none';
     // "Adelanto / Reserva": el paciente solo deja un pago para separar su
     // cupo, sin comprometer un horario todavía - no pide Hora, solo la
     // fecha en la que se dejó el adelanto (para poder regularizar).
@@ -3184,6 +3204,11 @@ function agOnServ(){
     if(grpPaqCatalogo)grpPaqCatalogo.style.display='none';
     if(grpProgExist)grpProgExist.style.display='none';
     if(grpCategoria)grpCategoria.style.display='none';
+    // "Tipo de paquete" tampoco aplica a un servicio del catálogo (Informe,
+    // Evaluación...) - su costo ya viene fijo de la tarifa, no hay catálogo
+    // de paquetes regular/gratuito que filtrar aquí.
+    const grpPaqGratServ=document.getElementById('ag-grp-paqGratuito');
+    if(grpPaqGratServ)grpPaqGratServ.style.display='none';
     const elCuotasInp=document.getElementById('ag-cuotas');
     const elCuotasNota=document.getElementById('ag-cuotas-nota');
     if(elCuotasInp){elCuotasInp.readOnly=true;elCuotasInp.value=serv.cuotas||1;}
@@ -4438,12 +4463,18 @@ async function guardarPaqueteFlujo(){
 }
 
 async function guardarSesion(){
-  const pacId=document.getElementById('ag-pac').value||'';
+  // Reprogramar mueve UNA sesión puntual ya existente - el paciente y el
+  // tipo de servicio quedaron fijados desde que se registró originalmente
+  // (los campos del modal ya quedan bloqueados para esto en
+  // abrirModalAgendar, pero igual se fuerza acá por si acaso: antes, si
+  // alguien lograba tocarlos, la sesión nueva se creaba a nombre de OTRO
+  // paciente o con un tipo inconsistente, en vez de la sesión original).
+  const pacId=_reprogDe?_reprogDe.pacId:(document.getElementById('ag-pac').value||'');
   const psId=document.getElementById('ag-ps').value||'';
   const terId=document.getElementById('ag-ter').value||'';
   const fecha=document.getElementById('ag-fecha').value;
   const hora=document.getElementById('ag-hora').value;
-  const tipo=document.getElementById('ag-tipo').value;
+  const tipo=_reprogDe?(_reprogDe.tipo||'paquete'):document.getElementById('ag-tipo').value;
   const costoRaw=parseFloat(document.getElementById('ag-costo').value)||0;
   const adelanto=parseFloat(document.getElementById('ag-adelanto').value)||0;
   const notas=document.getElementById('ag-notas').value;
