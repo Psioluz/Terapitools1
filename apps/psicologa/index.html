@@ -2346,10 +2346,14 @@ function renderSemana(){
   var leyEl=document.getElementById('semLeyenda');
   if(leyEl){
     var sw=function(color,texto){return '<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:3px;background:'+color+';display:inline-block"></span>'+texto+'</span>';};
+    // "📣 Campaña" antes salía siempre, aunque esta psicóloga nunca tenga
+    // sesiones de ese tipo (la mayoría solo hace Consulta normal) - ahora
+    // solo aparece si de verdad tiene alguna esta semana.
+    var tieneCampana=sesSem.some(function(s){return s.tipo==='Campaña';});
     leyEl.innerHTML=sw(PS.colorAgenda||'#00a0a0','Programado')+
       sw('#059669','Asistió')+sw('#dc2626','No asistió')+
       sw('#94a3b8','Reprogramado (R) / Permiso (P)')+
-      '<span style="display:flex;align-items:center;gap:4px">📣 Campaña</span>'+
+      (tieneCampana?'<span style="display:flex;align-items:center;gap:4px">📣 Campaña</span>':'')+
       '<span style="display:flex;align-items:center;gap:4px">🩺 Consulta</span>'+
       '<span style="display:flex;align-items:center;gap:4px">📞 Llamada con maestra</span>';
   }
