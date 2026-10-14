@@ -131,6 +131,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ficha-input{width:100%;padding:11px 13px;border:1.5px solid #f48fb1;border-radius:10px;font-size:13px;font-family:inherit;outline:none;resize:vertical;min-height:70px;color:#333;background:#fef8fb;box-sizing:border-box}
 .ficha-input:focus{border-color:#c2185b;background:#fff}
 .ficha-meta{background:linear-gradient(135deg,#fce4ec,#fdf2f8);border-radius:12px;padding:12px 14px;margin:12px 16px;border:1px solid #f48fb1}
+/* ── Widgets de fichas clínicas estructuradas (campos medibles por familia de terapia) ── */
+.fe-field{padding:0 16px;margin-bottom:14px}
+.fe-label{font-size:11px;font-weight:800;color:#c2185b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;display:block}
+.fe-chipbank{display:flex;flex-wrap:wrap;gap:6px}
+.fe-chip{padding:7px 12px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid #f48fb1;background:#fff;color:#880e4f;cursor:pointer;user-select:none}
+.fe-chip.sel{background:#c2185b;border-color:#c2185b;color:#fff}
+.fe-seg{display:flex;border-radius:10px;overflow:hidden;border:1.5px solid #f48fb1}
+.fe-seg-opt{flex:1;text-align:center;padding:10px 4px;font-size:11px;font-weight:700;cursor:pointer;color:#880e4f;background:#fff;border-right:1px solid #f48fb1}
+.fe-seg-opt:last-child{border-right:none}
+.fe-seg-opt.sel{background:#c2185b;color:#fff}
+.fe-scale5{display:flex;gap:5px}
+.fe-scale5 div{flex:1;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;cursor:pointer;border:1.5px solid #f48fb1;color:#880e4f;background:#fff}
+.fe-scale5 div.sel{background:#c2185b;border-color:#c2185b;color:#fff}
+.fe-emoji-row{display:flex;justify-content:space-between;gap:4px}
+.fe-emoji-row div{flex:1;text-align:center;padding:9px 2px;border-radius:10px;font-size:19px;cursor:pointer;border:1.5px solid #f48fb1;background:#fff}
+.fe-emoji-row div.sel{border-color:#c2185b;background:#fce4ec}
+.fe-checks{display:flex;flex-direction:column;gap:6px}
+.fe-chk{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:8px 11px;border:1.5px solid #f48fb1;border-radius:9px;color:#333;background:#fef8fb}
+.fe-chk input{accent-color:#c2185b;width:16px;height:16px}
+.fe-matrix{width:100%;border-collapse:collapse;font-size:11.5px}
+.fe-matrix td{padding:6px 4px;border-bottom:1px solid #f8d7e6}
+.fe-dotrow{display:flex;gap:5px;width:fit-content;margin-left:auto}
+.fe-dot{width:18px;height:18px;border-radius:50%;border:1.5px solid #f48fb1;cursor:pointer}
+.fe-dot.lvl1{background:#fde68a;border-color:#fde68a}
+.fe-dot.lvl2{background:#c2185b;border-color:#c2185b}
+.fe-abc{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.fe-abc label{font-size:9.5px;font-weight:800;color:#880e4f;display:block;margin-bottom:4px;text-align:center}
+.fe-abc textarea{width:100%;min-height:54px;font-size:10.5px;padding:7px;border:1.5px solid #f48fb1;border-radius:8px;font-family:inherit;background:#fef8fb;color:#333;box-sizing:border-box}
+.fe-note{font-size:10px;color:#9ca3af;line-height:1.5;margin-top:4px}
 .ficha-view-tabla{width:100%;border-collapse:collapse;font-size:12px}
 .ficha-view-tabla th{background:linear-gradient(135deg,#4a0e2e,#c2185b);color:#fff;padding:8px 10px;text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.3px}
 .ficha-view-tabla td{padding:9px 10px;border-bottom:1px solid #fce4ec;vertical-align:top}
@@ -668,22 +697,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div style="font-size:11px;font-weight:700;color:#880e4f;margin-bottom:6px">👥 Esta sesión es compartida entre 2 pacientes - completa la ficha de cada uno por separado:</div>
       <div style="display:flex;gap:8px" id="fichaPersonasBtns"></div>
     </div>
-    <!-- Campos de la ficha -->
-    <div class="ficha-campo">
-      <label class="ficha-label" id="fichaLblObjetivo">🎯 Objetivo de la sesión</label>
-      <textarea class="ficha-input" id="fichaObjetivo" placeholder="¿Qué se trabajará en esta sesión?"></textarea>
-    </div>
-    <div class="ficha-campo">
-      <label class="ficha-label" id="fichaLblActividad">⚡ Actividad realizada</label>
-      <textarea class="ficha-input" id="fichaActividad" placeholder="Describe las actividades y técnicas utilizadas..."></textarea>
-    </div>
-    <div class="ficha-campo">
-      <label class="ficha-label" id="fichaLblResultados">📊 Resultados observados</label>
-      <textarea class="ficha-input" id="fichaResultados" placeholder="¿Cómo respondió el paciente? Avances y observaciones..."></textarea>
-    </div>
-    <div class="ficha-campo">
-      <label class="ficha-label" id="fichaLblProxSesion">📅 Plan para la próxima sesión</label>
-      <textarea class="ficha-input" id="fichaProxSesion" placeholder="Objetivos y actividades para la próxima sesión..."></textarea>
+    <!-- Campos estructurados (chips/escalas/checks) según la familia clínica
+         de la terapia - ver FICHA_FAMILIAS. Se construyen dinámicamente en
+         abrirFichaSeguimiento(); si la terapia no matchea ninguna familia,
+         este bloque se queda oculto y se usan los 4 campos genéricos de
+         abajo, exactamente como antes. -->
+    <div id="fichaCamposDinamicos" style="display:none"></div>
+    <!-- Campos genéricos de texto libre (comportamiento original, sin
+         cambios) - se ocultan cuando sí hay una familia estructurada. -->
+    <div id="fichaCamposGenericos">
+      <div class="ficha-campo">
+        <label class="ficha-label" id="fichaLblObjetivo">🎯 Objetivo de la sesión</label>
+        <textarea class="ficha-input" id="fichaObjetivo" placeholder="¿Qué se trabajará en esta sesión?"></textarea>
+      </div>
+      <div class="ficha-campo">
+        <label class="ficha-label" id="fichaLblActividad">⚡ Actividad realizada</label>
+        <textarea class="ficha-input" id="fichaActividad" placeholder="Describe las actividades y técnicas utilizadas..."></textarea>
+      </div>
+      <div class="ficha-campo">
+        <label class="ficha-label" id="fichaLblResultados">📊 Resultados observados</label>
+        <textarea class="ficha-input" id="fichaResultados" placeholder="¿Cómo respondió el paciente? Avances y observaciones..."></textarea>
+      </div>
+      <div class="ficha-campo">
+        <label class="ficha-label" id="fichaLblProxSesion">📅 Plan para la próxima sesión</label>
+        <textarea class="ficha-input" id="fichaProxSesion" placeholder="Objetivos y actividades para la próxima sesión..."></textarea>
+      </div>
     </div>
     <!-- Botones -->
     <div style="padding:12px 16px 20px;display:flex;gap:10px">
@@ -3386,73 +3424,304 @@ var _fichaActual={pac:'',terapia:'',fecha:'',hora:''};
 // (case-insensitive) porque el nombre exacto de la terapia varía un poco
 // entre sedes (ej. "T. Ocupacional" vs "T. Ocupacional con integración
 // sensorial").
-var FICHA_PLANTILLAS=[
-  {clave:'lenguaje',lbls:{
-    objetivo:'🎯 Objetivo fonológico/lingüístico',actividad:'⚡ Ejercicios y estímulos usados',
-    resultados:'📊 Articulación/comprensión observada',proxSesion:'📅 Siguiente fonema/habilidad a trabajar'},
-   ph:{objetivo:'¿Qué fonema, estructura o habilidad del lenguaje se trabajará?',
-    actividad:'Ejercicios de articulación, repetición, estimulación del lenguaje...',
-    resultados:'¿Logró el sonido/palabra/frase? ¿Con o sin apoyo?',
-    proxSesion:'Próximo fonema u objetivo lingüístico a reforzar...'}},
-  {clave:'ocupacional',lbls:{
-    objetivo:'🎯 Objetivo sensorial/motor',actividad:'⚡ Actividades sensoriomotoras realizadas',
-    resultados:'📊 Respuesta sensorial/motora observada',proxSesion:'📅 Siguiente estímulo/habilidad motora'},
-   ph:{objetivo:'¿Qué habilidad motora o integración sensorial se trabajará?',
-    actividad:'Actividades de equilibrio, coordinación, estimulación sensorial...',
-    resultados:'¿Cómo toleró el estímulo? ¿Mejoró la coordinación/postura?',
-    proxSesion:'Próxima actividad sensoriomotora a introducir...'}},
-  {clave:'conduct',lbls:{
-    objetivo:'🎯 Conducta objetivo a modificar',actividad:'⚡ Estrategia/reforzador utilizado',
-    resultados:'📊 Frecuencia/intensidad de la conducta',proxSesion:'📅 Siguiente estrategia a reforzar'},
-   ph:{objetivo:'¿Qué conducta se busca aumentar o disminuir?',
-    actividad:'Reforzamiento, economía de fichas, extinción, modelado...',
-    resultados:'¿Disminuyó/aumentó la conducta? ¿Qué reforzador funcionó?',
-    proxSesion:'Próxima estrategia conductual a aplicar...'}},
-  {clave:'emocional',lbls:{
-    objetivo:'🎯 Emoción/habilidad socioemocional',actividad:'⚡ Dinámica o técnica emocional usada',
-    resultados:'📊 Regulación/expresión emocional observada',proxSesion:'📅 Siguiente habilidad emocional a trabajar'},
-   ph:{objetivo:'¿Qué emoción o habilidad socioemocional se trabajará?',
-    actividad:'Juego de roles, identificación de emociones, relajación...',
-    resultados:'¿Pudo identificar/regular la emoción? ¿Con qué apoyo?',
-    proxSesion:'Próxima habilidad emocional a reforzar...'}},
-  {clave:'atención',lbls:{objetivo:'🎯 Objetivo atencional',actividad:'⚡ Ejercicios de atención/concentración',
-    resultados:'📊 Tiempo/nivel de atención sostenida',proxSesion:'📅 Siguiente ejercicio atencional'},
-   ph:{objetivo:'¿Qué tipo de atención se busca mejorar (sostenida, selectiva...)?',
-    actividad:'Ejercicios de concentración, tareas con distractores...',
-    resultados:'¿Cuánto tiempo mantuvo la atención? ¿Con cuántos distractores?',
-    proxSesion:'Próximo ejercicio atencional a introducir...'}},
-  {clave:'psicológica',lbls:{objetivo:'🎯 Objetivo terapéutico',actividad:'⚡ Técnica/enfoque utilizado',
-    resultados:'📊 Avance/insight observado',proxSesion:'📅 Siguiente tema a abordar'},
-   ph:{objetivo:'¿Qué tema o habilidad psicológica se trabajará?',
-    actividad:'Técnica utilizada (cognitivo-conductual, juego terapéutico...)...',
-    resultados:'¿Qué avance o insight mostró el paciente?',
-    proxSesion:'Próximo tema a abordar en terapia...'}}
-];
-function _plantillaFicha(terapia){
+// ══════════════════════════════════════════════════════
+// FICHAS CLÍNICAS ESTRUCTURADAS (reemplaza las plantillas de solo
+// etiquetas/placeholders que había antes). Agrupa las 16 terapias del
+// catálogo en 5 familias clínicas, cada una con sus propios campos
+// medibles (chips, escalas, checks, matriz sensorial, ABC conductual) en
+// vez de 4 cajas de texto libre. Terapias que no matchean ninguna
+// familia (ej. "T. Virtual", certificados/informes/talleres) se quedan
+// con el formulario genérico de texto libre de siempre - ver
+// abrirFichaSeguimiento.
+//
+// Cada familia guarda, además de sus campos, una función resumen() que
+// convierte las respuestas estructuradas en las 4 cadenas de texto
+// (objetivo/actividad/resultados/proxSesion) que ya existían como
+// columnas de la tabla - así el PDF de Historial/Ficha Consolidada que
+// ya arma Administración (y el propio export de Psicóloga) siguen
+// funcionando sin tocarlos, leyendo un resumen legible en vez del dato
+// crudo. Lo estructurado en sí se guarda aparte, en la columna nueva
+// campos_estructurados (JSON), solo para futura visualización/reportes.
+var FICHA_FAMILIAS={
+  lenguaje:{
+    keywords:['lenguaje'],
+    titulo:'Lenguaje',
+    campos:[
+      {id:'reporte',tipo:'texto',label:'👂 Reporte de apoderado/colegio',placeholder:'¿Practicó en casa? ¿Algo que notó la familia esta semana?'},
+      {id:'procesos',tipo:'chips',multi:true,label:'🎯 Proceso fonológico / habilidad trabajada',
+        opciones:['Sustitución','Omisión de sílaba','Distorsión','Sílabas trabadas','Fluidez','Comprensión oral','Pragmática/uso social']},
+      {id:'inteligibilidad',tipo:'seg',label:'📊 Inteligibilidad del habla hoy',opciones:['<25%','25-50%','50-75%','>75%']},
+      {id:'nivelLogro',tipo:'seg',label:'🤝 Nivel de logro',opciones:['Independiente','Con modelado','Con apoyo físico','No logrado']},
+      {id:'observaciones',tipo:'texto',label:'📝 Observaciones / plan próxima sesión',placeholder:'Siguiente fonema u objetivo, tarea para casa...'}
+    ],
+    resumen:function(d){
+      return{
+        objetivo:(d.procesos||[]).join(', ')||'-',
+        actividad:'Reporte previo: '+(d.reporte||'-'),
+        resultados:'Inteligibilidad: '+(d.inteligibilidad||'-')+' · Nivel de logro: '+(d.nivelLogro||'-'),
+        proxSesion:d.observaciones||''
+      };
+    }
+  },
+  ocupacional:{
+    keywords:['ocupacional','integración sensorial','integracion sensorial'],
+    titulo:'Ocupacional / Sensorial',
+    campos:[
+      {id:'sensorial',tipo:'dotmatrix',label:'🖐️ Dominio sensorial trabajado',
+        filas:['Táctil','Vestibular (movimiento)','Propioceptivo'],niveles:['No trabajado','Tolerancia parcial','Buena tolerancia']},
+      {id:'areas',tipo:'chips',multi:true,label:'🎯 Área funcional trabajada',
+        opciones:['Motricidad fina','Motricidad gruesa','AVD (vestirse, comer)','Coordinación óculo-manual','Planificación motora']},
+      {id:'nivelLogro',tipo:'scale5',label:'📊 Nivel de logro (1-5)'},
+      {id:'apoyo',tipo:'checks',label:'🤝 Nivel de apoyo requerido',opciones:['Verbal','Físico/manual','Ninguno (independiente)']},
+      {id:'observaciones',tipo:'texto',label:'📝 Observaciones / plan próxima sesión',placeholder:'Reacciones puntuales, ajustes de ambiente necesarios...'}
+    ],
+    resumen:function(d){
+      var sens=(d.sensorial||[]).map(function(n,i){return['Táctil','Vestibular','Propioceptivo'][i]+': '+(['no trabajado','tolerancia parcial','buena tolerancia'][n]||'-');}).join(', ');
+      return{
+        objetivo:(d.areas||[]).join(', ')||'-',
+        actividad:sens||'-',
+        resultados:'Nivel de logro: '+(d.nivelLogro||'-')+'/5 · Apoyo: '+((d.apoyo||[]).join(', ')||'-'),
+        proxSesion:d.observaciones||''
+      };
+    }
+  },
+  psicologica:{
+    keywords:['cognitiva conductual','psicológica','psicologica','emocional','consulta','consejería','consejeria'],
+    titulo:'Psicológica / Conductual',
+    campos:[
+      {id:'tema',tipo:'chips',multi:true,label:'🎯 Tema / habilidad abordada',
+        opciones:['Manejo de emociones','Habilidades sociales','Autorregulación','Ansiedad','Conducta disruptiva','Pautas de crianza']},
+      {id:'tecnica',tipo:'chips',multi:true,label:'🧰 Técnica aplicada',
+        opciones:['TCC','Juego terapéutico','Economía de fichas','Relajación','Psicoeducación a padres']},
+      {id:'abc',tipo:'abc',label:'Si hubo una conducta puntual que registrar (opcional)',
+        ocultarSi:function(terapia){return(terapia||'').toLowerCase().indexOf('consejer')>-1;}},
+      {id:'animo',tipo:'emojiRango',label:'😊 Estado emocional: inicio → fin'},
+      {id:'participacion',tipo:'seg',label:'🗣️ Nivel de participación',opciones:['Resistente','Parcial','Activa']},
+      {id:'observaciones',tipo:'texto',label:'📝 Observaciones / plan próxima sesión',placeholder:'Insight relevante, siguiente tema a abordar...'}
+    ],
+    resumen:function(d){
+      var abcTxt=(d.abc&&(d.abc.antecedente||d.abc.conducta||d.abc.consecuencia))?
+        (' · ABC - Antecedente: '+(d.abc.antecedente||'-')+' / Conducta: '+(d.abc.conducta||'-')+' / Consecuencia: '+(d.abc.consecuencia||'-')):'';
+      return{
+        objetivo:(d.tema||[]).join(', ')||'-',
+        actividad:(d.tecnica||[]).join(', ')||'-',
+        resultados:'Ánimo inicio→fin: '+(d.animo&&d.animo.inicio||'-')+'→'+(d.animo&&d.animo.fin||'-')+' · Participación: '+(d.participacion||'-')+abcTxt,
+        proxSesion:d.observaciones||''
+      };
+    }
+  },
+  cognitivo:{
+    keywords:['habilidades cognitivas','atención y concentración','atencion y concentracion','aprendizaje'],
+    titulo:'Cognitivo / Aprendizaje',
+    campos:[
+      {id:'dominio',tipo:'chips',multi:true,label:'🧩 Dominio cognitivo trabajado',
+        opciones:['Atención sostenida','Atención selectiva','Memoria de trabajo','Funciones ejecutivas','Velocidad de procesamiento','Lectoescritura','Cálculo']},
+      {id:'tiempoAtencion',tipo:'seg',label:'⏱️ Tiempo de atención sostenida (min)',opciones:['<5','5-10','10-15','15-20','>20']},
+      {id:'desempeno',tipo:'seg',label:'📊 Nivel de desempeño vs. objetivo',opciones:['Por debajo','Esperado','Por encima']},
+      {id:'distractores',tipo:'chips',label:'🤝 Distractores tolerados',opciones:['Ninguno','1-2','3 o más']},
+      {id:'observaciones',tipo:'texto',label:'📝 Observaciones / plan próxima sesión',placeholder:'Estrategia que funcionó, siguiente ejercicio a introducir...'}
+    ],
+    resumen:function(d){
+      return{
+        objetivo:(d.dominio||[]).join(', ')||'-',
+        actividad:'Distractores tolerados: '+(d.distractores||'-'),
+        resultados:'Atención sostenida: '+(d.tiempoAtencion||'-')+' min · Desempeño: '+(d.desempeno||'-'),
+        proxSesion:d.observaciones||''
+      };
+    }
+  },
+  temprana:{
+    keywords:['estimulación temprana','estimulacion temprana','psicomot'],
+    titulo:'Est. Temprana / Psicomotricidad',
+    campos:[
+      {id:'areasDesarrollo',tipo:'dotmatrix',label:'🧸 Áreas del desarrollo trabajadas hoy',
+        filas:['Motor grueso','Motor fino','Lenguaje/comunicación','Socioemocional'],niveles:['No trabajado','Emergente','Logrado para su edad']},
+      {id:'actividad',tipo:'chips',multi:true,label:'🎯 Actividad principal',
+        opciones:['Juego sensoriomotor','Equilibrio/coordinación','Imitación','Juego simbólico']},
+      {id:'nivelLogro',tipo:'seg',label:'🤝 Nivel de logro',opciones:['Independiente','Con apoyo verbal','Con apoyo físico']},
+      {id:'observaciones',tipo:'texto',label:'📝 Observaciones / plan próxima sesión',placeholder:'Qué área priorizar la próxima vez...'}
+    ],
+    resumen:function(d){
+      var ar=(d.areasDesarrollo||[]).map(function(n,i){return['Motor grueso','Motor fino','Lenguaje','Socioemocional'][i]+': '+(['no trabajado','emergente','logrado'][n]||'-');}).join(', ');
+      return{
+        objetivo:(d.actividad||[]).join(', ')||'-',
+        actividad:ar||'-',
+        resultados:'Nivel de logro: '+(d.nivelLogro||'-'),
+        proxSesion:d.observaciones||''
+      };
+    }
+  }
+};
+// Documentos/evaluaciones formales del catálogo (certificados, constancias,
+// informes, talleres, evaluaciones) nunca son una sesión recurrente - se
+// excluyen ANTES de buscar familia, para que "Constancia de consulta" o
+// "Informe psicológico clínico" no matcheen por error solo por compartir
+// una palabra con una terapia real (ej. "consulta", "psicológic...").
+var FICHA_EXCLUSIONES=['certificado','constancia','informe','evaluaci','evalución','test vocacional','talleres'];
+function _familiaFicha(terapia){
   var t=(terapia||'').toLowerCase();
-  for(var i=0;i<FICHA_PLANTILLAS.length;i++){if(t.indexOf(FICHA_PLANTILLAS[i].clave)>-1)return FICHA_PLANTILLAS[i];}
+  for(var k=0;k<FICHA_EXCLUSIONES.length;k++){if(t.indexOf(FICHA_EXCLUSIONES[k])>-1)return null;}
+  var ids=['lenguaje','ocupacional','psicologica','cognitivo','temprana'];
+  for(var i=0;i<ids.length;i++){
+    var fam=FICHA_FAMILIAS[ids[i]];
+    for(var j=0;j<fam.keywords.length;j++){if(t.indexOf(fam.keywords[j])>-1){fam._id=ids[i];return fam;}}
+  }
   return null;
 }
+// Construye el HTML de un campo estructurado individual.
+function _feCampoHTML(campo,prev){
+  var html='<div class="fe-field"><label class="fe-label">'+campo.label+'</label>';
+  if(campo.tipo==='texto'){
+    html+='<textarea class="ficha-input" data-fe="'+campo.id+'" placeholder="'+(campo.placeholder||'')+'">'+(prev||'')+'</textarea>';
+  }else if(campo.tipo==='chips'){
+    html+='<div class="fe-chipbank" data-fe="'+campo.id+'" data-multi="'+(campo.multi?'1':'0')+'">'+
+      campo.opciones.map(function(o){
+        var sel=campo.multi?((prev||[]).indexOf(o)>-1):(prev===o);
+        return '<div class="fe-chip'+(sel?' sel':'')+'" onclick="_feToggleChip(this)">'+o+'</div>';
+      }).join('')+'</div>';
+  }else if(campo.tipo==='seg'){
+    html+='<div class="fe-seg" data-fe="'+campo.id+'">'+
+      campo.opciones.map(function(o){
+        return '<div class="fe-seg-opt'+(prev===o?' sel':'')+'" onclick="_feSelectSeg(this)">'+o+'</div>';
+      }).join('')+'</div>';
+  }else if(campo.tipo==='scale5'){
+    html+='<div class="fe-scale5" data-fe="'+campo.id+'">'+
+      [1,2,3,4,5].map(function(n){return '<div class="'+(prev===n?'sel':'')+'" onclick="_feSelectScale(this,'+n+')">'+n+'</div>';}).join('')+'</div>';
+  }else if(campo.tipo==='checks'){
+    html+='<div class="fe-checks" data-fe="'+campo.id+'">'+
+      campo.opciones.map(function(o){
+        var checked=campo.multi===false?(prev===o):((prev||[]).indexOf(o)>-1);
+        return '<label class="fe-chk"><input type="checkbox" value="'+o+'"'+(checked?' checked':'')+'> '+o+'</label>';
+      }).join('')+'</div>';
+  }else if(campo.tipo==='dotmatrix'){
+    html+='<table class="fe-matrix" data-fe="'+campo.id+'">'+
+      campo.filas.map(function(f,i){
+        var lvl=(prev&&prev[i])||0;
+        return '<tr><td>'+f+'</td><td style="text-align:right"><div class="fe-dotrow" data-fila="'+i+'">'+
+          [0,1,2].map(function(n){return '<div class="fe-dot'+(n===lvl&&lvl>0?(lvl===1?' lvl1':' lvl2'):'')+'" data-lvl="'+lvl+'" onclick="_feDotCycle(this)"></div>';}).join('')+
+          '</div></td></tr>';
+      }).join('')+'</table>'+
+      '<div class="fe-note">⚪ '+campo.niveles[0]+' · 🟡 '+campo.niveles[1]+' · 🟣 '+campo.niveles[2]+' (toca el punto para cambiar)</div>';
+  }else if(campo.tipo==='abc'){
+    html+='<div class="fe-abc" data-fe="'+campo.id+'">'+
+      '<div><label>Antecedente</label><textarea data-abc="antecedente" placeholder="¿Qué pasó justo antes?">'+((prev&&prev.antecedente)||'')+'</textarea></div>'+
+      '<div><label>Conducta</label><textarea data-abc="conducta" placeholder="¿Qué hizo exactamente?">'+((prev&&prev.conducta)||'')+'</textarea></div>'+
+      '<div><label>Consecuencia</label><textarea data-abc="consecuencia" placeholder="¿Qué pasó después?">'+((prev&&prev.consecuencia)||'')+'</textarea></div>'+
+      '</div>';
+  }else if(campo.tipo==='emojiRango'){
+    var emojis=['😞','😔','😐','🙂','😊'];
+    function fila(valId,valPrev){
+      return '<div class="fe-emoji-row" data-fe-emoji="'+valId+'">'+
+        emojis.map(function(e,i){return '<div class="'+(valPrev===(i+1)?'sel':'')+'" onclick="_feSelectEmoji(this,'+(i+1)+')">'+e+'</div>';}).join('')+'</div>';
+    }
+    html+='<div data-fe="'+campo.id+'" style="display:flex;align-items:center;gap:10px">'+
+      '<div style="flex:1">'+fila('inicio',prev&&prev.inicio)+'</div>'+
+      '<span style="color:#9ca3af;font-size:14px">→</span>'+
+      '<div style="flex:1">'+fila('fin',prev&&prev.fin)+'</div></div>';
+  }
+  html+='</div>';
+  return html;
+}
+function _feToggleChip(el){
+  var bank=el.parentElement;
+  if(bank.dataset.multi==='0'){bank.querySelectorAll('.fe-chip').forEach(function(c){if(c!==el)c.classList.remove('sel');});el.classList.add('sel');}
+  else{el.classList.toggle('sel');}
+}
+function _feSelectSeg(el){
+  el.parentElement.querySelectorAll('.fe-seg-opt').forEach(function(o){o.classList.remove('sel');});
+  el.classList.add('sel');
+}
+function _feSelectScale(el){
+  el.parentElement.querySelectorAll('div').forEach(function(d){d.classList.remove('sel');});
+  el.classList.add('sel');
+}
+function _feSelectEmoji(el){
+  el.parentElement.querySelectorAll('div').forEach(function(d){d.classList.remove('sel');});
+  el.classList.add('sel');
+}
+function _feDotCycle(el){
+  var row=el.parentElement;
+  var cur=parseInt(el.dataset.lvl||'0');
+  var next=(cur+1)%3;
+  row.querySelectorAll('.fe-dot').forEach(function(d){
+    d.classList.remove('lvl1','lvl2');
+    d.dataset.lvl=String(next);
+    if(next===1)d.classList.add('lvl1');
+    if(next===2)d.classList.add('lvl2');
+  });
+}
+// Lee del DOM las respuestas actuales de un contenedor de campos
+// estructurados, según la definición de campos de la familia.
+function _feLeer(familia,cont){
+  var datos={};
+  familia.campos.forEach(function(campo){
+    var el=cont.querySelector('[data-fe="'+campo.id+'"]');
+    if(!el)return;
+    if(campo.tipo==='texto'){datos[campo.id]=el.value.trim();}
+    else if(campo.tipo==='chips'){
+      var sel=Array.prototype.map.call(el.querySelectorAll('.fe-chip.sel'),function(c){return c.textContent;});
+      datos[campo.id]=campo.multi?sel:(sel[0]||'');
+    }
+    else if(campo.tipo==='seg'){var s=el.querySelector('.fe-seg-opt.sel');datos[campo.id]=s?s.textContent:'';}
+    else if(campo.tipo==='scale5'){var s2=el.querySelector('div.sel');datos[campo.id]=s2?parseInt(s2.textContent):null;}
+    else if(campo.tipo==='checks'){
+      datos[campo.id]=Array.prototype.map.call(el.querySelectorAll('input:checked'),function(c){return c.value;});
+    }
+    else if(campo.tipo==='dotmatrix'){
+      datos[campo.id]=Array.prototype.map.call(el.querySelectorAll('.fe-dotrow'),function(r){
+        return parseInt(r.querySelector('.fe-dot').dataset.lvl||'0');
+      });
+    }
+    else if(campo.tipo==='abc'){
+      datos[campo.id]={
+        antecedente:el.querySelector('[data-abc="antecedente"]').value.trim(),
+        conducta:el.querySelector('[data-abc="conducta"]').value.trim(),
+        consecuencia:el.querySelector('[data-abc="consecuencia"]').value.trim()
+      };
+    }
+    else if(campo.tipo==='emojiRango'){
+      var i1=el.querySelector('[data-fe-emoji="inicio"] div.sel'),i2=el.querySelector('[data-fe-emoji="fin"] div.sel');
+      datos[campo.id]={inicio:i1?Array.prototype.indexOf.call(i1.parentElement.children,i1)+1:null,
+        fin:i2?Array.prototype.indexOf.call(i2.parentElement.children,i2)+1:null};
+    }
+  });
+  return datos;
+}
+var _fichaFamiliaActual=null;
 function abrirFichaSeguimiento(pacNom,terapia,fecha,hora){
   var personas=_dividirNombreCompartido(pacNom);
   _fichaActual={pac:pacNom,terapia:terapia,fecha:fecha||today(),hora:hora||'',
     personas:personas,personaActiva:0,guardados:[false,false]};
-  // Plantilla según el tipo de terapia - si no hay una específica, se
-  // queda con las etiquetas/placeholders genéricos de siempre.
-  var pl=_plantillaFicha(terapia);
-  var LBL_DEF={objetivo:'🎯 Objetivo de la sesión',actividad:'⚡ Actividad realizada',
-    resultados:'📊 Resultados observados',proxSesion:'📅 Plan para la próxima sesión'};
-  var PH_DEF={objetivo:'¿Qué se trabajará en esta sesión?',
-    actividad:'Describe las actividades y técnicas utilizadas...',
-    resultados:'¿Cómo respondió el paciente? Avances y observaciones...',
-    proxSesion:'Objetivos y actividades para la próxima sesión...'};
-  [['fichaLblObjetivo','fichaObjetivo','objetivo'],['fichaLblActividad','fichaActividad','actividad'],
-   ['fichaLblResultados','fichaResultados','resultados'],['fichaLblProxSesion','fichaProxSesion','proxSesion']]
-    .forEach(function(t3){
-      var lblEl=document.getElementById(t3[0]),inputEl=document.getElementById(t3[1]),campo=t3[2];
-      if(lblEl)lblEl.textContent=(pl&&pl.lbls[campo])||LBL_DEF[campo];
-      if(inputEl)inputEl.placeholder=(pl&&pl.ph[campo])||PH_DEF[campo];
-    });
+  // Familia clínica según el tipo de terapia - si no hay una que matchee,
+  // se queda con los 4 campos genéricos de texto libre de siempre.
+  _fichaFamiliaActual=_familiaFicha(terapia);
+  var contDinamico=document.getElementById('fichaCamposDinamicos');
+  var contGenerico=document.getElementById('fichaCamposGenericos');
+  if(_fichaFamiliaActual){
+    var ocultarAbc=_fichaFamiliaActual._id==='psicologica';
+    contDinamico.innerHTML=_fichaFamiliaActual.campos
+      .filter(function(c){return!(c.ocultarSi&&c.ocultarSi(terapia));})
+      .map(function(c){return _feCampoHTML(c,null);}).join('');
+    contDinamico.style.display='block';
+    contGenerico.style.display='none';
+  }else{
+    contDinamico.style.display='none';
+    contDinamico.innerHTML='';
+    contGenerico.style.display='block';
+    var LBL_DEF={objetivo:'🎯 Objetivo de la sesión',actividad:'⚡ Actividad realizada',
+      resultados:'📊 Resultados observados',proxSesion:'📅 Plan para la próxima sesión'};
+    var PH_DEF={objetivo:'¿Qué se trabajará en esta sesión?',
+      actividad:'Describe las actividades y técnicas utilizadas...',
+      resultados:'¿Cómo respondió el paciente? Avances y observaciones...',
+      proxSesion:'Objetivos y actividades para la próxima sesión...'};
+    [['fichaLblObjetivo','fichaObjetivo','objetivo'],['fichaLblActividad','fichaActividad','actividad'],
+     ['fichaLblResultados','fichaResultados','resultados'],['fichaLblProxSesion','fichaProxSesion','proxSesion']]
+      .forEach(function(t3){
+        var lblEl=document.getElementById(t3[0]),inputEl=document.getElementById(t3[1]),campo=t3[2];
+        if(lblEl)lblEl.textContent=LBL_DEF[campo];
+        if(inputEl){inputEl.placeholder=PH_DEF[campo];inputEl.value='';}
+      });
+  }
   var elFecha=document.getElementById('fichaFecha');if(elFecha)elFecha.textContent=fmtF(fecha||today());
   var elTer=document.getElementById('fichaTerapia');if(elTer)elTer.textContent=terapia||'No especificada';
   var elPs=document.getElementById('fichaPsicologa');if(elPs)elPs.textContent=PS.nombre||'-';
@@ -3492,6 +3761,15 @@ function abrirFichaSeguimiento(pacNom,terapia,fecha,hora){
 // indicada - null/undefined cuando la sesión no es compartida. Misma
 // cascada de siempre: caché ya sincronizado -> localStorage del equipo ->
 // consulta directa a Supabase por si aún no llegó a este dispositivo.
+// Reconstruye el contenedor de campos estructurados con valores previos
+// (reabrir una ficha ya guardada, o cambiar entre hermanos) - igual que
+// _feCampoHTML pero pasando el valor guardado de cada campo como "prev".
+function _feRestaurar(familia,cont,datos,terapia){
+  datos=datos||{};
+  cont.innerHTML=familia.campos
+    .filter(function(c){return!(c.ocultarSi&&c.ocultarSi(terapia));})
+    .map(function(c){return _feCampoHTML(c,datos[c.id]);}).join('');
+}
 function _cargarCamposFichaPersona(personaInd){
   var pacNom=_fichaActual.pac,terapia=_fichaActual.terapia,fecha=_fichaActual.fecha,hora=_fichaActual.hora;
   var saved={};
@@ -3505,14 +3783,16 @@ function _cargarCamposFichaPersona(personaInd){
     saved={objetivo:fichaSync.objetivo,actividad:fichaSync.actividad,resultados:fichaSync.resultados,proxSesion:fichaSync.proxSesion};
   }
   var placeholdersOrig={};
-  ['fichaObjetivo','fichaActividad','fichaResultados','fichaProxSesion'].forEach(function(id,i){
-    var el=document.getElementById(id);
-    if(el){
-      placeholdersOrig[id]=el.placeholder;
-      el.value=saved[['objetivo','actividad','resultados','proxSesion'][i]]||'';
-      if(!el.value)el.placeholder='Verificando si ya la llenaste...';
-    }
-  });
+  if(!_fichaFamiliaActual){
+    ['fichaObjetivo','fichaActividad','fichaResultados','fichaProxSesion'].forEach(function(id,i){
+      var el=document.getElementById(id);
+      if(el){
+        placeholdersOrig[id]=el.placeholder;
+        el.value=saved[['objetivo','actividad','resultados','proxSesion'][i]]||'';
+        if(!el.value)el.placeholder='Verificando si ya la llenaste...';
+      }
+    });
+  }
   // Siempre se confirma contra Supabase (fuente real), no solo cuando la
   // caché en memoria está vacía: la caché se reinicia cada vez que se
   // recarga la app (es intencional, no guarda nada clínico en el
@@ -3533,6 +3813,11 @@ function _cargarCamposFichaPersona(personaInd){
     if(!_fichaActual||_fichaActual.pac!==pacNom||_fichaActual.fecha!==(fecha||today())){_restorePh();return;}
     if((_fichaActual.personas?_fichaActual.personas[_fichaActual.personaActiva]:null)!==personaInd){_restorePh();return;}
     var f=r[0];
+    if(_fichaFamiliaActual&&f.campos_estructurados){
+      var cont=document.getElementById('fichaCamposDinamicos');
+      if(cont)_feRestaurar(_fichaFamiliaActual,cont,f.campos_estructurados,terapia);
+      return;
+    }
     var map={fichaObjetivo:f.objetivo,fichaActividad:f.actividad,fichaResultados:f.resultados,fichaProxSesion:f.proxima_sesion};
     Object.keys(map).forEach(function(id){
       var el=document.getElementById(id);
@@ -3550,12 +3835,17 @@ function _fichaSeleccionarPersona(idx){
   if(!_fichaActual.personas)return;
   var actual=_fichaActual.personaActiva;
   if(!_fichaActual.buffers)_fichaActual.buffers=[{},{}];
-  _fichaActual.buffers[actual]={
-    objetivo:document.getElementById('fichaObjetivo')?.value||'',
-    actividad:document.getElementById('fichaActividad')?.value||'',
-    resultados:document.getElementById('fichaResultados')?.value||'',
-    proxSesion:document.getElementById('fichaProxSesion')?.value||''
-  };
+  if(_fichaFamiliaActual){
+    var contAct=document.getElementById('fichaCamposDinamicos');
+    _fichaActual.buffers[actual]={estructurado:contAct?_feLeer(_fichaFamiliaActual,contAct):{}};
+  }else{
+    _fichaActual.buffers[actual]={
+      objetivo:document.getElementById('fichaObjetivo')?.value||'',
+      actividad:document.getElementById('fichaActividad')?.value||'',
+      resultados:document.getElementById('fichaResultados')?.value||'',
+      proxSesion:document.getElementById('fichaProxSesion')?.value||''
+    };
+  }
   _fichaActual.personaActiva=idx;
   var elPac=document.getElementById('fichaPacNom');if(elPac)elPac.textContent=_fichaActual.personas[idx];
   document.querySelectorAll('#fichaPersonasBtns button').forEach(function(b){
@@ -3565,6 +3855,16 @@ function _fichaSeleccionarPersona(idx){
     b.style.borderColor=i===idx?'#c2185b':'#f1c7da';
   });
   var buf=_fichaActual.buffers[idx];
+  if(_fichaFamiliaActual){
+    var contNew=document.getElementById('fichaCamposDinamicos');
+    if(buf&&buf.estructurado&&Object.keys(buf.estructurado).length){
+      if(contNew)_feRestaurar(_fichaFamiliaActual,contNew,buf.estructurado,_fichaActual.terapia);
+    }else{
+      if(contNew)_feRestaurar(_fichaFamiliaActual,contNew,{},_fichaActual.terapia);
+      _cargarCamposFichaPersona(_fichaActual.personas[idx]);
+    }
+    return;
+  }
   if(buf&&(buf.objetivo||buf.actividad||buf.resultados||buf.proxSesion)){
     var elO=document.getElementById('fichaObjetivo');if(elO)elO.value=buf.objetivo||'';
     var elA=document.getElementById('fichaActividad');if(elA)elA.value=buf.actividad||'';
@@ -3579,6 +3879,7 @@ function cerrarFichaSeguimiento(){
   var modal=document.getElementById('modalFichaSegui');
   if(modal){modal.classList.remove('open');modal.style.display='';document.body.style.overflow='';document.documentElement.style.overflow='';}
   _fichaActual={pac:'',terapia:'',fecha:'',hora:''};
+  _fichaFamiliaActual=null;
 }
 
 function guardarFichaSeguimiento(){
@@ -3597,11 +3898,26 @@ function guardarFichaSeguimiento(){
   // sesión/paquete compartido) siga encontrándolas.
   var personas=_fichaActual.personas;
   var personaInd=personas?personas[_fichaActual.personaActiva]:null;
-  var objetivo=document.getElementById('fichaObjetivo')?document.getElementById('fichaObjetivo').value.trim():'';
-  var actividad=document.getElementById('fichaActividad')?document.getElementById('fichaActividad').value.trim():'';
-  var resultados=document.getElementById('fichaResultados')?document.getElementById('fichaResultados').value.trim():'';
-  var proxSesion=document.getElementById('fichaProxSesion')?document.getElementById('fichaProxSesion').value.trim():'';
-  if(!objetivo&&!actividad){showToast('Completa Objetivo y Actividad','err');return;}
+  var objetivo,actividad,resultados,proxSesion,camposEstructurados=null;
+  if(_fichaFamiliaActual){
+    // Ficha con campos estructurados (chips/escalas/checks) - se leen del
+    // DOM, se guardan tal cual en campos_estructurados (JSON), y además se
+    // arma un resumen de texto para las 4 columnas de siempre, para que el
+    // historial/PDF que ya lee esas columnas (Administración incluida)
+    // siga mostrando algo legible sin tener que tocar ese código aparte.
+    var contG=document.getElementById('fichaCamposDinamicos');
+    camposEstructurados=contG?_feLeer(_fichaFamiliaActual,contG):{};
+    var resumen=_fichaFamiliaActual.resumen(camposEstructurados);
+    objetivo=resumen.objetivo||'';actividad=resumen.actividad||'';
+    resultados=resumen.resultados||'';proxSesion=resumen.proxSesion||'';
+    if(objetivo==='-'&&actividad==='-'&&!proxSesion){showToast('Completa al menos un campo antes de guardar','err');return;}
+  }else{
+    objetivo=document.getElementById('fichaObjetivo')?document.getElementById('fichaObjetivo').value.trim():'';
+    actividad=document.getElementById('fichaActividad')?document.getElementById('fichaActividad').value.trim():'';
+    resultados=document.getElementById('fichaResultados')?document.getElementById('fichaResultados').value.trim():'';
+    proxSesion=document.getElementById('fichaProxSesion')?document.getElementById('fichaProxSesion').value.trim():'';
+    if(!objetivo&&!actividad){showToast('Completa Objetivo y Actividad','err');return;}
+  }
   var ficha={pac:pac,terapia:terapia,fecha:fecha||today(),psNombre:PS.nombre,sede:PS.sede,
     objetivo:objetivo,actividad:actividad,resultados:resultados,proxSesion:proxSesion,
     ts:Date.now(),hora:_fichaActual.hora,personaInd:personaInd||''};
@@ -3630,7 +3946,8 @@ function guardarFichaSeguimiento(){
     var datosFicha={
       fecha:ficha.fecha,hora:ficha.hora||null,paciente_nombre:pac,terapia:terapia||'',
       psicologa_nombre:PS.nombre||'',sede:PS.sede||'',objetivo:objetivo,actividad:actividad,
-      resultados:resultados,proxima_sesion:proxSesion,paciente_individual:personaInd||null
+      resultados:resultados,proxima_sesion:proxSesion,paciente_individual:personaInd||null,
+      campos_estructurados:camposEstructurados
     };
     if(existentes&&existentes.length){
       return sbPatch('fichas_seguimiento',datosFicha,{id:'eq.'+existentes[0].id});
