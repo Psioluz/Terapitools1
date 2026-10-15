@@ -2909,7 +2909,7 @@ async function agCargarProgramasActivos(){
     // ni cancelado - esas no son sesiones "vividas") y solo se da por
     // completado si ese conteo real también alcanza el total.
     const sesionesReales=DB.sesiones.filter(function(s){
-      return s._sb&&s._sb.programa_id===p.id&&s.estado!=='permiso'&&s.estado!=='reprogramado'&&s.estado!=='cancelado';
+      return s._sb&&s._sb.programa_id===p.id&&s.estado!=='permiso'&&s.estado!=='reprogramado'&&s.estado!=='cancelado'&&s.estado!=='congelado';
     }).length;
     if(asignadas>=(p.nro_sesiones_total||0)&&!tienePendientes&&sesionesReales>=(p.nro_sesiones_total||0)){
       sbPatch('programas_paciente',{estado:'completado'},{id:'eq.'+p.id}).catch(function(){});
