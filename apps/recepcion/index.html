@@ -2860,7 +2860,22 @@ async function agCargarProgramasActivos(){
   todosActivos.forEach(function(p){
     const asignadas=(p.programa_terapias||[]).reduce(function(a,t){return a+(t.sesiones_asignadas||0);},0);
     const tienePendientes=DB.sesiones.some(function(s){return s._sb&&s._sb.programa_id===p.id&&s.estado==='programado';});
-    if(asignadas>=(p.nro_sesiones_total||0)&&!tienePendientes){
+    // "asignadas" es cuánto se LE ASIGNÓ al paquete al crearlo (de una sola
+    // vez, en modo "generar") - no cuántas filas de sesión existen de
+    // verdad hoy. Si a una sesión le dieron Permiso/Congelar y su
+    // reposición terminó sin nro_en_paquete (bug ya corregido a mano una
+    // vez, con Katherine Challco), esa sesión "desaparece" del conteo real
+    // aunque "asignadas" siga en el total - y como tampoco queda ninguna
+    // fila en estado "programado" (la reposición nunca se creó), este
+    // chequeo marcaba el paquete como completado sin que el paciente
+    // hubiera tenido en realidad sus sesiones contratadas. Ahora se cuenta
+    // cuántas filas de sesión REALES existen (ni permiso, ni reprogramado,
+    // ni cancelado - esas no son sesiones "vividas") y solo se da por
+    // completado si ese conteo real también alcanza el total.
+    const sesionesReales=DB.sesiones.filter(function(s){
+      return s._sb&&s._sb.programa_id===p.id&&s.estado!=='permiso'&&s.estado!=='reprogramado'&&s.estado!=='cancelado';
+    }).length;
+    if(asignadas>=(p.nro_sesiones_total||0)&&!tienePendientes&&sesionesReales>=(p.nro_sesiones_total||0)){
       sbPatch('programas_paciente',{estado:'completado'},{id:'eq.'+p.id}).catch(function(){});
     }else{
       _agProgramasActivos.push(p);
