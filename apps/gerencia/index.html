@@ -4399,10 +4399,14 @@ async function renderMetasPsicologas(){
     // "asistio" sin importar la hora), así que esto SIEMPRE daba 100% a
     // cualquiera con al menos una sesión asistida. Se mide con
     // asistencia_personal (hora de entrada real + motivo_tardanza).
+    // Esta tabla es solo de psicólogas - no crear filas nuevas desde
+    // asistencia_personal (ahí también quedan las recepcionistas desde que
+    // marcan su propia asistencia), solo sumar puntualidad a quien ya
+    // tiene sesiones este mes.
     var asistPers=await accGet('asistencia_personal',{select:'psicologa,estado,motivo_tardanza',fecha:'gte.'+desde,limit:'2000'});
     (asistPers||[]).forEach(function(a){
-      if(!a.psicologa)return;
-      var p=por[a.psicologa]=por[a.psicologa]||{t:0,aTiempo:0,tarde:0,pacs:{}};
+      if(!a.psicologa||!por[a.psicologa])return;
+      var p=por[a.psicologa];
       if(a.estado==='presente'){if(a.motivo_tardanza)p.tarde++;else p.aTiempo++;}
     });
     noms=Object.keys(por);
