@@ -500,6 +500,7 @@ try{
       <input type="hidden" id="apFecha">
     </div>
   </div>
+  <div id="miAsistCard"></div>
   <div class="grid g3" style="margin-bottom:16px">
     <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:12px;padding:14px;text-align:center">
       <div style="width:40px;height:40px;margin:0 auto 8px;border-radius:10px;background:#10b981;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 8px rgba(16,185,129,.5)">✅</div>
@@ -1577,6 +1578,7 @@ async function doLogin() {
     }
     _sede=user.sede;
     DB.sede=user.sede; DB.usuario=user.nombre||user.email;
+    DB.miRecepcionista=user;
     try{sbPost('log_accesos',{app:'recepcion',usuario:DB.usuario,sede:DB.sede}).catch(function(){});}catch(e){}
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('app').style.display='flex';
@@ -1833,6 +1835,17 @@ function _horaInicioEfectiva(ps,fecha){
   const diasEsp=parseDiasTexto(ps.diaEspecial,[]);
   if(diasEsp.indexOf(diaNombre)>-1)return'08:00';
   return(ps.inicio||'13:15').substring(0,5);
+}
+// Misma idea que _horaInicioEfectiva pero para una recepcionista: su fila
+// de Supabase (DB.miRecepcionista) trae las columnas crudas dia_completo/
+// hora_inicio en vez de los campos ya mapeados de DB.psicologas.
+function _horaInicioRecepcionista(rec,fecha){
+  if(!rec)return'';
+  const d=new Date(fecha+'T12:00:00');
+  const diaNombre=diaFull[d.getDay()];
+  const diasCompleto=parseDiasTexto(rec.dia_completo,[]);
+  if(diasCompleto.indexOf(diaNombre)>-1)return'08:00';
+  return(rec.hora_inicio||'13:15').substring(0,5);
 }
 function horasPsEnDia(ps,diaNombre){
   if(!ps||!diaNombre)return[];
@@ -5520,19 +5533,46 @@ function _asistFromSB(){
   // que usa esta pantalla. Supabase es la única fuente - no hay Sheet ni localStorage.
   return (DB.asistPersonal||[]).map(function(a){
     const nom=a.psicologa||a.psicologa_nombre||'';
-    const ps=DB.psicologas.find(function(p){return p.nombre===nom;});
+    const esRecep=a.rol==='recepcionista';
+    const ps=esRecep?null:DB.psicologas.find(function(p){return p.nombre===nom;});
     return {id:a.id,psId:ps?ps.id:nom,fecha:a.fecha,horaLlegada:a.entrada||'',nombre:nom,
-      cargo:'Psicóloga',sede:a.sede||DB.sede,estado:a.estado||'presente',
+      cargo:esRecep?'Recepción':'Psicóloga',sede:a.sede||DB.sede,estado:a.estado||'presente',
       registradoPor:a.registrado_por||'',motivoTardanza:a.motivo_tardanza||''};
   }).filter(function(r){return r.sede===DB.sede;});
 }
 
+function renderMiAsistencia(lista,fecha){
+  const el=document.getElementById('miAsistCard');if(!el)return;
+  const rec=DB.miRecepcionista;
+  if(!rec){el.innerHTML='';return;}
+  const reg=lista.find(r=>r.nombre===rec.nombre&&r.cargo==='Recepción');
+  const horaInicio=_horaInicioRecepcionista(rec,fecha);
+  const estado=reg
+    ?'<div style="font-size:12px;font-weight:700;color:'+(reg.estado==='presente'?'var(--green)':'var(--red)')+'">'+
+      (reg.estado==='presente'?'✅ Llegaste a las '+reg.horaLlegada:'❌ Marcada ausente - '+reg.horaLlegada)+'</div>'+
+      (reg.motivoTardanza?'<div style="font-size:11px;color:var(--orange);margin-top:2px">⏰ Tardanza: '+reg.motivoTardanza+'</div>':'')
+    :'<div style="font-size:12px;color:var(--muted)">⏳ Aún no marcas tu asistencia de hoy</div>';
+  const btns=reg
+    ?'<button class="btn btn-outline btn-sm" onclick="desmarcarAsistPropia()">↩️ Desmarcar</button>'
+    :'<button class="btn btn-success btn-sm" onclick="marcarAsistPropia(\'presente\')">✅ Presente</button>'+
+     ' <button class="btn btn-danger btn-sm" onclick="marcarAsistPropia(\'ausente\')">❌ Ausente</button>';
+  el.innerHTML='<div style="background:var(--card);border-radius:12px;border:2px solid #e91e8c;padding:14px;margin-bottom:16px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">'+
+    '<div style="flex:1">'+
+    '<div style="font-size:11px;font-weight:800;color:#e91e8c;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px">💻 Mi Asistencia</div>'+
+    '<div style="font-size:15px;font-weight:800;margin-bottom:4px">'+rec.nombre+'</div>'+
+    '<div style="font-size:11px;color:var(--muted)">⏰ Entrada esperada hoy: '+horaInicio+' - '+(rec.hora_fin||'20:00').substring(0,5)+'</div>'+
+    estado+'</div>'+
+    '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">'+btns+'</div>'+
+    '</div></div>';
+}
 async function renderAsistPersonal(){
   const fecha=today();
   const apFEl=document.getElementById('apFecha');if(apFEl)apFEl.value=fecha;
   const apLbl=document.getElementById('apFechaLabel');
   if(apLbl){const d=new Date(fecha+'T12:00:00');const dias=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];apLbl.textContent=dias[d.getDay()]+' '+d.getDate()+' '+meses[d.getMonth()];}
   let lista=_asistFromSB().filter(r=>r.fecha===fecha);
+  renderMiAsistencia(lista,fecha);
   const presentes=lista.filter(r=>r.estado==='presente').length;
   const ausentes=lista.filter(r=>r.estado==='ausente').length;
   const elP=document.getElementById('ap-presentes');if(elP)elP.textContent=presentes;
@@ -5617,12 +5657,13 @@ async function confirmarTardanza(){
   if(!motivo){showToast('Indica el motivo de la tardanza','error');return;}
   const p=_tardanzaPend;_tardanzaPend=null;
   closeModal('modalTardanza');
-  await _guardarAsistPersonal(p.ps,p.fecha,p.estado,p.hora,motivo);
+  if(p.self){await _guardarAsistPersonal(p.rec,p.fecha,p.estado,p.hora,motivo,'recepcionista');}
+  else{await _guardarAsistPersonal(p.ps,p.fecha,p.estado,p.hora,motivo);}
 }
-async function _guardarAsistPersonal(ps,fecha,estado,hora,motivoTardanza){
+async function _guardarAsistPersonal(ps,fecha,estado,hora,motivoTardanza,rol){
   showToast('⏳ Guardando...');
   try{
-    const rows=await sbPost('asistencia_personal',{fecha:fecha,sede:DB.sede,psicologa:ps.nombre,entrada:hora,estado:estado,registrado_por:DB.usuario||'',motivo_tardanza:motivoTardanza||null});
+    const rows=await sbPost('asistencia_personal',{fecha:fecha,sede:DB.sede,psicologa:ps.nombre,entrada:hora,estado:estado,registrado_por:DB.usuario||'',motivo_tardanza:motivoTardanza||null,rol:rol||'psicologa'});
     if(rows&&rows[0]){DB.asistPersonal=(DB.asistPersonal||[]).concat([rows[0]]);}
     renderAsistPersonal();
     showToast(estado==='presente'?(motivoTardanza?'⏰ '+ps.nombre+' llegó tarde - motivo registrado':'✅ '+ps.nombre+' marcada presente'):'❌ '+ps.nombre+' ausente');
@@ -5635,6 +5676,40 @@ async function desmarcarP(btn){
   const fecha=btn.dataset.fecha;
   const ps=DB.psicologas.find(p=>p.id===psId);if(!ps)return;
   const reg=(DB.asistPersonal||[]).find(a=>(a.psicologa||a.psicologa_nombre)===ps.nombre&&a.fecha===fecha&&a.sede===DB.sede);
+  if(!reg){renderAsistPersonal();return;}
+  try{
+    if(reg.id) await sbDelete('asistencia_personal',{id:'eq.'+reg.id});
+    DB.asistPersonal=(DB.asistPersonal||[]).filter(a=>a!==reg);
+    renderAsistPersonal();
+    showToast('Registro eliminado');
+  }catch(e){showToast('Error al eliminar: '+e.message,'error');console.error('[asistencia SB]',e);}
+}
+
+// La recepcionista marca su propia asistencia (nadie más la marca por
+// ella, a diferencia de las psicólogas que las marca Recepción).
+async function marcarAsistPropia(estado){
+  const rec=DB.miRecepcionista;
+  if(!rec){showToast('No se encontró tu registro de recepcionista','error');return;}
+  const fecha=today();
+  if((DB.asistPersonal||[]).find(a=>(a.psicologa||a.psicologa_nombre)===rec.nombre&&a.fecha===fecha&&a.sede===DB.sede&&a.rol==='recepcionista')){
+    showToast('Ya registraste tu asistencia hoy','error');return;
+  }
+  const hora=horaLima(new Date());
+  const horaInicio=_horaInicioRecepcionista(rec,fecha);
+  if(estado==='presente'&&horaInicio&&hora>horaInicio){
+    _tardanzaPend={self:true,rec:rec,fecha:fecha,estado:estado,hora:hora};
+    const info=document.getElementById('tardanza-info');
+    if(info)info.innerHTML='<b>'+rec.nombre+'</b> - entrada '+hora+' (horario: '+horaInicio+')';
+    const motInp=document.getElementById('tardanza-motivo');if(motInp)motInp.value='';
+    openModal('modalTardanza');
+    return;
+  }
+  await _guardarAsistPersonal(rec,fecha,estado,hora,'','recepcionista');
+}
+async function desmarcarAsistPropia(){
+  const rec=DB.miRecepcionista;if(!rec)return;
+  const fecha=today();
+  const reg=(DB.asistPersonal||[]).find(a=>(a.psicologa||a.psicologa_nombre)===rec.nombre&&a.fecha===fecha&&a.sede===DB.sede&&a.rol==='recepcionista');
   if(!reg){renderAsistPersonal();return;}
   try{
     if(reg.id) await sbDelete('asistencia_personal',{id:'eq.'+reg.id});

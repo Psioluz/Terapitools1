@@ -947,13 +947,13 @@ function renderSueldos(){
   todos.map(function(p){
     var hon=D.honorarios.find(function(h){return h.psicologa_nombre===p.nombre;});
     var rTard=hon?(hon.descuento_tardanza||0):0, rInas=hon?(hon.descuento_inasistencia||0):0;
-    // La asistencia al trabajo solo se registra hoy para psicólogas -
-    // las recepcionistas todavía no tienen esa marcación en Recepción, así
-    // que por ahora no se les puede calcular descuento (mejor mostrar
-    // "sin registro" que inventar un número).
+    // La asistencia al trabajo se registra para psicólogas (la marca
+    // Recepción) y para recepcionistas (se la marcan ellas mismas, ver
+    // apps/recepcion "Mi Asistencia") - ambas quedan en asistencia_personal
+    // con el mismo formato, así que el cálculo de descuento es el mismo.
     var esPs=p._tabla==='psicologas';
-    var asist=esPs?_descuentoPorAsistencia(p,mesStr,rTard,rInas):null;
-    var descuentoCalc=asist?asist.descuento:0;
+    var asist=_descuentoPorAsistencia(p,mesStr,rTard,rInas);
+    var descuentoCalc=asist.descuento;
     // El descuento se calcula siempre que haya tardanzas/faltas, pero
     // Administración decide si de verdad se descuenta del pago o queda
     // solo como referencia (ej. una falta ya justificada aparte).
@@ -970,7 +970,7 @@ function renderSueldos(){
         :p._diasHastaPago<=3?'🟡 En '+p._diasHastaPago+' día(s) (día '+p.dia_pago+')'
         :'Día '+p.dia_pago+' · en '+p._diasHastaPago+' días')
       :'⚠️ Sin día configurado';
-    var faltasTxt=esPs?String(asist.nFaltas):'-';
+    var faltasTxt=String(asist.nFaltas);
     return '<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden'+(esHoy?';box-shadow:0 0 0 2px #fecdd3':'')+'">'
       +'<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;background:'+(esHoy?'linear-gradient(135deg,#be123c,#e11d48)':'linear-gradient(135deg,'+col+',#1e293b)')+'">'
         +'<div style="width:30px;height:30px;flex:none;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:900">'+(p.nombre||'?').charAt(0)+'</div>'
@@ -981,14 +981,14 @@ function renderSueldos(){
       +'<div style="padding:10px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:8px">'
         +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px">S/'+base+'</div><div class="stat-label" style="font-size:8.5px">Sueldo base</div></div>'
         +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:#0369a1">S/'+costoHora.toFixed(2)+'</div><div class="stat-label" style="font-size:8.5px">Costo/hora</div></div>'
-        +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:'+(esPs&&asist.nFaltas?'#dc2626':'var(--muted)')+'">'+faltasTxt+'</div><div class="stat-label" style="font-size:8.5px">❌ Faltas</div></div>'
-        +'<div class="stat-card" style="padding:7px 5px'+(esPs&&asist.nTard?';cursor:pointer':'')+'"'+(esPs&&asist.nTard?' onclick="verDetalleTardanza('+_sq(p.nombre)+')" title="Ver detalle"':'')+'><div class="stat-value" style="font-size:13px;color:'+(esPs&&asist.nTard?'#d97706':'var(--muted)')+'">'+(esPs?asist.minTardTotal+' min':'-')+'</div><div class="stat-label" style="font-size:8.5px">🕐 Tardanza'+(esPs&&asist.nTard?' · 👁 ver':'')+'</div></div>'
+        +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:'+(asist.nFaltas?'#dc2626':'var(--muted)')+'">'+faltasTxt+'</div><div class="stat-label" style="font-size:8.5px">❌ Faltas</div></div>'
+        +'<div class="stat-card" style="padding:7px 5px'+(asist.nTard?';cursor:pointer':'')+'"'+(asist.nTard?' onclick="verDetalleTardanza('+_sq(p.nombre)+')" title="Ver detalle"':'')+'><div class="stat-value" style="font-size:13px;color:'+(asist.nTard?'#d97706':'var(--muted)')+'">'+asist.minTardTotal+' min</div><div class="stat-label" style="font-size:8.5px">🕐 Tardanza'+(asist.nTard?' · 👁 ver':'')+'</div></div>'
         +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:'+(descuentoCalc>0?(aplicaDescuento?'#dc2626':'var(--muted)'):'var(--muted)')+(aplicaDescuento?'':';text-decoration:line-through')+'">'+(descuentoCalc>0?'-S/'+descuentoCalc.toFixed(2):'S/0.00')+'</div><div class="stat-label" style="font-size:8.5px">Descuento'+(descuentoCalc>0&&!aplicaDescuento?' (no aplicado)':'')+'</div></div>'
         +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:#15803d">S/'+bonos.toFixed(2)+'</div><div class="stat-label" style="font-size:8.5px">Bonos</div></div>'
         +'<div class="stat-card" style="padding:7px 5px;border-color:'+col+';grid-column:span 2"><div class="stat-value" style="font-size:17px;color:'+col+'">S/'+total.toFixed(2)+'</div><div class="stat-label" style="font-size:8.5px">Total a pagar</div></div>'
       +'</div>'
-      +(esPs&&asist.nFaltas>0?'<div style="padding:0 12px 4px;font-size:10px;color:var(--muted)">Incluye S/'+asist.descDSO.toFixed(2)+' de descanso semanal proporcional por '+asist.nFaltas+' falta(s) (D.S. 012-92-TR, no se descuenta el domingo completo).</div>':'')
-      +(esPs&&descuentoCalc>0?'<div style="padding:0 12px 8px;display:flex;gap:8px;align-items:center;font-size:10.5px;color:var(--muted)">Este mes tiene S/'+descuentoCalc.toFixed(2)+' en descuento calculado - '
+      +(asist.nFaltas>0?'<div style="padding:0 12px 4px;font-size:10px;color:var(--muted)">Incluye S/'+asist.descDSO.toFixed(2)+' de descanso semanal proporcional por '+asist.nFaltas+' falta(s) (D.S. 012-92-TR, no se descuenta el domingo completo).</div>':'')
+      +(descuentoCalc>0?'<div style="padding:0 12px 8px;display:flex;gap:8px;align-items:center;font-size:10.5px;color:var(--muted)">Este mes tiene S/'+descuentoCalc.toFixed(2)+' en descuento calculado - '
         +'<button class="btn btn-sm" style="padding:3px 8px;font-size:10px;background:'+(aplicaDescuento?'#dcfce7':'#f1f5f9')+';color:'+(aplicaDescuento?'#166534':'#475569')+'" onclick="toggleAplicarDescuento('+_sq(p.nombre)+','+_sq(p.sede||D.sede)+','+(p.sueldo||0)+',true)">'+(aplicaDescuento?'✅':'⬜')+' Aplicar</button>'
         +'<button class="btn btn-sm" style="padding:3px 8px;font-size:10px;background:'+(!aplicaDescuento?'#fee2e2':'#f1f5f9')+';color:'+(!aplicaDescuento?'#991b1b':'#475569')+'" onclick="toggleAplicarDescuento('+_sq(p.nombre)+','+_sq(p.sede||D.sede)+','+(p.sueldo||0)+',false)">'+(!aplicaDescuento?'✅':'⬜')+' Solo informativo</button>'
         +'</div>':'')
@@ -1005,7 +1005,7 @@ function renderSueldos(){
 // recepcionista) - antes solo se veía el total, sin poder revisar caso
 // por caso.
 function verDetalleTardanza(nombre){
-  var p=(D.psicologas||[]).find(function(x){return x.nombre===nombre;});
+  var p=(D.psicologas||[]).find(function(x){return x.nombre===nombre;})||(D.recepcionistas||[]).find(function(x){return x.nombre===nombre;});
   if(!p)return;
   var mesStr=mesY();
   var hon=D.honorarios.find(function(h){return h.psicologa_nombre===nombre;});
@@ -1195,7 +1195,7 @@ function renderAsistencia(){
         var bg=esAus?'#fef2f2':esTard?'#fffbeb':'#f0fdf4';
         var icono=esAus?'❌':esTard?'🕐':'✅';
         var etiqueta=esAus?'Faltó':esTard?'Llegó tarde':'A tiempo';
-        var ps=(D.psicologas||[]).find(function(p){return p.nombre===a.psicologa;});
+        var ps=(D.psicologas||[]).find(function(p){return p.nombre===a.psicologa;})||(D.recepcionistas||[]).find(function(p){return p.nombre===a.psicologa;});
         var minTarde=(esTard&&ps)?_minutosTarde(a.entrada,_horaEsperadaDia(ps,a.fecha)):0;
         return '<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid var(--border);background:'+bg+'">'+
           '<span style="font-size:18px">'+icono+'</span>'+
