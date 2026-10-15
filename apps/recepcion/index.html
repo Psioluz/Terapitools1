@@ -7313,7 +7313,7 @@ async function renderHistorial(){
           '<td><span class="badge bk" style="font-size:10px">'+((esReprogFila||s.estado==='permiso'||s.estado==='congelado')?'-':s.tipo==='paquete'?'Paq '+_paqLabel(s):s.tipo)+'</span></td>'+
           '<td style="white-space:nowrap">'+costoCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
-          '<td style="white-space:nowrap">'+((s.estado==='programado'||s.estado==='noasistio'||s.estado==='permiso')?botonesAsistenciaCompactoHTML(s):
+          '<td style="white-space:nowrap">'+((s.estado==='programado'||s.estado==='noasistio'||s.estado==='permiso'||s.estado==='congelado')?botonesAsistenciaCompactoHTML(s):
             '<span style="font-size:11px;color:var(--muted)">-</span>')+'</td></tr>';
       }).join('')+
       '</tbody></table></div>'
