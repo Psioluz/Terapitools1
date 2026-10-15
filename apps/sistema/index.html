@@ -131,6 +131,7 @@ try{
       <div class="nav-item" onclick="showPage('tablas',this)">🗄️ Tablas de Supabase</div>
       <div class="nav-item" onclick="showPage('vaciar',this)">🧼 Vaciar Paciente</div>
       <div class="nav-item" onclick="showPage('recalcular',this)">🧮 Recalcular Saldo</div>
+      <div class="nav-item" onclick="showPage('auditoria',this)">⚠️ Auditoría</div>
       <div class="nav-item" onclick="showPage('cuentas',this)">👤 Cuentas y Accesos</div>
       <div class="nav-item" onclick="showPage('sedes',this)">🏥 Sedes</div>
       <div class="nav-item" onclick="showPage('storage',this)">📦 Storage</div>
@@ -215,18 +216,22 @@ try{
             </div>
             <div class="grid g2" style="margin-bottom:10px">
               <div>
+                <label class="hint">Filtrar por paciente (nombre o parte del nombre)</label>
+                <input class="fsel" id="tblPaciente" type="text" placeholder="Ej. Katherine Challco" style="width:100%" onkeydown="if(event.key==='Enter')tblCargar()" autocomplete="off">
+              </div>
+              <div>
                 <label class="hint">Buscar por ID (exacto)</label>
                 <input class="fsel" id="tblBuscarId" type="text" placeholder="Pega aquí el ID de la fila y presiona Enter" style="width:100%" onkeydown="if(event.key==='Enter')tblCargar()">
               </div>
-              <div style="display:flex;align-items:flex-end;gap:6px">
-                <button class="btn btn-outline btn-sm" onclick="tblCargar()">🔎 Buscar</button>
-                <button class="btn btn-outline btn-sm" onclick="document.getElementById('tblBuscarId').value='';tblCargar()">✖ Limpiar</button>
-              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+              <button class="btn btn-outline btn-sm" onclick="tblCargar()">🔎 Buscar</button>
+              <button class="btn btn-outline btn-sm" onclick="document.getElementById('tblBuscarId').value='';document.getElementById('tblPaciente').value='';tblCargar()">✖ Limpiar filtros</button>
             </div>
             <button class="btn btn-primary" style="width:auto" onclick="tblCargar()">Cargar filas</button>
             <button class="btn btn-outline btn-sm" onclick="tblNuevaFila()">+ Nueva fila</button>
             <button class="btn btn-outline btn-sm" onclick="tblActualizarTodo(document.getElementById('tblSelect').value,'tblGrid')">💾 Actualizar todo</button>
-            <div class="hint" style="margin-top:6px">Las filas con cambios sin guardar se resaltan en amarillo. Los campos con 🔒 (id, fechas de creación) no se pueden editar. El filtro de Sede se ignora en tablas que no tienen columna "sede" (ej. Sedes). Si pegas un ID en "Buscar por ID", se ignoran el filtro de sede y el límite y se busca esa fila exacta en la tabla seleccionada.</div>
+            <div class="hint" style="margin-top:6px">Las filas con cambios sin guardar se resaltan en amarillo. Los campos con 🔒 (id, fechas de creación) no se pueden editar. El filtro de Sede y el de Paciente se ignoran en tablas que no tengan esas columnas (ej. Sedes no tiene sede, Psicólogas no tiene paciente). Si pegas un ID en "Buscar por ID", se ignoran los demás filtros y el límite, y se busca esa fila exacta en la tabla seleccionada.</div>
           </div>
         </div>
         <div class="card">
@@ -276,6 +281,16 @@ try{
             <button class="btn btn-primary" id="recalcBtnAplicar" style="display:none;margin-top:10px" onclick="recalcAplicar()">💾 Corregir al saldo real</button>
           </div>
         </div>
+      </div>
+
+      <!-- AUDITORÍA -->
+      <div class="page" id="pg-auditoria">
+        <div class="card">
+          <div class="ch"><div class="ct">⚠️ Auditoría de conflictos</div>
+            <button class="btn btn-outline btn-sm" onclick="renderAuditoria()">🔍 Analizar de nuevo</button></div>
+          <div class="cb hint" style="margin-bottom:0">Revisa automáticamente toda la base de datos buscando los mismos tipos de inconsistencias que normalmente hay que detectar a mano: paquetes marcados "completado" sin tener en realidad todas sus sesiones, cupos duplicados dentro de un mismo paquete, y paquetes activos cuyo saldo/adelanto guardado no coincide con lo que de verdad se pagó. No corrige nada solo, salvo donde el botón lo diga explícitamente - siempre revisa antes de aplicar.</div>
+        </div>
+        <div id="auditoriaContent"></div>
       </div>
 
       <!-- CUENTAS -->
@@ -473,6 +488,18 @@ const TABLAS=['pacientes','programas_paciente','programa_terapias','sesiones','p
   'sedes','log_accesos','log_errores'];
 // Tablas que NO tienen columna "sede" -- el filtro de sede se ignora en estas.
 const TABLAS_SIN_SEDE=['sedes','programa_terapias'];
+// Columna que guarda el nombre del paciente en cada tabla (varía: "nombre"
+// en pacientes, "paciente_nombre" en el resto) - las que no aparecen aquí
+// no tienen ningún campo de paciente, así que el filtro se ignora en ellas.
+const TABLAS_COL_PACIENTE={
+  pacientes:'nombre',sesiones:'paciente_nombre',pagos:'paciente_nombre',
+  fichas_seguimiento:'paciente_nombre',documentos:'paciente_nombre',
+  reprogramaciones:'paciente_nombre',precio_paciente:'paciente_nombre',
+  alertas_log:'paciente_nombre',fichas_recepcion_log:'paciente_nombre',
+  programas_paciente:'paciente_nombre',notas_clinicas:'paciente_nombre',
+  objetivos_terapeuticos:'paciente_nombre',registro_animo:'paciente_nombre',
+  recordatorios_enviados:'paciente_nombre',avisos_recepcion:'paciente_nombre'
+};
 
 function showPage(id,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -490,6 +517,7 @@ function showPage(id,btn){
   if(id==='docs')renderDocs();
   if(id==='duplicados')renderDuplicados();
   if(id==='visor')visorCargar();
+  if(id==='auditoria'&&!document.getElementById('auditoriaContent').children.length)renderAuditoria();
 }
 
 // ── COLOR DE LA INTERFAZ ── preferencia solo de pantalla (no es dato de
@@ -1033,6 +1061,7 @@ function guardarFiltrosTabla(){
       tabla:(document.getElementById('tblSelect')||{}).value||'',
       sede:(document.getElementById('tblSede')||{}).value||'',
       limite:(document.getElementById('tblLimit')||{}).value||'',
+      paciente:(document.getElementById('tblPaciente')||{}).value||'',
       cuentasTabla:(document.getElementById('cuentasTabla')||{}).value||''
     }));
   }catch(e){}
@@ -1044,6 +1073,7 @@ function restaurarFiltrosTabla(){
     if(f.tabla&&document.getElementById('tblSelect'))document.getElementById('tblSelect').value=f.tabla;
     if(f.sede&&document.getElementById('tblSede'))document.getElementById('tblSede').value=f.sede;
     if(f.limite&&document.getElementById('tblLimit'))document.getElementById('tblLimit').value=f.limite;
+    if(f.paciente&&document.getElementById('tblPaciente'))document.getElementById('tblPaciente').value=f.paciente;
     if(f.cuentasTabla&&document.getElementById('cuentasTabla'))document.getElementById('cuentasTabla').value=f.cuentasTabla;
     if(f.tabla)tblCargar();
   }catch(e){}
@@ -1055,8 +1085,12 @@ async function tblCargar(){
   const lim=document.getElementById('tblLimit').value||'50';
   const sede=document.getElementById('tblSede')?document.getElementById('tblSede').value:'';
   const idBuscado=(document.getElementById('tblBuscarId')?document.getElementById('tblBuscarId').value:'').trim();
+  const pacBuscado=(document.getElementById('tblPaciente')?document.getElementById('tblPaciente').value:'').trim();
+  const colPaciente=TABLAS_COL_PACIENTE[t]||null;
   const filtroSedeActivo=!idBuscado&&sede&&TABLAS_SIN_SEDE.indexOf(t)===-1;
-  document.getElementById('tblTitulo').textContent=t+(idBuscado?' · ID = '+idBuscado:(filtroSedeActivo?' · '+sede:''));
+  const filtroPacienteActivo=!idBuscado&&pacBuscado&&colPaciente;
+  document.getElementById('tblTitulo').textContent=t+(idBuscado?' · ID = '+idBuscado:
+    (filtroSedeActivo?' · '+sede:'')+(filtroPacienteActivo?' · paciente ≈ "'+pacBuscado+'"':''));
   document.getElementById('tblCount').textContent='⏳ cargando…';
   try{
     // order:'id.asc' evita que las filas "salten" de posición cada vez que
@@ -1065,18 +1099,21 @@ async function tblCargar(){
     // aparecer en otro lugar de la lista.
     const params={select:'*',limit:lim,order:'id.asc'};
     if(idBuscado){
-      // Buscar por ID exacto: ignora sede y límite para poder encontrar
-      // y borrar una fila puntual aunque no se sepa su sede/fecha.
+      // Buscar por ID exacto: ignora los demás filtros y el límite para
+      // poder encontrar y borrar una fila puntual aunque no se sepa su
+      // sede/paciente/fecha.
       params.id='eq.'+idBuscado;
       delete params.limit;
-    }else if(filtroSedeActivo){
-      params.sede='eq.'+sede;
+    }else{
+      if(filtroSedeActivo)params.sede='eq.'+sede;
+      if(filtroPacienteActivo)params[colPaciente]='ilike.*'+pacBuscado+'*';
     }
     const {data,count}=await sbGet(t,params);
     _tblRows[t]=data||[];
     document.getElementById('tblCount').textContent=(count!==null?count+' filas totales · ':'')+(data?data.length:0)+' mostradas'+
       (idBuscado&&!data.length?' · ⚠️ no se encontró ninguna fila con ese ID en esta tabla':'')+
-      (sede&&!idBuscado&&!filtroSedeActivo?' (esta tabla no tiene columna "sede", se ignoró el filtro)':'');
+      (sede&&!idBuscado&&!filtroSedeActivo?' (esta tabla no tiene columna "sede", se ignoró el filtro)':'')+
+      (pacBuscado&&!idBuscado&&!filtroPacienteActivo?' (esta tabla no tiene columna de paciente, se ignoró ese filtro)':'');
     renderEditableGrid('tblGrid',data,t);
   }catch(e){
     document.getElementById('tblCount').textContent='❌ '+e.message;
@@ -1748,6 +1785,163 @@ async function borrarDuplicado(tabla,id,btn){
     toast('✅ Eliminado');
     btn.closest('div[style*="border-top"]').remove();
   }catch(e){toast('Error: '+e.message,'error');}
+}
+
+// ── AUDITORÍA DE CONFLICTOS ──
+// Mismos chequeos que normalmente hay que hacer a mano revisando Supabase
+// caso por caso (ver conversaciones de soporte): paquetes que se marcaron
+// "completado" sin tener en verdad todas sus sesiones, cupos duplicados
+// dentro de un mismo paquete, y paquetes activos cuyo saldo/adelanto
+// guardado no coincide con lo pagado de verdad. Solo detecta y muestra -
+// la corrección de saldo real usa la misma lógica que "Recalcular Saldo"
+// y la de "volver a activo" es la única acción directa, por ser reversible
+// y de bajo riesgo (no borra ni cambia sesiones ni pagos).
+function _irAPagina(id,titulo){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('pg-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  document.getElementById('pageTitle').textContent=titulo;
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+}
+function irARecalcular(nombre){
+  _irAPagina('recalcular','🧮 Recalcular Saldo');
+  recalcElegirPac(nombre);
+  recalcRevisar();
+}
+function irATablas(tabla,paciente){
+  _irAPagina('tablas','🗄️ Tablas de Supabase');
+  var sel=document.getElementById('tblSelect');if(sel)sel.value=tabla;
+  var pacEl=document.getElementById('tblPaciente');if(pacEl)pacEl.value=paciente||'';
+  var idEl=document.getElementById('tblBuscarId');if(idEl)idEl.value='';
+  tblCargar();
+}
+// Trae filas de `tabla` filtrando `campoId` dentro de una lista de ids,
+// en lotes (la URL de Supabase no aguanta un "in.(...)" con miles de ids).
+async function _fetchPorIdsEnLotes(tabla,params,campoId,ids,lote){
+  lote=lote||80;
+  var todos=[];
+  for(var i=0;i<ids.length;i+=lote){
+    var grupo=ids.slice(i,i+lote);
+    var p=Object.assign({},params);
+    p[campoId]='in.('+grupo.join(',')+')';
+    var r=await sbGet(tabla,p);
+    todos=todos.concat(r.data||[]);
+  }
+  return todos;
+}
+const _AUD_ESTADOS_NO_CUENTAN=['permiso','reprogramado','cancelado'];
+async function renderAuditoria(){
+  const el=document.getElementById('auditoriaContent');
+  el.innerHTML='⏳ Analizando toda la base de datos (puede tardar unos segundos)…';
+  try{
+    const [h1,h2,h3]=await Promise.all([
+      _auditarPaquetesCompletadosMal(),
+      _auditarCuposDuplicados(),
+      _auditarSaldoPaquetesActivos()
+    ]);
+    el.innerHTML=h1+h2+h3;
+  }catch(e){
+    el.innerHTML='<div class="card cb" style="color:#dc2626">❌ Error al analizar: '+e.message+'</div>';
+  }
+}
+async function _auditarPaquetesCompletadosMal(){
+  const {data:comp}=await sbGet('programas_paciente',{select:'id,paciente_nombre,paquete_nombre,nro_sesiones_total,sede',estado:'eq.completado',limit:'2000'});
+  const lista=comp||[];
+  let hallazgos=[];
+  if(lista.length){
+    const ids=lista.map(function(p){return p.id;});
+    const ses=await _fetchPorIdsEnLotes('sesiones',{select:'id,programa_id,estado'},'programa_id',ids);
+    const porPrograma={};
+    ses.forEach(function(s){
+      if(_AUD_ESTADOS_NO_CUENTAN.indexOf(s.estado)>-1)return;
+      porPrograma[s.programa_id]=(porPrograma[s.programa_id]||0)+1;
+    });
+    hallazgos=lista.filter(function(p){return(porPrograma[p.id]||0)<(p.nro_sesiones_total||0);})
+      .map(function(p){return Object.assign({},p,{sesionesReales:porPrograma[p.id]||0});});
+  }
+  let h='<div class="card"><div class="ch"><div class="ct">1️⃣ Paquetes "completado" sin todas sus sesiones reales</div>'+
+    '<span class="hint">'+hallazgos.length+' de '+lista.length+' paquete(s) completado(s)</span></div>';
+  if(!hallazgos.length){h+='<div class="cb hint">Sin hallazgos ✅ - todos los paquetes marcados "completado" tienen tantas sesiones reales como sesiones contratadas.</div>';}
+  else{
+    h+='<div class="cb hint" style="margin-bottom:8px">Este fue exactamente el error que bloqueó a Katherine Challco: el paquete se marca "completado" solo, aunque en realidad le falta una sesión por registrar. Revisa por qué falta (¿una sesión nunca se creó? ¿se borró por error?) antes de solo reactivarlo - si solo faltaba agendar la sesión, "Volver a activo" es seguro y no borra ni cambia nada más.</div>';
+    h+='<div class="cb">'+hallazgos.map(function(p){
+      return '<div style="border:1px solid var(--orange);border-radius:8px;padding:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
+        '<div><div style="font-weight:800;font-size:12px">'+p.paciente_nombre+' · '+(p.paquete_nombre||'-')+'</div>'+
+        '<div class="hint">'+(p.sede||'-')+' · tiene '+p.sesionesReales+' de '+p.nro_sesiones_total+' sesiones reales · id: '+p.id+'</div></div>'+
+        '<div style="display:flex;gap:6px">'+
+        '<button class="btn btn-outline btn-sm" onclick="irATablas(\'sesiones\',\''+String(p.paciente_nombre).replace(/'/g,"\\'")+'\')">🔍 Ver sesiones</button>'+
+        '<button class="btn btn-primary btn-sm" onclick="auditVolverActivo(\''+p.id+'\',this)">↩️ Volver a activo</button>'+
+        '</div></div>';
+    }).join('')+'</div>';
+  }
+  return h+'</div>';
+}
+async function auditVolverActivo(programaId,btn){
+  if(!confirm('¿Volver este paquete a "activo"? Esto NO crea ni borra ninguna sesión - solo permite que vuelva a aparecer como paquete activo para poder agendar la sesión que falta.'))return;
+  try{
+    await sbPatch('programas_paciente',{estado:'activo'},{id:'eq.'+programaId});
+    toast('✅ Paquete marcado como activo de nuevo');
+    btn.closest('div[style*="border-top"],div[style*="border:1px solid var(--orange)"]').remove();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+async function _auditarCuposDuplicados(){
+  const {data}=await sbGet('sesiones',{select:'id,paciente_nombre,programa_id,nro_en_paquete,fecha,estado',programa_id:'not.is.null',nro_en_paquete:'not.is.null',limit:'20000'});
+  const grupos={};
+  (data||[]).forEach(function(s){
+    const key=s.programa_id+'|'+s.nro_en_paquete;
+    (grupos[key]=grupos[key]||[]).push(s);
+  });
+  const hallazgos=Object.values(grupos).filter(function(g){return g.length>1;});
+  let h='<div class="card"><div class="ch"><div class="ct">2️⃣ Cupos duplicados dentro de un mismo paquete</div>'+
+    '<span class="hint">'+hallazgos.length+' cupo(s) con más de una sesión</span></div>';
+  if(!hallazgos.length){h+='<div class="cb hint">Sin hallazgos ✅ - ningún paquete tiene dos sesiones peleándose el mismo número de cupo.</div>';}
+  else{
+    h+='<div class="cb hint" style="margin-bottom:8px">Dos (o más) sesiones del mismo paquete están numeradas con el mismo cupo - normalmente pasa al reprogramar/congelar a mano. Revisa las fechas y renumera manualmente en "Tablas de Supabase" (no hay una sola forma correcta de resolverlo, depende de cuál sesión es la real).</div>';
+    h+='<div class="cb">'+hallazgos.map(function(g){
+      return '<div style="border:1px solid var(--orange);border-radius:8px;padding:8px;margin-bottom:8px">'+
+        '<div style="font-weight:800;font-size:12px;margin-bottom:4px">'+g[0].paciente_nombre+' · cupo #'+g[0].nro_en_paquete+' ('+g.length+' sesiones)</div>'+
+        g.map(function(s){
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-top:1px dashed var(--border);font-size:11px">'+
+            '<span>'+(s.fecha||'-')+' · '+s.estado+' · id: '+s.id+'</span></div>';
+        }).join('')+
+        '<button class="btn btn-outline btn-sm" style="margin-top:6px" onclick="irATablas(\'sesiones\',\''+String(g[0].paciente_nombre).replace(/'/g,"\\'")+'\')">🔍 Revisar en Tablas de Supabase</button>'+
+        '</div>';
+    }).join('')+'</div>';
+  }
+  return h+'</div>';
+}
+async function _auditarSaldoPaquetesActivos(){
+  const {data:progs}=await sbGet('programas_paciente',{select:'id,paciente_nombre,paquete_nombre,costo_total,adelanto_acumulado,saldo,sede',estado:'eq.activo',limit:'2000'});
+  const lista=progs||[];
+  let hallazgos=[];
+  if(lista.length){
+    const ids=lista.map(function(p){return p.id;});
+    const pagos=await _fetchPorIdsEnLotes('pagos',{select:'id,monto,programa_id'},'programa_id',ids);
+    const pagadoPorPrograma={};
+    pagos.forEach(function(pg){pagadoPorPrograma[pg.programa_id]=(pagadoPorPrograma[pg.programa_id]||0)+(parseFloat(pg.monto)||0);});
+    hallazgos=lista.map(function(p){
+      const adelantoReal=Math.round((pagadoPorPrograma[p.id]||0)*100)/100;
+      const saldoReal=Math.round(Math.max(0,(parseFloat(p.costo_total)||0)-adelantoReal)*100)/100;
+      return Object.assign({},p,{adelantoReal:adelantoReal,saldoReal:saldoReal,
+        adelantoActual:parseFloat(p.adelanto_acumulado)||0,saldoActual:parseFloat(p.saldo)||0});
+    }).filter(function(p){return Math.abs(p.saldoReal-p.saldoActual)>=0.01||Math.abs(p.adelantoReal-p.adelantoActual)>=0.01;});
+  }
+  let h='<div class="card"><div class="ch"><div class="ct">3️⃣ Paquetes activos con saldo/adelanto desincronizado</div>'+
+    '<span class="hint">'+hallazgos.length+' de '+lista.length+' paquete(s) activo(s)</span></div>';
+  if(!hallazgos.length){h+='<div class="cb hint">Sin hallazgos ✅ - el saldo y adelanto guardado de todos los paquetes activos coincide con lo pagado de verdad (según la tabla "pagos" vinculada a cada paquete).</div>';}
+  else{
+    h+='<div class="cb hint" style="margin-bottom:8px">El saldo/adelanto guardado en el paquete no coincide con la suma real de sus pagos - puede ser un ajuste manual hecho por fuera del flujo normal. "Ver y corregir" abre Recalcular Saldo con este paciente ya cargado.</div>';
+    h+='<div class="cb">'+hallazgos.map(function(p){
+      return '<div style="border:1px solid var(--orange);border-radius:8px;padding:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'+
+        '<div><div style="font-weight:800;font-size:12px">'+p.paciente_nombre+' · '+(p.paquete_nombre||'-')+'</div>'+
+        '<div class="hint">'+(p.sede||'-')+' · guardado: adelanto S/'+p.adelantoActual.toFixed(2)+', saldo S/'+p.saldoActual.toFixed(2)+
+        ' · real: adelanto S/'+p.adelantoReal.toFixed(2)+', saldo S/'+p.saldoReal.toFixed(2)+'</div></div>'+
+        '<button class="btn btn-primary btn-sm" onclick="irARecalcular(\''+String(p.paciente_nombre).replace(/'/g,"\\'")+'\')">🧮 Ver y corregir</button>'+
+        '</div>';
+    }).join('')+'</div>';
+  }
+  return h+'</div>';
 }
 initTemaPanel();
 try{
