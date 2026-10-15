@@ -2513,8 +2513,8 @@ async function congelarSesion(sesId){
   if(!motivo.trim()){showToast('Indica un motivo','error');return;}
   const progId=(ses._sb&&ses._sb.programa_id)||null;
   const ptId=(ses._sb&&ses._sb.programa_terapia_id)||null;
+  const progActual=progId&&(DB.programas||[]).find(function(p){return p.id===progId;});
   if(progId){
-    const progActual=(DB.programas||[]).find(function(p){return p.id===progId;});
     if(progActual&&progActual.nro_sesiones_total>0){
       const realesSinEsta=DB.sesiones.filter(function(x){
         return x._sb&&x._sb.programa_id===progId&&x.tipo==='paquete'&&x.id!==ses.id&&
@@ -2561,6 +2561,15 @@ async function congelarSesion(sesId){
       adelanto:0,saldo:ses.saldo||0,sede:DB.sede,registrado_por:DB.usuario||'',notas:ses.notas||''};
     if(progId){filaSes.programa_id=progId;if(ptId)filaSes.programa_terapia_id=ptId;}
     await sbPost('sesiones',filaSes);
+    // Misma corrección que en confirmarPermiso: esta reposición es una
+    // fila real más, pero se crea por fuera del flujo normal que
+    // incrementa programa_terapias.sesiones_realizadas - sin esto el
+    // contador queda desactualizado y la siguiente sesión agregada a mano
+    // puede terminar con un nro_en_paquete repetido o salteado.
+    if(progId&&ptId){
+      const ptActual=progActual&&(progActual.programa_terapias||[]).find(function(t){return t.id===ptId;});
+      if(ptActual)await sbPatch('programa_terapias',{sesiones_realizadas:(ptActual.sesiones_realizadas||0)+1},{id:'eq.'+ptId});
+    }
     if(progId)await reconciliarCheckpoints(progId);
     showToast('❄️ Sesión congelada - nueva sesión el '+fmtF(nuevaFecha));
     await cargarDesdeSB();
@@ -2715,6 +2724,20 @@ async function confirmarPermiso(){
     if(progId){filaSes.programa_id=progId;if(ptId)filaSes.programa_terapia_id=ptId;}
     if(s.tipo==='llamada_maestra'){filaSes.maestra_nombre=s.maestraNom||'';filaSes.maestra_tel=s.maestraTel||'';}
     await sbPost('sesiones',filaSes);
+    // Esta reposición es una fila de sesión real más, pero se crea por
+    // fuera del flujo normal de "agregar sesión a paquete existente" (el
+    // de guardarSesion), que es el único que incrementa
+    // programa_terapias.sesiones_realizadas. Sin este ajuste, ese contador
+    // se queda desactualizado (un número menos del total real de filas que
+    // existen), y la PRÓXIMA sesión que se agregue a mano después de esta
+    // por el flujo normal termina heredando un nro_en_paquete repetido o
+    // salteado - exactamente lo que le pasó a Katherine Challco, cuya
+    // sesión #12 nunca llegó a crearse porque el paquete parecía ya
+    // completo sin que ese cupo se hubiera usado de verdad.
+    if(progId&&ptId){
+      const ptActual=progActual&&(progActual.programa_terapias||[]).find(function(t){return t.id===ptId;});
+      if(ptActual)await sbPatch('programa_terapias',{sesiones_realizadas:(ptActual.sesiones_realizadas||0)+1},{id:'eq.'+ptId});
+    }
     await sbPost('reprogramaciones',{fecha_reprog:today(),paciente_nombre:pac.nombre,
       psicologa_nombre:ps.nombre,fecha_original:s.fecha,hora_original:s.hora,
       fecha_nueva:nuevaFecha,hora_nueva:s.hora,sede:DB.sede,reprogramado_por:DB.usuario||'',
