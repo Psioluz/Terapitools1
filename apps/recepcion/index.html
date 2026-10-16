@@ -612,7 +612,7 @@ try{
     <div style="padding:12px">
       <div class="form-group">
         <div class="form-label">Plantilla de mensaje</div>
-        <textarea class="form-control" id="waTemplate" rows="3">¡Hola {nombre}! 💜 Te escribimos de Psicoluz para recordarte tu sesión de {terapia} de hoy a las {hora}, en la sede {sede}. Te esperamos con mucho gusto - si necesitas reprogramar, avísanos por este medio. ¡Que tengas un lindo día! ✨</textarea>
+        <textarea class="form-control" id="waTemplate" rows="3">¡Hola {nombre}! 💜 Te escribimos de Psicoluz para recordarte tu sesión de {terapia} de hoy a las {hora}, en la sede {sede}. Te esperamos con mucho gusto. ¡Que tengas un lindo día! ✨</textarea>
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:4px">
         ℹ️ WhatsApp no permite enviar mensajes automáticamente sin su API de pago:
@@ -707,6 +707,7 @@ try{
           <option value="ultimo">Solo el último paquete</option>
         </select>
         <button class="btn btn-outline btn-sm" onclick="onCambioHistPac()" title="Volver a traer el historial completo de este paciente">🔄 Actualizar</button>
+        <button class="btn btn-outline btn-sm" id="histExportPDFBtn" style="display:none" onclick="exportarHistorialSesionesPDF()">📄 Exportar PDF</button>
       </div>
     </div>
     <div id="histContenido" style="padding:14px">
@@ -6944,7 +6945,7 @@ async function renderWA(){
 }
 
 function enviarWA(sesionId,tel,nombre,terapia,hora){
-  const tpl=document.getElementById('waTemplate')?.value||'¡Hola {nombre}! 💜 Te escribimos de Psicoluz para recordarte tu sesión de {terapia} de hoy a las {hora}, en la sede {sede}. Te esperamos con mucho gusto - si necesitas reprogramar, avísanos por este medio. ¡Que tengas un lindo día! ✨';
+  const tpl=document.getElementById('waTemplate')?.value||'¡Hola {nombre}! 💜 Te escribimos de Psicoluz para recordarte tu sesión de {terapia} de hoy a las {hora}, en la sede {sede}. Te esperamos con mucho gusto. ¡Que tengas un lindo día! ✨';
   const msg=tpl.replace(/{nombre}/g,nombre).replace(/{terapia}/g,terapia).replace(/{hora}/g,hora).replace(/{sede}/g,DB.sede);
   const num=tel.replace(/\D/g,'');
   // api.whatsapp.com/send maneja mejor los emojis que wa.me en varios
@@ -7066,10 +7067,12 @@ async function renderHistorial(){
   const el=document.getElementById('histContenido');
   const cardArch=document.getElementById('histArchivosCard');
   const cardFichas=document.getElementById('histFichasCard');
+  const btnExportHist=document.getElementById('histExportPDFBtn');
   if(!pacId){
     if(el)el.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">Selecciona un paciente</div>';
     if(cardArch)cardArch.style.display='none';
     if(cardFichas)cardFichas.style.display='none';
+    if(btnExportHist)btnExportHist.style.display='none';
     return;
   }
   // Las sesiones ya están en DB.sesiones, cargadas de Supabase por cargarDesdeSB()
@@ -7318,6 +7321,7 @@ async function renderHistorial(){
       }).join('')+
       '</tbody></table></div>'
       :'<div style="color:var(--muted);padding:14px;text-align:center">Sin sesiones registradas para este paciente.</div>');
+  if(btnExportHist)btnExportHist.style.display=filasTabla.length?'inline-flex':'none';
 
   // Archivos
   renderArchivosLista(pacId);
@@ -7545,6 +7549,85 @@ function exportarFichasHistorialPDF(){
     doc.setDrawColor(230,230,230);doc.line(M,y,W-M,y);y+=5;
   });
   guardarPDF(doc,'Fichas_'+(pac2.nombre||'paciente').replace(/\s+/g,'_')+'.pdf');
+}
+
+// Exporta la tabla "Registro de Sesiones" de Historial Clínico tal cual se
+// ve en pantalla - se lee directamente del HTML ya renderizado (en vez de
+// recalcular la lógica de filas/estado/Paq X-Y por separado) para que el
+// PDF nunca pueda desincronizarse de lo que la recepcionista está viendo.
+// Se omite la columna "Acción" (botones, no tiene sentido en un PDF).
+function _colorEstadoTxtPDF(txt){
+  const t=(txt||'').toLowerCase();
+  if(t.indexOf('no asisti')>-1)return[220,38,38];
+  if(t.indexOf('asisti')>-1||t.indexOf('pago registrado')>-1)return[5,150,105];
+  if(t.indexOf('reprogramad')>-1)return[100,116,139];
+  if(t.indexOf('congelad')>-1)return[8,145,178];
+  if(t.indexOf('permiso')>-1)return[217,119,6];
+  if(t.indexOf('programado')>-1)return[37,99,235];
+  if(t.indexOf('cancelad')>-1)return[220,38,38];
+  return[30,30,30];
+}
+function exportarHistorialSesionesPDF(){
+  const pacId=document.getElementById('histPac')?.value||'';
+  if(!pacId)return;
+  const pac2=getPac(pacId);
+  const tabla=document.querySelector('#histContenido table');
+  if(!tabla){showToast('Sin sesiones registradas para este paciente','error');return;}
+  const filas=Array.from(tabla.querySelectorAll('tbody tr')).map(function(tr){
+    // Columnas en pantalla: Fecha,Psicóloga,Terapia,Estado,Tipo,Costo,Notas,Acción
+    // - se toman solo las primeras 7 (se omite Acción).
+    return Array.from(tr.querySelectorAll('td')).slice(0,7).map(function(td){
+      return (td.innerText||td.textContent||'').trim();
+    });
+  });
+  if(!filas.length){showToast('Sin sesiones registradas para este paciente','error');return;}
+  const jsPDF=_getJsPDFHist();
+  if(!jsPDF){showToast('Cargando PDF... intenta de nuevo en un segundo','info');return;}
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=297,H=210,M=12;
+  const cols=[
+    {t:'Fecha',w:24},{t:'Psicóloga',w:34},{t:'Terapia',w:34},{t:'Estado',w:26},
+    {t:'Tipo',w:20},{t:'Costo',w:30},{t:'Notas',w:105}
+  ];
+  function dibujarEncabezado(){
+    doc.setFillColor(74,14,46);doc.rect(0,0,W,18,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
+    doc.text('📋 Registro de Sesiones - '+(pac2.nombre||''),M,11);
+    doc.setFillColor(233,30,140);doc.rect(0,18,W,2,'F');
+  }
+  function dibujarCabeceraTabla(y){
+    doc.setFillColor(238,244,255);doc.rect(M,y,W-M*2,6,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(12,30,61);
+    let x=M;
+    cols.forEach(function(c){doc.text(c.t,x+1.5,y+4.2);x+=c.w;});
+    return y+6;
+  }
+  dibujarEncabezado();
+  let y=24;
+  y=dibujarCabeceraTabla(y);
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+  filas.forEach(function(fila){
+    const lineasCelda=cols.map(function(c,i){return doc.splitTextToSize(fila[i]||'-',c.w-3);});
+    const nLineas=Math.max.apply(null,lineasCelda.map(function(l){return l.length;}));
+    const altoFila=Math.max(5,nLineas*3.2+1.5);
+    if(y+altoFila>H-10){
+      doc.addPage('a4','landscape');
+      dibujarEncabezado();
+      y=24;
+      y=dibujarCabeceraTabla(y);
+      doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+    }
+    let x=M;
+    cols.forEach(function(c,i){
+      if(i===3){const col=_colorEstadoTxtPDF(fila[3]);doc.setTextColor(col[0],col[1],col[2]);doc.setFont('helvetica','bold');}
+      else{doc.setTextColor(40,40,40);doc.setFont('helvetica','normal');}
+      doc.text(lineasCelda[i],x+1.5,y+3.4);
+      x+=c.w;
+    });
+    y+=altoFila;
+    doc.setDrawColor(219,228,243);doc.line(M,y,W-M,y);
+  });
+  guardarPDF(doc,'Historial_'+(pac2.nombre||'paciente').replace(/\s+/g,'_')+'.pdf');
 }
 
 async function onCambioHistPac(){
