@@ -7556,6 +7556,15 @@ function exportarFichasHistorialPDF(){
 // recalcular la lógica de filas/estado/Paq X-Y por separado) para que el
 // PDF nunca pueda desincronizarse de lo que la recepcionista está viendo.
 // Se omite la columna "Acción" (botones, no tiene sentido en un PDF).
+// jsPDF con la fuente por defecto (helvetica) no sabe dibujar emojis - en
+// vez de avisar o fallar, los convierte en caracteres sueltos sin sentido
+// (ej. "Ø=ÜË"). Se quitan antes de escribir cualquier texto en el PDF -
+// en pantalla (HTML) los emojis se quedan intactos, esto solo afecta al PDF.
+function _limpiarEmojiPDF(txt){
+  return String(txt||'')
+    .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{2300}-\u{23FF}️‍]/gu,'')
+    .replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').trim();
+}
 function _colorEstadoTxtPDF(txt){
   const t=(txt||'').toLowerCase();
   if(t.indexOf('no asisti')>-1)return[220,38,38];
@@ -7577,7 +7586,7 @@ function exportarHistorialSesionesPDF(){
     // Columnas en pantalla: Fecha,Psicóloga,Terapia,Estado,Tipo,Costo,Notas,Acción
     // - se toman solo las primeras 7 (se omite Acción).
     return Array.from(tr.querySelectorAll('td')).slice(0,7).map(function(td){
-      return (td.innerText||td.textContent||'').trim();
+      return _limpiarEmojiPDF(td.innerText||td.textContent||'');
     });
   });
   if(!filas.length){showToast('Sin sesiones registradas para este paciente','error');return;}
@@ -7592,7 +7601,7 @@ function exportarHistorialSesionesPDF(){
   function dibujarEncabezado(){
     doc.setFillColor(74,14,46);doc.rect(0,0,W,18,'F');
     doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
-    doc.text('📋 Registro de Sesiones - '+(pac2.nombre||''),M,11);
+    doc.text('Registro de Sesiones - '+_limpiarEmojiPDF(pac2.nombre||''),M,11);
     doc.setFillColor(233,30,140);doc.rect(0,18,W,2,'F');
   }
   function dibujarCabeceraTabla(y){
