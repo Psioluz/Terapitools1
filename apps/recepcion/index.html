@@ -4058,13 +4058,56 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
   let huerfanos=[];
   try{
     huerfanos=await sbGet('pagos',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,
-      sesion_id:'is.null',programa_id:'is.null',select:'id,monto'})||[];
+      sesion_id:'is.null',programa_id:'is.null',select:'id,monto,fecha'})||[];
   }catch(e){console.error('[vincular pagos huérfanos]',e);return 0;}
   if(!huerfanos.length)return 0;
-  const total=huerfanos.reduce(function(a,p){return a+(parseFloat(p.monto)||0);},0);
-  if(total<=0)return 0;
-  await Promise.all(huerfanos.map(function(p){return sbPatch('pagos',{programa_id:progId},{id:'eq.'+p.id});}));
-  return Math.round(total*100)/100;
+  const totalHuerfanos=huerfanos.reduce(function(a,p){return a+(parseFloat(p.monto)||0);},0);
+  if(totalHuerfanos<=0)return 0;
+  // No todo pago "sin sesion_id ni programa_id" es plata de sobra para el
+  // paquete nuevo - una sesión SUELTA (fuera de paquete) también se cobra
+  // así, sin atar el pago a esa sesión puntual (el trigger de Supabase
+  // saldo_suelto_real reparte este mismo pool entre las sesiones sueltas
+  // pendientes del paciente). Si se arrastraba TODO el pool al paquete
+  // nuevo sin descontar lo que las sesiones sueltas reales todavía
+  // necesitan, esas sesiones quedaban "pagadas" sin ningún pago real que
+  // las respalde, y el paquete nuevo aparecía con un adelanto inflado de
+  // más (pasó con Gia Chumbe Herrera: 2 pagos de S/38 de sesiones sueltas
+  // terminaron sumados al paquete, y esas 2 sesiones sueltas quedaron
+  // debiendo S/76 que en realidad ya estaban pagados). Se calcula primero
+  // cuánto necesitan las sesiones sueltas reales de este paciente/sede, y
+  // solo el sobrante se lleva al paquete.
+  let costoSueltasPendientes=0;
+  try{
+    const sueltas=await sbGet('sesiones',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,
+      programa_id:'is.null',select:'costo_total,estado,tipo'})||[];
+    costoSueltasPendientes=sueltas.filter(function(s){
+      return s.tipo!=='paquete'&&['cancelado','permiso','reprogramado'].indexOf(s.estado)===-1;
+    }).reduce(function(a,s){return a+(parseFloat(s.costo_total)||0);},0);
+  }catch(e){console.error('[vincular pagos huérfanos - sueltas]',e);}
+  const disponibleParaPaquete=Math.max(0,Math.round((totalHuerfanos-costoSueltasPendientes)*100)/100);
+  if(disponibleParaPaquete<=0)return 0;
+  // Se vincula primero el pago más grande (lo más probable es que un
+  // adelanto de paquete sea un monto grande de una sola vez, mientras que
+  // las sesiones sueltas suelen ser montos chicos) hasta cubrir el
+  // sobrante disponible - no necesariamente todos los pagos huérfanos, si
+  // parte de ese dinero sigue perteneciendo a sesiones sueltas.
+  huerfanos.sort(function(a,b){return(parseFloat(b.monto)||0)-(parseFloat(a.monto)||0);});
+  let restante=disponibleParaPaquete;
+  const idsAVincular=[];
+  let totalVinculado=0;
+  for(const p of huerfanos){
+    if(restante<=0.004)break;
+    idsAVincular.push(p.id);
+    totalVinculado+=(parseFloat(p.monto)||0);
+    restante=Math.round((restante-(parseFloat(p.monto)||0))*100)/100;
+  }
+  if(!idsAVincular.length)return 0;
+  await Promise.all(idsAVincular.map(function(id){return sbPatch('pagos',{programa_id:progId},{id:'eq.'+id});}));
+  // Se devuelve lo REALMENTE vinculado (puede superar un poco a
+  // disponibleParaPaquete porque se atan filas de pago completas, no se
+  // parten) - si se devolviera solo disponibleParaPaquete, el adelanto del
+  // paquete quedaría por debajo de lo que de verdad tiene vinculado ahora.
+  return Math.round(totalVinculado*100)/100;
 }
 
 // ══ RECALCULAR SALDO (automático, sin botón) ══
@@ -8196,9 +8239,20 @@ function abrirModalCancelarSesion(sesId){
   var s=DB.sesiones.find(function(x){return x.id===sesId;});
   if(!s){showToast('Sesión no encontrada','error');return;}
   _cancelarCtx={sesId:sesId,esPaquete:s.tipo==='paquete',programaId:(s._sb&&s._sb.programa_id)||null,pacNom:s.pacNom||''};
+  // Si esta fila es el destino de un permiso o una reprogramación (ver
+  // reprogramaciones.fecha_nueva/hora_nueva), cancelarla "por error de
+  // registro" sin darse cuenta deja al paciente debiendo esa sesión otra
+  // vez de verdad, sin que nadie lo note hasta mucho después - pasó con
+  // las 2 reposiciones de permiso de Dylan Arturo Pilar Reyes, canceladas
+  // por error pensando que eran duplicados. Se avisa explícitamente antes
+  // de dejar cancelar una fila así.
+  var esReposicion=(DB.reprogramaciones||[]).some(function(r){
+    return r.paciente_nombre===s.pacNom&&r.fecha_nueva===s.fecha&&(r.hora_nueva||'').slice(0,5)===s.hora;
+  });
   document.getElementById('cancelar-info').innerHTML=
     '<b>'+(s.pacNom||'Paciente')+'</b> · '+fmtF(s.fecha)+' '+s.hora+
-    (s.terNom?' · '+s.terNom:'')+(s.tipo==='paquete'?' · Sesión de paquete':' · Sesión suelta');
+    (s.terNom?' · '+s.terNom:'')+(s.tipo==='paquete'?' · Sesión de paquete':' · Sesión suelta')+
+    (esReposicion?'<div class="alert al-danger" style="margin-top:8px;font-size:12px">⚠️ Esta sesión es la REPOSICIÓN de un permiso o reprogramación anterior - NO es un duplicado. Si la cancelas, el paciente se queda debiendo esa sesión de nuevo, sin que nadie lo note hasta después. Revisa bien antes de cancelarla.</div>':'');
   document.getElementById('cancelar-alcance-grp').style.display=_cancelarCtx.esPaquete?'block':'none';
   var radios=document.getElementsByName('cancelar-alcance');
   for(var i=0;i<radios.length;i++)radios[i].checked=(radios[i].value==='sesion');
