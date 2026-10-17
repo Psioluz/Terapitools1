@@ -1174,7 +1174,11 @@ function _diasTrabajoANum(txt){
           // Con _sbAll() se pagina y se trae TODO sin importar cuánto crezca -
           // no hay techo que se pueda volver a desbordar con el tiempo.
           _sbAll('sesiones',Object.assign({'select':'*','order':'fecha.desc,hora.desc'},sedeFiltro(sede))),
-          _sb('psicologas',Object.assign({'estado':'eq.activa','select':'*'},sedeFiltro(sede))),
+          // es_multisede=false: un profesional externo que atiende en TODAS
+          // las sedes (ej. el neuropsicólogo) no es personal del centro -
+          // no tiene sueldo/contrato con nosotros y no debe contar en
+          // ocupación, planilla ni rendimiento de ESTA sede.
+          _sb('psicologas',Object.assign({'estado':'eq.activa','es_multisede':'eq.false','select':'*'},sedeFiltro(sede))),
           _sb('recepcionistas',Object.assign({'estado':'eq.activa','select':'*'},sedeFiltro(sede))),
           _sb('pacientes',Object.assign({'estado':'eq.activo','select':'*'},sedeFiltro(sede))),
           _sb('terapias',{'select':'*'}),
@@ -4305,7 +4309,7 @@ async function renderCalendarioPagos(contId){
   try{
     var y=_calMes.y,m=_calMes.m;
     var res=await Promise.all([
-      accGet('psicologas',{select:'nombre,sede,dia_pago,fecha_ingreso,fecha_nac,estado,sueldo,numero_cuenta,cci'}).catch(function(){return[];}),
+      accGet('psicologas',{es_multisede:'eq.false',select:'nombre,sede,dia_pago,fecha_ingreso,fecha_nac,estado,sueldo,numero_cuenta,cci'}).catch(function(){return[];}),
       accGet('recepcionistas',{select:'nombre,sede,dia_pago,fecha_ingreso,estado,sueldo,numero_cuenta,cci'}).catch(function(){return[];}),
       accGet('pagos_recurrentes',{select:'*'}).catch(function(){return[];}),
       accGet('pacientes',{select:'nombre,fecha_nac',estado:'eq.activo'}).catch(function(){return[];})

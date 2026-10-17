@@ -626,7 +626,11 @@ async function recargar(){
       sbGet('sesiones',Object.assign({fecha:'gte.'+mes+'-01',select:'*',order:'fecha.desc',limit:'1500'},sedeFiltro(sed))),
       sbGet('pacientes',Object.assign({estado:'eq.activo',select:'*',order:'nombre.asc'},sedeFiltro(sed))),
       sbGet('pagos',Object.assign({fecha:'gte.'+mes+'-01',select:'*',order:'fecha.desc',limit:'1500'},sedeFiltro(sed))),
-      sbGet('psicologas',Object.assign({estado:'eq.activa',select:'*'},sedeFiltro(sed))),
+      // es_multisede=false: excluye a profesionales externos que atienden en
+      // TODAS las sedes (ej. el neuropsicólogo) de las planillas/reportes de
+      // personal de ESTA sede - no es personal del centro, no tiene sueldo
+      // ni contrato con nosotros, y contarlo aquí inflaría ocupación/nómina.
+      sbGet('psicologas',Object.assign({estado:'eq.activa',es_multisede:'eq.false',select:'*'},sedeFiltro(sed))),
       sbGet('contratos',Object.assign({select:'*',order:'created_at.desc'},sedeFiltro(sed))).catch(function(){return[];}),
       sbGet('gastos',Object.assign({fecha:'gte.'+mes+'-01',select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
       sbGet('honorarios',Object.assign({mes:'eq.'+mes,select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
@@ -2214,7 +2218,7 @@ async function renderCalendarioPagos(contId){
   try{
     var y=_calMes.y,m=_calMes.m;
     var res=await Promise.all([
-      sbGet('psicologas',{select:'nombre,sede,dia_pago,fecha_ingreso,fecha_nac,estado,sueldo,numero_cuenta,cci'}).catch(function(){return[];}),
+      sbGet('psicologas',{es_multisede:'eq.false',select:'nombre,sede,dia_pago,fecha_ingreso,fecha_nac,estado,sueldo,numero_cuenta,cci'}).catch(function(){return[];}),
       sbGet('recepcionistas',{select:'nombre,sede,dia_pago,fecha_ingreso,estado,sueldo,numero_cuenta,cci'}).catch(function(){return[];}),
       sbGet('pagos_recurrentes',{select:'*'}).catch(function(){return[];}),
       sbGet('pacientes',{select:'nombre,fecha_nac',estado:'eq.activo'}).catch(function(){return[];})

@@ -2007,8 +2007,12 @@ function renderAsistPersonalDash(){
   const lista=_asistFromSB().filter(r=>r.fecha===hoy);
   const el=document.getElementById('dashAsistPersonal');
   if(!el)return;
-  if(!DB.psicologas.length){el.innerHTML='<div style="color:var(--muted);font-size:12px">No hay psicólogas registradas.</div>';return;}
-  el.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:8px">'+DB.psicologas.map(ps=>{
+  // Un profesional multisede (ej. el neuropsicólogo externo) no marca
+  // asistencia como el resto del personal - no es de planta de esta sede,
+  // así que no debe salir en este control de llegadas.
+  const psAsist=DB.psicologas.filter(ps=>!ps.multisede);
+  if(!psAsist.length){el.innerHTML='<div style="color:var(--muted);font-size:12px">No hay psicólogas registradas.</div>';return;}
+  el.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:8px">'+psAsist.map(ps=>{
     const reg=lista.find(r=>r.psId===ps.id);
     const color=reg?(reg.estado==='presente'?'var(--green)':'var(--red)'):'var(--muted)';
     const ico=reg?(reg.estado==='presente'?'✅':'❌'):'⏳';
@@ -5656,13 +5660,17 @@ async function renderAsistPersonal(){
   const ausentes=lista.filter(r=>r.estado==='ausente').length;
   const elP=document.getElementById('ap-presentes');if(elP)elP.textContent=presentes;
   const elA=document.getElementById('ap-ausentes');if(elA)elA.textContent=ausentes;
-  const elT=document.getElementById('ap-total');if(elT)elT.textContent=DB.psicologas.length;
+  // Igual que en el dashboard: el neuropsicólogo (u otro profesional
+  // multisede) no es personal de planta de esta sede y no marca
+  // asistencia - no debe aparecer en este control ni en el total.
+  const psAsist=DB.psicologas.filter(ps=>!ps.multisede);
+  const elT=document.getElementById('ap-total');if(elT)elT.textContent=psAsist.length;
   const el=document.getElementById('apLista');if(!el)return;
-  if(!DB.psicologas.length){
+  if(!psAsist.length){
     el.innerHTML='<div class="alert al-info">No hay psicólogas registradas. Ve a <strong>Psicólogas</strong> y agrega al personal.</div>';
     return;
   }
-  el.innerHTML=DB.psicologas.map(ps=>{
+  el.innerHTML=psAsist.map(ps=>{
     const reg=lista.find(r=>r.psId===ps.id);
     const sesHoy=DB.sesiones.filter(s=>s.psId===ps.nombre&&s.fecha===fecha).length;
     const borderC=reg?(reg.estado==='presente'?'var(--green)':'var(--red)'):'var(--border)';
