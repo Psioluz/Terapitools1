@@ -812,7 +812,7 @@ try{
         </div>
         <div class="form-group">
           <label class="form-label">Tipo de Terapia *</label>
-          <select class="form-control" id="ag-ter"></select>
+          <select class="form-control" id="ag-ter" onchange="_agPoblarPsSimple()"></select>
         </div>
       </div>
       <!-- Servicio específico del catálogo (solo si no es paquete ni adelanto;
@@ -1657,7 +1657,7 @@ function fillSelects(){
   const psO='<option value="">- Selecciona -</option>'+DB.psicologas.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join('');
   const terO='<option value="">- Selecciona -</option>'+DB.terapias.map(t=>'<option value="'+t.id+'">'+t.nombre+'</option>').join('');
   const pacO='<option value="">- Selecciona -</option>'+DB.pacientes.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join('');
-  ['ag-ps','pg-ps','lm-ps'].forEach(id=>_fillPreservando(id,psO));
+  ['pg-ps','lm-ps'].forEach(id=>_fillPreservando(id,psO));
   ['ag-ter'].forEach(id=>_fillPreservando(id,terO));
   ['pg-pac','pg-ajustePaciente'].forEach(id=>_fillPreservando(id,pacO));
   _fillPreservando('histPac','<option value="">- Selecciona paciente -</option>'+DB.pacientes.map(p=>'<option value="'+p.id+'">'+p.nombre+'</option>').join(''));
@@ -1671,6 +1671,11 @@ function fillSelects(){
     tiposReales.map(function(t){return'<option value="'+t+'">'+tipoMeta(t).icono+' '+t+'</option>';}).join('')+
     '<option value="adelanto">💰 Adelanto / Reserva</option>'+
     '<option value="exclusivo">💎 Precio Exclusivo (paciente)</option>');
+  // ag-ps (Psicóloga del selector simple) NO usa la lista completa: por
+  // defecto excluye al neuropsicólogo multisede (solo debe salir con
+  // Evaluación + Evaluación Neuropsicológica, ver _agPoblarPsSimple).
+  // Va al final porque depende de ag-tipo/ag-ter ya poblados arriba.
+  _agPoblarPsSimple();
 }
 
 // ── Buscador de paciente (autocompletar) ──
@@ -3222,6 +3227,8 @@ function agOnTipo(){
       }
     }
   }
+  _agRefrescarPsTodasFilas();
+  _agPoblarPsSimple();
   agActualizarResumen();
 }
 
@@ -3282,6 +3289,8 @@ function agOnServ(){
     if(grpBuilder)grpBuilder.style.display='none';
     document.getElementById('ag-costo').value=serv?serv.costoTotal:'';
   }
+  _agRefrescarPsTodasFilas();
+  _agPoblarPsSimple();
   agActualizarResumen();
 }
 
@@ -3355,12 +3364,20 @@ function _esTerapiaNeuropsico(terId){
   const ter=getTer(terId);
   return!!(ter&&/neuropsic/i.test(ter.nombre||''));
 }
+// El Dr. solo debe poder quedar asignado cuando AMBOS campos calzan: tipo
+// de servicio "Evaluación" Y terapia "Evaluación Neuropsicológica" - no
+// basta con que la terapia sea esa (ej. si alguien la elige por error
+// dentro de un paquete o una sesión suelta, no debe salir él solo).
+function _debeSoloNeuropsicologo(terId){
+  const tipo=document.getElementById('ag-tipo')?.value||'';
+  return tipo==='Evaluación'&&_esTerapiaNeuropsico(terId);
+}
 function _agPoblarPsicologasFila(row){
   const selDia=row.querySelector('.ag-row-dia');
   const selTer=row.querySelector('.ag-row-ter');
   const selPs=row.querySelector('.ag-row-ps');
   const dia=selDia.value;
-  const esNeuropsico=_esTerapiaNeuropsico(selTer.value);
+  const esNeuropsico=_debeSoloNeuropsicologo(selTer.value);
   if(!dia){
     selPs.innerHTML='<option value="">- Elige un día -</option>';
   }else{
@@ -3381,6 +3398,33 @@ function agOnRowDia(selDia){
 function agOnRowTer(selTer){
   const row=selTer.closest('.ag-terapia-row');
   _agPoblarPsicologasFila(row);
+}
+// _debeSoloNeuropsicologo depende de "Tipo de servicio" (ag-tipo), que es
+// un campo FUERA de cada fila - al cambiarlo hay que volver a evaluar el
+// filtro de Psicóloga en TODAS las filas ya armadas, no solo en la que se
+// tocó. Se usa tanto desde agOnTipo() como, más abajo, para el selector
+// simple de Psicóloga+Terapia (fuera del armador de paquete/servicio).
+function _agRefrescarPsTodasFilas(){
+  document.querySelectorAll('#ag-terapiaRows .ag-terapia-row').forEach(function(row){
+    _agPoblarPsicologasFila(row);
+  });
+}
+// Mismo filtro que en el armador de paquete/servicio, pero para el
+// selector simple "Psicóloga + Tipo de Terapia" (sesión suelta/consulta,
+// fuera de paquete) - ahí Psicóloga se elige ANTES que Terapia, así que
+// hay que re-poblarlo cada vez que cambia cualquiera de los dos campos
+// (ag-tipo o ag-ter), no solo al elegir la terapia.
+function _agPoblarPsSimple(){
+  const selPs=document.getElementById('ag-ps');
+  const selTer=document.getElementById('ag-ter');
+  if(!selPs||!selTer)return;
+  const soloNeuro=_debeSoloNeuropsicologo(selTer.value);
+  const actual=selPs.value;
+  const opciones=DB.psicologas.filter(function(p){return soloNeuro?!!p.multisede:!p.multisede;});
+  selPs.innerHTML=opciones.length?('<option value="">- Selecciona -</option>'+opciones.map(function(p){return '<option value="'+p.id+'">'+p.nombre+'</option>';}).join('')):
+    '<option value="">'+(soloNeuro?'El neuropsicólogo no está disponible':'Sin psicólogas disponibles')+'</option>';
+  if(opciones.some(function(p){return p.id===actual;}))selPs.value=actual;
+  agOnPs();
 }
 function agOnRowPs(selPs){
   const row=selPs.closest('.ag-terapia-row');
