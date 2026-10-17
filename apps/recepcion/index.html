@@ -2877,6 +2877,25 @@ function agOnPac(){
 // Paquetes ya activos del paciente elegido, para poder agregarles otra
 // terapia/psicóloga en vez de venderle un paquete nuevo cada vez.
 let _agProgramasActivos=[];
+// Reparte el cupo de un paquete entre sus terapias según lo que REALMENTE
+// existe en la agenda (sesiones vivas por programa_terapia_id), en vez de
+// lo que se le asignó de una sola vez al crearlo/ampliarlo. Solo escribe
+// en Supabase la(s) terapia(s) cuyo número cambió - así la próxima vez
+// que se cargue este paquete ya viene corregido, sin depender de que
+// alguien me pida arreglarlo a mano otra vez.
+function _corregirAsignacionesSiSobran(p){
+  (p.programa_terapias||[]).forEach(function(pt){
+    const reales=DB.sesiones.filter(function(s){
+      return s._sb&&s._sb.programa_terapia_id===pt.id&&s.estado!=='permiso'&&s.estado!=='reprogramado'&&
+        s.estado!=='cancelado'&&s.estado!=='congelado';
+    }).length;
+    if(reales!==(pt.sesiones_asignadas||0)){
+      pt.sesiones_asignadas=reales;pt.sesiones_realizadas=reales;
+      sbPatch('programa_terapias',{sesiones_asignadas:reales,sesiones_realizadas:reales},{id:'eq.'+pt.id}).catch(function(){});
+    }
+  });
+  return(p.programa_terapias||[]).reduce(function(a,t){return a+(t.sesiones_asignadas||0);},0);
+}
 async function agCargarProgramasActivos(){
   const tipo=document.getElementById('ag-tipo')?.value;
   const grp=document.getElementById('ag-grp-progExist');
@@ -2904,7 +2923,7 @@ async function agCargarProgramasActivos(){
   // guardarPaqueteFlujo aparte).
   _agProgramasActivos=[];
   todosActivos.forEach(function(p){
-    const asignadas=(p.programa_terapias||[]).reduce(function(a,t){return a+(t.sesiones_asignadas||0);},0);
+    let asignadas=(p.programa_terapias||[]).reduce(function(a,t){return a+(t.sesiones_asignadas||0);},0);
     const tienePendientes=DB.sesiones.some(function(s){return s._sb&&s._sb.programa_id===p.id&&s.estado==='programado';});
     // "asignadas" es cuánto se LE ASIGNÓ al paquete al crearlo (de una sola
     // vez, en modo "generar") - no cuántas filas de sesión existen de
@@ -2921,6 +2940,17 @@ async function agCargarProgramasActivos(){
     const sesionesReales=DB.sesiones.filter(function(s){
       return s._sb&&s._sb.programa_id===p.id&&s.estado!=='permiso'&&s.estado!=='reprogramado'&&s.estado!=='cancelado'&&s.estado!=='congelado';
     }).length;
+    // "asignadas" puede quedar por encima de las sesiones reales si se
+    // tipeó/generó el cupo completo de una terapia pero el calendario no
+    // llegó a crear todas esas filas (ej. "5 de T. Ocupacional" asignadas,
+    // pero solo 2 sesiones reales en la agenda) - ahí el paquete se ve
+    // "sin cupo" sin estarlo de verdad, bloqueando seguir agendando. Pasó
+    // con Leandro Correa, Emiliano Zárate y Zamir Villalta: se corrige
+    // cada programa_terapia a su conteo REAL de sesiones vivas (nunca se
+    // toca si sí alcanzan, solo cuando sobra asignación sin respaldo real).
+    if(asignadas>=(p.nro_sesiones_total||0)&&sesionesReales<(p.nro_sesiones_total||0)){
+      asignadas=_corregirAsignacionesSiSobran(p);
+    }
     if(asignadas>=(p.nro_sesiones_total||0)&&!tienePendientes&&sesionesReales>=(p.nro_sesiones_total||0)){
       sbPatch('programas_paciente',{estado:'completado'},{id:'eq.'+p.id}).catch(function(){});
     }else{
