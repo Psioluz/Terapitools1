@@ -2584,7 +2584,7 @@ async function congelarSesion(sesId){
       const ptActual=progActual&&(progActual.programa_terapias||[]).find(function(t){return t.id===ptId;});
       if(ptActual)await sbPatch('programa_terapias',{sesiones_realizadas:(ptActual.sesiones_realizadas||0)+1},{id:'eq.'+ptId});
     }
-    if(progId)await reconciliarCheckpoints(progId);
+    if(progId)await recalcularSaldoPaciente(pac.nombre);
     showToast('❄️ Sesión congelada - nueva sesión el '+fmtF(nuevaFecha));
     await cargarDesdeSB();
   }catch(e){showToast('Error al congelar: '+e.message,'error');console.error('[congelar]',e);}
@@ -2760,7 +2760,7 @@ async function confirmarPermiso(){
     // La reposición cae en una fecha bien posterior - igual que al
     // reprogramar, eso puede correr en rank real a las sesiones de en
     // medio y dejar algún checkpoint en la fila equivocada.
-    if(progId)await reconciliarCheckpoints(progId);
+    if(progId)await recalcularSaldoPaciente(pac.nombre);
     closeModal('modalPermiso');
     showToast('✅ Permiso registrado - nueva sesión el '+fmtF(nuevaFecha));
     await cargarDesdeSB();
@@ -4171,7 +4171,7 @@ async function recalcularSaldoPaciente(pacNombre){
   for(const prog of progs){
     const pagosProg=await sbGet('pagos',{programa_id:'eq.'+prog.id,select:'monto'})||[];
     const totalPagado=Math.round(pagosProg.reduce(function(a,p){return a+(parseFloat(p.monto)||0);},0)*100)/100;
-    const sesionesProg=await sbGet('sesiones',{programa_id:'eq.'+prog.id,tipo:'eq.paquete',select:'id,nro_en_paquete,estado,saldo'})||[];
+    const sesionesProg=await sbGet('sesiones',{programa_id:'eq.'+prog.id,tipo:'eq.paquete',select:'id,fecha,hora,nro_en_paquete,estado,saldo'})||[];
     // Reinicia en 0 el saldo de TODAS sus sesiones del paquete - la
     // cascada de abajo solo vuelve a poner algo en las que de verdad
     // quedan con una cuota pendiente.
@@ -4181,13 +4181,27 @@ async function recalcularSaldoPaciente(pacNombre){
     const vivas=sesionesProg.filter(function(s){
       return s.estado!=='permiso'&&s.estado!=='reprogramado'&&s.estado!=='cancelado'&&s.estado!=='congelado';
     });
-    const porNro={};
-    vivas.forEach(function(s){if(!porNro[s.nro_en_paquete])porNro[s.nro_en_paquete]=s;});
+    // El cobro de cada cuota sigue el ORDEN REAL de las sesiones (el mismo
+    // que ve la recepcionista como "Paq X/Y" en pantalla - ver
+    // _rankPaqSesion), no el cupo fijo (nro_en_paquete) asignado al crear
+    // el paquete. Antes se buscaba por ese cupo fijo: si un permiso
+    // excusaba una sesión de en medio, el cobro se quedaba pegado al cupo
+    // original (ej. "cupo 12") aunque esa sesión ya no fuera la 12va real
+    // sino la 9na, mostrando el cobro en una sesión distinta a la que la
+    // recepcionista cuenta en pantalla (caso Dylan del Río Valentino
+    // Rojas). Ordenando por fecha real y usando esa misma posición, el
+    // cobro cae siempre en la sesión que corresponde según lo que de
+    // verdad pasó, saltando permisos/reprogramaciones/congeladas - a
+    // costo de que un permiso de por medio atrase la fecha calendario en
+    // que toca esa cuota (ya no se mueve el total, solo cuándo cae).
+    const vivasOrdenadas=vivas.slice().sort(function(a,b){
+      return (a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));
+    });
     const checkpoints=_checkpointsDePaquete(prog.nro_sesiones_total,prog.nro_cuotas,prog.costo_total,pacNombre);
     let restante=totalPagado;
     const patches=[];
     checkpoints.forEach(function(cp){
-      const sesDestino=porNro[cp.sesion];
+      const sesDestino=vivasOrdenadas[cp.sesion-1];
       if(!sesDestino)return;
       const aplicado=Math.max(0,Math.min(restante,cp.monto));
       const saldoCuota=Math.round((cp.monto-aplicado)*100)/100;
@@ -4681,7 +4695,7 @@ async function guardarSesion(){
       // se revisa de una vez si algún checkpoint quedó en la sesión
       // equivocada por ese movimiento, para no dejarlo pendiente de que
       // alguien lo note manualmente.
-      if(progIdOrig)await reconciliarCheckpoints(progIdOrig);
+      if(progIdOrig)await recalcularSaldoPaciente(pac.nombre);
     } else if((progInfo=(tipo==='paquete')?await obtenerProgramaActivo(pac.nombre,ter.nombre,ps.nombre):null)){
       const prog=progInfo.programa,pt=progInfo.terapiaRow;
       // El nro_en_paquete/total_paquete deben reflejar el paquete COMPLETO
@@ -5265,43 +5279,13 @@ async function aplicarCascadaCheckpoints(programaId,montoDisponible){
   await Promise.all(patches);
 }
 
-// Una sesión-checkpoint (la que tiene saldo>0, donde toca cobrar una
-// cuota) vive en un número fijo (nro_en_paquete) que reprogramar() NUNCA
-// mueve. El problema: reprogramar una sesión a una fecha bien posterior
-// hace que TODAS las sesiones que quedan entre medio "adelanten" un
-// puesto en el orden cronológico real, sin que su número guardado se
-// entere - el checkpoint, anclado a un número, termina cayendo en la
-// sesión de ANTES en vez de la que de verdad ocupa esa posición por
-// fecha. Se corrige moviendo el saldo (nunca el monto, solo a qué fila
-// está atado) a la sesión que hoy en día realmente tiene ese puesto -
-// se llama automáticamente después de cada reprogramación, para que
-// esto no dependa de detectarlo a mano paciente por paciente.
-async function reconciliarCheckpoints(programaId){
-  if(!programaId)return;
-  let vivas=[];
-  try{
-    vivas=await sbGet('sesiones',{programa_id:'eq.'+programaId,select:'*',order:'fecha.asc,hora.asc'});
-  }catch(e){console.error('[reconciliar checkpoints]',e);return;}
-  vivas=(vivas||[]).filter(function(s){return s.estado!=='permiso'&&s.estado!=='reprogramado'&&s.estado!=='cancelado';});
-  const porRank={};
-  vivas.forEach(function(s,i){porRank[i+1]=s;});
-  const patches=[];
-  vivas.forEach(function(s,i){
-    const rankReal=i+1;
-    const saldo=parseFloat(s.saldo)||0;
-    if(saldo<=0)return;
-    const posObjetivo=s.nro_en_paquete;
-    if(!posObjetivo||posObjetivo===rankReal)return;
-    const destino=porRank[posObjetivo];
-    if(!destino||destino.id===s.id)return;
-    // Si el destino ya tiene su propio saldo pendiente, no se pisa -
-    // mejor dejarlo como está y que se revise a mano.
-    if((parseFloat(destino.saldo)||0)>0)return;
-    patches.push(sbPatch('sesiones',{saldo:0},{id:'eq.'+s.id}));
-    patches.push(sbPatch('sesiones',{saldo:saldo},{id:'eq.'+destino.id}));
-  });
-  if(patches.length)await Promise.all(patches);
-}
+// reconciliarCheckpoints() se reemplazó por recalcularSaldoPaciente() en
+// cada punto donde se llamaba (permiso, congelar, reprogramar) - esa
+// función ya resuelve lo mismo de raíz: recalcula TODOS los checkpoints
+// del paciente contra el orden real de sus sesiones (saltando permisos/
+// reprogramadas/congeladas), en vez de mover el saldo entre dos filas
+// puntuales detectadas a mano. Así el cobro de cada cuota sigue siempre
+// la misma posición que ve la recepcionista en pantalla ("Paq X/Y").
 
 // Envoltorio fino: deshabilita "Guardar Pago" apenas se hace clic y lo
 // reactiva pase lo que pase (éxito, error o validación fallida) - evita que
