@@ -807,7 +807,7 @@ try{
            al reprogramar una sesión existente (mueve solo esa sesión) -->
       <div id="ag-grp-terapiaSimple" style="display:contents">
         <div class="form-group">
-          <label class="form-label">Psicóloga *</label>
+          <label class="form-label" id="ag-ps-label">Psicóloga *</label>
           <select class="form-control" id="ag-ps" onchange="agOnPs()"></select>
         </div>
         <div class="form-group">
@@ -3191,9 +3191,18 @@ function agOnTipo(){
     agOnModoPaq();
     agCargarProgramasActivos();
   } else {
-    if(grpSimple)grpSimple.style.display='contents';
-    if(grpFH)grpFH.style.display='contents';
-    if(grpCostoSimple)grpCostoSimple.style.display='block';
+    // Para cualquier tipo que pida "Selecciona el servicio" (todo menos
+    // paquete/adelanto/exclusivo), todavía no se sabe si va a ser una
+    // sesión simple (Psicóloga+Terapia+Fecha+Hora) o un servicio de varias
+    // sesiones (que usa el armador en su lugar, ver agOnServ/esMultiSesion)
+    // - eso recién se sabe al elegir el servicio puntual. Mostrar esos
+    // campos de entrada y que desaparezcan solos al elegir el servicio
+    // confundía a la recepcionista (los llenaba y luego se le borraban) -
+    // mejor no mostrar NINGUNO hasta que agOnServ() decida cuál mostrar.
+    const necesitaServicio=!!tipo&&tipo!=='adelanto';
+    if(grpSimple)grpSimple.style.display=necesitaServicio?'none':'contents';
+    if(grpFH)grpFH.style.display=necesitaServicio?'none':'contents';
+    if(grpCostoSimple)grpCostoSimple.style.display=necesitaServicio?'none':'block';
     if(grpBuilder)grpBuilder.style.display='none';
     document.getElementById('ag-costo').value='';
     // Reprogramar nunca cambia el costo (guardarSesion siempre usa el de
@@ -3283,9 +3292,12 @@ function agOnServ(){
     document.getElementById('ag-costo').value=serv.costoTotal||'';
     agOnModoPaq();
   } else {
-    if(grpSimple)grpSimple.style.display='contents';
-    if(grpFH)grpFH.style.display='contents';
-    if(grpCostoSimple)grpCostoSimple.style.display='block';
+    // Sin servId (volvió a "- Selecciona el servicio -") todavía no se
+    // sabe qué mostrar - se deja todo oculto, igual que al entrar a este
+    // tipo, en vez de mostrar de entrada los campos de sesión simple.
+    if(grpSimple)grpSimple.style.display=servId?'contents':'none';
+    if(grpFH)grpFH.style.display=servId?'contents':'none';
+    if(grpCostoSimple)grpCostoSimple.style.display=servId?'block':'none';
     if(grpBuilder)grpBuilder.style.display='none';
     document.getElementById('ag-costo').value=serv?serv.costoTotal:'';
   }
@@ -3295,7 +3307,38 @@ function agOnServ(){
 }
 
 // ── Filas de terapia del paquete (terapia + psicóloga + día + hora) ──
-function _agTerOpts(){
+function _normalizaTxt(s){
+  return(s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim().replace(/\.$/,'');
+}
+// Un "paquete" genérico puede mezclar varias terapias distintas (T.
+// Lenguaje un día, T. Ocupacional otro) - ahí la Terapia de cada fila
+// debe seguir siendo una elección libre. Pero un SERVICIO del catálogo de
+// nombre fijo (Informe psicológico, Evaluación Neuropsicológica...) es
+// siempre LA MISMA terapia en todas sus sesiones - volver a preguntarla
+// fila por fila, con el catálogo completo de terapias/documentos sin
+// relación, no tenía sentido y era justo lo que confundía (aparecían
+// T. Lenguaje, Constancias, etc. como si fueran opciones válidas).
+function _agTerapiaDeServicioActual(){
+  const tipo=document.getElementById('ag-tipo')?.value||'';
+  if(!tipo||tipo==='paquete'||tipo==='adelanto'||tipo==='exclusivo')return null;
+  const servId=document.getElementById('ag-servId')?.value||'';
+  if(!servId)return null;
+  const serv=getPaq(servId);
+  if(!serv)return null;
+  const nomServ=_normalizaTxt(serv.nombre);
+  return DB.terapias.find(function(t){return _normalizaTxt(t.nombre)===nomServ;})||null;
+}
+// Para el armador (varias sesiones) solo aplica si el servicio es
+// multisesión - una sesión simple (nroSes<=1) no llega a usar el armador,
+// pero SÍ necesita la misma terapia fija en el selector simple de abajo.
+function _agServicioFijoActual(){
+  const servId=document.getElementById('ag-servId')?.value||'';
+  const serv=servId?getPaq(servId):null;
+  if(!serv||(serv.nroSes||1)<=1)return null;
+  return _agTerapiaDeServicioActual();
+}
+function _agTerOpts(terapiaFija){
+  if(terapiaFija)return'<option value="'+terapiaFija.id+'" selected>'+terapiaFija.nombre+'</option>';
   return '<option value="">- Selecciona -</option>'+DB.terapias.map(t=>'<option value="'+t.id+'">'+t.nombre+'</option>').join('');
 }
 // Cada fila = un día de asistencia. La cantidad de filas la fija
@@ -3310,6 +3353,7 @@ function agOnFrecuencia(){
 }
 function agAgregarFilaTerapia(){
   const cont=document.getElementById('ag-terapiaRows');if(!cont)return;
+  const terapiaFija=_agServicioFijoActual();
   const div=document.createElement('div');
   div.className='ag-terapia-row';
   div.style.cssText='border:1.5px solid var(--border);border-radius:10px;padding:10px 30px 10px 10px;margin-bottom:8px;position:relative';
@@ -3320,8 +3364,8 @@ function agAgregarFilaTerapia(){
     '<div class="form-group" style="margin-bottom:0"><label class="form-label">Día</label>'+
     '<select class="form-control ag-row-dia" onchange="agOnRowDia(this)"></select></div>'+
     '<div class="form-group" style="margin-bottom:0"><label class="form-label">Terapia</label>'+
-    '<select class="form-control ag-row-ter" onchange="agOnRowTer(this)">'+_agTerOpts()+'</select></div>'+
-    '<div class="form-group" style="margin-bottom:0"><label class="form-label">Psicóloga</label>'+
+    '<select class="form-control ag-row-ter" onchange="agOnRowTer(this)"'+(terapiaFija?' disabled':'')+'>'+_agTerOpts(terapiaFija)+'</select></div>'+
+    '<div class="form-group" style="margin-bottom:0"><label class="form-label ag-row-ps-label">Psicóloga</label>'+
     '<select class="form-control ag-row-ps" onchange="agOnRowPs(this)"><option value="">- Elige un día -</option></select></div>'+
     '<div class="form-group" style="margin-bottom:0"><label class="form-label">Horario</label>'+
     '<select class="form-control ag-row-hora"><option value="">-</option></select></div>'+
@@ -3376,8 +3420,10 @@ function _agPoblarPsicologasFila(row){
   const selDia=row.querySelector('.ag-row-dia');
   const selTer=row.querySelector('.ag-row-ter');
   const selPs=row.querySelector('.ag-row-ps');
+  const lblPs=row.querySelector('.ag-row-ps-label');
   const dia=selDia.value;
   const esNeuropsico=_debeSoloNeuropsicologo(selTer.value);
+  if(lblPs)lblPs.textContent=esNeuropsico?'Doctor':'Psicóloga';
   if(!dia){
     selPs.innerHTML='<option value="">- Elige un día -</option>';
   }else{
@@ -3418,7 +3464,24 @@ function _agPoblarPsSimple(){
   const selPs=document.getElementById('ag-ps');
   const selTer=document.getElementById('ag-ter');
   if(!selPs||!selTer)return;
+  // Si el servicio elegido (Consulta, Informe, Evaluación...) tiene una
+  // terapia del catálogo con el mismo nombre, la Terapia queda fija a esa
+  // - no tiene sentido volver a preguntarla con el catálogo COMPLETO de
+  // terapias/documentos sin relación (T. Lenguaje, Constancias...), que
+  // es justo lo que confundía.
+  const terapiaFija=_agTerapiaDeServicioActual();
+  if(terapiaFija){
+    if(selTer.value!==terapiaFija.id||!selTer.disabled){
+      selTer.innerHTML='<option value="'+terapiaFija.id+'" selected>'+terapiaFija.nombre+'</option>';
+      selTer.disabled=true;
+    }
+  }else if(selTer.disabled){
+    selTer.innerHTML='<option value="">- Selecciona -</option>'+DB.terapias.map(function(t){return '<option value="'+t.id+'">'+t.nombre+'</option>';}).join('');
+    selTer.disabled=false;
+  }
   const soloNeuro=_debeSoloNeuropsicologo(selTer.value);
+  const lblPs=document.getElementById('ag-ps-label');
+  if(lblPs)lblPs.textContent=soloNeuro?'Doctor *':'Psicóloga *';
   const actual=selPs.value;
   const opciones=DB.psicologas.filter(function(p){return soloNeuro?!!p.multisede:!p.multisede;});
   selPs.innerHTML=opciones.length?('<option value="">- Selecciona -</option>'+opciones.map(function(p){return '<option value="'+p.id+'">'+p.nombre+'</option>';}).join('')):
