@@ -3125,7 +3125,7 @@ function agPoblarPaqCatalogo(){
     DB.paquetes.filter(function(p){
       return p.tipo==='Paquete'&&(p.categoria||'ninos')===categoria&&
         (esGratuito?(p.costoTotal||0)===0:(p.costoTotal||0)>0);
-    }).map(function(p){
+    }).sort(function(a,b){return(a.nroSes||0)-(b.nroSes||0);}).map(function(p){
       return '<option value="'+p.id+'">'+p.nombre+' - S/'+p.costoTotal+'</option>';
     }).join('');
   agOnPaq();
