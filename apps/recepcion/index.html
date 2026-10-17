@@ -3079,6 +3079,12 @@ function agCargarFilasDesdeProgPendiente(){
     agAgregarFilaTerapia();
     const row=cont.lastElementChild;
     const selDia=row.querySelector('.ag-row-dia');
+    const selTer=row.querySelector('.ag-row-ter');
+    // La terapia se fija ANTES de poblar Psicóloga - si no, para una
+    // Evaluación Neuropsicológica ya agendada, _agPoblarPsicologasFila
+    // todavía no sabría que debe mostrar solo al neuropsicólogo y su id
+    // quedaría fuera de la lista (selPs.value no se podría fijar).
+    selTer.value=f.terId;
     selDia.value=f.diaNom;
     agOnRowDia(selDia);
     const selPs=row.querySelector('.ag-row-ps');
@@ -3086,8 +3092,6 @@ function agCargarFilasDesdeProgPendiente(){
     agOnRowPs(selPs);
     const selHora=row.querySelector('.ag-row-hora');
     selHora.value=f.hora;
-    const selTer=row.querySelector('.ag-row-ter');
-    selTer.value=f.terId;
   });
 
   if(preview){
@@ -3303,7 +3307,7 @@ function agAgregarFilaTerapia(){
     '<div class="form-group" style="margin-bottom:0"><label class="form-label">Día</label>'+
     '<select class="form-control ag-row-dia" onchange="agOnRowDia(this)"></select></div>'+
     '<div class="form-group" style="margin-bottom:0"><label class="form-label">Terapia</label>'+
-    '<select class="form-control ag-row-ter">'+_agTerOpts()+'</select></div>'+
+    '<select class="form-control ag-row-ter" onchange="agOnRowTer(this)">'+_agTerOpts()+'</select></div>'+
     '<div class="form-group" style="margin-bottom:0"><label class="form-label">Psicóloga</label>'+
     '<select class="form-control ag-row-ps" onchange="agOnRowPs(this)"><option value="">- Elige un día -</option></select></div>'+
     '<div class="form-group" style="margin-bottom:0"><label class="form-label">Horario</label>'+
@@ -3339,19 +3343,40 @@ function agRefrescarDiasFilas(){
     sel.value=actual;
   });
 }
-function agOnRowDia(selDia){
-  agRefrescarDiasFilas();
-  const row=selDia.closest('.ag-terapia-row');
+// La Evaluación Neuropsicológica la lleva SOLO el neuropsicólogo externo
+// (atiende en todas las sedes, no es personal del centro) - ninguna
+// licenciada normal puede quedar asignada a esta terapia, y a la inversa,
+// él tampoco debe aparecer como opción para ninguna otra terapia.
+function _esTerapiaNeuropsico(terId){
+  const ter=getTer(terId);
+  return!!(ter&&/neuropsic/i.test(ter.nombre||''));
+}
+function _agPoblarPsicologasFila(row){
+  const selDia=row.querySelector('.ag-row-dia');
+  const selTer=row.querySelector('.ag-row-ter');
   const selPs=row.querySelector('.ag-row-ps');
   const dia=selDia.value;
+  const esNeuropsico=_esTerapiaNeuropsico(selTer.value);
   if(!dia){
     selPs.innerHTML='<option value="">- Elige un día -</option>';
   }else{
-    const psDelDia=DB.psicologas.filter(function(p){return diasTrabajaPs(p).indexOf(dia)>-1;});
+    const psDelDia=DB.psicologas.filter(function(p){
+      if(esNeuropsico)return!!p.multisede&&diasTrabajaPs(p).indexOf(dia)>-1;
+      return!p.multisede&&diasTrabajaPs(p).indexOf(dia)>-1;
+    });
     selPs.innerHTML=psDelDia.length?('<option value="">- Selecciona -</option>'+psDelDia.map(function(p){return '<option value="'+p.id+'">'+p.nombre+'</option>';}).join('')):
-      '<option value="">Ninguna psicóloga trabaja este día</option>';
+      '<option value="">'+(esNeuropsico?'El neuropsicólogo no atiende este día':'Ninguna psicóloga trabaja este día')+'</option>';
   }
   agOnRowPs(selPs);
+}
+function agOnRowDia(selDia){
+  agRefrescarDiasFilas();
+  const row=selDia.closest('.ag-terapia-row');
+  _agPoblarPsicologasFila(row);
+}
+function agOnRowTer(selTer){
+  const row=selTer.closest('.ag-terapia-row');
+  _agPoblarPsicologasFila(row);
 }
 function agOnRowPs(selPs){
   const row=selPs.closest('.ag-terapia-row');
@@ -3659,6 +3684,23 @@ function renderProgramasPac(pacNombre){
 // completar el total de sesiones asignadas a esa terapia (la primera ya
 // se creó fuera de esta función). Salta feriados no laborables y horarios
 // ya ocupados de esa psicóloga, corriendo la fecha una semana más.
+// El neuropsicólogo externo atiende en TODAS las sedes - DB.sesiones solo
+// trae las de la sede desde la que se está agendando, así que para él (y
+// cualquier otro profesional "multisede" a futuro) hay que preguntarle a
+// Supabase directo si ya tiene algo a esa fecha/hora en OTRA sede antes de
+// crear la cita, o se le podría doblar una cita en dos sedes a la vez. Para
+// el resto de licenciadas (solo una sede) el chequeo local de DB.sesiones
+// ya es suficiente y no cambia de comportamiento.
+async function _psOcupadaEnFechaHora(psNombre,fecha,hora){
+  if(DB.sesiones.some(function(s){return s.psId===psNombre&&s.fecha===fecha&&s.hora===hora;}))return true;
+  const psInfo=DB.psicologas.find(function(p){return p.nombre===psNombre;});
+  if(!psInfo||!psInfo.multisede)return false;
+  try{
+    const otras=await sbGet('sesiones',{psicologa:'eq.'+psNombre,fecha:'eq.'+fecha,hora:'eq.'+hora,
+      select:'id,sede,estado'})||[];
+    return otras.some(function(s){return['cancelado','permiso','reprogramado'].indexOf(s.estado)===-1;});
+  }catch(e){console.error('[chequeo disponibilidad multisede]',e);return false;}
+}
 async function generarSesionesRecurrentes(o){
   // totalPaquete (lo que se estampa como "total_paquete"/lo que se ve en
   // "Paq X/Y") puede ser distinto de totalSesiones (cuántas sesiones se
@@ -3680,7 +3722,7 @@ async function generarSesionesRecurrentes(o){
     const fStr=fechaLima(fecha);
     const fer=feriadoDe(fStr);
     if(fer&&fer.tipo_gestion==='no_laborable'){saltadas.push(fmtF(fStr)+' (feriado)');continue;}
-    if(DB.sesiones.some(function(s){return s.psId===psNombre&&s.fecha===fStr&&s.hora===o.hora;})){
+    if(await _psOcupadaEnFechaHora(psNombre,fStr,o.hora)){
       saltadas.push(fmtF(fStr)+' (horario ocupado)');continue;
     }
     const nroEnPaq=creadas+1;
@@ -4714,6 +4756,9 @@ async function guardarSesion(){
         nro_en_paquete:nroEnPaq,total_paquete:totalPaq,costo_total:costoTotalP,
         adelanto:adelantoAcum,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||'',
         programa_id:prog.id,programa_terapia_id:pt.id};
+      if(await _psOcupadaEnFechaHora(filaSesion.psicologa,filaSesion.fecha,filaSesion.hora)){
+        showToast('⚠️ '+filaSesion.psicologa+' ya tiene una cita el '+filaSesion.fecha+' a las '+filaSesion.hora+' (otra sede). Elige otro horario.','error');return;
+      }
       {const rSes=await sbPost('sesiones',filaSesion);sesionIdCreada=(rSes&&rSes[0]&&rSes[0].id)||null;}
       const progTerminado=nroEnPaq>=totalPaq;
       await Promise.all([
@@ -4745,6 +4790,9 @@ async function guardarSesion(){
           nro_en_paquete:1,total_paquete:totalPaq,costo_total:prog.costo_total,
           adelanto:adelantoAcum,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||'',
           programa_id:prog.id,programa_terapia_id:ptId};
+        if(await _psOcupadaEnFechaHora(filaSesion.psicologa,filaSesion.fecha,filaSesion.hora)){
+          showToast('⚠️ '+filaSesion.psicologa+' ya tiene una cita el '+filaSesion.fecha+' a las '+filaSesion.hora+' (otra sede). Elige otro horario.','error');return;
+        }
         const rSes=await sbPost('sesiones',filaSesion);
         sesionIdCreada=(rSes&&rSes[0]&&rSes[0].id)||null;
       }
@@ -4799,6 +4847,9 @@ async function guardarSesion(){
           nro_en_paquete:tipo==='paquete'?1:0,total_paquete:totalPaq,costo_total:costoTotal,
           adelanto:adelantoEfectivo,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
         if(progRow&&progRow.id){filaSesion.programa_id=progRow.id;if(ptRow&&ptRow.id)filaSesion.programa_terapia_id=ptRow.id;}
+        if(await _psOcupadaEnFechaHora(filaSesion.psicologa,filaSesion.fecha,filaSesion.hora)){
+          showToast('⚠️ '+filaSesion.psicologa+' ya tiene una cita el '+filaSesion.fecha+' a las '+filaSesion.hora+' (otra sede). Elige otro horario.','error');return;
+        }
         const rSes=await sbPost('sesiones',filaSesion);
         sesionIdCreada=(rSes&&rSes[0]&&rSes[0].id)||null;
       }
@@ -7819,7 +7870,11 @@ async function cargarDesdeSB(silencioso) {
       sbGet('sesiones',{sede:'eq.'+DB.sede,fecha:'gte.'+desde,select:'*',order:'fecha.asc,hora.asc',limit:'1500'}),
       sbGet('pacientes',{sede:'eq.'+DB.sede,estado:'eq.activo',select:'*',order:'nombre.asc'}),
       sbGet('pagos',{sede:'eq.'+DB.sede,fecha:'gte.'+desde,select:'*',order:'fecha.desc',limit:'1500'}),
-      sbGet('psicologas',{sede:'eq.'+DB.sede,estado:'eq.activa',select:'*'}),
+      // or=(sede.eq...,es_multisede.eq.true): además de las licenciadas de
+      // esta sede, trae también a quien atienda en TODAS las sedes (ej. el
+      // neuropsicólogo externo) - si no, nunca aparecería como opción fuera
+      // de la sede que se le puso por defecto al registrarlo.
+      sbGet('psicologas',{estado:'eq.activa',select:'*',or:'(sede.eq.'+DB.sede+',es_multisede.eq.true)'}),
       sbGet('asistencia_personal',{sede:'eq.'+DB.sede,fecha:'gte.'+desde,select:'*',order:'fecha.desc'}),
       sbGet('terapias',{select:'*'}).catch(function(){return[];}),
       sbGet('tarifas_sede',{sede:'eq.'+DB.sede,select:'*'}).catch(function(){return[];}),
@@ -7879,7 +7934,7 @@ async function cargarDesdeSB(silencioso) {
       diaHorarioEsp:p.dia_horario_especial||'',
       horaInicioEsp:(p.hora_inicio_especial||'').substring(0,5),
       horaFinEsp:(p.hora_fin_especial||'').substring(0,5),
-      colorAgenda:p.color_agenda||'',
+      colorAgenda:p.color_agenda||'',multisede:!!p.es_multisede,
       estado:p.estado||'activa',_sb:p};});
     DB.asistPersonal=res[4]||[];
     DB.terapias=(res[5]||[]).filter(function(t){return terapiaAplicaASede(t.sede,DB.sede);})
