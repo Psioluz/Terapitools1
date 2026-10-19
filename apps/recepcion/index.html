@@ -2199,7 +2199,14 @@ function selDia(fecha){
 
 function clickCelda(fecha,hora){
   _agFechaSel=fecha;
-  const sesList=DB.sesiones.filter(s=>s.fecha===fecha&&s.hora===hora&&_sesEsVisibleEnAgenda(s));
+  // Si la agenda está filtrada a una sola licenciada, el detalle de la
+  // celda debe respetar ese filtro igual que la celda misma - si no,
+  // mostraba también las sesiones de OTRAS licenciadas que comparten esa
+  // misma fecha/hora, aunque la vista ya estuviera filtrada a una sola.
+  const filtPs=document.getElementById('agPs')?.value||'';
+  const filtPsNom=filtPs?getPs(filtPs).nombre:'';
+  let sesList=DB.sesiones.filter(s=>s.fecha===fecha&&s.hora===hora&&_sesEsVisibleEnAgenda(s));
+  if(filtPsNom)sesList=sesList.filter(s=>s.psId===filtPsNom);
   const det=document.getElementById('agendaDetalle');
   if(det)det.style.display='block';
   if(sesList.length>0){
@@ -8518,7 +8525,13 @@ async function cancelarPaquete(programaId,pacienteNombre,motivo){
   if(!motivo){if(!confirm('¿Cancelar TODO el paquete de '+(pacienteNombre||'este paciente')+'? Se cancelan todas sus sesiones futuras pendientes, se liberan esos horarios y se anula el saldo restante del paquete. Esta acción no se puede deshacer.'))return;}
   showToast('⏳ Cancelando paquete...');
   try{
-    await sbPatch('sesiones',{estado:'cancelado',saldo:0},{programa_id:'eq.'+programaId,estado:'eq.programado'});
+    // "programado" cubre el caso normal, pero si el paquete se había
+    // congelado ANTES de cancelarlo, esas sesiones futuras ya están en
+    // estado "congelado" (no "programado") - si solo se filtraba por
+    // "programado" quedaban sin cancelar, visibles para siempre en la
+    // agenda semanal aunque el paquete entero ya estuviera cancelado
+    // (pasó con Sisi y Mateo Arias).
+    await sbPatch('sesiones',{estado:'cancelado',saldo:0},{programa_id:'eq.'+programaId,estado:'in.(programado,congelado)'});
     await sbPatch('programas_paciente',{estado:'cancelado',saldo:0},{id:'eq.'+programaId});
     if(motivo)await sbPost('alertas_log',{tipo:'cancelacion_paquete',sede:DB.sede,mensaje:motivo,paciente_nombre:pacienteNombre||''}).catch(function(){});
     showToast('✅ Paquete cancelado - horarios liberados');
