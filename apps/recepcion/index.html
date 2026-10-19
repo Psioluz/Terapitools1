@@ -3063,11 +3063,19 @@ function agOnProgExist(){
   // - un paquete nuevo todavía no tiene nada pendiente que reemplazar.
   const optReemplazar=document.getElementById('ag-opt-reemplazar');
   if(optReemplazar){
-    optReemplazar.disabled=!progId;
+    // "Cambiar sesiones pendientes" solo tiene sentido si el paquete
+    // elegido tiene AL MENOS una sesión en estado 'programado' - si no
+    // tiene ninguna (ej. recién se borraron todas para reagendar desde
+    // cero), dejar esta opción habilitada hacía que, al quedar
+    // seleccionada de una acción anterior, el modal cayera siempre en
+    // "no tiene sesiones pendientes por cambiar" en vez de ofrecer crear
+    // sesiones nuevas (pasó con Lucca Valencia).
+    const tienePendientesProgramadas=!!progId&&DB.sesiones.some(function(s){return s._sb&&s._sb.programa_id===progId&&s.estado==='programado';});
+    optReemplazar.disabled=!tienePendientesProgramadas;
     const modoSel=document.getElementById('ag-modoPaq');
-    if(!progId&&modoSel&&modoSel.value==='reemplazarPendientes'){
+    if(!tienePendientesProgramadas&&modoSel&&modoSel.value==='reemplazarPendientes'){
       modoSel.value='generar';agOnModoPaq();
-    }else if(progId&&modoSel&&modoSel.value==='reemplazarPendientes'){
+    }else if(tienePendientesProgramadas&&modoSel&&modoSel.value==='reemplazarPendientes'){
       // Si ya se estaba en modo "Cambiar pendientes" y se cambia de
       // paquete, recargar las filas con el horario actual de ESTE otro
       // paquete (no dejar precargado lo del paquete anterior).
