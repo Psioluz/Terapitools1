@@ -4320,7 +4320,21 @@ function simularCalendarioPaquete(filas,fechaInicioStr,totalSesiones){
   });
   const eventos=[],porFila=filas.map(function(){return 0;}),saltadas=[];
   const ocupados={};
-  DB.sesiones.forEach(function(s){ocupados[s.psId+'|'+s.fecha+'|'+s.hora]=true;});
+  // Una sesión cancelada/con permiso/reprogramada/congelada dejó ese
+  // horario LIBRE de verdad (así se trata en todo el resto del sistema:
+  // agOnRowPs, _psOcupadaEnFechaHora, etc.) - si se marca igual que una
+  // viva aquí, ese horario queda bloqueado para siempre aunque nadie lo
+  // esté usando. Pasó con el sábado 3:30pm de la Lic. Brenda Valdivia: las
+  // sesiones ya canceladas de Sisi y Mateo Arias en ese mismo horario
+  // "ocupaban" el cupo de por vida, así que la fila de Lucca Valencia para
+  // ese día nunca encontraba una fecha libre y se saltaba una y otra vez -
+  // mientras tanto, sus otras filas (sin ningún bloqueo falso) sí iban
+  // consumiendo todo el cupo compartido del paquete antes de que el sábado
+  // llegara a tener alguna oportunidad real.
+  DB.sesiones.forEach(function(s){
+    if(s.estado==='permiso'||s.estado==='reprogramado'||s.estado==='cancelado'||s.estado==='congelado')return;
+    ocupados[s.psId+'|'+s.fecha+'|'+s.hora]=true;
+  });
   let total=0,vueltas=0;
   const maxVueltas=totalSesiones*Math.max(1,filas.length)*4+80;
   while(total<totalSesiones&&vueltas<maxVueltas){
