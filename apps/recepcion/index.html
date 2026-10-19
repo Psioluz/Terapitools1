@@ -1544,7 +1544,14 @@ function _pacEstaActivo(pacId){return DB.pacientes.some(function(p){return p.id=
 // queda simplemente libre, sin marcador permanente (a diferencia de
 // Reprogramado/Permiso, que sí se muestran en gris con R/P porque avisan
 // algo útil). El registro sigue completo en el Historial Clínico.
-function _sesEsVisibleEnAgenda(s){return _pacEstaActivo(s.pacId)&&s.estado!=='cancelado';}
+// "Congelado" (Congelar paquete) es igual de libre que "cancelado" - el
+// paquete está en pausa, así que su horario no debe seguir ocupando la
+// agenda ni los conteos de cupos libres. Antes solo se excluía
+// 'cancelado' aquí, así que un paciente congelado seguía apareciendo en
+// la agenda semanal como si la sesión siguiera vigente, dando la
+// impresión de que ese horario ya no se podía usar para alguien más
+// (aunque el chequeo real de conflictos sí lo trataba como libre).
+function _sesEsVisibleEnAgenda(s){return _pacEstaActivo(s.pacId)&&s.estado!=='cancelado'&&s.estado!=='congelado';}
 function getPs(id){return DB.psicologas.find(p=>p.id===id||p.nombre===id)||{nombre:(typeof id==='string'&&id)?id:'-',color:'bk'};}
 // Cada psicóloga tiene un color propio (elegido en la ficha, o uno fijo
 // por defecto si nunca lo cambiaron) para diferenciar sus sesiones en la
