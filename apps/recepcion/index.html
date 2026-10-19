@@ -3229,7 +3229,13 @@ function agOnTipo(){
     // campos de entrada y que desaparezcan solos al elegir el servicio
     // confundía a la recepcionista (los llenaba y luego se le borraban) -
     // mejor no mostrar NINGUNO hasta que agOnServ() decida cuál mostrar.
-    const necesitaServicio=!!tipo&&tipo!=='adelanto';
+    // Al reprogramar (_reprogDe) no aplica nada de esto: el servicio ya
+    // quedó fijado desde que se registró la sesión original (grpServ ni
+    // siquiera se muestra, ver más arriba) y Fecha/Hora SÍ hacen falta de
+    // una vez para mover la cita - dejarlas ocultas esperando un servId
+    // que nunca se va a elegir dejaba el modal sin forma de poner la
+    // nueva fecha.
+    const necesitaServicio=!!tipo&&tipo!=='adelanto'&&!_reprogDe;
     if(grpSimple)grpSimple.style.display=necesitaServicio?'none':'contents';
     if(grpFH)grpFH.style.display=necesitaServicio?'none':'contents';
     if(grpCostoSimple)grpCostoSimple.style.display=necesitaServicio?'none':'block';
