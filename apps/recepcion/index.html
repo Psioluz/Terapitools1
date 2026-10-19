@@ -3198,6 +3198,17 @@ function agCargarFilasDesdeProgPendiente(){
     selPs.value=f.psId;
     agOnRowPs(selPs);
     const selHora=row.querySelector('.ag-row-hora');
+    // agOnRowPs() quita del desplegable cualquier hora donde la psicóloga
+    // YA tenga una sesión viva - pero aquí esa sesión "ya viva" es la
+    // MISMA que se está precargando (no un choque real con otro
+    // paciente), así que su propio horario actual desaparecía de la
+    // lista y el campo quedaba en blanco en vez de mostrar lo que ya
+    // tenía asignado.
+    if(!Array.prototype.some.call(selHora.options,function(o){return o.value===f.hora;})){
+      const op=document.createElement('option');
+      op.value=f.hora;op.textContent=f.hora;
+      selHora.insertBefore(op,selHora.firstChild);
+    }
     selHora.value=f.hora;
   });
 
