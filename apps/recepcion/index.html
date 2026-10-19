@@ -612,7 +612,7 @@ try{
     <div style="padding:12px">
       <div class="form-group">
         <div class="form-label">Plantilla de mensaje</div>
-        <textarea class="form-control" id="waTemplate" rows="3">¡Hola {nombre}! 💜 Te escribimos de Psicoluz para recordarte tu sesión de {terapia} de hoy a las {hora}, en la sede {sede}. Te esperamos con mucho gusto. ¡Que tengas un lindo día! ✨</textarea>
+        <textarea class="form-control" id="waTemplate" rows="3">¡Hola estimad@ buen día! 💜 Le escribimos de Psicoluz centro terapéutico para recordarle que su menor el día de hoy tiene sesión de {terapia} programada a la {hora}, Te esperamos con mucho gusto. ¡Que tengas un lindo día🌈! Bendiciones😇 ✨</textarea>
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:4px">
         ℹ️ WhatsApp no permite enviar mensajes automáticamente sin su API de pago:
@@ -7209,9 +7209,20 @@ async function renderWA(){
   }).join('');
 }
 
+// La plantilla de WhatsApp muestra la hora en formato 12h (am/pm) - el
+// resto del sistema sigue guardando/mostrando 24h (ej. "13:15") en todas
+// partes, esto es solo cosmético para el mensaje que recibe la familia.
+function _hora12(h){
+  const m=/^(\d{1,2}):(\d{2})/.exec(h||'');
+  if(!m)return h||'';
+  let hh=parseInt(m[1],10);
+  const ampm=hh<12?'am':'pm';
+  hh=hh%12;if(hh===0)hh=12;
+  return String(hh).padStart(2,'0')+':'+m[2]+' '+ampm;
+}
 function enviarWA(sesionId,tel,nombre,terapia,hora){
-  const tpl=document.getElementById('waTemplate')?.value||'¡Hola {nombre}! 💜 Te escribimos de Psicoluz para recordarte tu sesión de {terapia} de hoy a las {hora}, en la sede {sede}. Te esperamos con mucho gusto. ¡Que tengas un lindo día! ✨';
-  const msg=tpl.replace(/{nombre}/g,nombre).replace(/{terapia}/g,terapia).replace(/{hora}/g,hora).replace(/{sede}/g,DB.sede);
+  const tpl=document.getElementById('waTemplate')?.value||'¡Hola estimad@ buen día! 💜 Le escribimos de Psicoluz centro terapéutico para recordarle que su menor el día de hoy tiene sesión de {terapia} programada a la {hora}, Te esperamos con mucho gusto. ¡Que tengas un lindo día🌈! Bendiciones😇 ✨';
+  const msg=tpl.replace(/{nombre}/g,nombre).replace(/{terapia}/g,terapia).replace(/{hora}/g,_hora12(hora)).replace(/{sede}/g,DB.sede);
   const num=tel.replace(/\D/g,'');
   // api.whatsapp.com/send maneja mejor los emojis que wa.me en varios
   // Android/WhatsApp - con wa.me algunos celulares los reciben como "?".
