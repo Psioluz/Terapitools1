@@ -889,7 +889,7 @@ try{
         <div class="grid g2" style="margin-top:10px">
           <div class="form-group" id="ag-grp-fechaInicio">
             <label class="form-label" id="ag-lbl-fechaInicio">Fecha de inicio *</label>
-            <input type="date" class="form-control" id="ag-fechaInicio">
+            <input type="date" class="form-control" id="ag-fechaInicio" onchange="_agRefrescarHorasTodasFilas()">
             <div style="font-size:10.5px;color:var(--muted);margin-top:3px" id="ag-help-fechaInicio">La primera sesión de cada día será la próxima fecha con ese día de la semana, a partir de aquí.</div>
           </div>
           <div class="form-group">
@@ -3544,6 +3544,17 @@ function _agRefrescarPsTodasFilas(){
     _agPoblarPsicologasFila(row);
   });
 }
+// Más liviano que _agRefrescarPsTodasFilas: NO reconstruye el <select> de
+// Psicóloga (eso borraría la ya elegida), solo vuelve a calcular el
+// Horario de cada fila - se usa cuando cambia "Fecha de inicio" del
+// paquete, ya que de eso depende qué horas aparecen ocupadas para la
+// psicóloga que YA se eligió en cada fila.
+function _agRefrescarHorasTodasFilas(){
+  document.querySelectorAll('#ag-terapiaRows .ag-terapia-row').forEach(function(row){
+    const selPs=row.querySelector('.ag-row-ps');
+    if(selPs)agOnRowPs(selPs);
+  });
+}
 // Mismo filtro que en el armador de paquete/servicio, pero para el
 // selector simple "Psicóloga + Tipo de Terapia" (sesión suelta/consulta,
 // fuera de paquete) - ahí Psicóloga se elige ANTES que Terapia, así que
@@ -3578,13 +3589,45 @@ function _agPoblarPsSimple(){
   if(opciones.some(function(p){return p.id===actual;}))selPs.value=actual;
   agOnPs();
 }
+// La próxima fecha real de ESE día de la semana, a partir de una fecha de
+// inicio - misma cuenta que usa simularCalendarioPaquete() para la
+// primera sesión de cada fila.
+function _proximaFechaDia(fechaInicioStr,diaNombre){
+  if(!fechaInicioStr)return null;
+  const diaIdx={};diaFull.forEach(function(d,i){diaIdx[d]=i;});
+  const target=diaIdx[diaNombre];
+  if(target===undefined)return null;
+  const d=new Date(fechaInicioStr+'T12:00:00');
+  while(d.getDay()!==target)d.setDate(d.getDate()+1);
+  return fechaLima(d);
+}
 function agOnRowPs(selPs){
   const row=selPs.closest('.ag-terapia-row');
   const selDia=row.querySelector('.ag-row-dia');
   const selHora=row.querySelector('.ag-row-hora');
   const ps=getPs(selPs.value);
   const dia=selDia.value;
-  const horas=(selPs.value&&dia)?horasPsEnDia(ps,dia):[];
+  let horas=(selPs.value&&dia)?horasPsEnDia(ps,dia):[];
+  // Le resta las horas donde la psicóloga YA tiene una sesión viva ese
+  // primer día real del paquete (ej. Eliette Quispe con la Lic. Tatiana:
+  // 15:30 los lunes aparecía "libre" aunque ya estaba ocupada con otro
+  // paciente) - no cubre TODAS las semanas futuras del paquete (eso lo
+  // sigue resolviendo el generador saltando fechas ocupadas), pero sí
+  // avisa del choque más inmediato antes de guardar.
+  if(horas.length&&ps&&ps.nombre){
+    const fechaInicio=document.getElementById('ag-fechaInicio')?.value||document.getElementById('ag-fecha')?.value||'';
+    const proxFecha=_proximaFechaDia(fechaInicio,dia);
+    if(proxFecha){
+      const ocupadas={};
+      DB.sesiones.forEach(function(s){
+        if(s.psId===ps.nombre&&s.fecha===proxFecha&&s.estado!=='permiso'&&s.estado!=='reprogramado'&&
+           s.estado!=='cancelado'&&s.estado!=='congelado'){
+          ocupadas[s.hora]=true;
+        }
+      });
+      horas=horas.filter(function(h){return!ocupadas[h];});
+    }
+  }
   selHora.innerHTML=horas.length?horas.map(function(h){return '<option value="'+h+'">'+h+'</option>';}).join(''):'<option value="">-</option>';
 }
 
