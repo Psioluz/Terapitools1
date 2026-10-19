@@ -3089,8 +3089,17 @@ function agOnPs(){
   const psId=document.getElementById('ag-ps')?.value||'';
   const fecha=document.getElementById('ag-fecha')?.value||today();
   const el=document.getElementById('ag-hora');if(!el)return;
+  // Si ya había una hora elegida (ej. se cambió solo la Fecha o la
+  // Terapia para reusar el mismo horario otro día), se conserva mientras
+  // siga siendo una opción válida - si no, el navegador selecciona la
+  // PRIMERA hora de la lista en silencio, sin ningún aviso, y queda
+  // guardada una hora que nadie eligió a propósito (pasó con Jared Baruc:
+  // quiso repetir el 5:00pm del viernes en sábado, solo tocó la Fecha, y
+  // terminó guardándose la 1:15pm).
+  const horaPrevia=el.value;
   const slots=psId?horasPs(psId,fecha):['13:15','14:00','14:45','15:30','16:15','17:00','17:45','18:30','19:15'];
   el.innerHTML=slots.map(s=>'<option value="'+s+'">'+s+'</option>').join('');
+  if(horaPrevia&&slots.indexOf(horaPrevia)!==-1)el.value=horaPrevia;
 }
 
 function agOnFecha(){
