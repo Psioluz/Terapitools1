@@ -1786,7 +1786,22 @@ function horasPs(psId,fecha){
   const d=new Date(fecha+'T12:00:00');
   const diaNom=diaFull[d.getDay()];
   if(diasTrabajaPs(ps).indexOf(diaNom)===-1)return[];
-  return horasPsEnDia(ps,diaNom);
+  const todas=horasPsEnDia(ps,diaNom);
+  // Esto es lo que se ofrece para Agendar/Reprogramar - antes mostraba TODO
+  // el horario de trabajo de la psicóloga como si estuviera libre, sin
+  // restarle las horas que ya tiene ocupadas ese día con otro paciente, así
+  // que se podía elegir (y guardar) una hora ya tomada sin ningún aviso.
+  // Se le quitan las horas donde ya tiene una sesión VIVA ese mismo día
+  // (ni permiso, ni reprogramado, ni cancelada, ni congelada - esas sí
+  // están libres de nuevo).
+  const ocupadas={};
+  DB.sesiones.forEach(function(s){
+    if(s.psId===ps.nombre&&s.fecha===fecha&&s.estado!=='permiso'&&s.estado!=='reprogramado'&&
+       s.estado!=='cancelado'&&s.estado!=='congelado'){
+      ocupadas[s.hora]=true;
+    }
+  });
+  return todas.filter(function(h){return!ocupadas[h];});
 }
 
 // ── Días/horarios reales de cada psicóloga (dias_trabajo, dia_completo) ──
