@@ -1994,6 +1994,7 @@ function renderDashboard(){
         const pac=getPac(s.pacId);const ps=getPs(s.psId);const ter=getTer(s.terId);
         const borderC=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':'var(--border)';
         const pago=DB.pagos.find(p=>p.pacId===s.pacId&&p.fecha===s.fecha&&p.hora===s.hora);
+        const cuotaPend=_cuotaPendienteDeSesion(s);
         return '<div style="border-left:3px solid '+borderC+';padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">'+
           '<div style="min-width:46px;font-size:16px;font-weight:900;color:var(--accent)">'+s.hora+'</div>'+
           '<div style="flex:1;min-width:130px">'+
@@ -2001,7 +2002,9 @@ function renderDashboard(){
           '<div style="font-size:11px;color:var(--muted);margin-bottom:3px">'+ps.nombre+'</div>'+
           (s.tipo==='llamada_maestra'?
             '<div style="font-size:11px;color:#0891b2;font-weight:700">📞 Llamada con maestra: '+(s.maestraNom||'-')+(s.maestraTel?' · '+s.maestraTel:'')+'</div>':
-            (terBadge(ter)+progresoPacInline(pac)))+'</div>'+
+            (terBadge(ter)+progresoPacInline(pac)))+
+          (cuotaPend?'<div style="font-size:11px;font-weight:800;color:#fff;background:var(--red);display:inline-block;border-radius:6px;padding:2px 8px;margin-top:4px">💰 '+cuotaPend.texto+'</div>':'')+
+          '</div>'+
           // Los botones de acción van en su propia fila de ancho completo
           // (flex-basis:100%) y en horizontal con flex-wrap - antes quedaban
           // apilados uno encima de otro en una columna angosta aunque
@@ -2333,6 +2336,24 @@ function _rankPaqSesion(s){
 function _paqLabel(s){
   const r=_rankPaqSesion(s);
   return r.rank+'/'+r.total;
+}
+// Si esta sesión es la que carga una cuota pendiente de pago (ver
+// recalcularSaldoPaciente), arma el texto "Cuota Nra: S/X" para avisarle a
+// recepción ANTES de que llegue el paciente - no solo cuando ya marcó
+// "Asistió" y aparece el botón "Cobrar" sin ningún monto. Si no se puede
+// ubicar en qué cuota cae (paquete no cargado, servicio de 1 sola cuota,
+// etc.) igual se avisa el monto, solo sin el número.
+const _NOMBRES_CUOTA=['1ra','2da','3ra','4ta','5ta','6ta','7ma','8va'];
+function _cuotaPendienteDeSesion(s){
+  if(!(s.saldo>0))return null;
+  const progId=s._sb&&s._sb.programa_id;
+  const prog=progId&&(DB.programas||[]).find(function(p){return p.id===progId;});
+  if(!prog||(prog.nro_cuotas||1)<=1)return{texto:'Debe S/'+s.saldo};
+  const r=_rankPaqSesion(s);
+  const checkpoints=_checkpointsDePaquete(prog.nro_sesiones_total,prog.nro_cuotas,prog.costo_total,prog.paciente_nombre);
+  const idx=checkpoints.findIndex(function(cp){return cp.sesion===r.rank;});
+  const numCuota=idx>-1?(_NOMBRES_CUOTA[idx]||(idx+1)+'a'):null;
+  return{texto:(numCuota?'Cuota '+numCuota+': ':'Debe ')+'S/'+s.saldo};
 }
 // El progreso de paquete se calcula de las sesiones reales (tipo:'paquete',
 // totalPaq), no de pacientes.paq (campo heredado del esquema viejo que ya
