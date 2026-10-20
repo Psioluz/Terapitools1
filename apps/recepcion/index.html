@@ -4451,6 +4451,59 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
   return Math.round(totalVinculado*100)/100;
 }
 
+// Un paquete ANTERIOR del mismo paciente puede quedar con MÁS pagado de lo
+// que de verdad costaba - pasa cuando se cobra el adelanto del paquete
+// NUEVO mientras el viejo todavía figuraba "activo" en el sistema (la
+// marca a "completado" solo ocurre al abrir Agendar Sesión de nuevo para
+// ese paciente), así que el pago generico ("+ Registrar Pago") se va al
+// único paquete activo que existía EN ESE MOMENTO - el viejo - en vez del
+// nuevo que se crea minutos u horas después (pasó con Dylan Arturo Pilar
+// Reyes e Ian Jared Terrones Moreno: la mamá pagaba el adelanto del
+// paquete nuevo esa misma mañana/tarde, pero el paquete nuevo recién se
+// registraba después, y el pago quedaba atado al viejo ya completado,
+// bloqueando "Asistió" en el nuevo por falta de abono que en realidad SÍ
+// estaba, solo que mal archivado). Se llama siempre al crear un paquete
+// nuevo (igual que _vincularPagosHuerfanosAPrograma) - recupera ese
+// sobrante de CUALQUIER otro paquete del paciente en esta sede y lo suma
+// al que se acaba de crear, moviendo también el/los pago(s) más
+// recientes de ese paquete viejo que expliquen el sobrante.
+async function _vincularSobrepagoDeOtroPaquete(pacNombre,sede,progIdNuevo){
+  let otros=[];
+  try{
+    otros=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,select:'*'})||[];
+  }catch(e){console.error('[sobrepago otro paquete]',e);return 0;}
+  const conSobrepago=otros.filter(function(p){return p.id!==progIdNuevo&&(p.adelanto_acumulado||0)>(p.costo_total||0)+0.01;});
+  if(!conSobrepago.length)return 0;
+  let totalMovido=0;
+  for(const prog of conSobrepago){
+    const sobrante=Math.round(((prog.adelanto_acumulado||0)-(prog.costo_total||0))*100)/100;
+    if(sobrante<=0)continue;
+    let pagosProg=[];
+    try{
+      pagosProg=await sbGet('pagos',{programa_id:'eq.'+prog.id,select:'id,monto,fecha,hora'})||[];
+    }catch(e){console.error('[sobrepago otro paquete - pagos]',e);continue;}
+    // El pago más RECIENTE es el que más probablemente se coló por error
+    // (el adelanto del paquete nuevo, cobrado mientras el viejo seguía
+    // "activo") - se mueven empezando por ahí hasta cubrir el sobrante.
+    pagosProg.sort(function(a,b){return((b.fecha||'')+(b.hora||'')).localeCompare((a.fecha||'')+(a.hora||''));});
+    let restante=sobrante;
+    const idsAMover=[];
+    for(const p of pagosProg){
+      if(restante<=0.004)break;
+      idsAMover.push(p.id);
+      restante=Math.round((restante-(parseFloat(p.monto)||0))*100)/100;
+    }
+    if(!idsAMover.length)continue;
+    const montoMovido=Math.round((sobrante-Math.max(0,restante))*100)/100;
+    await Promise.all(idsAMover.map(function(id){return sbPatch('pagos',{programa_id:progIdNuevo},{id:'eq.'+id});}));
+    const nuevoAdelantoViejo=Math.round(((prog.adelanto_acumulado||0)-montoMovido)*100)/100;
+    await sbPatch('programas_paciente',{adelanto_acumulado:nuevoAdelantoViejo,
+      saldo:Math.max(0,Math.round(((prog.costo_total||0)-nuevoAdelantoViejo)*100)/100)},{id:'eq.'+prog.id});
+    totalMovido+=montoMovido;
+  }
+  return Math.round(totalMovido*100)/100;
+}
+
 // ══ RECALCULAR SALDO (automático, sin botón) ══
 // Se dispara solo al abrir el Historial Clínico de un paciente (ver
 // renderHistorial) - nadie tiene que acordarse de ir a buscarlo. Mismo
@@ -4653,6 +4706,10 @@ async function guardarPaqueteFlujo(){
       if(extra>0){adelantoAcum+=extra;saldo=Math.max(0,costoTotal-adelantoAcum);
         await sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldo},{id:'eq.'+progRow.id});
         showToast('💰 Se encontraron S/'+extra+' en pagos previos de '+pac.nombre+' sin vincular y se sumaron al adelanto de este paquete','success');}}
+      {const extraSobrepago=await _vincularSobrepagoDeOtroPaquete(pac.nombre,DB.sede,progRow.id);
+      if(extraSobrepago>0){adelantoAcum+=extraSobrepago;saldo=Math.max(0,costoTotal-adelantoAcum);
+        await sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldo},{id:'eq.'+progRow.id});
+        showToast('💰 Se encontró un sobrepago de S/'+extraSobrepago+' en otro paquete de '+pac.nombre+' y se trasladó a este','success');}}
     } else {
       // Un servicio (Informe, Evaluación...) ya trae fijo su paquete desde
       // el selector "ag-servId" (ver agOnServ) - no pasa por el catálogo de
@@ -4674,6 +4731,10 @@ async function guardarPaqueteFlujo(){
       if(extra>0){adelantoAcum+=extra;saldo=Math.max(0,costoTotal-adelantoAcum);
         await sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldo},{id:'eq.'+progRow.id});
         showToast('💰 Se encontraron S/'+extra+' en pagos previos de '+pac.nombre+' sin vincular y se sumaron al adelanto de este paquete','success');}}
+      {const extraSobrepago=await _vincularSobrepagoDeOtroPaquete(pac.nombre,DB.sede,progRow.id);
+      if(extraSobrepago>0){adelantoAcum+=extraSobrepago;saldo=Math.max(0,costoTotal-adelantoAcum);
+        await sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldo},{id:'eq.'+progRow.id});
+        showToast('💰 Se encontró un sobrepago de S/'+extraSobrepago+' en otro paquete de '+pac.nombre+' y se trasladó a este','success');}}
     }
 
     // Dos filas (días distintos) pueden compartir la misma terapia+psicóloga
