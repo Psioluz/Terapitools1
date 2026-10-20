@@ -8436,13 +8436,26 @@ async function _marcarAsInterno(sesRef,nuevoEst){
       // (facilidades de pago), no por sesión - no se bloquea el Asistió
       // por falta de abono en ninguna sesión intermedia.
     }else if(prog&&prog.nro_sesiones_total>0){
-      var costoSesion=(prog.costo_total||0)/prog.nro_sesiones_total;
-      var yaAsistidas=DB.sesiones.filter(function(x){return x._sb&&x._sb.programa_id===progId&&x.estado==='asistio';}).length;
-      var requerido=Math.round(costoSesion*(yaAsistidas+1)*100)/100;
-      var abonado=prog.adelanto_acumulado||0;
-      if(abonado+0.01<requerido){
-        var faltante=Math.round((requerido-abonado)*100)/100;
-        showToast('No se puede confirmar "Asistió": el abono del paquete de '+pac.nombre+' no alcanza para cubrir esta sesión (falta S/'+faltante+' de S/'+Math.round(costoSesion*100)/100+' por sesión). Registra el pago primero en Caja/Pagos.','error');
+      // Antes esto exigía un promedio PAREJO (costo_total/nro_sesiones,
+      // multiplicado por cuántas sesiones ya van) - pero las cuotas reales
+      // de un paquete casi nunca caen parejas por sesión (ej. 4 cuotas en
+      // un paquete de 30 sesiones, en los checkpoints 1/7/16/24 - ver
+      // CUOTAS_CHECKPOINTS). Esa fórmula exigía más plata de la que de
+      // verdad tocaba a esta altura del paquete, aunque el paciente
+      // estuviera al día con su cuota real (pasó con Mathias Sebastian
+      // García: pagadas 3 de 4 cuotas, al día hasta la sesión 22, pero el
+      // promedio parejo igual bloqueaba la sesión 23 porque "debía" haber
+      // pagado más para ese punto). Ahora se mira la cuota real: cada
+      // checkpoint pagado queda con 'saldo' en 0 en su propia sesión (ver
+      // _checkpointsDePaquete/cascada de pagos) - si NINGUNA sesión hasta
+      // (e incluyendo) la de hoy tiene saldo pendiente, está al día; una
+      // cuota pendiente más adelante en el calendario no bloquea nada.
+      var checkpointPendiente=DB.sesiones.filter(function(x){
+        return x._sb&&x._sb.programa_id===progId&&(x.saldo||0)>0&&
+          (x.fecha<s.fecha||(x.fecha===s.fecha&&x.hora<=s.hora));
+      }).sort(function(a,b){return(a.fecha+a.hora).localeCompare(b.fecha+b.hora);})[0];
+      if(checkpointPendiente){
+        showToast('No se puede confirmar "Asistió": '+pac.nombre+' tiene una cuota pendiente de S/'+checkpointPendiente.saldo+' desde la sesión del '+fmtF(checkpointPendiente.fecha)+'. Registra el pago primero en Caja/Pagos.','error');
         return;
       }
     }else{
