@@ -5171,6 +5171,18 @@ async function guardarSesion(){
       const ptIdOrig=(_reprogDe._sb&&_reprogDe._sb.programa_terapia_id)||null;
       totalPaq=_reprogDe.totalPaq||1;
       saldo=_reprogDe.saldo||0;
+      // Sesión suelta (sin paquete): el saldo en memoria puede estar
+      // desactualizado si hubo un pago reciente que el auto-refresco de 30s
+      // todavía no trajo - se relee fresco de Supabase antes de heredarlo,
+      // para no "resucitar" una deuda que ya se pagó (pasó con Fiorella
+      // Llauli: un pago ya había bajado el saldo a 25, pero al reprogramar
+      // la sesión nueva nació de nuevo con el saldo completo de 45).
+      if(!progIdOrig&&_reprogDe._sb&&_reprogDe._sb.id){
+        try{
+          const freshRows=await sbGet('sesiones',{id:'eq.'+_reprogDe._sb.id,select:'saldo'});
+          if(freshRows&&freshRows[0])saldo=freshRows[0].saldo||0;
+        }catch(eFresh){console.warn('[reprog saldo fresco]',eFresh);}
+      }
       filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
         psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:tipo,
         nro_en_paquete:_reprogDe.nroSes||1,total_paquete:totalPaq,costo_total:_reprogDe.costoTotal||0,
@@ -5193,6 +5205,14 @@ async function guardarSesion(){
       // pasada.
       if(_reprogDe._sb&&_reprogDe._sb.id)await sbPatch('sesiones',{estado:'reprogramado',saldo:0,responsable:_respReprog},{id:'eq.'+_reprogDe._sb.id});
       _reprogDe.saldo=0;
+      // Si la sesión vieja (suelta, sin paquete) ya tenía un pago atado por
+      // su sesion_id, ese pago se traslada a la sesión nueva - si no, queda
+      // vinculado a una sesión ya cerrada (estado reprogramado) y Caja/
+      // Historial lo pierden de vista como si la cita de hoy siguiera sin
+      // ningún pago.
+      if(sesionIdCreada&&!progIdOrig&&_reprogDe._sb&&_reprogDe._sb.id){
+        try{ await sbPatch('pagos',{sesion_id:sesionIdCreada},{sesion_id:'eq.'+_reprogDe._sb.id}); }catch(ePagoRelink){console.warn('[reprog pago relink]',ePagoRelink);}
+      }
       // La sesión que se acaba de mover pudo haber "saltado" por encima o
       // por detrás de otras del mismo paquete en el orden real por fecha -
       // se revisa de una vez si algún checkpoint quedó en la sesión
