@@ -86,6 +86,52 @@ try{
 
 </head>
 <body>
+<script>
+// ── BLOQUEO DE PESTAÑA DUPLICADA (mismo dispositivo) ────────────────────────
+// Evita tener Administración abierta en 2 pestañas/ventanas del mismo
+// navegador a la vez. Esto NO es el límite de 2 dispositivos de la cuenta -
+// eso se controla aparte con device_id/device_id_2 en el login.
+(function(){
+  var LK='psicoluz_administracion_tablock';
+  var MI_TAB=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('t_'+Date.now()+'_'+Math.random().toString(16).slice(2));
+  var STALE=12000,HEARTBEAT=4000;
+  function leer(){try{return JSON.parse(localStorage.getItem(LK)||'null');}catch(e){return null;}}
+  function escribir(){try{localStorage.setItem(LK,JSON.stringify({tab:MI_TAB,ts:Date.now()}));}catch(e){}}
+  function mostrarBloqueo(){
+    try{
+      var ov=document.createElement('div');
+      ov.id='_tabBlockOverlay';
+      ov.style.cssText='position:fixed;inset:0;background:#4a0e2e;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;font-family:-apple-system,sans-serif;z-index:999999';
+      ov.innerHTML='<div style="font-size:42px;margin-bottom:14px">🔒</div>'+
+        '<div style="font-size:18px;font-weight:800;margin-bottom:8px">Administración ya está abierta en otra pestaña</div>'+
+        '<div style="font-size:13px;opacity:.75;max-width:360px">Cierra esta pestaña y usa la que ya tenías abierta. Si esa pestaña se cerró sin avisar, espera unos segundos y recarga.</div>';
+      document.body.appendChild(ov);
+    }catch(e){}
+  }
+  var actual=leer();
+  if(actual&&actual.tab!==MI_TAB&&(Date.now()-actual.ts)<STALE){
+    window._tabBloqueada=true;
+    mostrarBloqueo();
+    return;
+  }
+  escribir();
+  window._tabBloqueada=false;
+  setInterval(function(){var a=leer();if(!a||a.tab===MI_TAB)escribir();},HEARTBEAT);
+  window.addEventListener('storage',function(ev){
+    if(ev.key!==LK||window._tabBloqueada)return;
+    var v=null;try{v=JSON.parse(ev.newValue||'null');}catch(e){}
+    if(v&&v.tab!==MI_TAB){
+      window._tabBloqueada=true;
+      var a1=document.getElementById('app');if(a1)a1.style.display='none';
+      var a2=document.getElementById('loginScreen');if(a2)a2.style.display='none';
+      mostrarBloqueo();
+    }
+  });
+  window.addEventListener('beforeunload',function(){
+    try{var a=leer();if(a&&a.tab===MI_TAB)localStorage.removeItem(LK);}catch(e){}
+  });
+})();
+</script>
 <div id='toast'></div>
 
 <!-- LOGIN -->
@@ -591,8 +637,24 @@ async function cargarSedesActivas(){
   var accSel=document.getElementById('accSede');if(accSel&&!accSel.children.length)accSel.innerHTML=opts+'<option>Todas</option>';
 }
 
+// Huella del dispositivo (navegador) actual, persistida en localStorage -
+// identifica el aparato/navegador donde corre esta sesión, para poder
+// limitar una cuenta a 2 dispositivos a la vez (igual que en psicóloga).
+function _getDeviceId(){
+  try{
+    var k='psicoluz_device_id';
+    var id=localStorage.getItem(k);
+    if(!id){
+      id=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('dev_'+Date.now()+'_'+Math.random().toString(16).slice(2));
+      localStorage.setItem(k,id);
+    }
+    return id;
+  }catch(e){ return 'dev_sin_storage'; }
+}
+
 // LOGIN
 async function doLogin(){
+  if(window._tabBloqueada)return;
   var email=(document.getElementById('lEmail').value||'').trim().toLowerCase();
   var pass=document.getElementById('lPass').value||'';
   var errEl=document.getElementById('lErr');
@@ -601,13 +663,49 @@ async function doLogin(){
   try{
     var rows=await sbGet('usuarios_gerencia',{email:'eq.'+email,password:'eq.'+pass,select:'*'});
     if(!rows||!rows.length){if(errEl){errEl.textContent='Correo o contraseña incorrectos';errEl.style.display='block';}return;}
-    ADM={nombre:rows[0].nombre||email,email:email,id:rows[0].id};
+    var u=rows[0];
+    // Límite de 2 dispositivos activos por cuenta (igual que en psicóloga):
+    // evita compartir el usuario con más gente sin obligar a entrar siempre
+    // desde el mismo aparato.
+    if(u.estado!=='prueba'){
+      var miDispositivo=_getDeviceId();
+      var yaRegistrado=(u.device_id&&u.device_id===miDispositivo)||(u.device_id_2&&u.device_id_2===miDispositivo);
+      if(!yaRegistrado){
+        if(u.device_id&&u.device_id_2){
+          if(errEl){errEl.textContent='Esta cuenta ya está en uso en 2 dispositivos (el máximo permitido). Si cambiaste de equipo, pide a Administración que te libere el acceso.';errEl.style.display='block';}
+          return;
+        }
+        var campoLibre=!u.device_id?'device_id':'device_id_2';
+        try{ await sbPatch('usuarios_gerencia',{[campoLibre]:miDispositivo},{id:'eq.'+u.id}); }catch(eDev){console.warn('[device_id]',eDev);}
+      }
+    }
+    ADM={nombre:u.nombre||email,email:email,id:u.id};
     localStorage.setItem('adm_v1',JSON.stringify(ADM));
     try{localStorage.setItem('psicoluz_adm_last_email',email);}catch(e){}
     iniciarApp();
   }catch(e){if(errEl){errEl.textContent='Error: '+e.message;errEl.style.display='block';}}
 }
-function doLogout(){localStorage.removeItem('adm_v1');ADM={};document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';}
+function doLogout(){
+  _cerrarSesionAdmSilenciosa();
+}
+function _cerrarSesionAdmSilenciosa(){
+  localStorage.removeItem('adm_v1');
+  ADM={};
+  var app=document.getElementById('app');if(app)app.style.display='none';
+  var ls=document.getElementById('loginScreen');if(ls)ls.style.display='flex';
+}
+// ── CIERRE AUTOMÁTICO POR INACTIVIDAD ───────────────────────────────────────
+// 30 min sin ningún clic/toque/tecla → cierra sesión sola, sin preguntar
+// (si hay actividad, el contador se reinicia y nunca se dispara).
+let _admUltimaActividad=Date.now();
+document.addEventListener('click',function(){_admUltimaActividad=Date.now();},true);
+document.addEventListener('touchstart',function(){_admUltimaActividad=Date.now();},true);
+document.addEventListener('keydown',function(){_admUltimaActividad=Date.now();},true);
+setInterval(function(){
+  var app=document.getElementById('app');
+  if(!app||app.style.display==='none')return;
+  if(Date.now()-_admUltimaActividad>30*60*1000)_cerrarSesionAdmSilenciosa();
+},60000);
 
 async function iniciarApp(){
   document.getElementById('loginScreen').style.display='none';
@@ -1704,6 +1802,7 @@ function renderCumpleanos(){
 
 // INICIO
 (function(){
+  if(window._tabBloqueada)return;
   try{var s=JSON.parse(localStorage.getItem('adm_v1')||'null');if(s&&s.email){ADM=s;iniciarApp();return;}}catch(e){}
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('app').style.display='none';
