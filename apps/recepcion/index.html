@@ -3544,7 +3544,13 @@ function _esTerapiaNeuropsico(terId){
 // basta con que la terapia sea esa (ej. si alguien la elige por error
 // dentro de un paquete o una sesión suelta, no debe salir él solo).
 function _debeSoloNeuropsicologo(terId){
-  const tipo=document.getElementById('ag-tipo')?.value||'';
+  // .trim() - el valor de "Tipo de servicio" sale de tarifas_sede.tipo, que
+  // en algunas sedes quedó cargado con un espacio de más al final
+  // ("Evaluación " en vez de "Evaluación"). Con la comparación exacta de
+  // antes, ese espacio invisible hacía que el Dr. Daniel Ramos (Rosaluz)
+  // nunca calzara como neuropsicólogo y el filtro mostrara licenciadas
+  // normales en su lugar, sin ningún error visible.
+  const tipo=(document.getElementById('ag-tipo')?.value||'').trim();
   return tipo==='Evaluación'&&_esTerapiaNeuropsico(terId);
 }
 function _agPoblarPsicologasFila(row){
