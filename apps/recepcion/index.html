@@ -7988,6 +7988,13 @@ function verFichaHistorial(fichaId){
   });
   guardarPDF(doc,'Ficha_'+(f.paciente_nombre||'paciente').replace(/\s+/g,'_')+'_'+f.fecha+'.pdf');
 }
+// Antes esto imprimía cada ficha como un bloque de texto apilado (fecha,
+// luego 4 líneas "Objetivo:/Actividad:/Resultados:/Próx. sesión:" debajo) -
+// para revisar varias fichas había que ir leyendo bloque por bloque, sin
+// poder comparar una fecha contra otra de un vistazo. Ahora se dibuja como
+// una tabla real, una fila por ficha (fecha/hora/terapia/psicóloga a la
+// izquierda, los 4 campos en columnas aparte) - un verdadero "cuadro por
+// fecha" que se puede escanear de arriba a abajo.
 function exportarFichasHistorialPDF(){
   const pacId=document.getElementById('histPac')?.value||'';
   if(!pacId)return;
@@ -7998,25 +8005,59 @@ function exportarFichasHistorialPDF(){
   const jsPDF=_getJsPDFHist();
   if(!jsPDF){showToast('Cargando PDF... intenta de nuevo en un segundo','info');return;}
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-  const W=297,M=12;let y=24;
-  doc.setFillColor(74,14,46);doc.rect(0,0,W,18,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
-  doc.text('Fichas de seguimiento - '+(pac2.nombre||''),M,11);
-  doc.setFillColor(233,30,140);doc.rect(0,18,W,2,'F');
-  fichasPac.forEach(function(f){
-    if(y>190){doc.addPage('a4','landscape');y=16;}
-    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(74,14,46);
-    doc.text(fmtF(f.fecha)+(f.hora?' '+f.hora:'')+' · '+(f.terapia||'-')+' · '+(f.psicologa_nombre||'-'),M,y);
-    y+=5;
-    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(40,40,40);
-    [['Objetivo:',f.objetivo],['Actividad:',f.actividad],['Resultados:',f.resultados],['Próx. sesión:',f.proxima_sesion]].forEach(function(b){
-      doc.splitTextToSize(b[0]+' '+(b[1]||'-'),W-M*2).forEach(function(ln){
-        if(y>196){doc.addPage('a4','landscape');y=16;}
-        doc.text(ln,M,y);y+=4.5;
-      });
+  const W=297,H=210,M=10,TOPY=26,BOTY=200;
+  // [etiqueta, ancho(mm), campo en la ficha]
+  const COLS=[
+    ['Fecha',20,null],['Hora',12,null],['Terapia',28,null],['Psicóloga',30,null],
+    ['Objetivo',41,'objetivo'],['Actividad',41,'actividad'],['Resultados',41,'resultados'],['Próx. sesión',40,'proxima_sesion']
+  ];
+  const TABLE_W=COLS.reduce(function(a,c){return a+c[1];},0); // debe calzar en W-2*M
+  function encabezadoPagina(){
+    doc.setFillColor(74,14,46);doc.rect(0,0,W,18,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
+    doc.text('Fichas de seguimiento - '+(pac2.nombre||''),M,11);
+    doc.setFillColor(233,30,140);doc.rect(0,18,W,2,'F');
+  }
+  function encabezadoTabla(y){
+    doc.setFillColor(74,14,46);doc.rect(M,y,TABLE_W,7,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
+    let x=M;
+    COLS.forEach(function(c){doc.text(c[0],x+1.5,y+4.8);x+=c[1];});
+    return y+7;
+  }
+  encabezadoPagina();
+  let y=encabezadoTabla(TOPY);
+  const LH=3.6; // alto de línea dentro de una celda
+  fichasPac.forEach(function(f,idx){
+    // Texto de cada columna, ya envuelto a su ancho - el alto real de la
+    // fila es el de la columna con más líneas (normalmente Objetivo/
+    // Actividad/Resultados), para no cortar ningún campo a la mitad.
+    const celdas=COLS.map(function(c){
+      let txt;
+      if(c[2]===null){
+        txt=c[0]==='Fecha'?fmtF(f.fecha):c[0]==='Hora'?(f.hora||'-'):c[0]==='Terapia'?(f.terapia||'-'):(f.psicologa_nombre||'-');
+      }else{
+        txt=f[c[2]]||'-';
+      }
+      return doc.splitTextToSize(String(txt),c[1]-3);
     });
-    y+=4;
-    doc.setDrawColor(230,230,230);doc.line(M,y,W-M,y);y+=5;
+    const nLineas=Math.max.apply(null,celdas.map(function(l){return l.length;}));
+    const altoFila=Math.max(nLineas*LH+3,8);
+    if(y+altoFila>BOTY){
+      doc.addPage('a4','landscape');
+      encabezadoPagina();
+      y=encabezadoTabla(TOPY);
+    }
+    if(idx%2===1){doc.setFillColor(252,238,245);doc.rect(M,y,TABLE_W,altoFila,'F');}
+    let x=M;
+    COLS.forEach(function(c,i){
+      doc.setDrawColor(230,200,215);doc.rect(x,y,c[1],altoFila);
+      doc.setFont('helvetica',i<4?'bold':'normal');doc.setFontSize(8);
+      doc.setTextColor(i<4?74:40,i<4?14:40,i<4?46:40);
+      celdas[i].forEach(function(ln,li){doc.text(ln,x+1.5,y+4+li*LH);});
+      x+=c[1];
+    });
+    y+=altoFila;
   });
   guardarPDF(doc,'Fichas_'+(pac2.nombre||'paciente').replace(/\s+/g,'_')+'.pdf');
 }
