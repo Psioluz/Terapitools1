@@ -2858,28 +2858,68 @@ function exportarHistorialPDF(pacNom){
         y+=4;
       }
 
-      doc.setFont(undefined,'bold');doc.setFontSize(11);
-      if(y>270){doc.addPage();y=18;}
-      doc.text('Fichas de Seguimiento ('+fichas.length+')',M,y);y+=7;
-      doc.setFont(undefined,'normal');
+      // Las fichas van en una página aparte, en horizontal (landscape) y
+      // como una tabla de verdad (una fila por ficha, fecha/hora/terapia a
+      // la izquierda y los 4 campos en columnas) - antes salían apiladas,
+      // una bajo otra como párrafos sueltos, y era imposible comparar una
+      // fecha contra otra sin ir desplazándose bloque por bloque.
       if(!fichas.length){
-        doc.setFontSize(9);doc.text('Sin fichas registradas.',M,y);y+=6;
-      }
-      fichas.forEach(function(f){
-        if(y>260){doc.addPage();y=18;}
-        doc.setFillColor(252,228,236);doc.rect(M,y-4,W-2*M,5.5,'F');
-        doc.setFontSize(9.5);doc.setFont(undefined,'bold');
-        doc.text(fmtF(f.fecha)+(f.hora?' · '+f.hora:'')+(f.terapia?' · '+f.terapia:''),M+1,y);y+=6;
+        doc.setFont(undefined,'bold');doc.setFontSize(11);
+        if(y>270){doc.addPage();y=18;}
+        doc.text('Fichas de Seguimiento (0)',M,y);y+=7;
         doc.setFont(undefined,'normal');doc.setFontSize(9);
-        [['Objetivo',f.objetivo],['Actividad',f.actividad],['Resultados',f.resultados],['Próx. sesión',f.proxSesion||f.proxima_sesion]]
-          .forEach(function(campo){
-            if(!campo[1])return;
-            if(y>278){doc.addPage();y=18;}
-            var lines=doc.splitTextToSize(campo[0]+': '+campo[1],W-2*M-2);
-            doc.text(lines,M+1,y);y+=lines.length*4.3+1.5;
+        doc.text('Sin fichas registradas.',M,y);y+=6;
+      }else{
+        doc.addPage('a4','landscape');
+        var WL=297,ML=10,TOPY=20,BOTY=200,LH=3.6;
+        var COLS=[
+          ['Fecha',20,null],['Hora',12,null],['Terapia',28,null],
+          ['Objetivo',48,'objetivo'],['Actividad',48,'actividad'],['Resultados',48,'resultados'],['Próx. sesión',48,'proxSesion']
+        ];
+        var TABLE_W=COLS.reduce(function(a,c){return a+c[1];},0);
+        function encabezadoFichasPagina(){
+          doc.setFillColor(74,14,46);doc.rect(0,0,WL,16,'F');
+          doc.setTextColor(255,255,255);doc.setFontSize(12);doc.setFont(undefined,'bold');
+          doc.text('Fichas de Seguimiento ('+fichas.length+') - '+pacNom,ML,10.5);
+        }
+        function encabezadoFichasTabla(yy){
+          doc.setFillColor(74,14,46);doc.rect(ML,yy,TABLE_W,7,'F');
+          doc.setTextColor(255,255,255);doc.setFont(undefined,'bold');doc.setFontSize(8.5);
+          var xx=ML;
+          COLS.forEach(function(c){doc.text(c[0],xx+1.5,yy+4.8);xx+=c[1];});
+          return yy+7;
+        }
+        encabezadoFichasPagina();
+        var yT=encabezadoFichasTabla(TOPY);
+        fichas.slice().reverse().forEach(function(f,idx){ // orden cronológico ascendente, igual que recepción
+          var celdas=COLS.map(function(c){
+            var txt;
+            if(c[2]===null){
+              txt=c[0]==='Fecha'?fmtF(f.fecha):c[0]==='Hora'?(f.hora||'-'):(f.terapia||'-');
+            }else{
+              txt=f[c[2]]||(c[2]==='proxSesion'?f.proxima_sesion:'')||'-';
+            }
+            return doc.splitTextToSize(String(txt),c[1]-3);
           });
-        y+=3;
-      });
+          var nLineas=Math.max.apply(null,celdas.map(function(l){return l.length;}));
+          var altoFila=Math.max(nLineas*LH+3,8);
+          if(yT+altoFila>BOTY){
+            doc.addPage('a4','landscape');
+            encabezadoFichasPagina();
+            yT=encabezadoFichasTabla(TOPY);
+          }
+          if(idx%2===1){doc.setFillColor(252,238,245);doc.rect(ML,yT,TABLE_W,altoFila,'F');}
+          var xx=ML;
+          COLS.forEach(function(c,i){
+            doc.setDrawColor(230,200,215);doc.rect(xx,yT,c[1],altoFila);
+            doc.setFont(undefined,i<3?'bold':'normal');doc.setFontSize(8);
+            doc.setTextColor(i<3?74:40,i<3?14:40,i<3?46:40);
+            celdas[i].forEach(function(ln,li){doc.text(ln,xx+1.5,yT+4+li*LH);});
+            xx+=c[1];
+          });
+          yT+=altoFila;
+        });
+      }
 
       guardarPDF(doc,'Historial_'+pacNom.replace(/\s/g,'_')+'.pdf');
       showToast('✅ PDF descargado','ok');
