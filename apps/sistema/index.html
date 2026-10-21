@@ -586,6 +586,9 @@ async function initApp(){
   // taparle a alguien una edición que todavía no ha guardado.
   if(window._sisAutoRefresh)clearInterval(window._sisAutoRefresh);
   window._sisAutoRefresh=setInterval(function(){
+    // Casi no se usa - se refresca solo si la pestaña está realmente
+    // visible y en uso, cada 2 minutos en vez de cada 10 segundos.
+    if(document.visibilityState!=='visible')return;
     var app=document.getElementById('app');
     if(!app||app.style.display==='none')return;
     if(document.querySelector('tr.dirty'))return;
@@ -593,7 +596,7 @@ async function initApp(){
     if(pgTablas&&pgTablas.classList.contains('active'))tblCargar();
     var pgCuentas=document.getElementById('pg-cuentas');
     if(pgCuentas&&pgCuentas.classList.contains('active'))cargarCuentas();
-  },10000);
+  },120000);
 }
 
 async function cargarStats(){
