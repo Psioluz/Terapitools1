@@ -2428,7 +2428,12 @@ function renderSemana(){
   slots.forEach(function(slot){
     h+='<div class="sem-hora">'+slot+'</div>';
     diasTrabajo.forEach(function(dia){
-      var sesList=PS.sesiones.filter(function(s){return s.fecha===dia.f&&normHora(s.hora)===slot;});
+      // Cancelado y Congelado dejan de ocupar el horario de verdad (igual
+      // que en Recepción - ver _sesEsVisibleEnAgenda) - sin este filtro, un
+      // paquete congelado seguía apareciendo en la agenda semanal de la
+      // psicóloga como si el horario siguiera ocupado, en vez de quedar
+      // libre para ver qué horas hay disponibles.
+      var sesList=PS.sesiones.filter(function(s){return s.fecha===dia.f&&normHora(s.hora)===slot&&s.estado!=='cancelado'&&s.estado!=='congelado';});
       var esH=dia.f===hoy;
       h+='<div class="sem-celda" style="background:'+(esH?'#e6fafa':'#fff')+'">';
       sesList.forEach(function(s){
