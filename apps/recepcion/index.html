@@ -4096,27 +4096,6 @@ async function obtenerProgramaActivo(pacNombre,terNombre,psNombre){
   }catch(e){console.error('[obtenerProgramaActivo]',e);}
   return null;
 }
-function renderProgramasPac(pacNombre){
-  var progs=(DB.programas||[]).filter(function(p){return p.paciente_nombre===pacNombre;});
-  if(!progs.length)return'';
-  return '<div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">'+progs.map(function(prog){
-    var terapiasHtml=(prog.programa_terapias||[]).map(function(pt){
-      var asig=pt.sesiones_asignadas||prog.nro_sesiones_total;
-      var pct=asig>0?Math.round(((pt.sesiones_realizadas||0)/asig)*100):0;
-      var cls=pct>=90?'danger':pct>=70?'warn':'';
-      return '<div style="margin-top:4px">'+
-        '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted)">'+
-        '<span>'+(pt.terapia||'')+' · '+(pt.psicologa||'')+'</span>'+
-        '<span>'+(pt.sesiones_realizadas||0)+'/'+asig+' ('+pct+'%)</span></div>'+
-        '<div class="prog-bar" style="height:5px"><div class="prog-fill '+cls+'" style="width:'+Math.min(100,pct)+'%"></div></div></div>';
-    }).join('');
-    return '<div style="background:var(--bg);border-radius:8px;padding:8px 10px">'+
-      '<div style="font-size:11px;font-weight:800">📦 '+(prog.paquete_nombre||'Programa')+
-      (prog.saldo>0?' <span style="color:var(--orange);font-weight:700">· Saldo S/'+prog.saldo+'</span>':'')+
-      '</div>'+terapiasHtml+'</div>';
-  }).join('')+'</div>';
-}
-
 // Genera automáticamente las sesiones siguientes de una terapia dentro de
 // un paquete: mismo día de la semana y misma hora, cada 7 días, hasta
 // completar el total de sesiones asignadas a esa terapia (la primera ya
@@ -5500,14 +5479,16 @@ function renderPacientes(){
   const el=document.getElementById('listaPacientes');if(!el)return;
   if(!pacs.length){el.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">Sin pacientes.</div>';return;}
   el.innerHTML=pacs.map(p=>{
-    const ps=getPs(p.psId);const ter=getTer(p.terId);
     const sesP=DB.sesiones.filter(s=>s.pacId===p.nombre);
-    const asist=sesP.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
-    const noAs=sesP.filter(s=>s.estado==='noasistio').length;
-    const terapiasUnicas=[...new Set(sesP.map(s=>s.terId).filter(Boolean))].map(id=>getTer(id));
+    // Solo las sesiones "vivas" (no permiso/reprogramado/cancelado/
+    // congelado) cuentan para mostrar quién la está atendiendo ahora -
+    // si no, una psicóloga o terapia que ya no le toca sigue apareciendo
+    // en la tarjeta por una sesión vieja que quedó en otro estado.
+    const sesVivas=sesP.filter(s=>_ESTADOS_SIN_RANGO_PAQ.indexOf(s.estado)===-1);
+    const terapiasUnicas=[...new Set(sesVivas.map(s=>s.terId).filter(Boolean))].map(id=>getTer(id));
+    const psicologasUnicas=[...new Set(sesVivas.map(s=>s.psId).filter(Boolean))].map(id=>getPs(id));
     const prox=sesP.filter(s=>s.estado==='programado'&&s.fecha>=today()).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora))[0];
     const paqInfo=_paqInfoPac(p);
-    const prog=progresoPac(p);
     const colPac=p.estado==='inactivo'?'#94a3b8':'#e91e8c';
     return '<div class="card" style="padding:14px;margin-bottom:8px;border-left:4px solid '+colPac+'">'+
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+
@@ -5519,22 +5500,19 @@ function renderPacientes(){
       (p.estado==='inactivo'?'<span class="badge br">Inactivo</span>':'')+
       '</div>'+
       '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'+
-      (p.terapias?p.terapias.split(',').map(function(tn){return '<span class="badge bp" style="font-size:10px">'+tn.trim()+'</span>';}).join(''):terapiasUnicas.map(t=>'<span class="badge" style="font-size:10px;background:'+(t.color||'#e5e7eb')+';color:'+colorTextoContraste(t.color)+'">'+t.nombre+'</span>').join(''))+
-      (paqInfo?'<span class="badge bb" style="font-size:10px">Paquete '+paqInfo.total+' ses.</span>':'')+
+      terapiasUnicas.map(t=>'<span class="badge" style="font-size:10px;background:'+(t.color||'#e5e7eb')+';color:'+colorTextoContraste(t.color)+'">'+t.nombre+'</span>').join('')+
+      (paqInfo?'<span class="badge bb" style="font-size:10px">📦 Paquete '+paqInfo.total+' ses.</span>':(sesVivas.length?'<span class="badge bk" style="font-size:10px">Sesión suelta</span>':''))+
       '</div>'+
       '<div style="font-size:12px;color:var(--muted)">'+
-      (ps.nombre!=='-'?'🩺 '+ps.nombre:'')+
+      (psicologasUnicas.length?'🩺 '+psicologasUnicas.map(ps=>ps.nombre).join(', '):'')+
       (p.tel?' · 📱 '+p.tel:'')+
       '</div>'+
-      prog+
-      renderProgramasPac(p.nombre)+
       _saldoAlertaHTML(p,'padding:5px 10px;margin-top:6px;font-size:12px')+
       '</div>'+
       '<div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;align-items:flex-start">'+
       (prox?'<span class="badge bc" style="font-size:10px">Próx: '+fmtF(prox.fecha)+' '+prox.hora+'</span>':'')+
       '</div>'+
       '</div>'+
-      (p.motivo?'<div style="font-size:11px;color:var(--muted);font-style:italic">"'+p.motivo+'"</div>':'')+
       '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;display:flex;gap:6px;flex-wrap:wrap">'+
       '<button class="btn btn-outline btn-sm" onclick="abrirEditarPaciente(\''+p.id+'\')">✏️ Editar</button>'+
       '<button class="btn btn-outline btn-sm" onclick="abrirHistPac(\''+p.id+'\')">📚 Historial</button>'+
