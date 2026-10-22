@@ -2424,14 +2424,14 @@ function renderDiaSel(){
 // las sesiones "reales" del mismo paquete (se excluyen los permisos, que
 // ya no cuentan un cupo, y la fila vieja de una reprogramación, que quedó
 // reemplazada por la nueva).
+const _ESTADOS_SIN_RANGO_PAQ=['permiso','reprogramado','cancelado','congelado'];
 function _rankPaqSesion(s){
   const progId=s&&s._sb&&s._sb.programa_id;
   if(!progId||s.tipo!=='paquete')return{rank:s.nroSes,total:s.totalPaq};
   const delPrograma=DB.sesiones.filter(function(x){
-    return x._sb&&x._sb.programa_id===progId&&x.tipo==='paquete'&&x.estado!=='permiso'&&x.estado!=='reprogramado'&&x.estado!=='cancelado'&&x.estado!=='congelado';
+    return x._sb&&x._sb.programa_id===progId&&x.tipo==='paquete'&&_ESTADOS_SIN_RANGO_PAQ.indexOf(x.estado)===-1;
   }).sort(function(a,b){return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
   const idx=delPrograma.findIndex(function(x){return x.id===s.id;});
-  if(idx===-1)return{rank:s.nroSes,total:s.totalPaq};
   // El total nunca debe mostrar MENOS que lo realmente contratado
   // (s.totalPaq, el total_paquete guardado) - en un paquete con varias
   // terapias las sesiones se generan por partes, así que puede haber
@@ -2442,11 +2442,25 @@ function _rankPaqSesion(s){
   // delPrograma.length sigue mandando cuando hay reprogramaciones que
   // desincronizan el total_paquete guardado (motivo original de calcularlo
   // así), pero nunca por debajo de lo contratado.
-  return{rank:idx+1,total:Math.max(delPrograma.length,s.totalPaq||0)};
+  const total=Math.max(delPrograma.length,s.totalPaq||0);
+  if(idx===-1){
+    // Si ESTA sesión está en un estado que ya no cuenta para el progreso
+    // real (permiso/reprogramado/cancelado/congelado), nunca por quedarse
+    // sin rango mostrado se debe caer de vuelta al nro_en_paquete guardado:
+    // es un número viejo, de cuando la sesión SÍ contaba, y puede coincidir
+    // por casualidad con el rango recién calculado de OTRA sesión que sí
+    // sigue vigente - mostrando el mismo "Paq N/M" dos veces y pareciendo
+    // una sesión duplicada (pasó con Sisi y Mateo Arias: una sesión
+    // asistida calculó "8/12" por conteo real, y una sesión cancelada/
+    // congelada aparte mostró el mismo "8/12" de su nro_en_paquete viejo).
+    if(_ESTADOS_SIN_RANGO_PAQ.indexOf(s.estado)>-1)return{rank:null,total:total};
+    return{rank:s.nroSes,total:s.totalPaq};
+  }
+  return{rank:idx+1,total:total};
 }
 function _paqLabel(s){
   const r=_rankPaqSesion(s);
-  return r.rank+'/'+r.total;
+  return r.rank==null?'-':r.rank+'/'+r.total;
 }
 // Si esta sesión es la que carga una cuota pendiente de pago (ver
 // recalcularSaldoPaciente), arma el texto "Cuota Nra: S/X" para avisarle a
