@@ -2572,7 +2572,27 @@ function _saldoAlertaHTML(pac,extraStyle){
 function _progVigentePac(pacNombre){
   const progsPac=(DB.programas||[]).filter(function(p){return p.paciente_nombre===pacNombre;})
     .sort(function(a,b){return(b.created_at||'').localeCompare(a.created_at||'');});
-  return progsPac[0]||null;
+  if(progsPac.length)return progsPac[0];
+  // DB.programas SOLO trae paquetes con estado "activo" (ver cargarDesdeSB).
+  // Si el paquete más reciente del paciente ya no está activo (lo
+  // congelaron y después se cerró por completo, por ejemplo), este
+  // paciente queda "sin paquete vigente" y las tarjetas de progreso
+  // terminan sumando TODOS sus paquetes históricos entre sí - pasó con
+  // Sisi y Mateo Arias: un paquete anterior ya completado se sumó al
+  // actual y mostró "20 asistidas de 12 sesiones" (167%). Como respaldo,
+  // se deduce el paquete más reciente directo de DB.sesiones (que sí trae
+  // sesiones de paquetes inactivos): el programa cuya sesión más nueva
+  // tenga la fecha más reciente.
+  const ultimaFechaPorPrograma={};
+  (DB.sesiones||[]).forEach(function(s){
+    if(s.pacId!==pacNombre||s.tipo!=='paquete'||!(s._sb&&s._sb.programa_id))return;
+    const pid=s._sb.programa_id;
+    if(!ultimaFechaPorPrograma[pid]||s.fecha>ultimaFechaPorPrograma[pid])ultimaFechaPorPrograma[pid]=s.fecha;
+  });
+  const ids=Object.keys(ultimaFechaPorPrograma);
+  if(!ids.length)return null;
+  ids.sort(function(a,b){return ultimaFechaPorPrograma[b].localeCompare(ultimaFechaPorPrograma[a]);});
+  return{id:ids[0]};
 }
 function _paqInfoPac(pac){
   // Debe reflejar SOLO el paquete VIGENTE - antes sumaba las sesiones de
