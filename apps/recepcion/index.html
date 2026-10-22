@@ -2465,6 +2465,21 @@ function _paqLabel(s){
   const r=_rankPaqSesion(s);
   return r.rank==null?'-':r.rank+'/'+r.total;
 }
+// Número de sesión que le toca a una fila NUEVA que todavía no existe en
+// DB.sesiones (se está por crear en fecha/hora) - cuenta cuántas sesiones
+// vigentes del paquete (mismo criterio que _rankPaqSesion: sin permiso/
+// reprogramado/cancelado/congelado) caen antes de esa fecha/hora, y le
+// suma 1. Se usa cuando no hay de dónde heredar el número (ej. al
+// reagendar a mano una sesión que venía de un "Congelar paquete" completo,
+// que limpia nro_en_paquete a propósito - ver congelarPaquete).
+function _siguienteNroPaquete(progId,fecha,hora){
+  const anteriores=DB.sesiones.filter(function(x){
+    return x._sb&&x._sb.programa_id===progId&&x.tipo==='paquete'&&
+      _ESTADOS_SIN_RANGO_PAQ.indexOf(x.estado)===-1&&
+      (x.fecha<fecha||(x.fecha===fecha&&x.hora<hora));
+  }).length;
+  return anteriores+1;
+}
 // Si esta sesión es la que carga una cuota pendiente de pago (ver
 // recalcularSaldoPaciente), arma el texto "Cuota Nra: S/X" para avisarle a
 // recepción ANTES de que llegue el paciente - no solo cuando ya marcó
@@ -2754,7 +2769,7 @@ async function congelarSesion(sesId){
     const notaPrevia=ses._sb.notas||'';
     const notaNueva=(notaPrevia?notaPrevia+' · ':'')+'❄️ Congelada: '+motivo.trim();
     if(!progId){
-      await sbPatch('sesiones',{estado:'congelado',saldo:0,notas:notaNueva},{id:'eq.'+ses._sb.id});
+      await sbPatch('sesiones',{estado:'congelado',saldo:0,nro_en_paquete:null,notas:notaNueva},{id:'eq.'+ses._sb.id});
       showToast('❄️ Sesión congelada');
       await cargarDesdeSB();
       return;
@@ -5220,9 +5235,15 @@ async function guardarSesion(){
           if(freshRows&&freshRows[0])saldo=freshRows[0].saldo||0;
         }catch(eFresh){console.warn('[reprog saldo fresco]',eFresh);}
       }
+      // Si la sesión vieja ya no tenía nro_en_paquete (ej. venía de un
+      // "Congelar paquete" completo, que lo limpia a propósito - ver
+      // congelarPaquete), se calcula el número que le toca de verdad
+      // contando las sesiones vigentes del paquete anteriores a esta nueva
+      // fecha, en vez de inventar "1" (que mostraría mal la posición real).
       filaSesion={fecha:fecha,hora:hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
         psicologa:ps.nombre,terapia:ter.nombre,estado:'programado',tipo:tipo,
-        nro_en_paquete:_reprogDe.nroSes||1,total_paquete:totalPaq,costo_total:_reprogDe.costoTotal||0,
+        nro_en_paquete:progIdOrig?(_reprogDe.nroSes||_siguienteNroPaquete(progIdOrig,fecha,hora)):(_reprogDe.nroSes||1),
+        total_paquete:totalPaq,costo_total:_reprogDe.costoTotal||0,
         adelanto:0,saldo:saldo,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
       if(progIdOrig){filaSesion.programa_id=progIdOrig;if(ptIdOrig)filaSesion.programa_terapia_id=ptIdOrig;}
       // Reprogramar una "Llamada con maestra" no debe perder los datos de
@@ -5240,7 +5261,10 @@ async function guardarSesion(){
       // nueva de arriba, así que aquí se limpia para que no quede
       // duplicado ni siga contando como "cuota vencida" en una fecha ya
       // pasada.
-      if(_reprogDe._sb&&_reprogDe._sb.id)await sbPatch('sesiones',{estado:'reprogramado',saldo:0,responsable:_respReprog},{id:'eq.'+_reprogDe._sb.id});
+      // nro_en_paquete:null en la sesión vieja - una vez reprogramada ya no
+      // representa ningún cupo real (el nuevo cupo lo tiene la fila nueva de
+      // arriba), así que no debe seguir mostrando un número de sesión.
+      if(_reprogDe._sb&&_reprogDe._sb.id)await sbPatch('sesiones',{estado:'reprogramado',saldo:0,nro_en_paquete:null,responsable:_respReprog},{id:'eq.'+_reprogDe._sb.id});
       _reprogDe.saldo=0;
       // Si la sesión vieja (suelta, sin paquete) ya tenía un pago atado por
       // su sesion_id, ese pago se traslada a la sesión nueva - si no, queda
@@ -8794,7 +8818,7 @@ async function cancelarSesionSuelta(sesRef,motivo){
     // datos recalcula pacientes.saldo automáticamente apenas esta sesión
     // queda en "cancelado" (se excluye sola del cálculo real) - hacerlo
     // también aquí podía pisar ese recálculo con un número desfasado.
-    await sbPatch('sesiones',{estado:'cancelado',saldo:0,notas:notasNuevas},{id:'eq.'+sbId});
+    await sbPatch('sesiones',{estado:'cancelado',saldo:0,nro_en_paquete:null,notas:notasNuevas},{id:'eq.'+sbId});
     if(motivo)await sbPost('alertas_log',{tipo:'cancelacion_sesion',sede:DB.sede,mensaje:motivo,paciente_nombre:s.pacNom||''}).catch(function(){});
     s.estado='cancelado';s.saldo=0;s.notas=notasNuevas;
     showToast('✅ Sesión cancelada');
@@ -8839,15 +8863,20 @@ async function congelarPaquete(programaId,pacienteNombre){
   if(!confirm('¿Congelar TODO el paquete de '+(pacienteNombre||'este paciente')+'? Se congelan todas sus sesiones futuras pendientes (no cuentan como falta ni generan cobro) y se liberan esos horarios. Úsalo solo cuando AÚN NO se sabe cuándo retoma - cada sesión se reagenda después a mano, una por una.'))return;
   showToast('⏳ Congelando paquete...');
   try{
-    // A diferencia de congelarSesion() (que sí limpia nro_en_paquete porque
-    // crea de una vez la reposición que reocupa ese número), acá se deja
-    // el número tal cual - igual que una reprogramación normal, que ya
-    // sabe preservarlo cuando más adelante se reagende esta fila a mano.
+    // Se limpia nro_en_paquete igual que en los demás casos (reprogramado/
+    // permiso/cancelado): una sesión congelada ya no representa ningún cupo
+    // real. Cuando más adelante se reagende a mano con el botón 🔄, el
+    // número correcto se recalcula solo contando las sesiones vigentes del
+    // paquete (ver _siguienteNroPaquete) en vez de depender de este valor
+    // viejo - antes se dejaba el número a propósito para que ese reagendado
+    // lo heredara, pero un número "congelado" resucitado así podía chocar
+    // con el de otra sesión que sí seguía vigente, mostrando el mismo
+    // "Paq N/M" dos veces (pasó con Sisi y Mateo Arias).
     const pendientes=await sbGet('sesiones',{programa_id:'eq.'+programaId,estado:'eq.programado',select:'id,notas'});
     for(const s of (pendientes||[])){
       const notaPrevia=s.notas||'';
       const notaNueva=(notaPrevia?notaPrevia+' · ':'')+'❄️ Congelada (paquete completo): '+motivo.trim();
-      await sbPatch('sesiones',{estado:'congelado',saldo:0,notas:notaNueva},{id:'eq.'+s.id});
+      await sbPatch('sesiones',{estado:'congelado',saldo:0,nro_en_paquete:null,notas:notaNueva},{id:'eq.'+s.id});
     }
     showToast('❄️ Paquete congelado - '+(pendientes||[]).length+' sesión(es) pendiente(s) de reagendar cuando el paciente vuelva');
     await cargarDesdeSB();
@@ -8870,7 +8899,7 @@ async function cancelarPaquete(programaId,pacienteNombre,motivo){
     // "programado" quedaban sin cancelar, visibles para siempre en la
     // agenda semanal aunque el paquete entero ya estuviera cancelado
     // (pasó con Sisi y Mateo Arias).
-    await sbPatch('sesiones',{estado:'cancelado',saldo:0},{programa_id:'eq.'+programaId,estado:'in.(programado,congelado)'});
+    await sbPatch('sesiones',{estado:'cancelado',saldo:0,nro_en_paquete:null},{programa_id:'eq.'+programaId,estado:'in.(programado,congelado)'});
     await sbPatch('programas_paciente',{estado:'cancelado',saldo:0},{id:'eq.'+programaId});
     if(motivo)await sbPost('alertas_log',{tipo:'cancelacion_paquete',sede:DB.sede,mensaje:motivo,paciente_nombre:pacienteNombre||''}).catch(function(){});
     showToast('✅ Paquete cancelado - horarios liberados');
