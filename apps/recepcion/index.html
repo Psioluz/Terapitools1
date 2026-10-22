@@ -660,7 +660,7 @@ try{
     <div style="padding:12px">
       <div class="form-group">
         <div class="form-label">Plantilla de mensaje</div>
-        <textarea class="form-control" id="waTemplate" rows="3">¡Hola estimad@ buen día! 💜 Le escribimos de Psicoluz centro terapéutico para recordarle que su menor el día de hoy tiene sesión de {terapia} programada a la {hora}, Te esperamos con mucho gusto. ¡Que tengas un lindo día🌈! Bendiciones😇 ✨</textarea>
+        <textarea class="form-control" id="waTemplate" rows="3">Hola estimad@ buen día! 💜 Le escribimos de Psicoluz centro terapéutico para recordarle que su menor el día de hoy tiene sesión de {terapia} programada a la {hora}, Te esperamos con mucho gusto. ¡Que tengas un lindo día🌈! Bendiciones😇 ✨ Confirmar asistencia por favor 📝</textarea>
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:4px">
         ℹ️ WhatsApp no permite enviar mensajes automáticamente sin su API de pago:
@@ -7536,7 +7536,7 @@ function _hora12(h){
   return String(hh).padStart(2,'0')+':'+m[2]+' '+ampm;
 }
 function enviarWA(sesionId,tel,nombre,terapia,hora){
-  const tpl=document.getElementById('waTemplate')?.value||'¡Hola estimad@ buen día! 💜 Le escribimos de Psicoluz centro terapéutico para recordarle que su menor el día de hoy tiene sesión de {terapia} programada a la {hora}, Te esperamos con mucho gusto. ¡Que tengas un lindo día🌈! Bendiciones😇 ✨';
+  const tpl=document.getElementById('waTemplate')?.value||'Hola estimad@ buen día! 💜 Le escribimos de Psicoluz centro terapéutico para recordarle que su menor el día de hoy tiene sesión de {terapia} programada a la {hora}, Te esperamos con mucho gusto. ¡Que tengas un lindo día🌈! Bendiciones😇 ✨ Confirmar asistencia por favor 📝';
   const msg=tpl.replace(/{nombre}/g,nombre).replace(/{terapia}/g,terapia).replace(/{hora}/g,_hora12(hora)).replace(/{sede}/g,DB.sede);
   const num=tel.replace(/\D/g,'');
   // api.whatsapp.com/send maneja mejor los emojis que wa.me en varios
