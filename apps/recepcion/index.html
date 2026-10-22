@@ -1648,18 +1648,21 @@ async function doLogin() {
       if(errEl){errEl.textContent='Tu cuenta no tiene sede asignada. Contacta a la administradora.';errEl.style.display='block';}
       return;
     }
-    // Límite de 2 dispositivos activos por cuenta (igual que en psicóloga):
+    // Límite de dispositivos activos por cuenta (igual que en psicóloga):
     // evita compartir el usuario con más gente sin obligar a entrar siempre
-    // desde el mismo aparato.
+    // desde el mismo aparato. Normalmente 2 - en Comas se sube a 3 mientras
+    // se verifica/prueba algo puntual ahí (pedido explícito, no es la
+    // política general de las demás sedes).
     if(user.estado!=='prueba'){
       var miDispositivo=_getDeviceId();
-      var yaRegistrado=(user.device_id&&user.device_id===miDispositivo)||(user.device_id_2&&user.device_id_2===miDispositivo);
+      var camposDispositivo=user.sede==='Comas'?['device_id','device_id_2','device_id_3']:['device_id','device_id_2'];
+      var yaRegistrado=camposDispositivo.some(function(c){return user[c]&&user[c]===miDispositivo;});
       if(!yaRegistrado){
-        if(user.device_id&&user.device_id_2){
-          if(errEl){errEl.textContent='Esta cuenta ya está en uso en 2 dispositivos (el máximo permitido). Si cambiaste de equipo, pide a Administración que te libere el acceso.';errEl.style.display='block';}
+        var campoLibre=camposDispositivo.find(function(c){return!user[c];});
+        if(!campoLibre){
+          if(errEl){errEl.textContent='Esta cuenta ya está en uso en '+camposDispositivo.length+' dispositivos (el máximo permitido). Si cambiaste de equipo, pide a Administración que te libere el acceso.';errEl.style.display='block';}
           return;
         }
-        var campoLibre=!user.device_id?'device_id':'device_id_2';
         try{ await sbPatch('recepcionistas',{[campoLibre]:miDispositivo},{id:'eq.'+user.id}); }catch(eDev){console.warn('[device_id]',eDev);}
       }
     }
