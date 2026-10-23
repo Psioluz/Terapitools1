@@ -3114,7 +3114,17 @@ async function agCargarProgramasActivos(){
   const tipo=document.getElementById('ag-tipo')?.value;
   const grp=document.getElementById('ag-grp-progExist');
   const pacId=document.getElementById('ag-pac')?.value||'';
-  if(tipo!=='paquete'||!pacId||_reprogDe){
+  // Un servicio de catálogo multisesión (Informe, Evaluación...) también
+  // puede tener un programa YA activo al que le falta agendar alguna
+  // sesión (ej. la entrega/resultado de una Evaluación Neuropsicológica
+  // que ya tuvo sus sesiones anteriores) - antes esto solo se ofrecía
+  // para Tipo de Servicio = "Paquete de Sesiones", así que la
+  // recepcionista no tenía forma de elegir "el que ya tiene" y quedaba
+  // bloqueada sin ninguna opción en pantalla.
+  const servIdActual=document.getElementById('ag-servId')?.value||'';
+  const servActual=servIdActual?getPaq(servIdActual):null;
+  const esServicioMultiSesion=!!(tipo&&tipo!=='paquete'&&tipo!=='adelanto'&&tipo!=='exclusivo'&&servActual&&(servActual.nroSes||1)>1);
+  if((tipo!=='paquete'&&!esServicioMultiSesion)||!pacId||_reprogDe){
     if(grp)grp.style.display='none';
     _agProgramasActivos=[];
     agOnProgExist();
@@ -3192,24 +3202,32 @@ function agOnProgExist(){
   const tipo=document.getElementById('ag-tipo')?.value;
   const exclusivoModo=document.getElementById('ag-exclusivoModo')?.value||'sesion';
   const esExclusivo=tipo==='exclusivo'&&exclusivoModo==='paquete';
+  // Un servicio de catálogo multisesión (Informe, Evaluación...) fija su
+  // costo y número de sesiones por la tarifa ya elegida en "ag-servId"
+  // (ver agOnServ) - el selector "Seleccionar Paquete"/"Categoría" es
+  // solo para un Paquete de Sesiones normal y nunca debe aparecer acá,
+  // tenga o no un programa ya activo elegido.
+  const esServicioCatalogo=!!(tipo&&tipo!=='paquete'&&tipo!=='adelanto'&&!esExclusivo&&document.getElementById('ag-servId')?.value);
   const grpPaq=document.getElementById('ag-grp-paq');
   // El selector de paquetes del catálogo (con precios ya establecidos) no
-  // aplica para "Precio exclusivo" - ahí el costo/sesiones se escriben a
-  // mano, así que nunca debe reaparecer aunque no haya un paquete activo
+  // aplica para "Precio exclusivo" ni para un servicio de catálogo propio
+  // - ahí el costo/sesiones se escriben a mano o ya vienen fijos de la
+  // tarifa, así que nunca debe reaparecer aunque no haya un paquete activo
   // elegido en "ag-progExist".
-  const _mostrarCatalogo=(!progId&&!esExclusivo);
+  const _mostrarCatalogo=(!progId&&!esExclusivo&&!esServicioCatalogo);
   if(grpPaq)grpPaq.style.display=_mostrarCatalogo?'block':'none';
   // "Tipo de paquete" (Regular/Gratuito) solo filtra ESE catálogo - si el
-  // catálogo no se muestra (paquete ya activo elegido, o precio exclusivo),
-  // este selector tampoco pinta nada y antes se quedaba visible igual,
-  // como si hubiera algo más que elegir.
+  // catálogo no se muestra (paquete ya activo elegido, precio exclusivo o
+  // servicio de catálogo propio), este selector tampoco pinta nada y antes
+  // se quedaba visible igual, como si hubiera algo más que elegir.
   const grpPaqGrat=document.getElementById('ag-grp-paqGratuito');
   if(grpPaqGrat)grpPaqGrat.style.display=_mostrarCatalogo?'block':'none';
   // "Categoría" (Niños/Adultos) solo aplica al REGISTRAR un paquete nuevo
   // - un paquete ya activo (progId elegido) ya quedó fijado con su
-  // categoría desde que se creó, no tiene sentido volver a preguntarla.
+  // categoría desde que se creó, no tiene sentido volver a preguntarla; un
+  // servicio de catálogo tampoco la pide nunca (no filtra por categoría).
   const grpCategoria=document.getElementById('ag-grp-categoria');
-  if(grpCategoria)grpCategoria.style.display=progId?'none':'block';
+  if(grpCategoria)grpCategoria.style.display=(progId||esServicioCatalogo)?'none':'block';
   const grpCuotas=document.getElementById('ag-grp-cuotas');
   if(grpCuotas)grpCuotas.style.display=progId?'none':'block';
   // "Cambiar terapia/horario/psicóloga de las sesiones pendientes" solo
@@ -3556,7 +3574,6 @@ function agOnServ(){
     if(grpCostoSimple)grpCostoSimple.style.display='none';
     if(grpBuilder)grpBuilder.style.display='block';
     if(grpPaqCatalogo)grpPaqCatalogo.style.display='none';
-    if(grpProgExist)grpProgExist.style.display='none';
     if(grpCategoria)grpCategoria.style.display='none';
     // "Tipo de paquete" tampoco aplica a un servicio del catálogo (Informe,
     // Evaluación...) - su costo ya viene fijo de la tarifa, no hay catálogo
@@ -3569,6 +3586,14 @@ function agOnServ(){
     if(elCuotasNota)elCuotasNota.textContent='Fijo según la tarifa de este servicio - no se puede cambiar aquí.';
     document.getElementById('ag-costo').value=serv.costoTotal||'';
     agOnModoPaq();
+    // Si el paciente YA tiene este mismo servicio activo (ej. le falta
+    // agendar la última sesión/entrega de una Evaluación Neuropsicológica
+    // que ya tuvo sus sesiones anteriores), debe poder elegirlo acá para
+    // agregarle justo lo que le falta, en vez de quedar sin ninguna
+    // opción y verse obligada a registrar el servicio de cero otra vez
+    // (lo que cobraría de más). Mismo mecanismo que "Paquete del
+    // paciente" para un Paquete de Sesiones normal.
+    agCargarProgramasActivos();
   } else {
     // Sin servId (volvió a "- Selecciona el servicio -") todavía no se
     // sabe qué mostrar - se deja todo oculto, igual que al entrar a este
@@ -4020,6 +4045,21 @@ function agActualizarResumen(){
   } else if(tipo==='paquete'&&!_reprogDe&&paq){
     const saldo=Math.max(0,paq.costoTotal-adelanto);
     txt=paq.nombre+' - S/'+paq.costoTotal+' total | Adelanto: S/'+adelanto+' | Saldo: S/'+saldo;
+  } else if(tipo&&tipo!=='paquete'&&tipo!=='adelanto'&&tipo!=='exclusivo'&&!_reprogDe&&progId){
+    // Servicio de catálogo (Informe, Evaluación...) con un programa YA
+    // activo elegido en "Paquete del paciente" - igual que el paquete
+    // existente de arriba, debe mostrar el saldo REAL de ese programa
+    // (puede estar pagado del todo), no el costo/saldo de la tarifa base
+    // como si fuera a cobrarse de cero otra vez.
+    const progServ=_agProgramasActivos.find(function(p){return p.id===progId;});
+    if(progServ){
+      const asignadasServ=(progServ.programa_terapias||[]).reduce(function(a,t){return a+(t.sesiones_asignadas||0);},0);
+      const libresServ=Math.max(0,(progServ.nro_sesiones_total||0)-asignadasServ);
+      const saldoActualServ=Math.max(0,(progServ.costo_total||0)-(progServ.adelanto_acumulado||0));
+      const saldoNuevoServ=Math.max(0,saldoActualServ-adelanto);
+      txt='Servicio existente: '+(progServ.paquete_nombre||'')+' - Quedan '+libresServ+' de '+progServ.nro_sesiones_total+' sin asignar | Saldo actual: S/'+saldoActualServ+
+        (adelanto>0?' | Nuevo adelanto: S/'+adelanto+' | Saldo tras este pago: S/'+saldoNuevoServ:'');
+    }
   } else if(tipo&&tipo!=='paquete'&&tipo!=='adelanto'&&tipo!=='exclusivo'&&!_reprogDe){
     const servId2=document.getElementById('ag-servId')?.value||'';
     const serv2=servId2?getPaq(servId2):null;
