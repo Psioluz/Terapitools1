@@ -5778,35 +5778,54 @@ async function pgOnPaciente(){
     prog=(progs||[]).sort(function(a,b){return(b.created_at||'').localeCompare(a.created_at||'');})[0];
   }catch(e){console.error('[pgOnPaciente]',e);}
   if(document.getElementById('pg-pac')?.value!==pacId)return; // cambió de paciente mientras cargaba
+  // Un paciente puede tener un paquete/programa activo (ej. "Informe
+  // psicológico clínico") y, AL MISMO TIEMPO, arrastrar deuda de una
+  // sesión suelta sin relación con ese programa (ej. una terapia aparte,
+  // sin paquete). Antes, apenas había un `prog` activo se cortaba acá
+  // mismo sin revisar sesiones sueltas - si ese programa no tenía ninguna
+  // cuota pendiente (ya estaba pagado), el sistema igual sugería
+  // "Adelanto <nombre del programa>" aunque la deuda real fuera de otra
+  // cosa por completo (pasó con Anthony Luyo Trujillo: el pago de su
+  // sesión suelta de T. Cognitiva conductual quedó enganchado como
+  // "Adelanto Informe psicológico clínico" sin que nadie lo eligiera así).
+  // Ahora se calculan ambas deudas y se prioriza la que de verdad está
+  // pendiente de cobro.
+  let cuotaPend=null;
   if(prog){
-    let cuotaPend=null;
     try{
       const pend=await sbGet('sesiones',{programa_id:'eq.'+prog.id,saldo:'gt.0',select:'*',order:'fecha.asc,hora.asc',limit:'1'});
       cuotaPend=pend&&pend[0]?{saldo:pend[0].saldo,fecha:pend[0].fecha}:null;
     }catch(e){console.error('[pgOnPaciente cuota]',e);}
-    info.style.display='block';
-    if(cuotaPend){
-      info.style.background='#fff7ed';info.style.color='#9a3412';
-      info.innerHTML='📦 Paquete activo: <b>'+(prog.paquete_nombre||'Paquete')+'</b> - Cuota pendiente: <b>S/'+cuotaPend.saldo+'</b> (sesión del '+fmtF(cuotaPend.fecha)+')';
-      elConcepto.value='Cuota '+(prog.paquete_nombre||'paquete');
-      elMonto.value=cuotaPend.saldo;
-    }else{
-      info.style.background='#f0fdf4';info.style.color='#166534';
-      info.innerHTML='📦 Paquete activo: <b>'+(prog.paquete_nombre||'Paquete')+'</b> - sin cuota pendiente por ahora.';
-      elConcepto.value='Adelanto '+(prog.paquete_nombre||'paquete');
-      elMonto.value='';
-    }
+  }
+  if(document.getElementById('pg-pac')?.value!==pacId)return; // cambió de paciente mientras cargaba
+  const deudaSuelta=_saldoSueltoReal(pac);
+  info.style.display='block';
+  if(cuotaPend){
+    info.style.background='#fff7ed';info.style.color='#9a3412';
+    info.innerHTML='📦 Paquete activo: <b>'+(prog.paquete_nombre||'Paquete')+'</b> - Cuota pendiente: <b>S/'+cuotaPend.saldo+'</b> (sesión del '+fmtF(cuotaPend.fecha)+')';
+    elConcepto.value='Cuota '+(prog.paquete_nombre||'paquete');
+    elMonto.value=cuotaPend.saldo;
     pgInicializarMetodos(elMonto.value);
     return;
   }
-  const deudaSuelta=_saldoSueltoReal(pac);
-  info.style.display='block';
   if(deudaSuelta>0){
     info.style.background='#fff7ed';info.style.color='#9a3412';
-    info.innerHTML='⚠️ Debe actualmente: <b>S/'+deudaSuelta+'</b> (sesiones sueltas, sin paquete)';
+    info.innerHTML='⚠️ Debe actualmente: <b>S/'+deudaSuelta+'</b> (sesiones sueltas, sin paquete)'+
+      (prog?' - ademas tiene el paquete activo <b>'+(prog.paquete_nombre||'Paquete')+'</b>, sin cuota pendiente por ahora.':'');
     elConcepto.value='Pago sesión - '+pac.nombre;
     elMonto.value=deudaSuelta;
-  }else if(deudaSuelta<0){
+    pgInicializarMetodos(elMonto.value);
+    return;
+  }
+  if(prog){
+    info.style.background='#f0fdf4';info.style.color='#166534';
+    info.innerHTML='📦 Paquete activo: <b>'+(prog.paquete_nombre||'Paquete')+'</b> - sin cuota pendiente por ahora.';
+    elConcepto.value='Adelanto '+(prog.paquete_nombre||'paquete');
+    elMonto.value='';
+    pgInicializarMetodos(elMonto.value);
+    return;
+  }
+  if(deudaSuelta<0){
     info.style.background='#eff6ff';info.style.color='#1e40af';
     info.innerHTML='💙 Tiene un crédito a favor de S/'+(-deudaSuelta)+'.';
     elConcepto.value='';elMonto.value='';
@@ -5993,7 +6012,29 @@ async function _guardarPagoInterno(){
       try{
         const progs=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pac.nombre,sede:_filtroSedeSb(pac.nombre),estado:'eq.activo',select:'*'});
         const prog=(progs||[]).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))[0];
+        // Un paciente puede tener un paquete/programa activo (ej. "Informe
+        // psicológico clínico") SIN ninguna cuota pendiente (ya pagado del
+        // todo) y, a la vez, deber una sesión suelta sin relación con ese
+        // programa. Antes, con solo que existiera un `prog` activo, CUALQUIER
+        // pago genérico se le pegaba entero como "adelanto" de ese paquete,
+        // sin importar si de verdad tenía algo pendiente - así el pago de la
+        // sesión suelta de Anthony Luyo Trujillo (T. Cognitiva conductual)
+        // quedó enganchado como "Adelanto Informe psicológico clínico" en
+        // vez de cubrir la sesión que de verdad lo necesitaba. Ahora se
+        // revisa primero si el paquete tiene alguna cuota pendiente, y si
+        // no la tiene pero SÍ hay una sesión suelta con saldo, el pago va a
+        // esa sesión - el paquete solo recibe el pago como adelanto cuando
+        // no hay ninguna sesión suelta pendiente a la que aplicarlo.
+        let progTieneCuotaPendiente=false;
         if(prog&&prog.id){
+          try{
+            const pend=await sbGet('sesiones',{programa_id:'eq.'+prog.id,saldo:'gt.0',select:'id',limit:'1'});
+            progTieneCuotaPendiente=!!(pend&&pend.length);
+          }catch(ePend){console.error('[pago->programa cuota]',ePend);}
+        }
+        const sesSuelta=DB.sesiones.filter(s=>(s.pacNom===pac.nombre||s.pacId===pac.nombre)&&s.saldo>0&&!(s._sb&&s._sb.programa_id))
+          .sort((a,b)=>((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||'')))[0];
+        if(prog&&prog.id&&(progTieneCuotaPendiente||!sesSuelta)){
           pagoAtadoAPaquete=true;
           _pagoVinculado=true;
           const adelantoAcum=(prog.adelanto_acumulado||0)+monto;
@@ -6016,8 +6057,7 @@ async function _guardarPagoInterno(){
           // la fila, nunca se guardó qué sesión exacta cubría).
           if(sesionCheckpointId)pagoIds.forEach(function(id){promesas.push(sbPatch('pagos',{sesion_id:sesionCheckpointId},{id:'eq.'+id}));});
         }else{
-          const ses=DB.sesiones.filter(s=>(s.pacNom===pac.nombre||s.pacId===pac.nombre)&&s.saldo>0)
-            .sort((a,b)=>((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||'')))[0];
+          const ses=sesSuelta;
           if(ses&&ses._sb&&ses._sb.id){
             _pagoVinculado=true;
             promesas.push(sbPatch('sesiones',{saldo:Math.max(0,(ses.saldo||0)-monto)},{id:'eq.'+ses._sb.id}));
