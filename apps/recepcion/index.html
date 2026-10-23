@@ -4572,10 +4572,45 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
   try{
     huerfanos=await sbGet('pagos',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,
       sesion_id:'is.null',programa_id:'is.null',select:'id,monto,fecha'})||[];
-  }catch(e){console.error('[vincular pagos huérfanos]',e);return 0;}
-  if(!huerfanos.length)return 0;
+  }catch(e){console.error('[vincular pagos huérfanos]',e);huerfanos=[];}
+  // Un pago puede estar atado a una sesión SUELTA puntual (sesion_id SÍ
+  // tiene valor) por un monto MAYOR al costo real de esa sesión - eso pasa
+  // cuando la recepcionista cobra en un solo pago la consulta Y el
+  // adelanto de un paquete que recién se va a registrar (ej. "Pago de
+  // consulta y adelanto de paquete de 8 sesiones" en un solo Yape). Antes
+  // esta función solo buscaba pagos SIN ningún sesion_id, así que ese
+  // sobrante nunca llegaba al paquete nuevo: la sesión suelta quedaba
+  // pagada de más (mostrando un "crédito a favor" que en realidad no
+  // existía) mientras el paquete nuevo aparecía debiendo esa misma plata
+  // (pasó con Melissa Jieping Feng: pagó S/386 por una consulta de S/38 +
+  // adelanto de paquete, y los S/348 de sobrante se quedaron sin vincular
+  // a ningún lado). Ahora se detecta ese sobrante por sesión suelta y se
+  // PARTE el pago en dos: el monto original se recorta al costo real de
+  // la sesión (se queda ahí, intacto) y el sobrante se crea como un pago
+  // nuevo, ya atado al paquete nuevo.
+  const pagosDividir=[]; // {id original, montoOriginal, montoRecortado, sobrante, fecha, metodo, hora, psicologa_nombre, registrado_por, notas}
+  try{
+    const pagosConSesionSuelta=await sbGet('pagos',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,
+      sesion_id:'not.is.null',programa_id:'is.null',select:'*'})||[];
+    for(const p of pagosConSesionSuelta){
+      let sesRows=[];
+      try{sesRows=await sbGet('sesiones',{id:'eq.'+p.sesion_id,select:'costo_total,programa_id'});}catch(eSes){continue;}
+      const ses=sesRows&&sesRows[0];
+      // Solo sesiones SUELTAS (nunca de otro paquete - ahí el sobrepago ya
+      // lo resuelve _vincularSobrepagoDeOtroPaquete, con otra lógica).
+      if(!ses||ses.programa_id)continue;
+      const montoPago=parseFloat(p.monto)||0;
+      const costoSes=parseFloat(ses.costo_total)||0;
+      const sobra=Math.round((montoPago-costoSes)*100)/100;
+      if(sobra>0.004){
+        pagosDividir.push({id:p.id,montoRecortado:costoSes,sobrante:sobra,fecha:p.fecha,hora:p.hora,
+          metodo:p.metodo,psicologa_nombre:p.psicologa_nombre||'',registrado_por:p.registrado_por||'',notas:p.notas||''});
+      }
+    }
+  }catch(e){console.error('[vincular pagos huérfanos - sobrante sesión suelta]',e);}
+  if(!huerfanos.length&&!pagosDividir.length)return 0;
   const totalHuerfanos=huerfanos.reduce(function(a,p){return a+(parseFloat(p.monto)||0);},0);
-  if(totalHuerfanos<=0)return 0;
+  if(totalHuerfanos<=0&&!pagosDividir.length)return 0;
   // No todo pago "sin sesion_id ni programa_id" es plata de sobra para el
   // paquete nuevo - una sesión SUELTA (fuera de paquete) también se cobra
   // así, sin atar el pago a esa sesión puntual (el trigger de Supabase
@@ -4588,7 +4623,10 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
   // terminaron sumados al paquete, y esas 2 sesiones sueltas quedaron
   // debiendo S/76 que en realidad ya estaban pagados). Se calcula primero
   // cuánto necesitan las sesiones sueltas reales de este paciente/sede, y
-  // solo el sobrante se lleva al paquete.
+  // solo el sobrante se lleva al paquete. Este buffer solo protege el pool
+  // de "huérfanos" (sin sesion_id) - el sobrante de pagosDividir ya está
+  // aislado a SU PROPIA sesión (se calculó resta contra su costo real), no
+  // hace falta protegerlo dos veces.
   let costoSueltasPendientes=0;
   try{
     const sueltas=await sbGet('sesiones',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,
@@ -4598,7 +4636,6 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
     }).reduce(function(a,s){return a+(parseFloat(s.costo_total)||0);},0);
   }catch(e){console.error('[vincular pagos huérfanos - sueltas]',e);}
   const disponibleParaPaquete=Math.max(0,Math.round((totalHuerfanos-costoSueltasPendientes)*100)/100);
-  if(disponibleParaPaquete<=0)return 0;
   // Se vincula primero el pago más grande (lo más probable es que un
   // adelanto de paquete sea un monto grande de una sola vez, mientras que
   // las sesiones sueltas suelen ser montos chicos) hasta cubrir el
@@ -4614,8 +4651,22 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
     totalVinculado+=(parseFloat(p.monto)||0);
     restante=Math.round((restante-(parseFloat(p.monto)||0))*100)/100;
   }
-  if(!idsAVincular.length)return 0;
-  await Promise.all(idsAVincular.map(function(id){return sbPatch('pagos',{programa_id:progId},{id:'eq.'+id});}));
+  if(!idsAVincular.length&&!pagosDividir.length)return 0;
+  const patches=idsAVincular.map(function(id){return sbPatch('pagos',{programa_id:progId},{id:'eq.'+id});});
+  // Cada pago con sobrante de sesión suelta se PARTE en dos: se recorta el
+  // original al costo real de su sesión (sigue cubriéndola igual que
+  // antes, intacto) y se crea un pago nuevo con el sobrante, ya atado al
+  // paquete nuevo - así el dinero queda reflejado en los dos lados
+  // correctos en vez de perderse o quedar contado de más en uno solo.
+  pagosDividir.forEach(function(pd){
+    patches.push(sbPatch('pagos',{monto:pd.montoRecortado},{id:'eq.'+pd.id}));
+    patches.push(sbPost('pagos',{fecha:pd.fecha,hora:pd.hora,monto:pd.sobrante,metodo:pd.metodo,
+      concepto:'Adelanto de paquete (separado de un pago combinado con una sesión suelta)',
+      paciente_nombre:pacNombre,psicologa_nombre:pd.psicologa_nombre,sede:sede,
+      registrado_por:pd.registrado_por,notas:pd.notas,programa_id:progId}));
+    totalVinculado+=pd.sobrante;
+  });
+  await Promise.all(patches);
   // Se devuelve lo REALMENTE vinculado (puede superar un poco a
   // disponibleParaPaquete porque se atan filas de pago completas, no se
   // parten) - si se devolviera solo disponibleParaPaquete, el adelanto del
