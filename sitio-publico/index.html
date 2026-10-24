@@ -1,13 +1,17 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-PE">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Psicoluz · Centro Terapéutico Integral</title>
-<meta name="description" content="Psicoluz, Centro Terapéutico Integral. Terapia psicológica y de lenguaje para niños neurodivergentes y sus familias en Lima Norte.">
+<meta name="description" content="Psicoluz, Centro Terapéutico Integral. Terapias para niños y adultos, y orientación para familias en Lima Norte y Ventanilla.">
+<link rel="canonical" href="https://psicoluz-sitio.vercel.app/">
+<meta property="og:title" content="Grupo Psicoluz · Centro Terapéutico Integral">
+<meta property="og:description" content="Terapias para niños y adultos, y orientación para familias. Conoce nuestros servicios y sedes.">
+<meta property="og:type" content="website">
 <link rel="icon" href="assets/logo.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+
 <style>
   :root{
     --dark:#4a0e2e; --acc:#e91e8c; --teal:#2c9c8f; --orange:#f5a742; --purple:#8b7cd8;
@@ -49,8 +53,6 @@
   .reveal.in{opacity:1;transform:translateY(0)}
   @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
 
-  /* ===== Navegación por secciones (solo se ve una a la vez) ===== */
-  #servicios,#talleres,#sedes,#nosotros,#social,#contacto{display:none}
 
   /* ===== DOCK SOCIAL FLOTANTE ===== */
   .social-dock{position:fixed;right:22px;bottom:22px;z-index:600;display:flex;flex-direction:column;gap:10px}
@@ -299,93 +301,62 @@
   #intranetOverlay .in-empty{padding:40px 16px;text-align:center;color:var(--in-muted)}
   #intranetOverlay .in-empty .in-empty-ic{font-size:30px;margin-bottom:8px;opacity:.6}
 </style>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<a class="skip-link" href="#contenido">Saltar al contenido</a>
 
 <!-- ══════════════ CONFIGURACIÓN RÁPIDA ══════════════
 Edita estas líneas con tus datos reales; el resto de la página se arma solo.
 ═══════════════════════════════════════════════════ -->
 <script>
   const CONFIG = {
-    facebookPageUrl: 'https://www.facebook.com/psicoluz',      // URL pública de la página de Facebook
+    facebookPageUrl: '',      // URL pública de la página de Facebook
     facebookVerified: false,  // true recién cuando el enlace de arriba sea el real (activa el widget en vivo)
-    instagramUrl: 'https://www.instagram.com/psicoluz',        // URL del perfil de Instagram
-    tiktokProfileUrl: 'https://www.tiktok.com/@psicoluz',       // URL del perfil de TikTok
+    instagramUrl: '',        // URL del perfil de Instagram
+    tiktokProfileUrl: '',       // URL del perfil de TikTok
     tiktokVideoUrls: [
       // Pega aquí links de videos publicados, ej: 'https://www.tiktok.com/@psicoluz/video/1234567890123456789'
     ],
-    whatsappNumber: '51900000000',   // número con código de país, sin +
+    whatsappNumber: '',   // número con código de país, sin +
     whatsappMsg: 'Hola Psicoluz, quisiera más información sobre sus terapias.'
   };
 </script>
 
-<div class="social-dock">
-  <a class="fb" href="#" id="dockFb" target="_blank" title="Facebook">📘</a>
-  <a class="ig" href="#" id="dockIg" target="_blank" title="Instagram">📷</a>
-</div>
-
 <header>
   <div class="nav">
     <a class="brand" href="#top"><img src="assets/logo.png" alt="Psicoluz"></a>
-    <nav class="navlinks" id="navlinks">
-      <a href="#top" class="active" onclick="closeNav()">Inicio</a>
-      <a href="#servicios" onclick="closeNav()">Servicios</a>
-      <a href="#talleres" onclick="closeNav()">Talleres y Promos</a>
-      <a href="#sedes" onclick="closeNav()">Sedes</a>
-      <a href="#nosotros" onclick="closeNav()">Nosotros</a>
-      <a href="#social" onclick="closeNav()">Síguenos</a>
-      <a href="#contacto" onclick="closeNav()">Contacto</a>
+    <nav class="navlinks" id="navlinks" aria-label="Navegación principal">
+      <a href="#top" onclick="closeNav()">Inicio</a><a href="#nosotros" onclick="closeNav()">Sobre nosotros</a><a href="#servicios" onclick="closeNav()">Servicios</a><a href="#sedes" onclick="closeNav()">Sedes</a><a href="#equipo" onclick="closeNav()">Equipo</a><a href="#social" onclick="closeNav()">Redes sociales</a><a href="#contacto" onclick="closeNav()">Contacto</a>
     </nav>
     <div class="navBtns">
-      <a class="btn btn-outline" href="#contacto">Contáctanos</a>
-      <a class="btn btn-primary" href="#contacto">Agenda una cita</a>
-      <button class="burger" onclick="toggleNav()">☰</button>
+
+      <a class="btn btn-primary" href="#contacto">Hablemos →</a>
+      <button class="burger" onclick="toggleNav()" type="button" aria-label="Abrir menú" aria-controls="navlinks" aria-expanded="false">☰</button>
     </div>
   </div>
 </header>
 
-<section class="hero" id="top" style="padding-top:0;padding-bottom:0">
-  <div class="blob" style="width:420px;height:420px;background:#ffe0ee;top:-140px;right:-100px;opacity:.9"></div>
-  <div class="blob" style="width:220px;height:220px;background:#d7f3ee;bottom:20px;left:-60px;opacity:.9"></div>
-  <div class="wrap">
-    <div>
-      <span class="eyebrow">🌈 Cada niño avanza a su propio ritmo</span>
-      <h1 data-cms="hero_titulo">Terapia que acompaña, entiende y celebra a cada niño</h1>
-      <p data-cms="hero_texto">Psicología, lenguaje e intervención temprana para niños con autismo, TDAH y otras formas de neurodivergencia. Cinco sedes en Lima Norte, un equipo que sí sabe escuchar.</p>
-      <div class="hero-actions">
-        <a class="btn btn-primary" href="#contacto">💬 Agenda una evaluación</a>
-        <a class="btn btn-outline" href="#servicios">Ver servicios</a>
-      </div>
-      <div class="hero-stats">
-        <div class="hero-stat"><b>5</b><span>SEDES EN LIMA NORTE</span></div>
-        <div class="hero-stat"><b>+500</b><span>FAMILIAS ACOMPAÑADAS</span></div>
-        <div class="hero-stat"><b>100%</b><span>PSICÓLOGAS COLEGIADAS</span></div>
-      </div>
-    </div>
-    <div class="hero-panel">
-      <div class="hero-panel-img">
-        <img src="assets/logo.png" alt="Psicoluz" style="width:92%">
-      </div>
-      <div class="hero-panel-list">
-        <div class="hero-panel-item"><span class="dot" style="background:var(--teal)"></span>Plan terapéutico hecho a su medida</div>
-        <div class="hero-panel-item"><span class="dot" style="background:var(--acc)"></span>Seguimiento real, no solo asistencia</div>
-        <div class="hero-panel-item"><span class="dot" style="background:var(--orange)"></span>Acompañamiento a toda la familia</div>
-      </div>
-    </div>
-  </div>
-</section>
-
+<main id="contenido">
+<section class="hero" id="top"><div class="wrap">
+  <div class="hero-heading"><span class="eyebrow">GRUPO PSICOLUZ / CENTRO TERAPÉUTICO INTEGRAL</span><h1 data-cms="hero_titulo">Cada etapa importa.<br><em>Te acompañamos<br>en la tuya.</em></h1></div>
+  <div class="hero-intro"><p data-cms="hero_texto">Terapias para niños y adultos, y orientación para familias. Encuentra un espacio para comprender tus necesidades y dar el siguiente paso con acompañamiento profesional.</p><a class="btn btn-primary" href="#servicios">Conoce nuestros servicios →</a><a class="hero-secondary" href="#sedes">Encuentra tu sede →</a></div>
+  <div class="hero-media"><div class="hero-photo"><img src="assets/ambiente-conceptual.png" alt="Ilustración fotográfica conceptual de un espacio infantil; no representa una sede real de Psicoluz" width="1536" height="1024" fetchpriority="high"><span>Ambiente conceptual generado · no es una sede real</span></div><aside class="hero-side"><span class="hero-spark" aria-hidden="true">✦</span><h2>Tu bienestar.<br>En cada etapa.</h2><p>Niños, adultos y familias. El primer paso es escuchar lo que necesitas.</p><a href="#evaluaciones">Conoce el proceso de atención →</a></aside></div>
+  <div class="audience-strip"><span>Atención infantil</span><span>Atención para adultos</span><span>Orientación familiar</span></div>
+</div></section>
+<section id="evaluaciones"><div class="wrap evaluation-layout"><div><span class="eyebrow">UN PRIMER PASO, SIN PRISAS</span><h2>¿Por dónde empezamos?</h2><p>La orientación y la evaluación profesional ayudan a comprender tus necesidades y los siguientes pasos. No necesitas llegar con todas las respuestas.</p><a class="btn btn-primary" href="#contacto">Consultar por una evaluación →</a></div><ol><li><strong>Escuchamos tu consulta</strong><p>Conversamos sobre tus inquietudes y el contexto de la atención.</p></li><li><strong>Evaluación individual</strong><p>El profesional define el proceso adecuado para cada persona.</p></li><li><strong>Orientación para continuar</strong><p>Recibes una explicación y recomendaciones comprensibles.</p></li></ol></div></section>
 <section id="servicios">
   <div class="wrap">
     <span class="eyebrow">Lo que hacemos</span>
-    <h2 style="font-size:28px">Un equipo, un plan, un camino claro</h2>
+    <h2 style="font-size:28px">Cada necesidad merece su propia atención</h2>
+    <div class="service-filters" role="group" aria-label="Filtrar servicios"><button type="button" data-service-filter="all" aria-pressed="true">Todos</button><button type="button" data-service-filter="infancia" aria-pressed="false">Infancia</button><button type="button" data-service-filter="adultos" aria-pressed="false">Adultos</button><button type="button" data-service-filter="familias" aria-pressed="false">Familias</button></div>
     <div class="serv-grid reveal">
-      <div class="serv-card"><div class="ic" style="background:var(--acc)">🧠</div><h3>Terapia psicológica infantil</h3><p>Evaluación y acompañamiento en conducta, emociones y desarrollo, con enfoque individualizado.</p></div>
-      <div class="serv-card"><div class="ic" style="background:var(--teal)">💬</div><h3>Terapia de lenguaje</h3><p>Estimulación y corrección del habla, articulación y comunicación, con herramientas clínicas y digitales.</p></div>
-      <div class="serv-card"><div class="ic" style="background:var(--orange)">✨</div><h3>Intervención en TEA / TDAH</h3><p>Programas de intervención temprana centrados en comunicación, autorregulación y autonomía.</p></div>
-      <div class="serv-card"><div class="ic" style="background:var(--purple)">👨‍👩‍👧</div><h3>Orientación a padres</h3><p>Acompañamiento a la familia con pautas prácticas para reforzar los avances logrados en terapia.</p></div>
-      <div class="serv-card"><div class="ic" style="background:var(--acc)">📋</div><h3>Evaluación psicológica</h3><p>Diagnóstico integral para definir el plan terapéutico más adecuado desde la primera cita.</p></div>
-      <div class="serv-card"><div class="ic" style="background:var(--teal)">🎯</div><h3>Seguimiento de metas</h3><p>Reportes de avance por hitos de desarrollo: progreso real y medible.</p></div>
+      <article class="serv-card" data-audience="infancia"><span class="service-tag">INFANCIA</span><h3>Psicología infantil</h3><p>Acompañamiento en emociones, conducta y desarrollo, según las necesidades individuales.</p><a href="#contacto">Consultar atención →</a></article>
+      <article class="serv-card" data-audience="infancia"><span class="service-tag">INFANCIA</span><h3>Lenguaje y comunicación</h3><p>Apoyo en habilidades de habla, lenguaje y comunicación.</p><a href="#contacto">Consultar atención →</a></article>
+      <article class="serv-card" data-audience="infancia"><span class="service-tag">INFANCIA</span><h3>Desarrollo y aprendizaje</h3><p>Orientación sobre autonomía e intervención temprana, TEA y TDAH.</p><a href="#contacto">Consultar atención →</a></article>
+      <article class="serv-card" data-audience="adultos"><span class="service-tag">ADULTOS</span><h3>Terapias para adultos</h3><p>Atención terapéutica y orientación según tus necesidades personales.</p><a href="#contacto">Consultar atención →</a></article>
+      <article class="serv-card" data-audience="familias"><span class="service-tag">FAMILIAS</span><h3>Orientación familiar</h3><p>Escucha y herramientas para acompañar también desde casa.</p><a href="#contacto">Consultar atención →</a></article>
+      <article class="serv-card" data-audience="infancia adultos"><span class="service-tag">NIÑOS Y ADULTOS</span><h3>Orientación inicial</h3><p>Conversemos para orientarte sobre el servicio o evaluación que podría corresponder.</p><a href="#evaluaciones">Conocer el proceso →</a></article>
     </div>
   </div>
 </section>
@@ -394,12 +365,8 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
   <div class="wrap">
     <span class="eyebrow">Novedades</span>
     <h2 style="font-size:28px">Talleres, promociones e inauguraciones</h2>
-    <p style="color:var(--muted);max-width:520px;margin-top:10px">Esta sección se actualiza junto con nuestras redes sociales. Revisa también Facebook e Instagram más abajo.</p>
-    <div class="promo-grid reveal" id="promoGrid">
-      <div class="promo-card"><div class="promo-top"></div><div class="promo-body"><span class="promo-tag">Promoción</span><h3>Evaluación inicial con descuento</h3><p>Pregunta por nuestras promociones vigentes para nuevas familias en cualquiera de nuestras sedes.</p></div></div>
-      <div class="promo-card"><div class="promo-top"></div><div class="promo-body"><span class="promo-tag">Taller</span><h3>Taller para padres y cuidadores</h3><p>Espacios formativos sobre manejo conductual y estrategias de comunicación en casa.</p></div></div>
-      <div class="promo-card"><div class="promo-top"></div><div class="promo-body"><span class="promo-tag">Inauguración</span><h3>Nuevas sedes Psicoluz</h3><p>Conoce todas nuestras sedes en Lima Norte.</p></div></div>
-    </div>
+    <p style="color:var(--muted);max-width:520px;margin-top:10px">Novedades y actividades publicadas por Grupo Psicoluz. Confirma condiciones y disponibilidad con tu sede.</p>
+    <div class="promo-grid reveal" id="promoGrid"><p>No hay campañas publicadas por el momento. Consulta las próximas actividades con tu sede.</p></div>
   </div>
 </section>
 
@@ -407,21 +374,16 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
   <div class="wrap">
     <span class="eyebrow">Dónde estamos</span>
     <h2 style="font-size:28px">Nuestras sedes</h2>
-    <div class="sedes-grid reveal" id="sedesGrid">
-      <div class="sede-card"><div class="num">01</div><h3>Comas</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
-      <div class="sede-card"><div class="num">02</div><h3>Óvalo Zapallal</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
-      <div class="sede-card"><div class="num">03</div><h3>Flecha</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
-      <div class="sede-card"><div class="num">04</div><h3>Pachacútec</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
-      <div class="sede-card"><div class="num">05</div><h3>Rosaluz</h3><p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>
-    </div>
+    <div class="branch-toolbar"><label for="branchSearch">Busca tu sede o distrito</label><input id="branchSearch" type="search" placeholder="Ej. Comas, Flecha, Ventanilla…" autocomplete="off"><span id="branchCount" role="status" aria-live="polite"></span></div>
+    <div class="sedes-grid reveal" id="sedesGrid"><p role="status">Cargando sedes…</p></div><p id="branchEmpty" hidden>No encontramos una sede con ese nombre.</p><p class="branch-note">Las direcciones provienen de nuestro registro de sedes. Los enlaces de Maps buscan esas direcciones; confirma la ubicación antes de acudir.</p>
   </div>
   <div class="cta-wa">
     <div class="blob" style="width:300px;height:300px;background:rgba(255,255,255,.06);top:-80px;left:-60px"></div>
     <div class="wrap">
       <div>
-        <span class="eyebrow" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#ffb3d9">Escríbenos directo a tu sede</span>
-        <h2>Cada sede tiene su propio WhatsApp</h2>
-        <p>Elige la sede más cercana y te respondemos directo desde ahí, sin intermediarios y sin esperas.</p>
+        <span class="eyebrow" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#ffb3d9">Encuentra orientación</span>
+        <h2>Conoce tu sede más cercana</h2>
+        <p>Selecciona una sede y solicita información. Una solicitud no equivale a una cita confirmada.</p>
         <div class="cta-wa-pills" id="cedesPills">
           <span class="cta-wa-pill">📍 Comas</span>
           <span class="cta-wa-pill">📍 Óvalo Zapallal</span>
@@ -431,7 +393,7 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
         </div>
       </div>
       <div style="text-align:center">
-        <a class="btn btn-primary" href="#contacto" style="font-size:16px;padding:18px 32px">Reservar mi cita ahora →</a>
+        <a class="btn btn-primary" href="#contacto" style="font-size:16px;padding:18px 32px">Solicitar información →</a>
       </div>
     </div>
   </div>
@@ -442,81 +404,62 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
     <span class="eyebrow">Nosotros</span>
     <h2 style="font-size:28px">Nuestra visión y misión</h2>
     <div class="vm-grid reveal">
-      <div class="vm-card"><h3>Visión</h3><p data-cms="vision_texto">Ser el centro terapéutico de referencia en Lima Norte para el desarrollo integral de niños, niñas y adolescentes, reconocido por la calidez humana y el rigor profesional de nuestro equipo.</p></div>
-      <div class="vm-card"><h3>Misión</h3><p data-cms="mision_texto">Brindar terapia psicológica y de lenguaje accesible y de calidad, acompañando a cada familia con un plan personalizado que respeta el ritmo y las necesidades de cada niño/a.</p></div>
+      <div class="vm-card"><h3>Visión</h3><p data-cms="vision_texto">Ser el centro terapéutico de referencia en Lima Norte para el desarrollo integral de niños y adultos, reconocido por la calidez humana y el rigor profesional de nuestro equipo.</p></div>
+      <div class="vm-card"><h3>Misión</h3><p data-cms="mision_texto">Brindar terapia psicológica y de lenguaje accesible y de calidad, acompañando a niños, adultos y familias según sus necesidades individuales.</p></div>
     </div>
   </div>
 </section>
 
-<section id="social">
-  <div class="wrap">
-    <span class="eyebrow">Síguenos</span>
-    <h2 style="font-size:28px">Novedades desde nuestras redes</h2>
-    <p style="color:var(--muted);max-width:520px;margin-top:10px">Publicamos ahí antes que en ningún otro lado: promociones, talleres y el día a día del centro.</p>
-    <div class="social-wrap reveal">
-      <div class="social-box">
-        <h3>Facebook</h3>
-        <div id="fbFeedHolder"></div>
-      </div>
-      <div class="social-box">
-        <h3>TikTok</h3>
-        <div id="tiktokFeedHolder"></div>
-      </div>
-    </div>
-  </div>
-</section>
-
+<section id="equipo"><div class="wrap"><span class="eyebrow">PERSONAS QUE ACOMPAÑAN</span><h2>Conocer al equipo también da tranquilidad.</h2><p>Consulta con tu sede los profesionales y especialidades disponibles. Los perfiles se incorporarán con fotografías autorizadas y datos verificados.</p></div></section>
+<section id="preguntas"><div class="wrap"><span class="eyebrow">RESOLVEMOS TUS DUDAS</span><h2>Empecemos por tus preguntas.</h2><details><summary>¿Atienden a personas adultas?</summary><p>Sí. Psicoluz ofrece terapias para adultos, además de atención infantil y orientación familiar. Consulta disponibilidad con tu sede.</p></details><details><summary>¿Necesito un diagnóstico previo?</summary><p>No necesitas un diagnóstico para solicitar orientación. El profesional te indicará si corresponde una evaluación.</p></details><details><summary>¿La solicitud confirma una cita?</summary><p>No. La sede deberá confirmar disponibilidad y coordinar contigo la atención.</p></details></div></section>
+<section id="social"><div class="wrap"><span class="eyebrow">SIGAMOS EN CONTACTO</span><h2>Psicoluz, también en tus redes.</h2><div class="official-socials"><span class="social-logo facebook"><svg viewBox="0 0 24 24" width="27" height="27" fill="currentColor" aria-hidden="true"><path d="M14 22v-9h3l.5-4H14V7c0-1 .3-2 2-2h2V1.4A24 24 0 0 0 15 1c-3 0-5 1.9-5 5.3V9H7v4h3v9Z"/></svg><strong>Facebook</strong></span><span class="social-logo instagram"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".7" fill="currentColor"/></svg><strong>Instagram</strong></span><span class="social-logo whatsapp"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 11.5a8.5 8.5 0 0 1-12.7 7.4L3 20l1.1-4.3A8.5 8.5 0 1 1 20 11.5Z"/><path d="M8 7.5c-.8 3.5 2.8 7.1 6.5 7.5l1.3-2.1-2.4-1-1 1c-1.6-.6-2.7-1.7-3.2-3.2l1-1L9 7Z"/></svg><strong>WhatsApp</strong></span></div></div></section>
 <section id="contacto">
   <div class="blob" style="width:260px;height:260px;background:#fff6e8;bottom:-80px;right:-60px;opacity:.8"></div>
   <div class="wrap center">
     <span class="eyebrow" style="justify-content:center">Contacto</span>
     <h2 style="font-size:28px">Conversemos</h2>
-    <p style="color:var(--muted);max-width:480px;margin:12px auto 26px">Elige tu sede y cuéntanos qué necesitas, te escribimos por WhatsApp lo antes posible.</p>
+    <p style="color:var(--muted);max-width:480px;margin:12px auto 26px">Selecciona tu sede y deja tus datos de contacto. El equipo deberá confirmar la disponibilidad antes de reservar una cita.</p>
     <form id="formContacto" class="contact-card reveal" onsubmit="return enviarSolicitud(event)">
       <div class="field">
-        <label class="field-label">Sede *</label>
+        <label class="field-label" for="fcSede">Sede *</label>
         <select id="fcSede" required>
           <option value="">Elige la sede más cercana</option>
         </select>
       </div>
       <div class="field">
-        <label class="field-label">¿Qué necesitas?</label>
+        <label class="field-label" for="fcTipo">¿Qué necesitas?</label>
         <select id="fcTipo">
           <option value="cita">Reservar una cita</option>
           <option value="contacto">Solo tengo una consulta</option>
         </select>
       </div>
       <div class="field">
-        <label class="field-label">Tu nombre *</label>
-        <input id="fcNombre" required placeholder="Nombres y apellidos">
+        <label class="field-label" for="fcNombre">Tu nombre *</label>
+        <input id="fcNombre" autocomplete="name" maxlength="80" required placeholder="Nombres y apellidos">
       </div>
       <div class="field">
-        <label class="field-label">Tu teléfono / WhatsApp *</label>
-        <input id="fcTelefono" required placeholder="9XX XXX XXX">
+        <label class="field-label" for="fcTelefono">Tu teléfono / WhatsApp *</label>
+        <input id="fcTelefono" type="tel" inputmode="tel" autocomplete="tel" pattern="[+0-9 ()-]{9,20}" maxlength="20" required placeholder="9XX XXX XXX">
       </div>
       <div class="field field-last">
-        <label class="field-label">Cuéntanos brevemente</label>
-        <textarea id="fcMotivo" rows="3" placeholder="Ej. Necesito una evaluación para mi hijo de 5 años"></textarea>
+        <label class="field-label" for="fcMotivo">Cuéntanos brevemente</label>
+        <textarea id="fcMotivo" rows="3" maxlength="300" aria-describedby="fcDataNote" placeholder="Solo información general, sin datos clínicos"></textarea><p id="fcDataNote" class="field-note">No incluyas diagnósticos, historias clínicas ni datos identificativos de menores.</p>
       </div>
-      <div id="fcError" class="field-error"></div>
-      <button type="submit" class="btn btn-primary" id="fcBtn" style="width:100%;justify-content:center">Enviar y continuar por WhatsApp</button>
-      <p class="field-note">Se abrirá WhatsApp con tu mensaje listo para enviar a la sede que elegiste.</p>
+      <div id="fcError" class="field-error" role="alert"></div><p id="fcStatus" class="field-note" role="status" aria-live="polite"></p>
+      <button type="submit" class="btn btn-primary" id="fcBtn" style="width:100%;justify-content:center">Enviar solicitud</button>
+      <p class="field-note">La solicitud se enviará a la sede seleccionada. No confirma una cita.</p>
     </form>
   </div>
 </section>
 
+</main>
 <footer>
   <div class="wrap">
     <div class="foot-grid">
       <div>
         <div class="foot-brand"><img src="assets/logo.png" alt="Psicoluz"></div>
-        <p>Centro Terapéutico Integral. Terapia psicológica y de lenguaje para niños neurodivergentes y sus familias en Lima Norte.</p>
-        <div class="social-icons">
-          <a href="#" id="fbIconLink" target="_blank">FB</a>
-          <a href="#" id="igIconLink" target="_blank">IG</a>
-          <a href="#" id="tkIconLink" target="_blank">TT</a>
-          <a href="#" id="waIconLink" target="_blank">WA</a>
-        </div>
+        <p>Centro Terapéutico Integral. Terapias para niños y adultos, y orientación para familias en Lima Norte y Ventanilla.</p>
+
       </div>
       <div><h4>Navegación</h4>
         <a href="#servicios">Servicios</a><a href="#talleres">Talleres y Promos</a><a href="#sedes">Sedes</a><a href="#nosotros">Nosotros</a>
@@ -530,7 +473,7 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
     </div>
     <div class="foot-bottom">
       © Todos los derechos reservados para Psicoluz V1
-      <div class="foot-admin" onclick="abrirIntranet()">🔒 Acceso administrativo (personal Psicoluz)</div>
+      <button class="foot-admin" type="button" onclick="abrirIntranet()">Acceso administrativo (personal Psicoluz)</button>
     </div>
   </div>
 </footer>
@@ -628,8 +571,9 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
 </div>
 
 <script>
-  function toggleNav(){document.getElementById('navlinks').classList.toggle('open');}
-  function closeNav(){document.getElementById('navlinks').classList.remove('open');}
+  function toggleNav(){var open=document.getElementById('navlinks').classList.toggle('open');document.querySelector('.burger').setAttribute('aria-expanded',String(open));document.querySelector('.burger').setAttribute('aria-label',open?'Cerrar menú':'Abrir menú');}
+  function closeNav(){document.getElementById('navlinks').classList.remove('open');document.querySelector('.burger').setAttribute('aria-expanded','false');document.querySelector('.burger').setAttribute('aria-label','Abrir menú');}
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&document.querySelector('.burger').getAttribute('aria-expanded')==='true'){closeNav();document.querySelector('.burger').focus();}});
 
   // ===== Supabase (sedes, solicitudes de contacto/cita, publicaciones,
   // contenido editable e intranet) -- mismo proyecto que el resto de las
@@ -641,7 +585,7 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
     p=p||{};var u=SBU+'/rest/v1/'+t;
     var qs=Object.keys(p).map(function(k){return k+'='+encodeURIComponent(p[k]);}).join('&');
     if(qs)u+='?'+qs;
-    return fetch(u,{headers:SBH}).then(function(r){return r.json();});
+    return fetch(u,{headers:SBH}).then(function(r){if(!r.ok)throw new Error('No se pudo cargar la información');return r.json();});
   }
   function sbPost(t,d){
     return fetch(SBU+'/rest/v1/'+t,{method:'POST',headers:SBH,body:JSON.stringify(d)})
@@ -664,39 +608,31 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
       .then(function(r){if(!r.ok)return r.text().then(function(t2){throw new Error(t2);});return SBU+'/storage/v1/object/public/'+bucket+'/'+path;});
   }
 
-  var SEDES=[]; // {nombre, whatsapp}
-  function sedeWhatsapp(nombre){
-    var s=SEDES.filter(function(x){return x.nombre===nombre;})[0];
-    return (s&&s.whatsapp)||CONFIG.whatsappNumber;
+  var SEDES=[];
+  function normalizar(text){return String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+  function sedeWhatsapp(nombre){var sede=SEDES.find(function(s){return s.nombre===nombre;});var phone=String(sede&&sede.whatsapp||'').replace(/\D/g,'');return /^\d{10,15}$/.test(phone)?phone:'';}
+  function filtrarSedes(){var q=normalizar(document.getElementById('branchSearch').value).trim();var count=0;document.querySelectorAll('#sedesGrid .sede-card').forEach(function(card){card.hidden=!card.dataset.search.includes(q);if(!card.hidden)count++;});document.getElementById('branchCount').textContent=count+' '+(count===1?'sede':'sedes');document.getElementById('branchEmpty').hidden=count!==0;}
+  document.getElementById('branchSearch').addEventListener('input',filtrarSedes);
+  function mostrarSedes(rows){
+    SEDES=rows;var grid=document.getElementById('sedesGrid'),sel=document.getElementById('fcSede'),pills=document.getElementById('cedesPills');grid.replaceChildren();pills.replaceChildren();
+    rows.forEach(function(s,i){
+      var opt=document.createElement('option');opt.value=s.nombre;opt.textContent=s.nombre;sel.append(opt);
+      var card=document.createElement('article');card.className='sede-card';var zone={'Comas':'Comas','Flecha':'Zapallal','Ovalo Zapallal':'Zapallal','Óvalo Zapallal':'Zapallal','Pachacutec':'Ventanilla','Pachacútec':'Ventanilla','Rosaluz':'Puente Piedra'}[s.nombre]||'';
+      card.dataset.search=normalizar(s.nombre+' '+zone+' '+(s.direccion||''));var label=document.createElement('span');label.className='num';label.textContent=zone||'Sede '+(i+1);var title=document.createElement('h3');title.textContent=s.nombre;var address=document.createElement('p');address.className='sede-address';address.textContent=s.direccion||'Dirección por confirmar con la sede';card.append(label,title,address);
+      var actions=document.createElement('div');actions.className='sede-actions';if(s.direccion){var map=document.createElement('a');map.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(s.direccion+', '+zone+', Perú');map.textContent='Buscar dirección en Maps →';map.target='_blank';map.rel='noopener noreferrer';actions.append(map);}
+      var choose=document.createElement('a');choose.href='#contacto';choose.className='choose-sede';choose.textContent='Elegir esta sede →';choose.addEventListener('click',function(){sel.value=s.nombre;});actions.append(choose);card.append(actions);grid.append(card);
+      var pill=document.createElement('span');pill.className='cta-wa-pill';pill.textContent=s.nombre;pills.append(pill);
+    });filtrarSedes();
   }
-  sbGet('sedes',{select:'nombre,whatsapp',activa:'eq.true',order:'nombre.asc'}).then(function(rows){
-    SEDES=rows||[];
-    var sel=document.getElementById('fcSede');
-    SEDES.forEach(function(s){
-      var o=document.createElement('option'); o.value=s.nombre; o.textContent=s.nombre; sel.appendChild(o);
-    });
-    var grid=document.getElementById('sedesGrid');
-    var pills=document.getElementById('cedesPills');
-    if(SEDES.length){
-      grid.innerHTML=SEDES.map(function(s,i){
-        var n=String(i+1).padStart(2,'0');
-        return '<div class="sede-card"><div class="num">'+n+'</div><h3>'+s.nombre+'</h3>'+
-          '<p>Atención psicológica y de lenguaje. Escríbenos para conocer la dirección exacta y horarios.</p></div>';
-      }).join('');
-      pills.innerHTML=SEDES.map(function(s){return '<span class="cta-wa-pill">📍 '+s.nombre+'</span>';}).join('');
-    }
-  }).catch(function(){/* se queda con las sedes escritas de respaldo en el HTML */});
+  sbGet('sedes',{select:'nombre,direccion,whatsapp',activa:'eq.true',order:'nombre.asc'}).then(function(rows){if(!Array.isArray(rows))throw new Error('Respuesta inválida');mostrarSedes(rows);}).catch(function(){document.getElementById('sedesGrid').textContent='No pudimos cargar las sedes. Intenta nuevamente más tarde.';document.getElementById('fcBtn').disabled=true;document.getElementById('fcStatus').textContent='El envío requiere cargar las sedes. Recarga la página para reintentar.';});
+  document.querySelectorAll('[data-service-filter]').forEach(function(btn){btn.addEventListener('click',function(){document.querySelectorAll('[data-service-filter]').forEach(function(b){b.setAttribute('aria-pressed',String(b===btn));});document.querySelectorAll('[data-audience]').forEach(function(card){card.hidden=btn.dataset.serviceFilter!=='all'&&!card.dataset.audience.split(' ').includes(btn.dataset.serviceFilter);});});});
 
   // ===== Publicaciones destacadas (elegidas a mano, no el timeline automático) =====
   sbGet('publicaciones',{select:'*',activo:'eq.true',order:'orden.asc'}).then(function(rows){
     if(!rows||!rows.length)return; // se queda con las 3 tarjetas de respaldo del HTML
     var grid=document.getElementById('promoGrid');
-    grid.innerHTML=rows.map(function(p){
-      var img=p.imagen_url?('<img src="'+p.imagen_url+'" alt="" style="width:100%;height:140px;object-fit:cover">'):'';
-      var link=p.link_facebook?('<a href="'+p.link_facebook+'" target="_blank" style="font-size:12px;font-weight:700;color:var(--acc)">Ver en Facebook →</a>'):'';
-      return '<div class="promo-card">'+img+'<div class="promo-top"></div><div class="promo-body">'+
-        '<h3>'+(p.titulo||'')+'</h3><p>'+(p.texto||'')+'</p>'+link+'</div></div>';
-    }).join('');
+    grid.replaceChildren();
+    rows.forEach(function(p){var card=document.createElement('article');card.className='promo-card';var body=document.createElement('div');body.className='promo-body';var title=document.createElement('h3');title.textContent=p.titulo||'';var text=document.createElement('p');text.textContent=p.texto||'';if(p.imagen_url){try{var imageUrl=new URL(p.imagen_url);if(imageUrl.protocol==='https:'){var image=document.createElement('img');image.src=imageUrl.href;image.alt=p.titulo||'';image.loading='lazy';card.append(image);}}catch(e){}}body.append(title,text);if(p.link_facebook){try{var url=new URL(p.link_facebook);if(url.protocol==='https:'){var link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Ver publicación →';body.append(link);}}catch(e){}}card.append(body);grid.append(card);});
   }).catch(function(){});
 
   // ===== Contenido editable (textos) -- solo pisa el texto por defecto si
@@ -704,94 +640,23 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
   sbGet('sitio_contenido',{select:'clave,valor,tipo'}).then(function(rows){
     (rows||[]).forEach(function(r){
       if(!r.valor)return;
-      var el=document.querySelector('[data-cms="'+r.clave+'"]');
+      var el=Array.from(document.querySelectorAll('[data-cms]')).find(function(node){return node.dataset.cms===r.clave;});
       if(!el)return;
-      if(r.tipo==='imagen_url')el.src=r.valor; else el.textContent=r.valor;
+      if(r.tipo==='imagen_url'){try{var url=new URL(r.valor);if(url.protocol==='https:')el.src=url.href;}catch(e){}}else el.textContent=r.valor;
     });
   }).catch(function(){});
 
-  // ===== Formulario de contacto/cita =====
+  // Existing request schema and reception workflow are retained.
   function enviarSolicitud(evt){
-    evt.preventDefault();
-    var errEl=document.getElementById('fcError'); errEl.style.display='none';
-    var sede=document.getElementById('fcSede').value;
-    var tipo=document.getElementById('fcTipo').value;
-    var nombre=document.getElementById('fcNombre').value.trim();
-    var telefono=document.getElementById('fcTelefono').value.trim();
-    var motivo=document.getElementById('fcMotivo').value.trim();
-    if(!sede||!nombre||!telefono){
-      errEl.textContent='Completa sede, nombre y teléfono.'; errEl.style.display='block'; return false;
-    }
-    var btn=document.getElementById('fcBtn'); btn.disabled=true; btn.textContent='Enviando…';
-    sbPost('solicitudes_web',{sede:sede,tipo:tipo,nombre:nombre,telefono:telefono,motivo:motivo||null,estado:'pendiente'})
-      .catch(function(){/* si falla el guardado, igual la dejamos ir por WhatsApp */})
-      .then(function(){
-        var msg='Hola Psicoluz ('+sede+'), soy '+nombre+'. '+
-          (tipo==='cita'?'Quisiera reservar una cita. ':'Tengo una consulta. ')+
-          (motivo?motivo:'');
-        var wa='https://wa.me/'+sedeWhatsapp(sede)+'?text='+encodeURIComponent(msg);
-        window.open(wa,'_blank');
-        btn.disabled=false; btn.textContent='Enviar y continuar por WhatsApp';
-        document.getElementById('formContacto').reset();
-      });
-    return false;
+    evt.preventDefault();var errEl=document.getElementById('fcError'),status=document.getElementById('fcStatus'),btn=document.getElementById('fcBtn');errEl.style.display='none';status.textContent='';
+    if(btn.disabled)return false;
+    var sede=document.getElementById('fcSede').value,tipo=document.getElementById('fcTipo').value,nombre=document.getElementById('fcNombre').value.trim(),telefono=document.getElementById('fcTelefono').value.trim(),motivo=document.getElementById('fcMotivo').value.trim();
+    if(!SEDES.some(function(s){return s.nombre===sede;})||!nombre||!/[0-9]/.test(telefono)){errEl.textContent='Completa una sede, tu nombre y teléfono.';errEl.style.display='block';return false;}
+    btn.disabled=true;btn.textContent='Enviando…';
+    sbPost('solicitudes_web',{sede:sede,tipo:tipo,nombre:nombre,telefono:telefono,motivo:motivo||null,estado:'pendiente'}).then(function(){
+      status.textContent='Solicitud enviada. La sede deberá confirmar disponibilidad y coordinar tu atención.';document.getElementById('formContacto').reset();
+    }).catch(function(){errEl.textContent='No pudimos confirmar el envío. Conservamos tus datos en el formulario para que puedas reintentar. No se ha confirmado ninguna cita.';errEl.style.display='block';}).finally(function(){btn.disabled=false;btn.textContent='Enviar solicitud';});return false;
   }
-
-  // WhatsApp / redes
-  document.getElementById('fbIconLink').href=CONFIG.facebookPageUrl;
-  document.getElementById('igIconLink').href=CONFIG.instagramUrl;
-  document.getElementById('tkIconLink').href=CONFIG.tiktokProfileUrl;
-  document.getElementById('waIconLink').href='https://wa.me/'+CONFIG.whatsappNumber+'?text='+encodeURIComponent(CONFIG.whatsappMsg);
-  document.getElementById('dockFb').href=CONFIG.facebookPageUrl;
-  document.getElementById('dockIg').href=CONFIG.instagramUrl;
-
-  // ===== Facebook Page Plugin embed =====
-  (function(){
-    var holder=document.getElementById('fbFeedHolder');
-    if(!CONFIG.facebookPageUrl||!CONFIG.facebookVerified){
-      var link=CONFIG.facebookPageUrl?'<br><a href="'+CONFIG.facebookPageUrl+'" target="_blank">Visítanos en Facebook</a>':'';
-      holder.innerHTML='<div class="social-fallback">Muy pronto verás aquí nuestras publicaciones de Facebook.'+link+'</div>';
-      return;
-    }
-    var fbRoot=document.createElement('div'); fbRoot.id='fb-root'; document.body.appendChild(fbRoot);
-    var plugin=document.createElement('div');
-    plugin.className='fb-page';
-    plugin.setAttribute('data-href',CONFIG.facebookPageUrl);
-    plugin.setAttribute('data-tabs','timeline');
-    plugin.setAttribute('data-width','380');
-    plugin.setAttribute('data-height','420');
-    plugin.setAttribute('data-small-header','false');
-    plugin.setAttribute('data-adapt-container-width','true');
-    plugin.setAttribute('data-hide-cover','false');
-    plugin.setAttribute('data-show-facepile','true');
-    holder.appendChild(plugin);
-    holder.innerHTML+='<div class="social-fallback">¿No carga? <a href="'+CONFIG.facebookPageUrl+'" target="_blank">Visita nuestra página de Facebook directamente</a>.</div>';
-    var js=document.createElement('script');
-    js.async=true; js.defer=true; js.crossOrigin='anonymous';
-    js.src='https://connect.facebook.net/es_LA/sdk.js#xfbml=1&version=v19.0';
-    document.body.appendChild(js);
-  })();
-
-  // ===== TikTok embed (oEmbed por video) =====
-  (function(){
-    var holder=document.getElementById('tiktokFeedHolder');
-    if(!CONFIG.tiktokVideoUrls || !CONFIG.tiktokVideoUrls.length){
-      holder.innerHTML='<div class="social-fallback">Muy pronto compartiremos nuestros videos aquí. Mientras tanto, visita nuestro perfil: <a href="'+CONFIG.tiktokProfileUrl+'" target="_blank">'+CONFIG.tiktokProfileUrl+'</a></div>';
-      return;
-    }
-    var list=document.createElement('div'); list.className='tiktok-list';
-    CONFIG.tiktokVideoUrls.forEach(function(url){
-      var bq=document.createElement('blockquote');
-      bq.className='tiktok-embed'; bq.setAttribute('cite',url); bq.setAttribute('data-video-id',(url.match(/video\/(\d+)/)||[])[1]||'');
-      bq.style.maxWidth='100%'; bq.style.minWidth='100%';
-      bq.innerHTML='<section></section>';
-      list.appendChild(bq);
-    });
-    holder.appendChild(list);
-    var js=document.createElement('script');
-    js.async=true; js.src='https://www.tiktok.com/embed.js';
-    document.body.appendChild(js);
-  })();
 
   // ===== Scroll-reveal sutil para secciones del sitio público =====
   (function(){
@@ -807,33 +672,8 @@ Edita estas líneas con tus datos reales; el resto de la página se arma solo.
     document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
   })();
 
-  // ===== Navegación por secciones: solo se muestra la sección activa =====
-  var SECTION_IDS=['top','servicios','talleres','sedes','nosotros','social','contacto'];
-  function showSection(id){
-    if(SECTION_IDS.indexOf(id)===-1) id='top';
-    SECTION_IDS.forEach(function(s){
-      var el=document.getElementById(s);
-      if(el) el.style.display=(s===id)?'block':'none';
-    });
-    document.querySelectorAll('.navlinks a').forEach(function(a){
-      a.classList.toggle('active',a.getAttribute('href')==='#'+id);
-    });
-    document.querySelectorAll('#'+id+' .reveal').forEach(function(el){el.classList.add('in');});
-    window.scrollTo(0,0);
-  }
-  function routeFromHash(){
-    var id=(location.hash||'#top').replace('#','');
-    if(id==='intranet'){showSection('top');return;}
-    showSection(id);
-  }
-  document.addEventListener('click',function(e){
-    var a=e.target.closest && e.target.closest('a[href^="#"]');
-    if(!a) return;
-    var id=a.getAttribute('href').slice(1);
-    if(SECTION_IDS.indexOf(id)!==-1) showSection(id);
-  });
-  window.addEventListener('hashchange',routeFromHash);
-  routeFromHash();
+  // All public sections remain visible, including when a deep link is opened.
+  document.querySelectorAll('main > section').forEach(function(section){section.style.display='block';});
 
   // ═══════════════════ INTRANET ═══════════════════
   function abrirIntranet(){
