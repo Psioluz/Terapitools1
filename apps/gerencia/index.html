@@ -1244,8 +1244,15 @@ function _diasTrabajoANum(txt){
           _sb('bonos_diarios',Object.assign({'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'},sedeFiltro(sede))),
           _sb('honorarios',Object.assign({'mes':'eq.'+mes,'select':'*'},sedeFiltro(sede))),
           _sb('contratos',Object.assign({'select':'*'},sedeFiltro(sede))),
-          _sb('pagos',Object.assign({'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'},sedeFiltro(sede))),
-          _sb('gastos',Object.assign({'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'},sedeFiltro(sede))),
+          // Antes solo traía desde el 1 del mes actual: cualquier mes
+          // anterior que Gerencia quisiera revisar (filtro de mes, o la
+          // tabla "Ingresos y Gastos por Mes") salía en S/0 porque esos
+          // pagos/gastos nunca llegaban a cargarse en memoria, aunque sí
+          // existieran en la base. Ambas tablas son chicas (pagos ~300KB,
+          // gastos aún más chico) - traerlas completas no pesa nada al
+          // lado de "sesiones" (ya se trae completa arriba con _sbAll).
+          _sbAll('pagos',Object.assign({'select':'*','order':'fecha.desc'},sedeFiltro(sede))),
+          _sbAll('gastos',Object.assign({'select':'*','order':'fecha.desc'},sedeFiltro(sede))),
           _sb('asistencia_personal',Object.assign({'select':'*','order':'fecha.desc','limit':'500'},sedeFiltro(sede))),
           _sb('programas_paciente',Object.assign({'estado':'eq.activo','select':'*'},sedeFiltro(sede))),
           // Primer ingreso real de cada psicóloga a SU app - para que el
