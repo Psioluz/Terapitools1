@@ -1845,10 +1845,14 @@ function finalizarLogin(){
   cargarDeLocalStorage();
   renderHoy();renderSemana();renderPacsPs();renderDocs();renderPerfil();
   sync(false);
+  // Se salta el refresco si la pestaña está en segundo plano (visibilityState):
+  // antes volvía a traer TODO sesiones (sin ventana de fecha, vía _sbAll)
+  // cada 30s aunque nadie estuviera mirando.
   if(window._psAutoSync)clearInterval(window._psAutoSync);
   window._psAutoSync=setInterval(function(){
+    if(document.visibilityState!=='visible')return;
     sync(false).then(function(){renderHoy();renderSemana();renderPacsPs();}).catch(function(){});
-  },30000);
+  },60000);
   // Iniciar chat en background para recibir notificaciones
   if(typeof iniciarChatBg==='function') setTimeout(iniciarChatBg, 2000);
   // Pedir permiso de notificaciones INMEDIATAMENTE (requiere gesto del usuario)

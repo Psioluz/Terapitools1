@@ -1733,12 +1733,16 @@ function initApp(){
   _tickTimer=setInterval(tick,1000);
   tick();
   // Auto-actualización silenciosa desde Supabase (reemplaza los botones manuales)
+  // Se salta el refresco si la pestaña está en segundo plano (visibilityState):
+  // antes recargaba igual los ~12 queries completos cada 30s aunque nadie
+  // estuviera mirando, multiplicando el consumo de Supabase sin necesidad.
   if(window._recAutoSync)clearInterval(window._recAutoSync);
   window._recAutoSync=setInterval(function(){
+    if(document.visibilityState!=='visible')return;
     var app=document.getElementById('app');
     if(!app||app.style.display==='none')return;
     cargarDesdeSB(true);
-  },30000);
+  },60000);
 }
 
 // ── FILL SELECTS ──
@@ -8563,7 +8567,18 @@ async function cargarDesdeSB(silencioso) {
   if (!DB.sede) return;
   try {
     var hoy = today();
-    var desde = fechaLima(new Date(Date.now()-45*86400000));
+    // El refresco automático silencioso (silencioso=true, cada 60s) usa
+    // ventana corta solo para sesiones/pagos: lo histórico más viejo ya
+    // está en memoria y se preserva abajo (historicasPreservadas/
+    // pagosHistoricosPreservados) comparando contra este mismo "desde",
+    // así que no se pierde nada al achicarlo ahí. asistencia_personal y
+    // gastos NO tienen esa preservación (se sobrescriben directo con
+    // DB.asistPersonal=res[4] / DB.gastos=res[11]) - si usaran la ventana
+    // corta, el refresco silencioso borraría de memoria lo de 16 a 45 días
+    // atrás en vez de solo dejar de re-pedirlo. Por eso van con la ventana
+    // completa siempre.
+    var desde = fechaLima(new Date(Date.now()-(silencioso?15:45)*86400000));
+    var desdeCompleto = fechaLima(new Date(Date.now()-45*86400000));
     var ayer = fechaLima(new Date(Date.now()-86400000));
     var res = await Promise.all([
       sbGet('sesiones',{sede:'eq.'+DB.sede,fecha:'gte.'+desde,select:'*',order:'fecha.asc,hora.asc',limit:'1500'}),
@@ -8574,7 +8589,7 @@ async function cargarDesdeSB(silencioso) {
       // neuropsicólogo externo) - si no, nunca aparecería como opción fuera
       // de la sede que se le puso por defecto al registrarlo.
       sbGet('psicologas',{estado:'eq.activa',select:'*',or:'(sede.eq.'+DB.sede+',es_multisede.eq.true)'}),
-      sbGet('asistencia_personal',{sede:'eq.'+DB.sede,fecha:'gte.'+desde,select:'*',order:'fecha.desc'}),
+      sbGet('asistencia_personal',{sede:'eq.'+DB.sede,fecha:'gte.'+desdeCompleto,select:'*',order:'fecha.desc'}),
       sbGet('terapias',{select:'*'}).catch(function(){return[];}),
       // Antes no filtraba por "activo": una tarifa desactivada (ej. un
       // paquete gratuito que ya no se ofrece) seguía apareciendo igual en
@@ -8590,7 +8605,7 @@ async function cargarDesdeSB(silencioso) {
       sbGet('fichas_seguimiento',{sede:'eq.'+DB.sede,fecha:'eq.'+ayer,select:'*'}).catch(function(){return[];}),
       // Gastos de esta sede (ventana de 45 días, igual que pagos) - para
       // descontarlos de la Caja del Día por método de pago (ver renderPagos).
-      sbGet('gastos',{sede:'eq.'+DB.sede,fecha:'gte.'+desde,select:'*',order:'fecha.desc'}).catch(function(){return[];})
+      sbGet('gastos',{sede:'eq.'+DB.sede,fecha:'gte.'+desdeCompleto,select:'*',order:'fecha.desc'}).catch(function(){return[];})
     ]);
     DB.avisosBot=res[9]||[];
     DB.fichasAyer=res[10]||[];
