@@ -921,13 +921,6 @@ try{
             <option value="adultos">🧑 Adultos</option>
           </select>
         </div>
-        <div class="form-group" id="ag-grp-paqGratuito">
-          <label class="form-label">Tipo de paquete</label>
-          <select class="form-control" id="ag-paqGratuito" onchange="agOnPaqGratuito()">
-            <option value="regular">💰 Paquete regular (con costo)</option>
-            <option value="gratuito">🎁 Paquete gratuito (paciente especial, S/0)</option>
-          </select>
-        </div>
         <div class="form-group" id="ag-grp-paq">
           <label class="form-label">Seleccionar Paquete</label>
           <select class="form-control" id="ag-paqId" onchange="agOnPaq()">
@@ -3021,7 +3014,6 @@ function abrirModalAgendar(fecha,hora,sesOrig){
   document.getElementById('ag-resumen').style.display='none';
   const elProg=document.getElementById('ag-progExist');if(elProg)elProg.innerHTML='<option value="">🆕 Nuevo paquete</option>';
   const elPaqCat=document.getElementById('ag-paqCategoria');if(elPaqCat)elPaqCat.value='ninos';
-  const elPaqGrat=document.getElementById('ag-paqGratuito');if(elPaqGrat)elPaqGrat.value='regular';
   const elModoPaq=document.getElementById('ag-modoPaq');if(elModoPaq)elModoPaq.value='generar';
   const elFrec=document.getElementById('ag-frecuencia');if(elFrec)elFrec.value='1';
   agOnFrecuencia();
@@ -3216,12 +3208,6 @@ function agOnProgExist(){
   // elegido en "ag-progExist".
   const _mostrarCatalogo=(!progId&&!esExclusivo&&!esServicioCatalogo);
   if(grpPaq)grpPaq.style.display=_mostrarCatalogo?'block':'none';
-  // "Tipo de paquete" (Regular/Gratuito) solo filtra ESE catálogo - si el
-  // catálogo no se muestra (paquete ya activo elegido, precio exclusivo o
-  // servicio de catálogo propio), este selector tampoco pinta nada y antes
-  // se quedaba visible igual, como si hubiera algo más que elegir.
-  const grpPaqGrat=document.getElementById('ag-grp-paqGratuito');
-  if(grpPaqGrat)grpPaqGrat.style.display=_mostrarCatalogo?'block':'none';
   // "Categoría" (Niños/Adultos) solo aplica al REGISTRAR un paquete nuevo
   // - un paquete ya activo (progId elegido) ya quedó fijado con su
   // categoría desde que se creó, no tiene sentido volver a preguntarla; un
@@ -3403,27 +3389,21 @@ function agCargarFilasDesdeProgPendiente(){
 
 // Llena "Seleccionar Paquete" solo con los paquetes de catálogo de la
 // categoría elegida (Niños/Adultos) - así nunca se mezclan precios de
-// una categoría con la otra al armar un paquete nuevo. También separa
-// los paquetes gratuitos (pacientes especiales, S/0) de los regulares -
-// antes salían todos mezclados en una sola lista larga y era fácil
-// elegir el equivocado por error.
+// una categoría con la otra al armar un paquete nuevo. Ya no existen
+// paquetes gratuitos en el catálogo (se eliminaron de tarifas_sede en
+// todas las sedes), así que esta lista siempre es de paquetes con costo.
 function agPoblarPaqCatalogo(){
   const sel=document.getElementById('ag-paqId');if(!sel)return;
   const categoria=document.getElementById('ag-paqCategoria')?.value||'ninos';
-  const esGratuito=document.getElementById('ag-paqGratuito')?.value==='gratuito';
   sel.innerHTML='<option value="">- Elige el paquete -</option>'+
     DB.paquetes.filter(function(p){
-      return p.tipo==='Paquete'&&(p.categoria||'ninos')===categoria&&
-        (esGratuito?(p.costoTotal||0)===0:(p.costoTotal||0)>0);
+      return p.tipo==='Paquete'&&(p.categoria||'ninos')===categoria&&(p.costoTotal||0)>0;
     }).sort(function(a,b){return(a.nroSes||0)-(b.nroSes||0);}).map(function(p){
       return '<option value="'+p.id+'">'+p.nombre+' - S/'+p.costoTotal+'</option>';
     }).join('');
   agOnPaq();
 }
 function agOnPaqCategoria(){
-  agPoblarPaqCatalogo();
-}
-function agOnPaqGratuito(){
   agPoblarPaqCatalogo();
 }
 
@@ -3575,11 +3555,6 @@ function agOnServ(){
     if(grpBuilder)grpBuilder.style.display='block';
     if(grpPaqCatalogo)grpPaqCatalogo.style.display='none';
     if(grpCategoria)grpCategoria.style.display='none';
-    // "Tipo de paquete" tampoco aplica a un servicio del catálogo (Informe,
-    // Evaluación...) - su costo ya viene fijo de la tarifa, no hay catálogo
-    // de paquetes regular/gratuito que filtrar aquí.
-    const grpPaqGratServ=document.getElementById('ag-grp-paqGratuito');
-    if(grpPaqGratServ)grpPaqGratServ.style.display='none';
     const elCuotasInp=document.getElementById('ag-cuotas');
     const elCuotasNota=document.getElementById('ag-cuotas-nota');
     if(elCuotasInp){elCuotasInp.readOnly=true;elCuotasInp.value=serv.cuotas||1;}
@@ -8601,7 +8576,11 @@ async function cargarDesdeSB(silencioso) {
       sbGet('psicologas',{estado:'eq.activa',select:'*',or:'(sede.eq.'+DB.sede+',es_multisede.eq.true)'}),
       sbGet('asistencia_personal',{sede:'eq.'+DB.sede,fecha:'gte.'+desde,select:'*',order:'fecha.desc'}),
       sbGet('terapias',{select:'*'}).catch(function(){return[];}),
-      sbGet('tarifas_sede',{sede:'eq.'+DB.sede,select:'*'}).catch(function(){return[];}),
+      // Antes no filtraba por "activo": una tarifa desactivada (ej. un
+      // paquete gratuito que ya no se ofrece) seguía apareciendo igual en
+      // los selectores de Agendar, porque la columna existía en la base
+      // pero el código nunca la revisaba.
+      sbGet('tarifas_sede',{sede:'eq.'+DB.sede,activo:'eq.true',select:'*'}).catch(function(){return[];}),
       sbGet('programas_paciente',{sede:'eq.'+DB.sede,estado:'eq.activo',select:'*,programa_terapias(*)'}).catch(function(){return[];}),
       sbGet('feriados',{estado:'eq.activo',select:'*'}).catch(function(){return[];}),
       sbGet('avisos_recepcion',{sede:'eq.'+DB.sede,leido:'eq.false',select:'*',order:'created_at.desc',limit:'50'}).catch(function(){return[];}),
