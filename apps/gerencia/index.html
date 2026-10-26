@@ -3584,13 +3584,17 @@ function goTab(id,btn){
 
 
 // Auto-refresh silencioso gerencia
+// Se salta el refresco si la pestaña está en segundo plano (visibilityState):
+// antes volvía a traer TODO sesiones/fichas_seguimiento (sin ventana de
+// fecha, vía _sbAll) cada 30s aunque nadie estuviera mirando.
 (function(){
   if(window._gerRefresh)clearInterval(window._gerRefresh);
   window._gerRefresh=setInterval(function(){
+    if(document.visibilityState!=='visible')return;
     var app=document.getElementById('app');
     if(!app||app.style.display==='none')return;
     sincronizar(false);
-  },30000);
+  },60000);
 })();
 
 // ── SIDEBAR GERENCIA ──────────────────────────────────────────
