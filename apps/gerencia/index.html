@@ -2315,7 +2315,7 @@ function _prepCajaExport(){
     if(sede&&(g.sede||'')!==sede)return false;
     return true;
   });
-  var porDia={},porDiaPagos={};
+  var porDia={},porDiaPagos={},porDiaGastos={};
   pagosRango.forEach(function(p){
     var f=p.fecha;if(!f)return;
     if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0,vuelto:0,gastos:0};
@@ -2330,9 +2330,14 @@ function _prepCajaExport(){
   // Mismo descuento por método que renderVerifCaja (ver comentario ahí) -
   // esta función la comparten los exports PDF/Excel, así que netear acá
   // basta para que ambos salgan iguales a la pantalla sin tocarlos aparte.
+  // porDiaGastos guarda cada gasto individual (antes solo se sumaba al
+  // total de la columna "Gastos" sin dejar rastro de CUÁL gasto era -
+  // _movimientosFlatSorted los necesita para mostrarlos en el detalle).
   gastosRango.forEach(function(g){
     var f=g.fecha;if(!f)return;
     if(!porDia[f])porDia[f]={efectivo:0,yape:0,transferencia:0,vuelto:0,gastos:0};
+    if(!porDiaGastos[f])porDiaGastos[f]=[];
+    porDiaGastos[f].push(g);
     porDia[f].gastos+=g.monto||0;
     var m2=g.metodo_pago||'Efectivo';
     if(m2==='Yape'||m2==='Plin')porDia[f].yape=Math.max(0,porDia[f].yape-(g.monto||0));
@@ -2342,7 +2347,7 @@ function _prepCajaExport(){
   var diasOrd=Object.keys(porDia).sort().reverse();
   var rangoLbl=(desde?fmtF(desde):'-')+' al '+(hasta?fmtF(hasta):'-');
   var sedeLbl=sede||'Todas las sedes';
-  return{porDia:porDia,porDiaPagos:porDiaPagos,diasOrd:diasOrd,rangoLbl:rangoLbl,sedeLbl:sedeLbl,totalPagos:pagosRango.length,desde:desde,hasta:hasta};
+  return{porDia:porDia,porDiaPagos:porDiaPagos,porDiaGastos:porDiaGastos,diasOrd:diasOrd,rangoLbl:rangoLbl,sedeLbl:sedeLbl,totalPagos:pagosRango.length,desde:desde,hasta:hasta};
 }
 function _detalleDiaPorPs(pagosDia){
   var porPs={};
@@ -2368,10 +2373,33 @@ function _pagosFlatSorted(d){
     return(a.hora||'').localeCompare(b.hora||'');
   });
 }
+// Igual que _pagosFlatSorted pero agrega los gastos como filas propias
+// (monto en negativo, columna Tipo="Gasto") en vez de dejarlos solo como
+// un total aparte - antes el detalle no mostraba NINGÚN gasto individual,
+// así que la columna "Gastos" del Resumen (y el Efectivo/Yape/Transferencia
+// ya descontados) no se podía auditar contra nada en la hoja/tabla Detalle.
+function _movimientosFlatSorted(d){
+  var todos=[];
+  d.diasOrd.forEach(function(f){
+    (d.porDiaPagos[f]||[]).forEach(function(p){todos.push({tipo:'Ingreso',fecha:p.fecha,hora:p.hora||'',
+      psicologa_nombre:p.psicologa_nombre||'',paciente_nombre:p.paciente_nombre||'',concepto:p.concepto||'',
+      metodo:p.metodo||'',notas:p.notas||'',monto:p.monto||0});});
+    (d.porDiaGastos&&d.porDiaGastos[f]||[]).forEach(function(g){todos.push({tipo:'Gasto',fecha:g.fecha,hora:'',
+      psicologa_nombre:'-',paciente_nombre:'-',concepto:g.concepto||'',
+      metodo:g.metodo_pago||'',notas:g.categoria||'',monto:-(g.monto||0)});});
+  });
+  return todos.sort(function(a,b){
+    if(a.fecha!==b.fecha)return b.fecha.localeCompare(a.fecha);
+    return(a.hora||'').localeCompare(b.hora||'');
+  });
+}
 
 // Excel "tal cual se ve en la web", en DOS hojas separadas: "Resumen"
-// (la misma tabla de la pantalla) y "Detalle" (todos los pagos, cada
-// fila con su fecha). El truco de nombrar hojas via x:ExcelWorksheet es
+// (la misma tabla de la pantalla) y "Detalle" (todos los pagos Y gastos,
+// cada fila con su fecha - los gastos se distinguen por la columna Tipo
+// y van con el monto en negativo, para que se pueda auditar contra el
+// descuento que ya se les aplicó a Efectivo/Yape/Transferencia arriba).
+// El truco de nombrar hojas via x:ExcelWorksheet es
 // nativo de Excel al abrir HTML - no hace falta ninguna librería, y cada
 // <table> de nivel superior en el body se vuelve una hoja, en el mismo
 // orden que <x:ExcelWorksheet><x:Name> declarado abajo.
@@ -2401,10 +2429,10 @@ function exportarCajaExcel(){
     return row([cT(fmtF(f),sT),cN(r.efectivo,sM),cN(r.yape,sM),cN(r.transferencia,sM),cN(r.vuelto,sM),cN(r.gastos||0,sM),cN(tot,sMB)]);
   }).join('')+row([cT('TOTAL','sTotal'),cN(totEf,'sTotalMoney'),cN(totYp,'sTotalMoney'),cN(totTr,'sTotalMoney'),cN(totVu,'sTotalMoney'),cN(totGa,'sTotalMoney'),cN(totAll,'sTotalMoney')]);
 
-  var flat=_pagosFlatSorted(d);
+  var flat=_movimientosFlatSorted(d);
   var filasDetalle=flat.map(function(p,i){
     var sT=i%2?'sRowAlt':'sRow',sMB=i%2?'sMoneyBoldAlt':'sMoneyBold';
-    return row([cT(fmtF(p.fecha),sT),cT(p.hora||'',sT),cT(p.psicologa_nombre||'Sin psicóloga / Solo pago',sT),
+    return row([cT(fmtF(p.fecha),sT),cT(p.tipo,sT),cT(p.hora||'',sT),cT(p.psicologa_nombre||'Sin psicóloga / Solo pago',sT),
       cT(p.paciente_nombre||'',sT),cT(p.concepto||'',sT),cT(p.metodo||'',sT),cT(p.notas||'',sT),cN(p.monto,sMB)]);
   }).join('');
 
@@ -2432,8 +2460,8 @@ function exportarCajaExcel(){
     '</Worksheet>'+
     '<Worksheet ss:Name="Detalle">'+
       '<Table>'+
-      '<Column ss:Width="80"/><Column ss:Width="55"/><Column ss:Width="160"/><Column ss:Width="140"/><Column ss:Width="160"/><Column ss:Width="90"/><Column ss:Width="140"/><Column ss:Width="70"/>'+
-      row([cT('Fecha','sHead'),cT('Hora','sHead'),cT('Psicóloga','sHead'),cT('Paciente','sHead'),cT('Concepto','sHead'),cT('Método','sHead'),cT('Notas','sHead'),cT('Monto','sHead')])+
+      '<Column ss:Width="80"/><Column ss:Width="60"/><Column ss:Width="55"/><Column ss:Width="160"/><Column ss:Width="140"/><Column ss:Width="160"/><Column ss:Width="90"/><Column ss:Width="140"/><Column ss:Width="70"/>'+
+      row([cT('Fecha','sHead'),cT('Tipo','sHead'),cT('Hora','sHead'),cT('Psicóloga','sHead'),cT('Paciente','sHead'),cT('Concepto','sHead'),cT('Método','sHead'),cT('Notas','sHead'),cT('Monto','sHead')])+
       filasDetalle+
       '</Table>'+
     '</Worksheet>'+
@@ -2663,12 +2691,13 @@ function exportarCajaPDF(){
       var y=doc.lastAutoTable.finalY+10;
       if(y>180){doc.addPage('a4','landscape');y=16;}
       doc.setTextColor(45,26,61);doc.setFontSize(12);doc.setFont('helvetica','bold');
-      doc.text('Detalle de pagos',M,y);
+      doc.text('Detalle de movimientos (pagos y gastos)',M,y);
       y+=5;
-      var flat=_pagosFlatSorted(d);
+      var flat=_movimientosFlatSorted(d);
+      function fmtMontoPdf(m){return(m<0?'-S/':'S/')+Math.abs(m||0).toLocaleString();}
       doc.autoTable({startY:y,margin:{left:M,right:M},
-        head:[['Fecha','Hora','Psicóloga','Paciente','Concepto','Método','Notas','Monto']],
-        body:flat.map(function(p){return[fmtF(p.fecha),p.hora||'-',p.psicologa_nombre||'Sin psicóloga / Solo pago',p.paciente_nombre||'-',p.concepto||'-',p.metodo||'-',p.notas||'-','S/'+(p.monto||0).toLocaleString()];}),
+        head:[['Fecha','Tipo','Hora','Psicóloga','Paciente','Concepto','Método','Notas','Monto']],
+        body:flat.map(function(p){return[fmtF(p.fecha),p.tipo,p.hora||'-',p.psicologa_nombre||'Sin psicóloga / Solo pago',p.paciente_nombre||'-',p.concepto||'-',p.metodo||'-',p.notas||'-',fmtMontoPdf(p.monto)];}),
         headStyles:{fillColor:[74,14,46],textColor:255,fontStyle:'bold',fontSize:8},
         bodyStyles:{fontSize:8},
         alternateRowStyles:{fillColor:[248,250,255]},
