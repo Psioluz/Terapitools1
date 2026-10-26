@@ -540,6 +540,16 @@ select.fsel{
     <div class="cb" id="chartMeses"></div>
   </div>
 
+  <!-- Ingresos vs Gastos por mes (comparativa) -->
+  <div class="card">
+    <div class="ch"><div class="ct">📊 Ingresos y Gastos por Mes</div></div>
+    <div class="tbl-wrap">
+    <table><thead><tr>
+      <th>Mes</th><th>Ingresos</th><th>Gastos</th><th>Neto</th><th>Margen</th>
+    </tr></thead><tbody id="tblIngGasMes"></tbody></table>
+    </div>
+  </div>
+
   <!-- Desglose gastos -->
   <div class="card">
     <div class="ch"><div class="ct">📤 Desglose de Gastos</div></div>
@@ -2087,6 +2097,33 @@ function renderFinanzas(){
     meses6.push({label:MESES[d.getMonth()], val:pagMes});
   }
   renderBarChart('chartMeses', meses6, 'S/', '#10b981', true);
+
+  // Ingresos vs Gastos por mes (últimos 12) - para que Gerencia pueda
+  // comparar mes a mes, no solo ver la tendencia de ingresos sola como
+  // ya hacía el gráfico de arriba. Los honorarios NO se incluyen aquí a
+  // propósito: "gastos" en esta tabla es la misma tabla "gastos" que usa
+  // Verificación de Caja/Comparativa de Sedes, para que los 3 cuadren
+  // entre sí - el honorario planillero se ve aparte en "fHon".
+  var tblIngGas=document.getElementById('tblIngGasMes');
+  if(tblIngGas){
+    var meses12=[];
+    for(let i=11;i>=0;i--){
+      var d12=new Date(now.getFullYear(),now.getMonth()-i,1);
+      var ym12=d12.getFullYear()+'-'+String(d12.getMonth()+1).padStart(2,'0');
+      var ingMes=G.pagosLocal.filter(p=>p.fecha&&p.fecha.startsWith(ym12)&&(!getFiltSede()||(p._sede||p.sede||'')===getFiltSede())).reduce((a,p)=>a+(p.monto||0),0);
+      var gasMes12=G.gastos.filter(g=>g.fecha&&g.fecha.startsWith(ym12)&&(!getFiltSede()||(g.sede||'')===getFiltSede())).reduce((a,g)=>a+(g.monto||0),0);
+      meses12.push({ym:ym12,label:fmtM(ym12),ing:ingMes,gas:gasMes12,neto:ingMes-gasMes12});
+    }
+    tblIngGas.innerHTML=meses12.map(mRow=>{
+      var margenPct2=mRow.ing>0?Math.round(mRow.neto/mRow.ing*100):0;
+      return`<tr>
+        <td><strong>${mRow.label}</strong></td>
+        <td style="color:var(--green)">S/${mRow.ing.toLocaleString()}</td>
+        <td style="color:var(--red)">S/${mRow.gas.toLocaleString()}</td>
+        <td style="font-weight:800;color:${mRow.neto>=0?'var(--green)':'var(--red)'}">S/${mRow.neto.toLocaleString()}</td>
+        <td>${mRow.ing>0?margenPct2+'%':'-'}</td></tr>`;
+    }).join('');
+  }
 
   // Desglose gastos
   var tiposGas={};
