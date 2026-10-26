@@ -2332,6 +2332,47 @@ function verDetalleIngresosDia(fecha){
   w.document.open();w.document.write(html);w.document.close();
 }
 
+// Detalle de la alerta "cuota(s) vencida(s)" - antes era texto plano sin
+// forma de validar quién debía o de qué sede, más allá de las primeras 8
+// líneas sueltas que ya metía el feed de alertas. Agrupa por sede (lo que
+// pidió Gerencia) con paciente, fecha de la cuota y monto de cada una.
+function verDetalleCuotasVencidas(){
+  var lista=window._cuotasVencidasDetalle||[];
+  var porSede={};
+  lista.forEach(function(s){
+    var key=s.sede||'Sin sede';
+    (porSede[key]=porSede[key]||[]).push(s);
+  });
+  var keys=Object.keys(porSede).sort();
+  var totalGen=lista.reduce(function(a,s){return a+(s.saldo||0);},0);
+  function esc(s){return String(s==null?'-':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+  var html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Detalle de cuotas vencidas</title>'+
+    '<style>body{font-family:system-ui,-apple-system,sans-serif;margin:0;padding:24px;background:#f8fafc;color:#1e293b}'+
+    'h1{font-size:20px;margin:0 0 4px}.sub{color:#64748b;font-size:13px;margin-bottom:20px}'+
+    '.grupo{background:#fff;border-radius:12px;margin-bottom:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}'+
+    '.gh{background:linear-gradient(135deg,#4a0e2e,#6b214d);color:#fff;padding:10px 16px;font-weight:800;display:flex;justify-content:space-between;font-size:14px}'+
+    'table{width:100%;border-collapse:collapse}th,td{padding:8px 16px;text-align:left;font-size:13px;border-bottom:1px solid #eee}'+
+    'th{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.3px}'+
+    '.monto{font-weight:800;color:#dc2626;text-align:right}'+
+    '.total{background:#fdf2f8;padding:14px 16px;border-radius:12px;font-weight:900;font-size:17px;text-align:right}</style></head><body>'+
+    '<h1>Cuotas vencidas sin cobrar</h1><div class="sub">Generado '+new Date().toLocaleString('es-PE')+'</div>'+
+    (keys.length?keys.map(function(k){
+      var items=porSede[k].slice().sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
+      var subtotal=items.reduce(function(a,s){return a+(s.saldo||0);},0);
+      return '<div class="grupo"><div class="gh"><span>🏥 '+esc(k)+' ('+items.length+')</span><span>S/'+subtotal.toLocaleString()+'</span></div>'+
+        '<table><thead><tr><th>Fecha cuota</th><th>Paciente</th><th>Sesión del paquete</th><th style="text-align:right">Monto vencido</th></tr></thead><tbody>'+
+        items.map(function(s){
+          return '<tr><td>'+esc(fmtF(s.fecha))+'</td><td>'+esc(s.pacNombre)+'</td><td>'+esc((s.nroEnPaq||'-')+' / '+(s.totalPaq||'-'))+'</td>'+
+            '<td class="monto">S/'+(s.saldo||0).toLocaleString()+'</td></tr>';
+        }).join('')+'</tbody></table></div>';
+    }).join(''):'<div class="grupo"><table><tbody><tr><td style="text-align:center;color:#64748b;padding:20px">Sin cuotas vencidas.</td></tr></tbody></table></div>')+
+    '<div class="total">TOTAL VENCIDO: S/'+totalGen.toLocaleString()+'</div>'+
+    '</body></html>';
+  var w=window.open('','_blank');
+  if(!w){alert('El navegador bloqueó la ventana emergente para el detalle - habilítala e intenta de nuevo.');return;}
+  w.document.open();w.document.write(html);w.document.close();
+}
+
 // Exporta a Excel/PDF el detalle de TODOS los pagos del rango de
 // fechas/sede filtrados en Verificación de Caja - una fila por pago, no
 // solo el resumen por día, para que Gerencia pueda auditar cada uno.
@@ -3366,7 +3407,12 @@ function renderAlertas(){
   }).sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
   if(cuotasVencidas.length){
     var totalVenc=cuotasVencidas.reduce(function(a,s){return a+(s.saldo||0);},0);
-    alertas.push({tipo:'r',icon:'🔴',txt:`<strong>${cuotasVencidas.length} cuota(s) vencida(s)</strong> sin cobrar - total <strong>S/${totalVenc}</strong>`});
+    // Se guarda la lista completa (sin el tope de 8 que tiene el feed de
+    // abajo) para que el detalle en popup muestre TODAS las vencidas, no
+    // solo las primeras 8 - antes la alerta era texto plano sin forma de
+    // auditar quién/de qué sede eran más allá de esas 8 líneas sueltas.
+    window._cuotasVencidasDetalle=cuotasVencidas;
+    alertas.push({tipo:'r',icon:'🔴',txt:`<a href="#" onclick="verDetalleCuotasVencidas();return false" style="color:inherit;text-decoration:underline;cursor:pointer"><strong>${cuotasVencidas.length} cuota(s) vencida(s)</strong> sin cobrar - total <strong>S/${totalVenc}</strong> · Ver detalle →</a>`});
     cuotasVencidas.slice(0,8).forEach(function(s){
       alertas.push({tipo:'r',icon:'💸',txt:`<strong>${s.pacNombre}</strong> (${s.sede||'-'}) - cuota del ${fmtF(s.fecha)} vencida: S/${s.saldo}`});
     });
