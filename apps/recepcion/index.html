@@ -7948,10 +7948,16 @@ async function renderHistorial(){
   // como pendiente: se parte del saldo REAL actual y se reparte entre las
   // sesiones sueltas cobrables más recientes, de atrás para adelante,
   // hasta completarlo - esas son las que de verdad siguen sin pagarse.
+  // Antes guardaba solo el ID (Set) y la celda mostraba el COSTO COMPLETO
+  // de la sesión como "Pend." - si solo quedaba pendiente una parte (ej.
+  // pagó un adelanto de S/10 de una sesión de S/42), igual se veía
+  // "Pend. S/42" en vez de los S/32 que de verdad faltaban (caso Aleska
+  // Cordova Arias). Ahora guarda un Map id→monto, con el monto REAL que le
+  // toca a cada sesión en el reparto (nunca más que su propio costo).
   const _idsSueltosPendientes=(function(){
-    const ids=new Set();
+    const map=new Map();
     let restante=_saldoSueltoReal(pac2);
-    if(restante<=0)return ids;
+    if(restante<=0)return map;
     const sueltasCobrables=sesPac.filter(function(s){
       return s.tipo!=='paquete'&&!(s._sb&&s._sb.programa_id)&&
         s.estado!=='cancelado'&&s.estado!=='permiso'&&s.estado!=='reprogramado';
@@ -7959,10 +7965,10 @@ async function renderHistorial(){
     for(let i=0;i<sueltasCobrables.length&&restante>0.004;i++){
       const costo=sueltasCobrables[i].costoTotal||0;
       if(costo<=0)continue;
-      ids.add(sueltasCobrables[i].id);
+      map.set(sueltasCobrables[i].id,Math.min(restante,costo));
       restante=Math.round((restante-costo)*100)/100;
     }
-    return ids;
+    return map;
   })();
   // Fichas de seguimiento (las llena la psicóloga) de este paciente - antes
   // se mostraban como una columna más en la tabla de sesiones, pero ahí
@@ -8058,7 +8064,7 @@ async function renderHistorial(){
           costoCelda=s.saldo>0?'<span style="color:var(--orange);font-weight:700">⚠️ Cuota S/'+s.saldo+'</span>':'-';
         }else if(!s.costoTotal){costoCelda='-';}
         else{
-          costoCelda='S/'+s.costoTotal+(_idsSueltosPendientes.has(s.id)?' <span style="color:var(--orange);font-weight:700">⚠️ Pend. S/'+s.costoTotal+'</span>':' <span style="color:var(--green)">✅</span>');
+          costoCelda='S/'+s.costoTotal+(_idsSueltosPendientes.has(s.id)?' <span style="color:var(--orange);font-weight:700">⚠️ Pend. S/'+_idsSueltosPendientes.get(s.id)+'</span>':' <span style="color:var(--green)">✅</span>');
         }
         // El pago nunca se muestra dentro de la fila de una sesión - sale
         // como su propia fila de "💰 Pago registrado" en su fecha real
