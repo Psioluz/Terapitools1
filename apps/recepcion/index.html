@@ -5946,6 +5946,37 @@ async function aplicarCascadaCheckpoints(programaId,montoDisponible){
   return primeraTocada;
 }
 
+// Mismo mecanismo que aplicarCascadaCheckpoints() pero para sesiones
+// SUELTAS (fuera de paquete) - antes un pago genérico ("+ Registrar Pago")
+// se aplicaba entero a UNA sola sesión suelta (la pendiente más antigua) y
+// lo que sobraba se perdía en silencio en vez de pasar a cubrir la
+// siguiente sesión suelta pendiente (pasó con Thaisa Isabella Carruitero
+// León, Nijhal Skayler Incil Gonzales, Dreik Basthian Alejandro Miranda
+// Oroya y Neegan Muñoz: el pago quedaba enganchado a una sesión vieja ya
+// cerrada en la cabeza de recepción, mientras la sesión real seguía
+// "pendiente" y el sobrante de meses atrás nunca se usaba).
+async function aplicarCascadaSueltas(pacNombre,montoDisponible){
+  if(!pacNombre||montoDisponible<=0)return null;
+  let pendientes=[];
+  try{
+    pendientes=await sbGet('sesiones',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,
+      saldo:'gt.0',programa_id:'is.null',select:'*',order:'fecha.asc,hora.asc'});
+  }catch(e){console.error('[cascada sueltas]',e);return null;}
+  const patches=[];
+  let restante=montoDisponible;
+  let primeraTocada=null;
+  (pendientes||[]).forEach(function(s){
+    if(restante<=0||!s.id)return;
+    const aplicado=Math.min(restante,s.saldo||0);
+    if(aplicado>0&&!primeraTocada)primeraTocada=s.id;
+    const nuevoSaldo=Math.round(((s.saldo||0)-aplicado)*100)/100;
+    patches.push(sbPatch('sesiones',{saldo:nuevoSaldo},{id:'eq.'+s.id}));
+    restante=Math.round((restante-aplicado)*100)/100;
+  });
+  await Promise.all(patches);
+  return primeraTocada;
+}
+
 // reconciliarCheckpoints() se reemplazó por recalcularSaldoPaciente() en
 // cada punto donde se llamaba (permiso, congelar, reprogramar) - esa
 // función ya resuelve lo mismo de raíz: recalcula TODOS los checkpoints
@@ -6126,19 +6157,15 @@ async function _guardarPagoInterno(){
           // registró desde "+ Registrar Pago" en vez del botón "Cobrar" de
           // la fila, nunca se guardó qué sesión exacta cubría).
           if(sesionCheckpointId)pagoIds.forEach(function(id){promesas.push(sbPatch('pagos',{sesion_id:sesionCheckpointId},{id:'eq.'+id}));});
-        }else{
-          const ses=sesSuelta;
-          if(ses&&ses._sb&&ses._sb.id){
+        }else if(sesSuelta){
+          // Cascada sobre TODAS las sesiones sueltas pendientes (de la más
+          // antigua a la más nueva), no solo la primera - si el monto
+          // alcanza para más de una, las demás también se descuentan en
+          // vez de perder el sobrante.
+          const sesionTocadaId=await aplicarCascadaSueltas(pac.nombre,monto);
+          if(sesionTocadaId){
             _pagoVinculado=true;
-            promesas.push(sbPatch('sesiones',{saldo:Math.max(0,(ses.saldo||0)-monto)},{id:'eq.'+ses._sb.id}));
-            // Encontramos la sesión suelta a la que corresponde este pago,
-            // pero el pago ya se insertó arriba SIN sesion_id (solo se
-            // ataba cuando "Cobrar" se abría desde una fila puntual) - así
-            // que todo pago hecho desde "+ Registrar Pago" quedaba huérfano
-            // para siempre, aunque el sistema sí supiera qué sesión pagaba.
-            // Se ata ahora para que el Historial lo muestre ligado a la
-            // sesión real en vez de como un pago suelto sin dueño.
-            pagoIds.forEach(function(id){promesas.push(sbPatch('pagos',{sesion_id:ses._sb.id},{id:'eq.'+id}));});
+            pagoIds.forEach(function(id){promesas.push(sbPatch('pagos',{sesion_id:sesionTocadaId},{id:'eq.'+id}));});
           }
         }
       }catch(eProg){console.error('[pago->programa]',eProg);}
