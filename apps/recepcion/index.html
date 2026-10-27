@@ -8308,18 +8308,31 @@ function exportarFichasHistorialPDF(){
   const jsPDF=_getJsPDFHist();
   if(!jsPDF){showToast('Cargando PDF... intenta de nuevo en un segundo','info');return;}
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-  const W=297,H=210,M=10,TOPY=26,BOTY=200;
-  // [etiqueta, ancho(mm), campo en la ficha]
+  const W=297,M=14,TOPY=44,BOTY=192;
+  // [etiqueta, ancho(mm), campo en la ficha] - anchos recalculados para usar
+  // todo el ancho útil de la hoja (antes sumaban 253mm de 277 disponibles,
+  // dejando una franja en blanco a la derecha sin usarse para nada).
   const COLS=[
-    ['Fecha',20,null],['Hora',12,null],['Terapia',28,null],['Psicóloga',30,null],
-    ['Objetivo',41,'objetivo'],['Actividad',41,'actividad'],['Resultados',41,'resultados'],['Próx. sesión',40,'proxima_sesion']
+    ['Fecha',22,null],['Hora',14,null],['Terapia',30,null],['Psicóloga',32,null],
+    ['Objetivo',44,'objetivo'],['Actividad',44,'actividad'],['Resultados',44,'resultados'],['Próx. sesión',39,'proxima_sesion']
   ];
   const TABLE_W=COLS.reduce(function(a,c){return a+c[1];},0); // debe calzar en W-2*M
+  // ── LOGO + HEADER ── mismo diseño de marca (logo + caja marrón/rosa) que
+  // ya usa el Reporte Diario - antes esta ficha tenía solo una franja
+  // morada angosta sin logo, que no se veía como un documento clínico.
   function encabezadoPagina(){
-    doc.setFillColor(74,14,46);doc.rect(0,0,W,18,'F');
-    doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
-    doc.text('Fichas de seguimiento - '+(pac2.nombre||''),M,11);
-    doc.setFillColor(233,30,140);doc.rect(0,18,W,2,'F');
+    let y=10;
+    try{doc.addImage(PSICOLUZ_LOGO_PDF,'JPEG',M,y+2,50,26.2);}catch(e){}
+    doc.setFillColor(74,14,46);doc.rect(68,y,W-68-M,30,'F');
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(13);doc.setFont('helvetica','bold');
+    doc.text('CENTRO TERAPÉUTICO INTEGRAL PSICOLUZ',71,y+9);
+    doc.setFontSize(10);doc.setFont('helvetica','normal');
+    doc.text('FICHAS DE SEGUIMIENTO - '+_limpiarEmojiPDF(pac2.nombre||''),71,y+16);
+    doc.text('Sede: '+(pac2.sede||DB.sede||'-')+'   |   Generado: '+new Date().toLocaleString('es-PE'),71,y+22);
+    doc.text('Elaborado por: '+(DB.usuario||'-'),71,y+27.5);
+    y+=30;
+    doc.setFillColor(233,30,140);doc.rect(M,y,W-M*2,3,'F');
   }
   function encabezadoTabla(y){
     doc.setFillColor(74,14,46);doc.rect(M,y,TABLE_W,7,'F');
@@ -8328,6 +8341,13 @@ function exportarFichasHistorialPDF(){
     COLS.forEach(function(c){doc.text(c[0],x+1.5,y+4.8);x+=c[1];});
     return y+7;
   }
+  function piePagina(numPag){
+    doc.setDrawColor(230,200,215);doc.line(M,198,W-M,198);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(140,140,140);
+    doc.text('Centro Terapéutico Integral Psicoluz',M,203);
+    doc.text('Página '+numPag,W-M,203,{align:'right'});
+  }
+  let pagina=1;
   encabezadoPagina();
   let y=encabezadoTabla(TOPY);
   const LH=3.6; // alto de línea dentro de una celda
@@ -8338,16 +8358,22 @@ function exportarFichasHistorialPDF(){
     const celdas=COLS.map(function(c){
       let txt;
       if(c[2]===null){
-        txt=c[0]==='Fecha'?fmtF(f.fecha):c[0]==='Hora'?(f.hora||'-'):c[0]==='Terapia'?(f.terapia||'-'):(f.psicologa_nombre||'-');
+        // La hora se guarda con segundos (ej. "18:30:00") - a 12-14mm de
+        // ancho de columna, "18:30:00" no entraba en una línea y se
+        // partía en dos ("18:30:" / "00"), viéndose como un error. Se
+        // recorta a HH:MM, que es lo único que de verdad importa acá.
+        txt=c[0]==='Fecha'?fmtF(f.fecha):c[0]==='Hora'?(f.hora?f.hora.substring(0,5):'-'):c[0]==='Terapia'?(f.terapia||'-'):(f.psicologa_nombre||'-');
       }else{
         txt=f[c[2]]||'-';
       }
-      return doc.splitTextToSize(String(txt),c[1]-3);
+      return doc.splitTextToSize(_limpiarEmojiPDF(String(txt)),c[1]-3);
     });
     const nLineas=Math.max.apply(null,celdas.map(function(l){return l.length;}));
     const altoFila=Math.max(nLineas*LH+3,8);
     if(y+altoFila>BOTY){
+      piePagina(pagina);
       doc.addPage('a4','landscape');
+      pagina++;
       encabezadoPagina();
       y=encabezadoTabla(TOPY);
     }
@@ -8362,6 +8388,7 @@ function exportarFichasHistorialPDF(){
     });
     y+=altoFila;
   });
+  piePagina(pagina);
   guardarPDF(doc,'Fichas_'+(pac2.nombre||'paciente').replace(/\s+/g,'_')+'.pdf');
 }
 
