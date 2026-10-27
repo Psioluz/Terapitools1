@@ -8402,8 +8402,14 @@ function exportarFichasHistorialPDF(){
 // (ej. "Ø=ÜË"). Se quitan antes de escribir cualquier texto en el PDF -
 // en pantalla (HTML) los emojis se quedan intactos, esto solo afecta al PDF.
 function _limpiarEmojiPDF(txt){
+  // Se reemplaza por un ESPACIO, no por nada - quitar el carácter sin dejar
+  // nada en su lugar pegaba las palabras de los lados (ej. "Ánimo
+  // inicio→fin" quedaba "Ánimo iniciofin", ilegible) cuando el texto traía
+  // una flecha "→" como separador normal (no un emoji) - pasaba en el
+  // campo "resultados" que arma la app Psicóloga para consultas. El
+  // espacio de más lo limpia el .replace de espacios/tabs de abajo.
   return String(txt||'')
-    .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{2300}-\u{23FF}️‍]/gu,'')
+    .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{2300}-\u{23FF}️‍]/gu,' ')
     .replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').trim();
 }
 function _colorEstadoTxtPDF(txt){
