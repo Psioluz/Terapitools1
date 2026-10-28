@@ -7958,9 +7958,16 @@ async function renderHistorial(){
     const map=new Map();
     let restante=_saldoSueltoReal(pac2);
     if(restante<=0)return map;
+    // Solo sesiones ya ASISTIDAS pueden estar "pendientes de pago" - una
+    // sesión futura ("programado") todavía no ocurrió y no debe competir
+    // por el reparto antes que una realmente vencida: al ordenar de más
+    // reciente a más antigua, una sesión programada para dentro de unos
+    // días quedaba primera en la lista y se llevaba todo el saldo pendiente,
+    // mostrando "Pend." en una cita que ni siquiera había pasado mientras
+    // las sesiones realmente impagas (ya atendidas) aparecían con ✅ (caso
+    // Joan Cabezas Romero).
     const sueltasCobrables=sesPac.filter(function(s){
-      return s.tipo!=='paquete'&&!(s._sb&&s._sb.programa_id)&&
-        s.estado!=='cancelado'&&s.estado!=='permiso'&&s.estado!=='reprogramado';
+      return s.tipo!=='paquete'&&!(s._sb&&s._sb.programa_id)&&s.estado==='asistio';
     }).sort(function(a,b){return(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||''));});
     for(let i=0;i<sueltasCobrables.length&&restante>0.004;i++){
       const costo=sueltasCobrables[i].costoTotal||0;
