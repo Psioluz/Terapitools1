@@ -4128,7 +4128,14 @@ async function obtenerProgramaActivo(pacNombre,terNombre,psNombre){
 // el resto de licenciadas (solo una sede) el chequeo local de DB.sesiones
 // ya es suficiente y no cambia de comportamiento.
 async function _psOcupadaEnFechaHora(psNombre,fecha,hora){
-  if(DB.sesiones.some(function(s){return s.psId===psNombre&&s.fecha===fecha&&s.hora===hora;}))return true;
+  // Una sesión cancelada/con permiso/reprogramada ya NO ocupa ese horario -
+  // la psicóloga queda libre ahí. Este chequeo local (misma sede) no
+  // filtraba por estado, así que una sesión con "Permiso" seguía bloqueando
+  // agendar algo nuevo en ese mismo horario (ej. Lic. Brenda Valdivia con
+  // una interconsulta bloqueada por el permiso de José Mateo Valdivia
+  // Cuentas) - el chequeo multisede de abajo sí lo filtraba, pero este no.
+  if(DB.sesiones.some(function(s){return s.psId===psNombre&&s.fecha===fecha&&s.hora===hora&&
+    ['cancelado','permiso','reprogramado'].indexOf(s.estado)===-1;}))return true;
   const psInfo=DB.psicologas.find(function(p){return p.nombre===psNombre;});
   if(!psInfo||!psInfo.multisede)return false;
   try{
