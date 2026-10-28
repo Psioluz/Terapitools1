@@ -7966,14 +7966,23 @@ async function renderHistorial(){
     // mostrando "Pend." en una cita que ni siquiera había pasado mientras
     // las sesiones realmente impagas (ya atendidas) aparecían con ✅ (caso
     // Joan Cabezas Romero).
+    // Además, una sesión que YA tiene su propio pago directo vinculado
+    // (s.saldo del trigger de Supabase ya en 0) tampoco debe competir por
+    // el reparto - si se usara s.costoTotal en vez de s.saldo como tope,
+    // el sobrante del saldo agregado (ej. el de una próxima sesión aún no
+    // vencida) terminaba "aterrizando" en una sesión ya pagada de verdad,
+    // marcándola Pend. por error (caso Adriano Aranda Medina: sus últimas
+    // 2 sesiones asistidas estaban pagadas 1 a 1, pero el reparto igual
+    // marcaba la penúltima como pendiente para completar el agregado, que
+    // en realidad correspondía a una sesión futura todavía no vencida).
     const sueltasCobrables=sesPac.filter(function(s){
-      return s.tipo!=='paquete'&&!(s._sb&&s._sb.programa_id)&&s.estado==='asistio';
+      return s.tipo!=='paquete'&&!(s._sb&&s._sb.programa_id)&&s.estado==='asistio'&&(s.saldo||0)>0.004;
     }).sort(function(a,b){return(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||''));});
     for(let i=0;i<sueltasCobrables.length&&restante>0.004;i++){
-      const costo=sueltasCobrables[i].costoTotal||0;
-      if(costo<=0)continue;
-      map.set(sueltasCobrables[i].id,Math.min(restante,costo));
-      restante=Math.round((restante-costo)*100)/100;
+      const tope=sueltasCobrables[i].saldo||0;
+      if(tope<=0)continue;
+      map.set(sueltasCobrables[i].id,Math.min(restante,tope));
+      restante=Math.round((restante-tope)*100)/100;
     }
     return map;
   })();
