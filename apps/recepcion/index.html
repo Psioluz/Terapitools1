@@ -5216,10 +5216,11 @@ async function guardarSesion(){
     showToast('Completa: paciente, psicóloga, terapia, fecha'+(requiereHora?' y hora':''),'error');return;
   }
   if(!sinSesionHoy){
-    // Reprogramado y Permiso dejan libre ese horario (por eso se pintan en
-    // gris tachado en la agenda) - no deben contar como "ocupado" o nunca
-    // se podría agendar a otro paciente en el cupo que quedó liberado.
-    if(DB.sesiones.find(s=>s.psId===getPs(psId).nombre&&s.fecha===fecha&&s.hora===hora&&s.estado!=='reprogramado'&&s.estado!=='permiso'&&s.estado!=='cancelado')){
+    // Reprogramado, Permiso, Cancelado y Congelado dejan libre ese horario
+    // (por eso se pintan en gris tachado/con copo en la agenda) - no deben
+    // contar como "ocupado" o nunca se podría agendar a otro paciente en
+    // el cupo que quedó liberado.
+    if(DB.sesiones.find(s=>s.psId===getPs(psId).nombre&&s.fecha===fecha&&s.hora===hora&&s.estado!=='reprogramado'&&s.estado!=='permiso'&&s.estado!=='cancelado'&&s.estado!=='congelado')){
       showToast('Ese horario ya está ocupado para esta psicóloga','error');return;
     }
     const fer=feriadoDe(fecha);
