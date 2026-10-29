@@ -4128,20 +4128,24 @@ async function obtenerProgramaActivo(pacNombre,terNombre,psNombre){
 // el resto de licenciadas (solo una sede) el chequeo local de DB.sesiones
 // ya es suficiente y no cambia de comportamiento.
 async function _psOcupadaEnFechaHora(psNombre,fecha,hora){
-  // Una sesión cancelada/con permiso/reprogramada ya NO ocupa ese horario -
-  // la psicóloga queda libre ahí. Este chequeo local (misma sede) no
-  // filtraba por estado, así que una sesión con "Permiso" seguía bloqueando
-  // agendar algo nuevo en ese mismo horario (ej. Lic. Brenda Valdivia con
-  // una interconsulta bloqueada por el permiso de José Mateo Valdivia
-  // Cuentas) - el chequeo multisede de abajo sí lo filtraba, pero este no.
+  // Una sesión cancelada/con permiso/reprogramada/congelada ya NO ocupa ese
+  // horario - la psicóloga queda libre ahí. Este chequeo local (misma sede)
+  // no filtraba por estado, así que una sesión con "Permiso" seguía
+  // bloqueando agendar algo nuevo en ese mismo horario (ej. Lic. Brenda
+  // Valdivia con una interconsulta bloqueada por el permiso de José Mateo
+  // Valdivia Cuentas) - el chequeo multisede de abajo sí lo filtraba, pero
+  // este no. "congelado" se sumó después al mismo caso (ej. Lic. Brenda
+  // Valdivia bloqueada para reprogramar a Dafne García por una sesión
+  // congelada de Ailanny Ckloe Lozada en ese mismo horario).
+  var ESTADOS_NO_OCUPAN=['cancelado','permiso','reprogramado','congelado'];
   if(DB.sesiones.some(function(s){return s.psId===psNombre&&s.fecha===fecha&&s.hora===hora&&
-    ['cancelado','permiso','reprogramado'].indexOf(s.estado)===-1;}))return true;
+    ESTADOS_NO_OCUPAN.indexOf(s.estado)===-1;}))return true;
   const psInfo=DB.psicologas.find(function(p){return p.nombre===psNombre;});
   if(!psInfo||!psInfo.multisede)return false;
   try{
     const otras=await sbGet('sesiones',{psicologa:'eq.'+psNombre,fecha:'eq.'+fecha,hora:'eq.'+hora,
       select:'id,sede,estado'})||[];
-    return otras.some(function(s){return['cancelado','permiso','reprogramado'].indexOf(s.estado)===-1;});
+    return otras.some(function(s){return ESTADOS_NO_OCUPAN.indexOf(s.estado)===-1;});
   }catch(e){console.error('[chequeo disponibilidad multisede]',e);return false;}
 }
 async function generarSesionesRecurrentes(o){
