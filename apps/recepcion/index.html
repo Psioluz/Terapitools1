@@ -3916,14 +3916,23 @@ function agObtenerMetodosPago(){
   });
   return out;
 }
-// Filas listas para crear en "pagos" (una fila por método) - si por algún
-// motivo las filas de método no cuadran con el monto total pagado, cae a
-// un solo pago en Efectivo por el total, para no perder el registro.
+// Filas listas para crear en "pagos" (una fila por método). Si hay al
+// menos una fila con un método elegido, se respeta ese método SIEMPRE -
+// antes, cualquier descuadre (ej. un redondeo) hacía caer todo a un pago
+// en Efectivo por el total, borrando en silencio el método real que la
+// recepcionista eligió (ej. Yape), sin ningún aviso (caso Deivis Santos:
+// pagó Yape y quedó registrado como Efectivo). Si las filas no cuadran
+// con el monto total, se ajusta la ÚLTIMA fila para que la suma cierre,
+// en vez de descartar el método. Solo si no hay ninguna fila con monto
+// (nada que respetar) cae a Efectivo por el total, para no perder el
+// registro.
 function agFilasPagoParaGuardar(montoTotal){
   const filas=agObtenerMetodosPago();
+  if(!filas.length)return montoTotal>0?[{metodo:'Efectivo',monto:montoTotal}]:[];
   const suma=filas.reduce(function(a,f){return a+f.monto;},0);
-  if(filas.length&&Math.abs(suma-montoTotal)<0.01)return filas;
-  return montoTotal>0?[{metodo:'Efectivo',monto:montoTotal}]:[];
+  const ajuste=Math.round((montoTotal-suma)*100)/100;
+  if(Math.abs(ajuste)>=0.01)filas[filas.length-1].monto=Math.round((filas[filas.length-1].monto+ajuste)*100)/100;
+  return filas;
 }
 
 // ── Método(s) de pago en "Registrar Pago" (mismo patrón que en Agendar
@@ -3990,14 +3999,18 @@ function pgObtenerMetodosPago(){
   });
   return out;
 }
-// Filas listas para crear en "pagos" (una fila por método) - si por algún
-// motivo las filas de método no cuadran con el monto total, cae a un solo
-// pago en Efectivo por el total, para no perder el registro.
+// Filas listas para crear en "pagos" (una fila por método). Mismo
+// criterio que agFilasPagoParaGuardar: se respeta el método elegido
+// siempre que haya al menos una fila con monto, ajustando la última fila
+// si hace falta para que la suma cierre con el total - en vez de caer en
+// silencio a Efectivo cuando hay un descuadre.
 function pgFilasPagoParaGuardar(montoTotal){
   const filas=pgObtenerMetodosPago();
+  if(!filas.length)return montoTotal>0?[{metodo:'Efectivo',monto:montoTotal}]:[];
   const suma=filas.reduce(function(a,f){return a+f.monto;},0);
-  if(filas.length&&Math.abs(suma-montoTotal)<0.01)return filas;
-  return montoTotal>0?[{metodo:'Efectivo',monto:montoTotal}]:[];
+  const ajuste=Math.round((montoTotal-suma)*100)/100;
+  if(Math.abs(ajuste)>=0.01)filas[filas.length-1].monto=Math.round((filas[filas.length-1].monto+ajuste)*100)/100;
+  return filas;
 }
 
 function agActualizarResumen(){
