@@ -4593,8 +4593,28 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
       const costoSes=parseFloat(ses.costo_total)||0;
       const sobra=Math.round((montoPago-costoSes)*100)/100;
       if(sobra>0.004){
+        // Antes de mandar el sobrante al paquete (progId), hay que revisar
+        // si el paciente tiene OTRA sesión suelta pendiente de pago - ese
+        // sobrante suele ser justo la plata de esa otra sesión (ej. la
+        // mamá paga junto 2 sesiones de S/38 en un solo Yape), no un
+        // adelanto del paquete. Si se manda siempre a progId sin
+        // chequear esto, esa otra sesión suelta queda "debiendo" aunque
+        // ya esté pagada, y un paquete que ni corresponde (a veces ya
+        // cerrado/completo) queda con un adelanto de más que nadie pidió
+        // (pasó con Mateo Valentino Guevara Paredes: el sobrante de su
+        // pago combinado del 27/10 terminó en el paquete de 12 sesiones
+        // ya completado, en vez de cubrir su sesión suelta del 29/10).
+        let destinoSesionId=null;
+        try{
+          const otrasSueltasPend=await sbGet('sesiones',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,
+            programa_id:'is.null',tipo:'neq.paquete',id:'neq.'+p.sesion_id,select:'id,fecha,hora,saldo'})||[];
+          const candidata=otrasSueltasPend.filter(function(s){return(parseFloat(s.saldo)||0)>0.004;})
+            .sort(function(a,b){return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));})[0];
+          if(candidata)destinoSesionId=candidata.id;
+        }catch(eOtra){console.error('[vincular pagos huérfanos - buscar sesión suelta pendiente]',eOtra);}
         pagosDividir.push({id:p.id,montoRecortado:costoSes,sobrante:sobra,fecha:p.fecha,hora:p.hora,
-          metodo:p.metodo,psicologa_nombre:p.psicologa_nombre||'',registrado_por:p.registrado_por||'',notas:p.notas||''});
+          metodo:p.metodo,psicologa_nombre:p.psicologa_nombre||'',registrado_por:p.registrado_por||'',notas:p.notas||'',
+          destinoSesionId:destinoSesionId});
       }
     }
   }catch(e){console.error('[vincular pagos huérfanos - sobrante sesión suelta]',e);}
@@ -4650,11 +4670,22 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
   // correctos en vez de perderse o quedar contado de más en uno solo.
   pagosDividir.forEach(function(pd){
     patches.push(sbPatch('pagos',{monto:pd.montoRecortado},{id:'eq.'+pd.id}));
-    patches.push(sbPost('pagos',{fecha:pd.fecha,hora:pd.hora,monto:pd.sobrante,metodo:pd.metodo,
-      concepto:'Adelanto de paquete (separado de un pago combinado con una sesión suelta)',
-      paciente_nombre:pacNombre,psicologa_nombre:pd.psicologa_nombre,sede:sede,
-      registrado_por:pd.registrado_por,notas:pd.notas,programa_id:progId}));
-    totalVinculado+=pd.sobrante;
+    if(pd.destinoSesionId){
+      // El sobrante es la plata de la OTRA sesión suelta pendiente, no un
+      // adelanto del paquete - se vincula directo a esa sesión y no se
+      // cuenta en totalVinculado (eso es solo lo que de verdad entra al
+      // paquete).
+      patches.push(sbPost('pagos',{fecha:pd.fecha,hora:pd.hora,monto:pd.sobrante,metodo:pd.metodo,
+        concepto:'Pago sesión - '+pacNombre,
+        paciente_nombre:pacNombre,psicologa_nombre:pd.psicologa_nombre,sede:sede,
+        registrado_por:pd.registrado_por,notas:pd.notas,sesion_id:pd.destinoSesionId}));
+    } else {
+      patches.push(sbPost('pagos',{fecha:pd.fecha,hora:pd.hora,monto:pd.sobrante,metodo:pd.metodo,
+        concepto:'Adelanto de paquete (separado de un pago combinado con una sesión suelta)',
+        paciente_nombre:pacNombre,psicologa_nombre:pd.psicologa_nombre,sede:sede,
+        registrado_por:pd.registrado_por,notas:pd.notas,programa_id:progId}));
+      totalVinculado+=pd.sobrante;
+    }
   });
   await Promise.all(patches);
   // Se devuelve lo REALMENTE vinculado (puede superar un poco a
