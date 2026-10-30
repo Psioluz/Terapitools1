@@ -4761,6 +4761,67 @@ async function _vincularSobrepagoDeOtroPaquete(pacNombre,sede,progIdNuevo){
   return Math.round(totalMovido*100)/100;
 }
 
+// Puede pasar al revés del caso de arriba: una sesión SUELTA (Constancia,
+// Informe, consulta...) se cobra en dos partes mientras el paciente
+// todavía tenía UN paquete activo - el "Adelanto sesión" sin sesion_id se
+// engancha solo al paquete activo (ver _vincularPagosHuerfanosAPrograma),
+// dejando ese paquete con más pagado de lo que de verdad costaba, mientras
+// la sesión suelta (que a veces ni existía todavía como fila - se crea
+// recién cuando se agenda formalmente, días después) queda figurando como
+// pendiente de pago aunque ya está pagada (caso Larry Daniel Bizarro
+// Santos: pagó S/20 el 07/10 mientras su paquete regular seguía activo -
+// ese adelanto se enganchó ahí - y la Constancia recién se creó el 30/10,
+// quedando con S/20 de "deuda" que en realidad ya estaba pagada). Se
+// recupera ese sobrepago de cualquier paquete del paciente en esta sede y
+// se usa para cubrir sus sesiones sueltas pendientes, de la más antigua a
+// la más nueva.
+async function _vincularSobrepagoASesionSuelta(pacNombre,sede){
+  let sueltasPend=[];
+  try{
+    sueltasPend=await sbGet('sesiones',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,
+      programa_id:'is.null',tipo:'neq.paquete',select:'id,fecha,hora,saldo,estado'})||[];
+  }catch(e){console.error('[sobrepago a sesión suelta - sueltas]',e);return 0;}
+  const pendientes=sueltasPend.filter(function(s){
+    return['cancelado','permiso','reprogramado','congelado'].indexOf(s.estado)===-1&&(parseFloat(s.saldo)||0)>0.004;
+  }).sort(function(a,b){return(a.fecha+(a.hora||'')).localeCompare(b.fecha+(b.hora||''));});
+  if(!pendientes.length)return 0;
+  let progs=[];
+  try{
+    progs=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,select:'*'})||[];
+  }catch(e){console.error('[sobrepago a sesión suelta - programas]',e);return 0;}
+  let totalMovido=0;
+  for(const ses of pendientes){
+    let necesita=parseFloat(ses.saldo)||0;
+    for(const prog of progs){
+      if(necesita<=0.004)break;
+      let sobrante=Math.round(((prog.adelanto_acumulado||0)-(prog.costo_total||0))*100)/100;
+      if(sobrante<=0.004)continue;
+      let pagosProg=[];
+      try{
+        pagosProg=await sbGet('pagos',{programa_id:'eq.'+prog.id,select:'id,monto,fecha,hora'})||[];
+      }catch(e){console.error('[sobrepago a sesión suelta - pagos]',e);continue;}
+      // Igual que _vincularSobrepagoDeOtroPaquete: se mueven los pagos más
+      // RECIENTES del paquete sobrepagado (los más probables de haberse
+      // colado por error) hasta cubrir lo que falta de la sesión suelta.
+      pagosProg.sort(function(a,b){return((b.fecha||'')+(b.hora||'')).localeCompare((a.fecha||'')+(a.hora||''));});
+      for(const p of pagosProg){
+        if(necesita<=0.004||sobrante<=0.004)break;
+        const monto=parseFloat(p.monto)||0;
+        if(monto<=0.004)continue;
+        await sbPatch('pagos',{programa_id:null,sesion_id:ses.id},{id:'eq.'+p.id});
+        const nuevoAdelanto=Math.round(((prog.adelanto_acumulado||0)-monto)*100)/100;
+        await sbPatch('programas_paciente',{adelanto_acumulado:nuevoAdelanto,
+          saldo:Math.max(0,Math.round(((prog.costo_total||0)-nuevoAdelanto)*100)/100)},{id:'eq.'+prog.id});
+        prog.adelanto_acumulado=nuevoAdelanto;
+        sobrante=Math.round((sobrante-monto)*100)/100;
+        necesita=Math.round((necesita-monto)*100)/100;
+        totalMovido+=monto;
+      }
+    }
+  }
+  return Math.round(totalMovido*100)/100;
+}
+
 // ══ RECALCULAR SALDO (automático, sin botón) ══
 // Se dispara solo al abrir el Historial Clínico de un paciente (ver
 // renderHistorial) - nadie tiene que acordarse de ir a buscarlo. Mismo
@@ -4817,6 +4878,13 @@ async function recalcularSaldoPaciente(pacNombre){
   const activos=progs.filter(function(p){return p.estado==='activo';});
   if(activos.length===1){
     await _vincularPagosHuerfanosAPrograma(pacNombre,activos[0].sede,activos[0].id);
+  }
+  // Por cada sede donde el paciente tenga algún paquete, revisa si ese
+  // paquete quedó sobrepagado y, de ser así, intenta cubrir con eso sus
+  // sesiones sueltas pendientes (ver _vincularSobrepagoASesionSuelta).
+  const sedesConPaquete=Array.from(new Set(progs.map(function(p){return p.sede;}).filter(Boolean)));
+  for(const sedeProg of sedesConPaquete){
+    await _vincularSobrepagoASesionSuelta(pacNombre,sedeProg);
   }
   const resultado=[];
   for(const prog of progs){
