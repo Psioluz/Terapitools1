@@ -8232,7 +8232,14 @@ async function renderHistorial(){
         return '<tr'+(esReprogFila?' style="background:var(--bg);opacity:.65"':'')+'><td style="white-space:nowrap">'+fmtF(s.fecha)+' <span style="color:var(--muted)">'+s.hora+'</span></td><td>'+psH.nombre.replace('Lic.','').trim()+'</td>'+
           '<td>'+terBadge(terH)+'</td>'+
           '<td><span style="color:'+ec+';font-weight:700">'+estadoLabel(s.estado)+'</span></td>'+
-          '<td><span class="badge bk" style="font-size:10px">'+((esReprogFila||s.estado==='permiso'||s.estado==='congelado')?'-':s.tipo==='paquete'?'Paq '+_paqLabel(s):s.tipo)+'</span></td>'+
+          '<td><span class="badge bk" style="font-size:10px">'+((esReprogFila||s.estado==='permiso'||s.estado==='congelado')?'-':
+            s.tipo==='paquete'?'Paq '+_paqLabel(s):
+            // Un servicio de varias sesiones (Informe, Evaluación...) también
+            // debe mostrar su número de sesión, no solo el nombre del tipo
+            // repetido en cada fila sin forma de distinguir cuál es cuál
+            // (pasó con Anthony Luyo Trujillo: 5 sesiones de Informe, las 5
+            // filas mostraban igual "Informe" sin ningún 1/5, 2/5...).
+            ((s.totalPaq||1)>1?s.tipo+' '+_paqLabel(s):s.tipo))+'</span></td>'+
           '<td style="white-space:nowrap">'+costoCelda+'</td>'+
           '<td style="font-size:11px;color:var(--muted)">'+notasCelda+'</td>'+
           '<td style="white-space:nowrap">'+((s.estado==='programado'||s.estado==='noasistio'||s.estado==='permiso'||s.estado==='congelado')?botonesAsistenciaCompactoHTML(s):
