@@ -4487,7 +4487,7 @@ async function reemplazarPendientesPaquete(){
       const nro=nrosLiberados[idx];
       const saldoSesion=saldoPorNro[nro]||0;
       const filaSes={fecha:ev.fecha,hora:ev.hora,paciente_nombre:pac.nombre,paciente_tel:pac.tel||'',
-        psicologa:f.psicologa.nombre,terapia:f.terapia,estado:'programado',tipo:'paquete',
+        psicologa:f.psicologa.nombre,terapia:f.terapia,estado:'programado',tipo:progRow.tipo||'paquete',
         nro_en_paquete:nro,total_paquete:totalSesiones,costo_total:progRow.costo_total,
         adelanto:0,saldo:saldoSesion,sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||'',
         programa_id:progRow.id,programa_terapia_id:ptIdPorFila[ev.filaIdx]};
