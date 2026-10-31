@@ -5994,20 +5994,25 @@ async function pgOnPaciente(){
   if(document.getElementById('pg-pac')?.value!==pacId)return; // cambió de paciente mientras cargaba
   const deudaSuelta=_saldoSueltoReal(pac);
   info.style.display='block';
+  // Si hay AMBAS deudas, se sugiere primero la sesión suelta - mismo
+  // criterio que al guardar el pago (ver guardarPago): suele ser un
+  // servicio ya atendido que toca cobrar ya, mientras la cuota del
+  // paquete puede ser de una sesión futura todavía sin ocurrir.
+  if(deudaSuelta>0){
+    info.style.background='#fff7ed';info.style.color='#9a3412';
+    info.innerHTML='⚠️ Debe actualmente: <b>S/'+deudaSuelta+'</b> (sesiones sueltas, sin paquete)'+
+      (cuotaPend?' - ademas tiene una cuota pendiente de <b>S/'+cuotaPend.saldo+'</b> en el paquete <b>'+(prog.paquete_nombre||'Paquete')+'</b> (sesión del '+fmtF(cuotaPend.fecha)+').':
+        (prog?' - ademas tiene el paquete activo <b>'+(prog.paquete_nombre||'Paquete')+'</b>, sin cuota pendiente por ahora.':''));
+    elConcepto.value='Pago sesión - '+pac.nombre;
+    elMonto.value=deudaSuelta;
+    pgInicializarMetodos(elMonto.value);
+    return;
+  }
   if(cuotaPend){
     info.style.background='#fff7ed';info.style.color='#9a3412';
     info.innerHTML='📦 Paquete activo: <b>'+(prog.paquete_nombre||'Paquete')+'</b> - Cuota pendiente: <b>S/'+cuotaPend.saldo+'</b> (sesión del '+fmtF(cuotaPend.fecha)+')';
     elConcepto.value='Cuota '+(prog.paquete_nombre||'paquete');
     elMonto.value=cuotaPend.saldo;
-    pgInicializarMetodos(elMonto.value);
-    return;
-  }
-  if(deudaSuelta>0){
-    info.style.background='#fff7ed';info.style.color='#9a3412';
-    info.innerHTML='⚠️ Debe actualmente: <b>S/'+deudaSuelta+'</b> (sesiones sueltas, sin paquete)'+
-      (prog?' - ademas tiene el paquete activo <b>'+(prog.paquete_nombre||'Paquete')+'</b>, sin cuota pendiente por ahora.':'');
-    elConcepto.value='Pago sesión - '+pac.nombre;
-    elMonto.value=deudaSuelta;
     pgInicializarMetodos(elMonto.value);
     return;
   }
@@ -6259,7 +6264,17 @@ async function _guardarPagoInterno(){
         }
         const sesSuelta=DB.sesiones.filter(s=>(s.pacNom===pac.nombre||s.pacId===pac.nombre)&&s.saldo>0&&!(s._sb&&s._sb.programa_id))
           .sort((a,b)=>((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||'')))[0];
-        if(prog&&prog.id&&(progTieneCuotaPendiente||!sesSuelta)){
+        // Si hay AMBAS deudas pendientes (cuota de paquete Y sesión suelta),
+        // la sesión suelta gana - suele ser un servicio ya atendido (una
+        // consulta, por ejemplo) que la recepcionista quiere cobrar puntual,
+        // mientras la cuota del paquete puede ser de una sesión que ni
+        // siquiera ocurrió todavía. Antes el paquete siempre ganaba con solo
+        // tener una cuota pendiente, así que un pago pensado para la sesión
+        // suelta (ej. "Pago consulta S/15") terminaba metido entero en la
+        // cuota del paquete sin que la recepcionista pudiera elegir lo
+        // contrario (caso Deivis Santos: consulta de S/15 pendiente de
+        // cobro, pero el pago se iba solo a la cuota de su paquete nuevo).
+        if(prog&&prog.id&&progTieneCuotaPendiente&&!sesSuelta){
           pagoAtadoAPaquete=true;
           _pagoVinculado=true;
           const adelantoAcum=(prog.adelanto_acumulado||0)+monto;
