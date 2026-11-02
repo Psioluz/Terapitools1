@@ -5225,7 +5225,21 @@ async function guardarPaqueteFlujo(){
         // S/197 por partida doble). Se estampa el monto ANTES de aplicar
         // el adelanto de esta transacción (solo neto de adelantos de
         // ANTES, si los hay), para que la cascada lo descuente una sola vez.
-        cortes[yaAsignadas+1]=Math.max(0,costoTotal-(adelantoAcum-adelanto));
+        //
+        // PERO esa cascada de más abajo (aplicarCascadaCheckpoints) solo se
+        // llama "if(progId)" - es decir, solo cuando se está CONTINUANDO un
+        // paquete ya existente. En un paquete NUEVO (progId todavía no
+        // existe en esta llamada) esa cascada nunca corre, así que el
+        // adelanto de ESTA transacción se quedaba sin restar en ningún lado
+        // y la cuota 1 se estampaba con el costo COMPLETO, aunque la mamá
+        // ya hubiera dejado un adelanto parcial (ej. Deivis Santos y Caleb
+        // Flores: adelanto de S/10 sobre un paquete de S/324, la cuota 1
+        // seguía mostrando "Debe S/324" en vez de S/314). Si es un paquete
+        // nuevo, se neta aquí mismo el adelanto completo de esta
+        // transacción (no hay cascada que lo vaya a restar después); si es
+        // uno que se continúa, se deja igual que antes (neto solo de
+        // adelantos de ANTES, para que la cascada lo descuente una sola vez).
+        cortes[yaAsignadas+1]=Math.max(0,costoTotal-(progId?(adelantoAcum-adelanto):adelantoAcum));
       }
       let nro=yaAsignadas;
       for(const ev of sim.eventos){
