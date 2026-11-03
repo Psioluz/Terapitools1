@@ -5613,6 +5613,33 @@ async function guardarSesion(){
     const promesas=[];
     // Adelanto como pago
     if(adelanto>0){
+      // A diferencia de guardarPaqueteFlujo, esta función (usada sobre todo
+      // al REPROGRAMAR, pero también para una sesión suelta nueva con
+      // adelanto) nunca llamaba a aplicarCascadaCheckpoints - el pago se
+      // guardaba bien, vinculado a la sesión y al paquete correctos, pero
+      // el saldo de esa sesión y el adelanto_acumulado/saldo del paquete
+      // se quedaban sin descontar, como si nunca hubiera entrado el dinero
+      // (caso Daniel Rey Davila: reprogramó con un adelanto de S/274, el
+      // pago quedó registrado y bien vinculado, pero la sesión seguía
+      // mostrando "Debe S/274" porque nada le restó ese pago a su saldo).
+      // Si la sesión pertenece a un paquete, se aplica la cascada ANTES de
+      // guardar el pago - mismo orden que guardarPaqueteFlujo, para que el
+      // checkpoint que recibe el pago quede ya en 0/lo que corresponda.
+      // También hay que sumar este adelanto al total acumulado del paquete
+      // (programas_paciente) - la cascada solo toca el saldo de cada
+      // sesión-checkpoint, nunca el total del paquete en sí.
+      if(filaSesion&&filaSesion.programa_id){
+        await aplicarCascadaCheckpoints(filaSesion.programa_id,adelanto);
+        try{
+          const progRowsReprog=await sbGet('programas_paciente',{id:'eq.'+filaSesion.programa_id,select:'*'});
+          const progReprog=progRowsReprog&&progRowsReprog[0];
+          if(progReprog){
+            const adelantoAcumReprog=(progReprog.adelanto_acumulado||0)+adelanto;
+            const saldoReprog=Math.max(0,(progReprog.costo_total||0)-adelantoAcumReprog);
+            await sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcumReprog,saldo:saldoReprog},{id:'eq.'+filaSesion.programa_id});
+          }
+        }catch(eProgReprog){console.error('[adelanto reprog -> programa]',eProgReprog);}
+      }
       const n=new Date();
       const horaPago=horaLima(n);
       const filasPago=agFilasPagoParaGuardar(adelanto);
