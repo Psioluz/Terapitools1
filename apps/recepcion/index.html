@@ -4631,7 +4631,7 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
   let huerfanos=[];
   try{
     huerfanos=await sbGet('pagos',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,
-      sesion_id:'is.null',programa_id:'is.null',select:'id,monto,fecha'})||[];
+      sesion_id:'is.null',programa_id:'is.null',select:'id,monto,fecha,hora,metodo,psicologa_nombre,registrado_por,notas'})||[];
   }catch(e){console.error('[vincular pagos huérfanos]',e);huerfanos=[];}
   // Un pago puede estar atado a una sesión SUELTA puntual (sesion_id SÍ
   // tiene valor) por un monto MAYOR al costo real de esa sesión - eso pasa
@@ -4716,23 +4716,97 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
     }).reduce(function(a,s){return a+(parseFloat(s.costo_total)||0);},0);
   }catch(e){console.error('[vincular pagos huérfanos - sueltas]',e);}
   const disponibleParaPaquete=Math.max(0,Math.round((totalHuerfanos-costoSueltasPendientes)*100)/100);
+
+  // Antes de repartir lo disponible al paquete NUEVO (progId), hay que
+  // revisar si el paciente tiene OTRO paquete más viejo (de esta sede) con
+  // saldo pendiente - esa plata huérfana casi siempre es justo lo que
+  // faltaba pagar de ESE paquete anterior, no un adelanto del que se acaba
+  // de crear. Antes se mandaba todo al nuevo sin chequear esto, y un
+  // paquete viejo ya atendido se quedaba "vencido" sin cobrar mientras el
+  // nuevo aparecía pagado de más (pasó con Loren Romina Cabello Rojas: un
+  // pago del 19/10 que pagaba el paquete de esa misma fecha terminó atado
+  // 15 días después al paquete nuevo, y el viejo quedó figurando vencido
+  // en las alertas pese a estar realmente cobrado).
+  let progsViejosPendientes=[];
+  try{
+    progsViejosPendientes=await sbGet('programas_paciente',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,
+      id:'neq.'+progId,saldo:'gt.0',select:'id,saldo,costo_total,adelanto_acumulado,fecha_inicio'})||[];
+    progsViejosPendientes.sort(function(a,b){return(a.fecha_inicio||'').localeCompare(b.fecha_inicio||'');});
+  }catch(e){console.error('[vincular pagos huérfanos - paquetes viejos]',e);}
+  const deudaViejaTotal=progsViejosPendientes.reduce(function(a,pr){return a+(parseFloat(pr.saldo)||0);},0);
+
   // Se vincula primero el pago más grande (lo más probable es que un
   // adelanto de paquete sea un monto grande de una sola vez, mientras que
   // las sesiones sueltas suelen ser montos chicos) hasta cubrir el
   // sobrante disponible - no necesariamente todos los pagos huérfanos, si
   // parte de ese dinero sigue perteneciendo a sesiones sueltas.
   huerfanos.sort(function(a,b){return(parseFloat(b.monto)||0)-(parseFloat(a.monto)||0);});
-  let restante=disponibleParaPaquete;
+  const patches=[];
+
+  // 1) Liquidar primero la deuda vieja (si hay), consumiendo filas enteras
+  // hasta cubrirla; si una fila alcanza y sobra, se PARTE (igual que ya se
+  // hace abajo con pagosDividir): el recorte cubre la deuda vieja y el
+  // sobrante sigue disponible para el paquete nuevo.
+  let objetivoViejo=Math.min(disponibleParaPaquete,Math.round(deudaViejaTotal*100)/100);
+  let totalAViejos=0;
+  const idsAViejos=[];
+  let filaPartidaViejo=null;
+  const huerfanosParaNuevo=[];
+  for(const p of huerfanos){
+    const monto=Math.round((parseFloat(p.monto)||0)*100)/100;
+    if(objetivoViejo<=0.004){huerfanosParaNuevo.push(p);continue;}
+    if(monto<=objetivoViejo+0.004){
+      idsAViejos.push(p.id);totalAViejos=Math.round((totalAViejos+monto)*100)/100;
+      objetivoViejo=Math.round((objetivoViejo-monto)*100)/100;
+    }else{
+      filaPartidaViejo={id:p.id,montoRecortado:objetivoViejo,sobrante:Math.round((monto-objetivoViejo)*100)/100,
+        fecha:p.fecha,hora:p.hora,metodo:p.metodo,psicologa_nombre:p.psicologa_nombre||'',
+        registrado_por:p.registrado_por||'',notas:p.notas||''};
+      totalAViejos=Math.round((totalAViejos+objetivoViejo)*100)/100;
+      objetivoViejo=0;
+    }
+  }
+  if(idsAViejos.length||filaPartidaViejo){
+    // Todas las filas que liquidan deuda vieja se atan (para el historial)
+    // al paquete viejo MÁS ANTIGUO con saldo pendiente - si hubiera más de
+    // uno (caso raro), la cascada de más abajo igual reparte el monto
+    // correctamente sesión por sesión entre todos ellos.
+    const progViejoDestino=progsViejosPendientes[0].id;
+    idsAViejos.forEach(function(id){patches.push(sbPatch('pagos',{programa_id:progViejoDestino},{id:'eq.'+id}));});
+    if(filaPartidaViejo){
+      patches.push(sbPatch('pagos',{monto:filaPartidaViejo.montoRecortado,programa_id:progViejoDestino},{id:'eq.'+filaPartidaViejo.id}));
+      if(filaPartidaViejo.sobrante>0.004){
+        huerfanosParaNuevo.unshift({id:null,monto:filaPartidaViejo.sobrante,fecha:filaPartidaViejo.fecha,
+          hora:filaPartidaViejo.hora,metodo:filaPartidaViejo.metodo,psicologa_nombre:filaPartidaViejo.psicologa_nombre,
+          registrado_por:filaPartidaViejo.registrado_por,notas:filaPartidaViejo.notas,_esSobranteViejo:true});
+      }
+    }
+  }
+
+  // 2) Lo que sobró después de cubrir deuda vieja sigue el reparto de
+  // siempre: se vincula al paquete NUEVO (progId) hasta agotar lo
+  // disponible.
+  let restante=Math.max(0,Math.round((disponibleParaPaquete-totalAViejos)*100)/100);
   const idsAVincular=[];
   let totalVinculado=0;
-  for(const p of huerfanos){
+  for(const p of huerfanosParaNuevo){
     if(restante<=0.004)break;
-    idsAVincular.push(p.id);
-    totalVinculado+=(parseFloat(p.monto)||0);
-    restante=Math.round((restante-(parseFloat(p.monto)||0))*100)/100;
+    const monto=Math.round((parseFloat(p.monto)||0)*100)/100;
+    if(p._esSobranteViejo){
+      // El sobrante de la fila partida arriba todavía no existe como fila
+      // propia - se crea ya atada al paquete nuevo.
+      patches.push(sbPost('pagos',{fecha:p.fecha,hora:p.hora,monto:monto,metodo:p.metodo,
+        concepto:'Adelanto de paquete (sobrante tras cubrir un paquete anterior)',
+        paciente_nombre:pacNombre,psicologa_nombre:p.psicologa_nombre,sede:sede,
+        registrado_por:p.registrado_por,notas:p.notas,programa_id:progId}));
+    }else{
+      idsAVincular.push(p.id);
+    }
+    totalVinculado=Math.round((totalVinculado+monto)*100)/100;
+    restante=Math.round((restante-monto)*100)/100;
   }
-  if(!idsAVincular.length&&!pagosDividir.length)return 0;
-  const patches=idsAVincular.map(function(id){return sbPatch('pagos',{programa_id:progId},{id:'eq.'+id});});
+  if(!idsAVincular.length&&!pagosDividir.length&&!idsAViejos.length&&!filaPartidaViejo)return 0;
+  idsAVincular.forEach(function(id){patches.push(sbPatch('pagos',{programa_id:progId},{id:'eq.'+id}));});
   // Cada pago con sobrante de sesión suelta se PARTE en dos: se recorta el
   // original al costo real de su sesión (sigue cubriéndola igual que
   // antes, intacto) y se crea un pago nuevo con el sobrante, ya atado al
@@ -4758,10 +4832,28 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
     }
   });
   await Promise.all(patches);
-  // Se devuelve lo REALMENTE vinculado (puede superar un poco a
-  // disponibleParaPaquete porque se atan filas de pago completas, no se
-  // parten) - si se devolviera solo disponibleParaPaquete, el adelanto del
-  // paquete quedaría por debajo de lo que de verdad tiene vinculado ahora.
+
+  // Liquidar de verdad la deuda vieja: aplicar totalAViejos en cascada por
+  // fecha (checkpoint más antiguo primero) entre todos los paquetes viejos
+  // pendientes, y actualizar el adelanto_acumulado/saldo de cada uno según
+  // lo que de verdad se le aplicó.
+  if(totalAViejos>0.004){
+    let restanteViejo=totalAViejos;
+    for(const pr of progsViejosPendientes){
+      if(restanteViejo<=0.004)break;
+      const aplicado=Math.min(restanteViejo,parseFloat(pr.saldo)||0);
+      if(aplicado<=0.004)continue;
+      await aplicarCascadaCheckpoints(pr.id,aplicado);
+      const nuevoAdelanto=Math.round(((parseFloat(pr.adelanto_acumulado)||0)+aplicado)*100)/100;
+      const nuevoSaldo=Math.max(0,Math.round(((parseFloat(pr.costo_total)||0)-nuevoAdelanto)*100)/100);
+      await sbPatch('programas_paciente',{adelanto_acumulado:nuevoAdelanto,saldo:nuevoSaldo},{id:'eq.'+pr.id});
+      restanteViejo=Math.round((restanteViejo-aplicado)*100)/100;
+    }
+  }
+
+  // Se devuelve lo REALMENTE vinculado al paquete NUEVO (progId) - puede
+  // superar un poco a lo disponible porque se atan filas de pago
+  // completas, no se parten más allá del límite con la deuda vieja.
   return Math.round(totalVinculado*100)/100;
 }
 
