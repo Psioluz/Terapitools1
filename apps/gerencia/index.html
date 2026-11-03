@@ -1231,18 +1231,34 @@ function _diasTrabajoANum(txt){
           // más RECIENTES (las de hoy en adelante) en vez de las antiguas.
           // Con _sbAll() se pagina y se trae TODO sin importar cuánto crezca -
           // no hay techo que se pueda volver a desbordar con el tiempo.
-          _sbAll('sesiones',Object.assign({'select':'*','order':'fecha.desc,hora.desc'},sedeFiltro(sede))),
+          //
+          // "select" ya NO pide "*" en las tablas donde el mapeo de abajo
+          // (sesiones/psicologas/recepcionistas/pacientes/programas/
+          // honorarios/asistencia) enumera exactamente qué campos usa - se
+          // probó que varias secciones (Retención, LTV, progreso de
+          // paquetes, cumplimiento de fichas por licenciada desde que
+          // empezó a usar el sistema) SÍ necesitan el historial COMPLETO de
+          // sesiones/fichas, así que acotar por fecha rompía esas cuentas.
+          // En cambio, pedir solo las columnas que de verdad se leen (en
+          // vez de todas las que tiene la tabla) no quita ninguna fila ni
+          // cambia ningún cálculo - solo hay menos bytes que bajar y
+          // parsear por cada una de las miles de filas. fichas_seguimiento/
+          // pagos/gastos/terapias/contratos se dejan con "*" porque se
+          // pasan tal cual a otras partes de la app sin un mapeo que liste
+          // sus campos usados, y no vale la pena el riesgo de auditar cada
+          // uso a mano por un ahorro chico (son tablas más chicas).
+          _sbAll('sesiones',Object.assign({'select':'id,fecha,hora,paciente_nombre,paciente_tel,psicologa,terapia,estado,tipo,nro_en_paquete,total_paquete,costo_total,saldo,sede,email_registro','order':'fecha.desc,hora.desc'},sedeFiltro(sede))),
           // es_multisede=false: un profesional externo que atiende en TODAS
           // las sedes (ej. el neuropsicólogo) no es personal del centro -
           // no tiene sueldo/contrato con nosotros y no debe contar en
           // ocupación, planilla ni rendimiento de ESTA sede.
-          _sb('psicologas',Object.assign({'estado':'eq.activa','es_multisede':'eq.false','select':'*'},sedeFiltro(sede))),
-          _sb('recepcionistas',Object.assign({'estado':'eq.activa','select':'*'},sedeFiltro(sede))),
-          _sb('pacientes',Object.assign({'estado':'eq.activo','select':'*'},sedeFiltro(sede))),
+          _sb('psicologas',Object.assign({'estado':'eq.activa','es_multisede':'eq.false','select':'id,nombre,sede,email,password,estado,cpsp,especialidad,hora_inicio,hora_fin,dias_trabajo,fecha_nac,telefono,dia_completo,numero_cuenta,cci,color_agenda,sueldo,foto_url'},sedeFiltro(sede))),
+          _sb('recepcionistas',Object.assign({'estado':'eq.activa','select':'id,nombre,sede,email,password,estado,fecha_nac,telefono,sueldo'},sedeFiltro(sede))),
+          _sb('pacientes',Object.assign({'estado':'eq.activo','select':'id,nombre,telefono,sede,psicologa,terapia,paquete,diagnostico,direccion,fecha_nac,apoderado,estado,saldo'},sedeFiltro(sede))),
           _sb('terapias',{'select':'*'}),
           _sbAll('fichas_seguimiento',Object.assign({'select':'*','order':'fecha.desc'},sedeFiltro(sede))),
           _sb('bonos_diarios',Object.assign({'fecha':'gte.'+mes+'-01','select':'*','order':'fecha.desc'},sedeFiltro(sede))),
-          _sb('honorarios',Object.assign({'mes':'eq.'+mes,'select':'*'},sedeFiltro(sede))),
+          _sb('honorarios',Object.assign({'mes':'eq.'+mes,'select':'id,psicologa_nombre,sede,mes,estado,monto_base,descuento_tardanza,descuento_inasistencia,total'},sedeFiltro(sede))),
           _sb('contratos',Object.assign({'select':'*'},sedeFiltro(sede))),
           // Antes solo traía desde el 1 del mes actual: cualquier mes
           // anterior que Gerencia quisiera revisar (filtro de mes, o la
@@ -1253,13 +1269,19 @@ function _diasTrabajoANum(txt){
           // lado de "sesiones" (ya se trae completa arriba con _sbAll).
           _sbAll('pagos',Object.assign({'select':'*','order':'fecha.desc'},sedeFiltro(sede))),
           _sbAll('gastos',Object.assign({'select':'*','order':'fecha.desc'},sedeFiltro(sede))),
-          _sb('asistencia_personal',Object.assign({'select':'*','order':'fecha.desc','limit':'500'},sedeFiltro(sede))),
-          _sb('programas_paciente',Object.assign({'estado':'eq.activo','select':'*'},sedeFiltro(sede))),
+          _sb('asistencia_personal',Object.assign({'select':'id,fecha,psicologa,sede,estado,entrada,registrado_por','order':'fecha.desc','limit':'500'},sedeFiltro(sede))),
+          _sb('programas_paciente',Object.assign({'estado':'eq.activo','select':'id,paciente_nombre,sede,estado,saldo'},sedeFiltro(sede))),
           // Primer ingreso real de cada psicóloga a SU app - para que el
           // resumen acumulado de fichas (ver renderFichasIndicador) no la
           // audite por días antes de que siquiera hubiera entrado a usar
-          // el sistema.
-          _sb('log_accesos',{'app':'eq.psicologa','select':'usuario,created_at','order':'created_at.asc'}).catch(function(){return[];})
+          // el sistema. Antes sin límite: esta tabla crece sola (cada login
+          // de cada app suma una fila) y nada acotaba cuánto podía llegar a
+          // pesar esta consulta con el tiempo. El orden ascendente ya hace
+          // que la PRIMERA fila de cada psicóloga aparezca lo antes posible
+          // en el resultado, así que un límite generoso sigue capturando el
+          // primer ingreso real de todas las psicólogas activas hoy sin
+          // tener que traer la tabla entera.
+          _sb('log_accesos',{'app':'eq.psicologa','select':'usuario,created_at','order':'created_at.asc','limit':'5000'}).catch(function(){return[];})
         ]).then(function(r){
           var ses=r[0]||[],psis=r[1]||[],recs=r[2]||[],pacs=r[3]||[],ters=r[4]||[];
           var fichas=r[5]||[],bonos=r[6]||[],hon=r[7]||[],conts=r[8]||[];
@@ -2015,12 +2037,24 @@ function renderCumpleanos(){
 }
 
 function renderTodo(){
-  renderFinanzas();
-  renderPacientes();
-  renderPersonal();
-  renderSedes();
-  renderCrecimiento();
+  // Antes recalculaba las 6 pestañas completas en CADA sincronización,
+  // aunque solo una esté visible a la vez - puro trabajo de más, porque
+  // goTab() ya vuelve a renderizar la pestaña correspondiente apenas se
+  // hace clic en otra (ver el mismo renderMap ahí). Ahora solo se
+  // recalcula la pestaña que de verdad está activa en este momento.
+  // renderAlertas() es la única excepción: actualiza #alertaBadge, un
+  // contador que se ve en el sidebar sin importar qué pestaña esté
+  // abierta, así que esa sí tiene que recalcularse siempre.
   renderAlertas();
+  var renderMap={
+    'tFinanzas':renderFinanzas,'tPacientes':renderPacientes,
+    'tPersonal':renderPersonal,'tSedes':renderSedes,
+    'tCrecimiento':renderCrecimiento
+  };
+  var activeTab=document.querySelector('.page.active');
+  var tabId=activeTab?.id||'tFinanzas';
+  var fn=renderMap[tabId];
+  if(fn)fn();
 }
 
 // ════════════════════════════════════════════════════════════════════════════
