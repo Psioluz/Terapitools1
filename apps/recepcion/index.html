@@ -5911,7 +5911,15 @@ function abrirPago(sesId){
   document.getElementById('pg-concepto').value=(ses.tipo==='paquete'?'Paquete '+ses.totalPaq+' ses.':'Sesión')+' - '+getPac(ses.pacId).nombre;
   const elPgNotas=document.getElementById('pg-notas');if(elPgNotas)elPgNotas.value='';
   const elDeudaInfo=document.getElementById('pg-deuda-info');if(elDeudaInfo)elDeudaInfo.style.display='none';
-  document.getElementById('modalPagoTit').textContent='💰 Cobrar - '+getPac(ses.pacId).nombre;
+  // El título antes solo mostraba el nombre, sin fecha - si el paciente
+  // tiene dos sesiones cercanas en la lista del día (ej. hoy y una
+  // próxima semana), un clic en la fila equivocada no se nota hasta más
+  // tarde, porque el modal parece idéntico sea cual sea la sesión real
+  // (pasó con Ashly Kataleya Gomez, Bruno Verastegui Esquivel y Logan
+  // Yordano Concepcion: el pago de "hoy" terminó cobrando una sesión
+  // futura). Ahora el título siempre muestra también la fecha de ESA
+  // sesión puntual, para confirmar de un vistazo que es la correcta.
+  document.getElementById('modalPagoTit').textContent='💰 Cobrar - '+getPac(ses.pacId).nombre+' ('+fmtF(ses.fecha)+')';
   const elAjuste=document.getElementById('pg-esAjuste');if(elAjuste)elAjuste.checked=false;
   const elAjustePac=document.getElementById('pg-ajustePaciente');if(elAjustePac)elAjustePac.value='';
   pgToggleAjuste();
