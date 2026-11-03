@@ -179,6 +179,7 @@ try{
     <div class='nav-section'>Comunicación</div>
     <div class='nav-item' onclick="showPage('chat',this)">💬 Chat</div>
     <div class='nav-item' onclick="showPage('cumpleanos',this)">🎂 Cumpleaños</div>
+    <div class='nav-item' onclick="showPage('comunicados',this)">📢 Comunicados</div>
   </div>
   <div style='padding:12px 16px;border-top:1px solid rgba(255,255,255,.1)'>
     <div style='font-size:11px;color:rgba(255,255,255,.5);margin-bottom:6px;text-align:center' id='admNombre'></div>
@@ -385,6 +386,14 @@ try{
       </div>
     </div>
 
+    <!-- COMUNICADOS -->
+    <div class='page' id='page-comunicados'>
+      <div class='card'>
+        <div class='card-header'><div class='card-title'>📢 Comunicados</div><button class='btn btn-primary btn-sm' onclick="document.getElementById('modalComunicado').classList.add('open')">+ Nuevo</button></div>
+        <div id='listaComunicados' style='padding:12px'></div>
+      </div>
+    </div>
+
   </div></div></div>
 
 <!-- MODAL TERAPIA -->
@@ -525,6 +534,23 @@ try{
 </div>
 </div>
 
+<!-- MODAL COMUNICADO -->
+<div class='modal-overlay' id='modalComunicado'>
+<div class='modal'>
+  <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px'>📢 Nuevo Comunicado</span><button onclick="document.getElementById('modalComunicado').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
+  <div class='form-group'><label class='form-label'>Título</label><input class='form-control' id='comTitulo' placeholder='Ej: Horario especial feriado'></div>
+  <div class='form-group'><label class='form-label'>Mensaje</label><input class='form-control' id='comMensaje' placeholder='Detalle del comunicado...'></div>
+  <div class='grid g2'>
+    <div class='form-group'><label class='form-label'>Dirigido a</label><select class='form-control' id='comDestinatario'><option value='ambos'>Psicólogas y Recepción</option><option value='psicologa'>Solo Psicólogas</option><option value='recepcion'>Solo Recepción</option></select></div>
+    <div class='form-group'><label class='form-label'>Sede</label><select class='form-control' id='comSede'><option value=''>Todas las sedes</option></select></div>
+    <div class='form-group'><label class='form-label'>Válido desde</label><input class='form-control' type='date' id='comInicio'></div>
+    <div class='form-group'><label class='form-label'>Válido hasta (opcional)</label><input class='form-control' type='date' id='comFin'></div>
+  </div>
+  <div class='form-group'><label style='font-size:11px;font-weight:700;color:#64748b;display:block;margin:10px 0 4px'>🖼️ Imagen / Flyer (opcional)</label><input type='file' id='comImagen' accept='image/*' style='width:100%;padding:8px;border:1.5px dashed #e2e8f0;border-radius:10px;font-size:12px;box-sizing:border-box'></div>
+  <button class='btn btn-primary' style='width:100%;padding:12px;font-size:14px;margin-top:4px' onclick='guardarComunicado()'>💾 Publicar Comunicado</button>
+</div>
+</div>
+
 <!-- MODAL INSUMO -->
 <div class='modal-overlay' id='modalInsumo'>
 <div class='modal'>
@@ -634,6 +660,7 @@ async function cargarSedesActivas(){
   var tfSel=document.getElementById('tfSede');if(tfSel)tfSel.innerHTML=optsConValor;
   var ofSel=document.getElementById('ofSede');if(ofSel)ofSel.innerHTML=optsConValor;
   var ferSel=document.getElementById('ferSede');if(ferSel)ferSel.insertAdjacentHTML('beforeend',opts);
+  var comSel=document.getElementById('comSede');if(comSel)comSel.insertAdjacentHTML('beforeend',optsConValor);
   var accSel=document.getElementById('accSede');if(accSel&&!accSel.children.length)accSel.innerHTML=opts+'<option>Todas</option>';
 }
 
@@ -786,7 +813,7 @@ function showPage(name,el){
   var pg=document.getElementById('page-'+name);if(pg)pg.classList.add('active');
   if(el)el.classList.add('active');
   document.getElementById('pageTitle').textContent=PAGE_TITLES[name]||name;
-  var renders={dashboard:renderDashboard,contratos:renderContratos,sueldos:renderSueldos,asistencia:renderAsistencia,inventario:renderInventario,personal:renderPersonal,sedes:renderSedes,gastos:function(){renderAlquiler();renderGastos();},auditoria:renderAuditoria,chat:renderChat,cumpleanos:renderCumpleanos,calendario:function(){renderCalendarioPagos('calendarioPagosContainer');},metas:renderMetasPsicologas,fichas:renderFichaPacSel,accesos:renderAccesos,feriados:renderFeriados,rendimiento:renderRendimiento};
+  var renders={dashboard:renderDashboard,contratos:renderContratos,sueldos:renderSueldos,asistencia:renderAsistencia,inventario:renderInventario,personal:renderPersonal,sedes:renderSedes,gastos:function(){renderAlquiler();renderGastos();},auditoria:renderAuditoria,chat:renderChat,cumpleanos:renderCumpleanos,comunicados:renderComunicados,calendario:function(){renderCalendarioPagos('calendarioPagosContainer');},metas:renderMetasPsicologas,fichas:renderFichaPacSel,accesos:renderAccesos,feriados:renderFeriados,rendimiento:renderRendimiento};
   if(renders[name])renders[name]();
   // Cerrar el menú lateral al elegir una sección (igual que las demás
   // apps) - en escritorio no afecta nada (el sidebar ya es fijo ahí),
@@ -812,7 +839,7 @@ window.addEventListener('DOMContentLoaded',function(){
 function cambiarSede(){
   var sel=document.getElementById('selectorSede');if(sel){D.sede=sel.value;recargar();}
 }
-var PAGE_TITLES={dashboard:'Dashboard',contratos:'Contratos',sueldos:'Sueldos y Bonos',asistencia:'Asistencia',inventario:'Inventario',personal:'Personal',sedes:'Sedes',feriados:'Feriados',rendimiento:'Rendimiento Recepción',gastos:'Gastos y Pagos Fijos',tarifas:'Tarifas y Precios',accesos:'Gestión de Accesos',auditoria:'Auditoría',chat:'Chat',cumpleanos:'Cumpleaños',calendario:'Calendario',metas:'Metas',fichas:'Fichas y Reportes'};
+var PAGE_TITLES={dashboard:'Dashboard',contratos:'Contratos',sueldos:'Sueldos y Bonos',asistencia:'Asistencia',inventario:'Inventario',personal:'Personal',sedes:'Sedes',feriados:'Feriados',rendimiento:'Rendimiento Recepción',gastos:'Gastos y Pagos Fijos',tarifas:'Tarifas y Precios',accesos:'Gestión de Accesos',auditoria:'Auditoría',chat:'Chat',cumpleanos:'Cumpleaños',comunicados:'Comunicados',calendario:'Calendario',metas:'Metas',fichas:'Fichas y Reportes'};
 
 // DASHBOARD
 // Antes los indicadores iban en columnas apretadas una al lado de otra -
@@ -941,6 +968,47 @@ async function eliminarContrato(id){
     toast('✅ Contrato eliminado');
     await recargar();
   }catch(e){toast('Error: '+e.message,'error');}
+}
+
+// COMUNICADOS
+async function renderComunicados(){
+  var el=document.getElementById('listaComunicados');if(!el)return;
+  try{
+    var lista=await sbGet('comunicados',{select:'*',order:'created_at.desc'});
+    if(!lista||!lista.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin comunicados</p>';return;}
+    el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Título</th><th>Dirigido a</th><th>Sede</th><th>Vigencia</th><th>Estado</th><th></th></tr></thead><tbody>'+
+    lista.map(function(c){
+      var dest={ambos:'Psicólogas y Recepción',psicologa:'Solo Psicólogas',recepcion:'Solo Recepción'}[c.destinatario]||c.destinatario;
+      var vig=fmtF(c.fecha_inicio)+(c.fecha_fin?' - '+fmtF(c.fecha_fin):' - sin fin');
+      return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(c.imagen_url?'🖼️ ':'')+c.titulo+'</td><td style="font-size:12px">'+dest+'</td><td style="font-size:12px">'+(c.sede||'Todas')+'</td><td style="font-size:11px">'+vig+'</td><td>'+badge(c.activo?'activo':'vencido')+'</td><td style="text-align:right;white-space:nowrap"><button onclick="toggleComunicado('+_sq(c.id)+','+(!c.activo)+')" style="background:#eef2ff;color:#4338ca;border:none;border-radius:6px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer;margin-right:4px">'+(c.activo?'⏸':'▶️')+'</button><button onclick="eliminarComunicado('+_sq(c.id)+')" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer">🗑</button></td></tr>';
+    }).join('')+'</tbody></table>';
+  }catch(e){console.error('Comunicados:',e);el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Error al cargar</p>';}
+}
+async function guardarComunicado(){
+  var d={titulo:document.getElementById('comTitulo').value.trim(),mensaje:document.getElementById('comMensaje').value.trim(),destinatario:document.getElementById('comDestinatario').value,sede:document.getElementById('comSede').value||null,fecha_inicio:document.getElementById('comInicio').value||today(),fecha_fin:document.getElementById('comFin').value||null,activo:true,creado_por:ADM.nombre};
+  if(!d.titulo){toast('Ingresa un título','error');return;}
+  try{
+    var inp=document.getElementById('comImagen');
+    if(inp&&inp.files&&inp.files[0]){
+      toast('⏳ Subiendo imagen...');
+      var f=inp.files[0];
+      var path=Date.now()+'_'+f.name.replace(/[^a-zA-Z0-9.]/g,'_');
+      d.imagen_url=await sbUpload('comunicados',path,f,f.type);
+    }
+    await sbPost('comunicados',d);
+    if(inp)inp.value='';
+    document.getElementById('comTitulo').value='';document.getElementById('comMensaje').value='';document.getElementById('comFin').value='';
+    document.getElementById('modalComunicado').classList.remove('open');
+    toast('✅ Comunicado publicado');
+    await renderComunicados();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+async function toggleComunicado(id,activo){
+  try{await sbPatch('comunicados',{activo:activo},{id:'eq.'+id});toast(activo?'✅ Comunicado activado':'⏸ Comunicado pausado');await renderComunicados();}catch(e){toast('Error: '+e.message,'error');}
+}
+async function eliminarComunicado(id){
+  if(!confirm('¿Eliminar este comunicado?'))return;
+  try{await sbDelete('comunicados',{id:'eq.'+id});toast('✅ Comunicado eliminado');await renderComunicados();}catch(e){toast('Error: '+e.message,'error');}
 }
 
 // SUELDOS Y BONOS

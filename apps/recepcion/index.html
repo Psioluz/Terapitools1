@@ -1669,7 +1669,64 @@ async function doLogin() {
     var elUsr=document.getElementById('userLabel'); if(elUsr)elUsr.textContent=(user.nombre||'')+' · '+user.sede;
     try{ initApp(); }catch(e){ console.error('[initApp]',e); }
     cargarDesdeSB();
+    setTimeout(function(){verificarComunicadosRecep();},1300);
   });
+}
+
+// COMUNICADOS: flyers/avisos publicados por Administración, mostrados una
+// sola vez por recepcionista (se marca como "visto" en comunicados_vistos)
+// al iniciar sesión. El filtro de sede/vigencia se hace en el cliente
+// porque involucra un OR (sede=la mía O sede vacía) que el REST simple no
+// expresa.
+async function verificarComunicadosRecep(){
+  try{
+    var hoy=new Date(_limaMs()).toISOString().split('T')[0];
+    var usuarioKey=DB.usuario||'';
+    if(!usuarioKey)return;
+    var activos=await sbGet('comunicados',{destinatario:'in.(recepcion,ambos)',activo:'eq.true',fecha_inicio:'lte.'+hoy,select:'*'});
+    var vistos=await sbGet('comunicados_vistos',{usuario:'eq.'+encodeURIComponent(usuarioKey),select:'comunicado_id'});
+    var vistosIds=(vistos||[]).map(function(v){return v.comunicado_id;});
+    var pendientes=(activos||[]).filter(function(c){
+      if(vistosIds.indexOf(c.id)!==-1)return false;
+      if(c.fecha_fin&&c.fecha_fin<hoy)return false;
+      if(c.sede&&c.sede!==DB.sede)return false;
+      return true;
+    });
+    if(pendientes.length)mostrarModalComunicadoRecep(pendientes,0,usuarioKey);
+  }catch(e){console.warn('[comunicados]',e);}
+}
+function mostrarModalComunicadoRecep(lista,idx,usuarioKey){
+  if(idx>=lista.length)return;
+  var c=lista[idx];
+  var ov=document.getElementById('comunicadoOverlay');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.id='comunicadoOverlay';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML='<div style="background:#fff;border-radius:16px;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'+
+    (c.imagen_url?'<img src="'+c.imagen_url+'" style="width:100%;border-radius:16px 16px 0 0;display:block;max-height:280px;object-fit:cover">':'')+
+    '<div style="padding:20px">'+
+    '<div style="font-weight:800;font-size:16px;color:#4a0e2e;margin-bottom:8px">📢 '+(c.titulo||'')+'</div>'+
+    '<div style="font-size:13px;color:#334155;line-height:1.5;white-space:pre-wrap">'+(c.mensaje||'')+'</div>'+
+    '<button onclick="cerrarComunicadoRecep('+idx+')" style="margin-top:18px;width:100%;padding:12px;background:linear-gradient(135deg,#4a0e2e,#c2185b);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer">Entendido</button>'+
+    '</div></div>';
+  ov.style.display='flex';
+  window._comunicadosPend=lista;window._comunicadosUsuario=usuarioKey;
+}
+async function cerrarComunicadoRecep(idx){
+  var lista=window._comunicadosPend||[];
+  var c=lista[idx];
+  var ov=document.getElementById('comunicadoOverlay');
+  if(ov)ov.style.display='none';
+  if(c){
+    try{await sbPost('comunicados_vistos',{comunicado_id:c.id,usuario:window._comunicadosUsuario});}catch(e){console.warn('[comunicado visto]',e);}
+  }
+  var next=idx+1;
+  if(next<lista.length){
+    setTimeout(function(){mostrarModalComunicadoRecep(lista,next,window._comunicadosUsuario);},300);
+  }
 }
 
 
