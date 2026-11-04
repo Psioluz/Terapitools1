@@ -6051,6 +6051,28 @@ function guardarPaciente(){
 // ══════════════════════════════════════════════════
 function abrirPago(sesId){
   const ses=DB.sesiones.find(s=>s.id===sesId);if(!ses)return;
+  // Aviso en el título (fecha en "Cobrar - Nombre (fecha)") no bastó: la
+  // recepcionista hace clic en la fila equivocada y el pago se guarda sin
+  // que nadie note la fecha hasta que el paciente reclama (pasó con Ashly
+  // Kataleya Gomez, Bruno Verastegui, Logan Concepcion, Ariel Ramirez,
+  // Aleska Cordova y Saith Guarnizo - siempre el mismo patrón: cobrar una
+  // sesión FUTURA mientras una de hoy/antes del mismo paciente se queda
+  // sin pagar). Ahora, si la sesión que se va a cobrar es futura Y el
+  // paciente tiene otra sesión de hoy o antes con saldo pendiente, se
+  // interrumpe con una confirmación explícita antes de abrir el modal.
+  if(ses.fecha>today()){
+    const otraPendiente=DB.sesiones.find(function(s){
+      return s.pacId===ses.pacId&&s.id!==ses.id&&s.fecha<=today()&&(s.saldo||0)>0.004&&
+        s.estado!=='cancelado'&&s.estado!=='reprogramado'&&s.estado!=='permiso'&&s.estado!=='congelado';
+    });
+    if(otraPendiente){
+      const seguir=confirm('⚠️ Esta sesión es del FUTURO ('+fmtF(ses.fecha)+').\n\n'+
+        getPac(ses.pacId).nombre+' tiene una sesión del '+fmtF(otraPendiente.fecha)+' con S/'+otraPendiente.saldo+' pendiente de pago.\n\n'+
+        '¿Seguro que quieres cobrar la sesión FUTURA y no esa?\n\n'+
+        'Presiona Cancelar para cerrar esto y cobrar la sesión correcta.');
+      if(!seguir)return;
+    }
+  }
   _pagoSesionId=sesId;
   const el=document.getElementById('pg-pac');if(el)el.value=ses.pacId;
   const elP=document.getElementById('pg-ps');if(elP)elP.value=ses.psId;
