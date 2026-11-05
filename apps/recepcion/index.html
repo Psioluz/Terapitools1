@@ -3536,7 +3536,13 @@ function agOnTipo(){
     // una vez para mover la cita - dejarlas ocultas esperando un servId
     // que nunca se va a elegir dejaba el modal sin forma de poner la
     // nueva fecha.
-    const necesitaServicio=!!tipo&&tipo!=='adelanto'&&!_reprogDe;
+    // "Precio Exclusivo" en modo "Por sesión" NO necesita elegir un
+    // servicio del catálogo (grpServ ya está oculto para esExclusivo más
+    // arriba) - pero antes esExclusivo no se excluía aquí, así que
+    // necesitaServicio igual daba true y ocultaba Psicóloga/Terapia,
+    // Fecha/Hora y Costo sin que nada los volviera a mostrar: no había
+    // forma de completar una consulta/sesión con precio exclusivo.
+    const necesitaServicio=!!tipo&&tipo!=='adelanto'&&!esExclusivo&&!_reprogDe;
     if(grpSimple)grpSimple.style.display=necesitaServicio?'none':'contents';
     if(grpFH)grpFH.style.display=necesitaServicio?'none':'contents';
     if(grpCostoSimple)grpCostoSimple.style.display=necesitaServicio?'none':'block';
