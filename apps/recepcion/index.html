@@ -7434,7 +7434,7 @@ async function generarReporte(){
   const fecha=document.getElementById('rptFecha')?.value||today();
   await _refrescarDatosReporteFecha(fecha);
   _renderAvisoPendientesReporte();
-  const ses=DB.sesiones.filter(s=>s.fecha===fecha&&s.estado!=='cancelado');
+  const ses=DB.sesiones.filter(s=>s.fecha===fecha);
   const pags=DB.pagos.filter(p=>p.fecha===fecha);
   const asist=ses.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
   const noAs=ses.filter(s=>s.estado==='noasistio').length;
@@ -7558,7 +7558,7 @@ async function exportarPDF(){
   // chips (terapia, paquete, estado, pago) que en vertical se cortaban.
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
   const W=297,M=14;let y=10;
-  const ses=DB.sesiones.filter(s=>s.fecha===fecha&&s.estado!=='cancelado');
+  const ses=DB.sesiones.filter(s=>s.fecha===fecha);
   const pags=DB.pagos.filter(p=>p.fecha===fecha);
   const asist=ses.filter(s=>s.estado==='asistio').length;
   const noAs=ses.filter(s=>s.estado==='noasistio').length;
@@ -8946,7 +8946,7 @@ function compartirReporteWA(){
   // click del usuario, o el navegador lo bloquea como pop-up no confiable
   // (por eso antes, dentro de un setTimeout, WhatsApp nunca se abría).
   const fecha=document.getElementById('rptFecha')?.value||today();
-  const ses=DB.sesiones.filter(s=>s.fecha===fecha&&s.estado!=='cancelado');
+  const ses=DB.sesiones.filter(s=>s.fecha===fecha);
   const pags=DB.pagos.filter(p=>p.fecha===fecha);
   const asist=ses.filter(s=>s.estado==='asistio').length;
   const noAs=ses.filter(s=>s.estado==='noasistio').length;
