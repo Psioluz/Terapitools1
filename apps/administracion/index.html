@@ -581,13 +581,15 @@ try{
   <div class='grid g2'>
     <div class='form-group' id='psCpspGrp'><label class='form-label'>CPSP / Colegiatura</label><input class='form-control' id='psCpsp' placeholder='CPSP-12345'></div>
     <div class='form-group' id='psEspGrp'><label class='form-label'>Especialidad</label><input class='form-control' id='psEsp' placeholder='Clínica, Educativa...'></div>
-    <div class='form-group'><label class='form-label'>Grado académico</label><input class='form-control' id='psGrado' placeholder='Ej: Magíster en Psicología Clínica'></div>
+    <div class='form-group' id='psGradoGrp'><label class='form-label'>Grado académico</label><input class='form-control' id='psGrado' placeholder='Ej: Magíster en Psicología Clínica'></div>
     <div class='form-group'><label class='form-label'>Email <span id='psEmailReq'>*</span></label><input class='form-control' type='email' id='psEmail' placeholder='psicologa@psicoluz.pe'></div>
     <div class='form-group'><label class='form-label'>Contraseña <span id='psPassReq'>*</span></label><input class='form-control' type='password' id='psPass' placeholder='Dejar vacío para no cambiarla'></div>
     <div class='form-group'><label class='form-label'>Teléfono</label><input class='form-control' id='psTel' placeholder='987654321'></div>
     <div class='form-group'><label class='form-label'>Sueldo base (S/)</label><input class='form-control' type='number' id='psSueldo' value='0'></div>
-    <div class='form-group'><label class='form-label'>Hora inicio</label><input class='form-control' type='time' id='psHoraIn' value='08:00'></div>
-    <div class='form-group'><label class='form-label'>Hora fin</label><input class='form-control' type='time' id='psHoraFin' value='19:00'></div>
+    <div class='form-group'><label class='form-label'>Día de pago (1-31)</label><input class='form-control' type='number' min='1' max='31' id='psDiaPago'></div>
+    <div class='form-group'><label class='form-label'>Fecha de ingreso</label><input class='form-control' type='date' id='psFechaIngreso'></div>
+    <div class='form-group' id='psHoraInGrp'><label class='form-label'>Hora inicio</label><input class='form-control' type='time' id='psHoraIn' value='08:00'></div>
+    <div class='form-group' id='psHoraFinGrp'><label class='form-label'>Hora fin</label><input class='form-control' type='time' id='psHoraFin' value='19:00'></div>
   </div>
   <button class='btn btn-primary' style='width:100%;padding:12px;font-size:14px;margin-top:4px' id='psGuardarBtn' onclick='guardarPsicologa()'>💾 Registrar Psicóloga</button>
 </div>
@@ -1153,7 +1155,8 @@ function _calcTotalTrabajador(p,mesStr){
 function renderSueldos(){
   var el=document.getElementById('listaSueldos');if(!el)return;
   var todos=(D.psicologas||[]).map(function(p){return Object.assign({},p,{_tabla:'psicologas',_rol:'Psicóloga'});})
-    .concat((D.recepcionistas||[]).map(function(p){return Object.assign({},p,{_tabla:'recepcionistas',_rol:'Recepción'});}));
+    .concat((D.recepcionistas||[]).map(function(p){return Object.assign({},p,{_tabla:'recepcionistas',_rol:'Recepción'});}))
+    .concat((D.usuariosGerencia||[]).filter(function(u){return u.rol==='gerencia'&&u.estado==='activo';}).map(function(p){return Object.assign({},p,{_tabla:'usuarios_gerencia',_rol:'Directora'});}));
   if(!todos.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin personal activo</p>';return;}
   var mesStr=mesY();
   todos.forEach(function(p){p._diasHastaPago=_diasHastaPago(parseInt(p.dia_pago)||0);});
@@ -1196,7 +1199,7 @@ function renderSueldos(){
       +'<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;background:'+(esHoy?'linear-gradient(135deg,#be123c,#e11d48)':'linear-gradient(135deg,'+col+',#1e293b)')+'">'
         +'<div style="width:30px;height:30px;flex:none;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:900">'+(p.nombre||'?').charAt(0)+'</div>'
         +'<div style="flex:1;min-width:160px"><div style="color:#fff;font-weight:800;font-size:13px">'+p.nombre+'</div>'
-        +'<div style="color:rgba(255,255,255,.75);font-size:10px;font-weight:700">'+(esPs?'👩‍⚕️ Psicóloga':'💻 Recepción')+' · '+diaPagoTxt+'</div></div>'
+        +'<div style="color:rgba(255,255,255,.75);font-size:10px;font-weight:700">'+(esPs?'👩‍⚕️ Psicóloga':p._tabla==='usuarios_gerencia'?'📊 Directora':'💻 Recepción')+' · '+diaPagoTxt+'</div></div>'
         +badge((hon&&hon.estado)||'pendiente')
       +'</div>'
       +'<div style="padding:10px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:8px">'
@@ -1458,7 +1461,8 @@ function renderPersonal(){
   // Antes solo salían las psicólogas - Personal también incluye a las
   // recepcionistas, que son personal de la sede igual y tienen sueldo fijo.
   var todos=(D.psicologas||[]).map(function(p){return Object.assign({},p,{_tabla:'psicologas',_rol:'👩‍⚕️ Psicóloga'});})
-    .concat((D.recepcionistas||[]).map(function(p){return Object.assign({},p,{_tabla:'recepcionistas',_rol:'💻 Recepción'});}));
+    .concat((D.recepcionistas||[]).map(function(p){return Object.assign({},p,{_tabla:'recepcionistas',_rol:'💻 Recepción'});}))
+    .concat((D.usuariosGerencia||[]).filter(function(u){return u.rol==='gerencia'&&u.estado==='activo';}).map(function(p){return Object.assign({},p,{_tabla:'usuarios_gerencia',_rol:'📊 Directora'});}));
   if(!todos.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin personal activo</p>';return;}
   el.innerHTML='<div style="display:grid;gap:10px">'+todos.map(function(p){return'<div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f8faff;border-radius:10px"><div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#4a0e2e,#e91e8c);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:900">'+p.nombre.charAt(0)+'</div><div style="flex:1"><div style="font-weight:800">'+p.nombre+' <span style="font-weight:600;font-size:11px;color:var(--acc)">'+p._rol+'</span></div><div style="font-size:11px;color:var(--muted)">'+(p.cpsp||'')+(p.especialidad?' · '+p.especialidad:'')+(p.grado_academico?' · '+p.grado_academico:'')+'</div><div style="font-size:11px;color:var(--muted)">'+(p.email||'')+(p.telefono?' · '+p.telefono:'')+'</div></div>'+badge(p.estado||'activa')+
     '<button style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer" onclick="editarPsicologa('+_sq(p._tabla)+','+_sq(p.id)+')">✏️ Editar</button>'+
@@ -1501,8 +1505,10 @@ function editarPsicologa(tabla,id){
   // de editarse desde aquí (ni de "activar" una que se autorregistró desde
   // el formulario web público, que llega con estado "pendiente").
   tabla=tabla||'psicologas';
-  var p=((tabla==='psicologas'?D.psicologas:D.recepcionistas)||[]).find(function(x){return String(x.id)===String(id);});if(!p)return;
+  var listaTabla={psicologas:D.psicologas,recepcionistas:D.recepcionistas,usuarios_gerencia:D.usuariosGerencia}[tabla]||[];
+  var p=(listaTabla||[]).find(function(x){return String(x.id)===String(id);});if(!p)return;
   var esPs=tabla==='psicologas';
+  var esGer=tabla==='usuarios_gerencia';
   document.getElementById('psTabla').value=tabla;
   document.getElementById('psId').value=p.id;
   document.getElementById('psNombre').value=p.nombre||'';
@@ -1513,10 +1519,15 @@ function editarPsicologa(tabla,id){
   document.getElementById('psPass').value='';
   document.getElementById('psTel').value=p.telefono||'';
   document.getElementById('psSueldo').value=p.sueldo||0;
+  document.getElementById('psDiaPago').value=p.dia_pago||'';
+  document.getElementById('psFechaIngreso').value=p.fecha_ingreso||'';
   document.getElementById('psHoraIn').value=(p.hora_inicio||'08:00').substring(0,5);
   document.getElementById('psHoraFin').value=(p.hora_fin||'19:00').substring(0,5);
   document.getElementById('psCpspGrp').style.display=esPs?'':'none';
   document.getElementById('psEspGrp').style.display=esPs?'':'none';
+  document.getElementById('psGradoGrp').style.display=esGer?'none':'';
+  document.getElementById('psHoraInGrp').style.display=esGer?'none':'';
+  document.getElementById('psHoraFinGrp').style.display=esGer?'none':'';
   document.getElementById('modalPsicologaTit').textContent=(p.estado==='pendiente'?'✅ Activar: ':'✏️ Editar: ')+p.nombre;
   document.getElementById('psGuardarBtn').textContent=p.estado==='pendiente'?'💾 Activar acceso':'💾 Guardar cambios';
   document.getElementById('psEmailReq').textContent='*';
@@ -1528,8 +1539,17 @@ async function guardarPsicologa(){
   var id=document.getElementById('psId').value;
   var tabla=document.getElementById('psTabla').value||'psicologas';
   var esPs=tabla==='psicologas';
+  var esGer=tabla==='usuarios_gerencia';
   var pass=document.getElementById('psPass').value;
-  var d={nombre:document.getElementById('psNombre').value,grado_academico:document.getElementById('psGrado').value,email:document.getElementById('psEmail').value,telefono:document.getElementById('psTel').value,sueldo:parseFloat(document.getElementById('psSueldo').value)||0,hora_inicio:document.getElementById('psHoraIn').value,hora_fin:document.getElementById('psHoraFin').value};
+  // usuarios_gerencia no tiene columnas grado_academico/hora_inicio/hora_fin
+  // (son directoras, no tienen horario de atención ni grado académico que
+  // registrar aquí) - mandarlas igual rompería el guardado con un error de
+  // columna inexistente.
+  var d={nombre:document.getElementById('psNombre').value,email:document.getElementById('psEmail').value,telefono:document.getElementById('psTel').value,
+    sueldo:parseFloat(document.getElementById('psSueldo').value)||0,
+    dia_pago:parseInt(document.getElementById('psDiaPago').value)||null,
+    fecha_ingreso:document.getElementById('psFechaIngreso').value||null};
+  if(!esGer){d.grado_academico=document.getElementById('psGrado').value;d.hora_inicio=document.getElementById('psHoraIn').value;d.hora_fin=document.getElementById('psHoraFin').value;}
   if(esPs){d.cpsp=document.getElementById('psCpsp').value;d.especialidad=document.getElementById('psEsp').value;}
   if(!d.nombre||!d.email){toast('Nombre y email son obligatorios','error');return;}
   if(!id&&!pass){toast('La contraseña es obligatoria para un registro nuevo','error');return;}
@@ -2421,6 +2441,7 @@ function renderAlquiler(){
   // siempre muestren el mismo monto por persona.
   var planilla=(D.psicologas||[]).map(function(p){return Object.assign({},p,{_tabla:'psicologas',_rol:'Psicóloga'});})
     .concat((D.recepcionistas||[]).map(function(p){return Object.assign({},p,{_tabla:'recepcionistas',_rol:'Recepción'});}))
+    .concat((D.usuariosGerencia||[]).filter(function(u){return u.rol==='gerencia'&&u.estado==='activo';}).map(function(p){return Object.assign({},p,{_tabla:'usuarios_gerencia',_rol:'Directora'});}))
     .map(function(p){return Object.assign({_p:p},_calcTotalTrabajador(p,mesStr));});
   var totPlanilla=planilla.reduce(function(a,x){return a+(x.total||0);},0);
   var tot=totRecurrentes+totPlanilla;
