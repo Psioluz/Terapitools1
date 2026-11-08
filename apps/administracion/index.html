@@ -1132,6 +1132,24 @@ function _montoPorSesionDelMes(p,mesStr){
   var n=Object.keys(ids).length;
   return{monto:n*p.pago_por_sesion,n:n};
 }
+// Mismo cálculo que hace renderSueldos fila por fila, pero reusable desde
+// otros lados (ej. Pagos Fijos, para sumar la planilla del mes junto al
+// alquiler) - evita que el total de un lado se desincronice del otro.
+function _calcTotalTrabajador(p,mesStr){
+  var hon=D.honorarios.find(function(h){return h.psicologa_nombre===p.nombre;});
+  var rTard=hon?(hon.descuento_tardanza||0):0,rInas=hon?(hon.descuento_inasistencia||0):0;
+  var asist=_descuentoPorAsistencia(p,mesStr,rTard,rInas);
+  var aplicaDescuento=hon?hon.aplicar_descuento!==false:true;
+  var descuento=aplicaDescuento?asist.descuento:0;
+  var bonos=(D.bonos||[]).filter(function(b){return(b.nombre||b.psicologa_nombre)===p.nombre;}).reduce(function(a,b){return a+(b.monto_bono||0);},0);
+  var otroDescuento=hon?(hon.descuento_otro||0):0;
+  var otroDescuentoMotivo=hon?(hon.descuento_otro_motivo||''):'';
+  var porSesion=_montoPorSesionDelMes(p,mesStr);
+  var base=porSesion?porSesion.monto:(hon?hon.monto_base:(p.sueldo||0));
+  var total=base+bonos-descuento-otroDescuento;
+  return{base:base,descuento:descuento,bonos:bonos,otroDescuento:otroDescuento,otroDescuentoMotivo:otroDescuentoMotivo,
+    total:total,hon:hon,porSesion:porSesion,yaPagado:!!(hon&&hon.estado==='pagado')};
+}
 function renderSueldos(){
   var el=document.getElementById('listaSueldos');if(!el)return;
   var todos=(D.psicologas||[]).map(function(p){return Object.assign({},p,{_tabla:'psicologas',_rol:'Psicóloga'});})
@@ -2364,10 +2382,19 @@ function exportarSUNAT(){
 function renderAlquiler(){
   var el=document.getElementById('listaAlquiler');if(!el)return;
   var rows=D.pagosRecurrentes||[];
-  if(!rows.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin pagos fijos registrados (alquiler, internet, servicios...)</p>';return;}
-  var tot=rows.reduce(function(a,r){return a+(r.monto||0);},0);
   var mesStr=mesY();
-  el.innerHTML='<div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:8px">Total mensual fijo: S/'+tot.toFixed(2)+'</div>'+
+  var totRecurrentes=rows.reduce(function(a,r){return a+(r.monto||0);},0);
+  // Planilla (sueldos fijos + pagos por evaluación como el del Dr. Daniel)
+  // se suma aquí también, junto al alquiler/servicios - mismo cálculo que
+  // Sueldos y Bonos (ver _calcTotalTrabajador), para que ambos lados
+  // siempre muestren el mismo monto por persona.
+  var planilla=(D.psicologas||[]).map(function(p){return Object.assign({},p,{_tabla:'psicologas',_rol:'Psicóloga'});})
+    .concat((D.recepcionistas||[]).map(function(p){return Object.assign({},p,{_tabla:'recepcionistas',_rol:'Recepción'});}))
+    .map(function(p){return Object.assign({_p:p},_calcTotalTrabajador(p,mesStr));});
+  var totPlanilla=planilla.reduce(function(a,x){return a+(x.total||0);},0);
+  var tot=totRecurrentes+totPlanilla;
+  if(!rows.length&&!planilla.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin pagos fijos registrados (alquiler, internet, servicios...)</p>';return;}
+  el.innerHTML='<div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:8px">Total mensual fijo: S/'+tot.toFixed(2)+' <span style="font-weight:600;color:var(--muted)">(alquiler/servicios: S/'+totRecurrentes.toFixed(2)+' + planilla: S/'+totPlanilla.toFixed(2)+')</span></div>'+
     '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Concepto</th><th>Monto</th><th>Día de pago</th><th>Sede</th><th>Estado</th><th></th></tr></thead><tbody>'+
     rows.map(function(r){
       // Si ya existe un gasto de este mismo pago fijo registrado este mes
@@ -2379,6 +2406,14 @@ function renderAlquiler(){
         (yaPagado?'<span class="badge bg">✅ Pagado este mes</span>':'<button class="btn btn-sm" style="background:#dcfce7;color:#166534;font-weight:800" onclick="marcarRecurrentePagado(\''+r.id+'\')">✅ Marcar pagado</button>')+
         ' <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarRecurrente(\''+r.id+'\')">🗑</button></td></tr>';
     }).join('')+
+    (planilla.length?'<tr><td colspan="6" style="padding:10px;font-size:11px;font-weight:800;color:var(--acc);background:#fdf2f8">👥 PLANILLA (sueldos y pagos por evaluación)</td></tr>'+
+      planilla.map(function(x){
+        var p=x._p;
+        return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(x.porSesion?'Pago por evaluación':'Sueldo')+' - '+p.nombre+'</td><td style="font-weight:900;color:#dc2626">S/'+x.total.toFixed(2)+'</td><td style="font-size:12px">Día '+(p.dia_pago||'-')+'</td><td style="font-size:12px">'+(p.sede||'-')+'</td><td>'+badge(x.yaPagado?'pagado':'pendiente')+'</td>'+
+        '<td style="text-align:right;white-space:nowrap">'+
+        (x.yaPagado?'<span class="badge bg">✅ Pagado este mes</span>':'<button class="btn btn-sm" style="background:#dcfce7;color:#166534;font-weight:800" onclick="marcarHonorarioPagado('+_sq(p._tabla)+','+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+x.base+','+x.descuento+','+x.bonos+','+x.total+','+x.otroDescuento+','+_sq(x.otroDescuentoMotivo)+')">✅ Marcar pagado</button>')+
+        '</td></tr>';
+      }).join(''):'')+
     '</tbody></table>';
 }
 // Registra de un clic el gasto del mes para este pago fijo (sin tener que
