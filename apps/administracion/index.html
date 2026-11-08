@@ -754,11 +754,13 @@ async function recargar(){
       sbGet('sesiones',Object.assign({fecha:'gte.'+mes+'-01',select:'*',order:'fecha.desc',limit:'1500'},sedeFiltro(sed))),
       sbGet('pacientes',Object.assign({estado:'eq.activo',select:'*',order:'nombre.asc'},sedeFiltro(sed))),
       sbGet('pagos',Object.assign({fecha:'gte.'+mes+'-01',select:'*',order:'fecha.desc',limit:'1500'},sedeFiltro(sed))),
-      // es_multisede=false: excluye a profesionales externos que atienden en
-      // TODAS las sedes (ej. el neuropsicólogo) de las planillas/reportes de
-      // personal de ESTA sede - no es personal del centro, no tiene sueldo
-      // ni contrato con nosotros, y contarlo aquí inflaría ocupación/nómina.
-      sbGet('psicologas',Object.assign({estado:'eq.activa',es_multisede:'eq.false',select:'*'},sedeFiltro(sed))),
+      // Antes se excluía aquí a todo profesional es_multisede=true (ej. el
+      // neuropsicólogo externo) de las planillas/reportes, asumiendo que
+      // nunca tiene sueldo ni contrato con nosotros - pero un multisede SÍ
+      // puede tener un pago por sesión configurado (psicologas.
+      // pago_por_sesion, ver Dr. Daniel), en cuyo caso debe aparecer igual
+      // en Personal/Sueldos. El filtro real queda más abajo, sobre D.psicologas.
+      sbGet('psicologas',Object.assign({estado:'eq.activa',select:'*'},sedeFiltro(sed))),
       sbGet('contratos',Object.assign({select:'*',order:'created_at.desc'},sedeFiltro(sed))).catch(function(){return[];}),
       sbGet('gastos',Object.assign({fecha:'gte.'+mes+'-01',select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
       sbGet('honorarios',Object.assign({mes:'eq.'+mes,select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
@@ -775,7 +777,8 @@ async function recargar(){
       sbGet('rendimiento_recepcion',Object.assign({mes:'eq.'+mes,select:'*'},sedeFiltro(sed))).catch(function(){return[];}),
       sbGet('ofertas_especiales',Object.assign({select:'*',order:'created_at.desc'},sedeFiltro(sed))).catch(function(){return[];})
     ]);
-    D.sesiones=res[0]||[];D.pacientes=res[1]||[];D.pagos=res[2]||[];D.psicologas=res[3]||[];
+    D.sesiones=res[0]||[];D.pacientes=res[1]||[];D.pagos=res[2]||[];
+    D.psicologas=(res[3]||[]).filter(function(p){return !p.es_multisede||(p.pago_por_sesion||0)>0;});
     D.contratos=res[4]||[];D.gastos=res[5]||[];D.honorarios=res[6]||[];D.asistencia=res[7]||[];D.insumos=res[8]||[];
     D.tarifas=res[9]||[];D.precios=res[10]||[];D.bonos=res[11]||[];D.pagosRecurrentes=res[12]||[];
     D.terapias=sed?(res[13]||[]).filter(function(t){return terapiaAplicaASede(t.sede,sed);}):(res[13]||[]);
@@ -1108,6 +1111,27 @@ function _diasHastaPago(diaPago){
   if(candidata<hoySinHora)candidata=new Date(hoy.getFullYear(),hoy.getMonth()+1,diaPago);
   return Math.round((candidata-hoySinHora)/86400000);
 }
+function _normalizaTxtAdm(s){return(s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();}
+// Para una trabajadora sin sueldo fijo (pago_por_sesion>0, ej. el Dr.
+// Daniel por cada Evaluación Neuropsicológica), su "sueldo base" del mes
+// no sale de psicologas.sueldo (que queda en 0) sino de cuántas
+// evaluaciones distintas se agendaron este mes × su tarifa fija. Se
+// cuenta por programa_id (una evaluación = varias sesiones del mismo
+// programa) para no pagarle 3 veces una sola evaluación de 3 sesiones.
+function _montoPorSesionDelMes(p,mesStr){
+  if(!(p.pago_por_sesion>0)||!p.terapia_pago_por_sesion)return null;
+  var key=_normalizaTxtAdm(p.terapia_pago_por_sesion);
+  var ids={};
+  (D.sesiones||[]).forEach(function(s){
+    if(s.psicologa!==p.nombre)return;
+    if((s.fecha||'').substring(0,7)!==mesStr)return;
+    if(s.estado==='cancelado')return;
+    if(_normalizaTxtAdm(s.terapia)!==key)return;
+    ids[s.programa_id||s.id]=true;
+  });
+  var n=Object.keys(ids).length;
+  return{monto:n*p.pago_por_sesion,n:n};
+}
 function renderSueldos(){
   var el=document.getElementById('listaSueldos');if(!el)return;
   var todos=(D.psicologas||[]).map(function(p){return Object.assign({},p,{_tabla:'psicologas',_rol:'Psicóloga'});})
@@ -1116,7 +1140,8 @@ function renderSueldos(){
   var mesStr=mesY();
   todos.forEach(function(p){p._diasHastaPago=_diasHastaPago(parseInt(p.dia_pago)||0);});
   todos.sort(function(a,b){return a._diasHastaPago-b._diasHastaPago;});
-  el.innerHTML='<div style="display:grid;gap:10px">'+
+  var _sumaPlanilla=0;
+  var _filasSueldos=
   todos.map(function(p){
     var hon=D.honorarios.find(function(h){return h.psicologa_nombre===p.nombre;});
     var rTard=hon?(hon.descuento_tardanza||0):0, rInas=hon?(hon.descuento_inasistencia||0):0;
@@ -1136,7 +1161,10 @@ function renderSueldos(){
     var bonos=(D.bonos||[]).filter(function(b){return (b.nombre||b.psicologa_nombre)===p.nombre;}).reduce(function(a,b){return a+(b.monto_bono||0);},0);
     var otroDescuento=hon?(hon.descuento_otro||0):0;
     var otroDescuentoMotivo=hon?(hon.descuento_otro_motivo||''):'';
-    var base=hon?hon.monto_base:(p.sueldo||0);var total=base+bonos-descuento-otroDescuento;
+    var porSesion=_montoPorSesionDelMes(p,mesStr);
+    var base=porSesion?porSesion.monto:(hon?hon.monto_base:(p.sueldo||0));
+    var total=base+bonos-descuento-otroDescuento;
+    _sumaPlanilla+=total;
     var yaPagado=hon&&hon.estado==='pagado';
     var esHoy=p._diasHastaPago===0;
     var col=esPs?'#4a0e2e':'#0369a1';
@@ -1154,8 +1182,9 @@ function renderSueldos(){
         +badge((hon&&hon.estado)||'pendiente')
       +'</div>'
       +'<div style="padding:10px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:8px">'
-        +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px">S/'+base+'</div><div class="stat-label" style="font-size:8.5px">Sueldo base</div></div>'
-        +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:#0369a1">S/'+costoHora.toFixed(2)+'</div><div class="stat-label" style="font-size:8.5px">Costo/hora</div></div>'
+        +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px">S/'+base+'</div><div class="stat-label" style="font-size:8.5px">'+(porSesion?'Pago del mes':'Sueldo base')+'</div></div>'
+        +(porSesion?'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:#0369a1">'+porSesion.n+'</div><div class="stat-label" style="font-size:8.5px">📋 Evaluaciones × S/'+p.pago_por_sesion+'</div></div>'
+          :'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:#0369a1">S/'+costoHora.toFixed(2)+'</div><div class="stat-label" style="font-size:8.5px">Costo/hora</div></div>')
         +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:'+(asist.nFaltas?'#dc2626':'var(--muted)')+'">'+faltasTxt+'</div><div class="stat-label" style="font-size:8.5px">❌ Faltas</div></div>'
         +'<div class="stat-card" style="padding:7px 5px'+(asist.nTard?';cursor:pointer':'')+'"'+(asist.nTard?' onclick="verDetalleTardanza('+_sq(p.nombre)+')" title="Ver detalle"':'')+'><div class="stat-value" style="font-size:13px;color:'+(asist.nTard?'#d97706':'var(--muted)')+'">'+asist.minTardTotal+' min</div><div class="stat-label" style="font-size:8.5px">🕐 Tardanza'+(asist.nTard?' · 👁 ver':'')+'</div></div>'
         +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:'+(descuentoCalc>0?(aplicaDescuento?'#dc2626':'var(--muted)'):'var(--muted)')+(aplicaDescuento?'':';text-decoration:line-through')+'">'+(descuentoCalc>0?'-S/'+descuentoCalc.toFixed(2):'S/0.00')+'</div><div class="stat-label" style="font-size:8.5px">Descuento'+(descuentoCalc>0&&!aplicaDescuento?' (no aplicado)':'')+'</div></div>'
@@ -1174,7 +1203,9 @@ function renderSueldos(){
       +(yaPagado?'<div style="flex:1;text-align:center;padding:9px;font-size:12px;font-weight:800;color:#166534;background:#dcfce7">✅ Ya pagado este mes</div>':'<button class="btn btn-sm" style="flex:1;border-radius:0;background:#dcfce7;color:#166534;font-weight:800" onclick="marcarHonorarioPagado('+_sq(p._tabla)+','+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+base+','+descuento+','+bonos+','+total+','+otroDescuento+','+_sq(otroDescuentoMotivo)+')">💾 Marcar pagado</button>')
       +'</div>'
       +'</div>';
-  }).join('')+'</div>'
+  }).join('');
+  el.innerHTML='<div style="font-size:13px;font-weight:800;color:var(--dark);background:#f8faff;border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:10px">💰 Total planilla del mes (todo el personal, incluye pagos por evaluación): <span style="color:var(--acc)">S/'+_sumaPlanilla.toFixed(2)+'</span></div>'
+  +'<div style="display:grid;gap:10px">'+_filasSueldos+'</div>'
   +'<div style="font-size:10px;color:var(--muted);margin-top:10px">➖ Costo/hora = sueldo ÷ 30 días ÷ 8 horas. Si la trabajadora tiene una tasa fija configurada (botón "Descuentos"), el descuento usa esa tasa; si no, se calcula automático con los minutos reales tarde (o el día completo en una falta) sobre su costo/hora. Por cada falta se agrega además el descanso semanal proporcional (sueldo ÷ 30) según D.S. 012-92-TR - la ley prohíbe descontar el día de descanso completo, pero sí exige descontar su parte proporcional. Click en "Tardanza" para ver el detalle día por día. "Solo informativo" deja el descuento visible pero no lo resta del total. Las tarjetas se ordenan por cercanía al día de pago. "📄 Recibo" genera el PDF en cualquier momento. "Marcar pagado" además lo suma a Gastos de la sede.</div>';
 }
 // Ver el detalle día por día de las tardanzas del mes (fecha, hora real
@@ -2400,11 +2431,12 @@ async function renderCalendarioPagos(contId){
   try{
     var y=_calMes.y,m=_calMes.m;
     var res=await Promise.all([
-      sbGet('psicologas',{es_multisede:'eq.false',select:'nombre,sede,dia_pago,fecha_ingreso,fecha_nac,estado,sueldo,numero_cuenta,cci'}).catch(function(){return[];}),
+      sbGet('psicologas',{select:'nombre,sede,dia_pago,fecha_ingreso,fecha_nac,estado,sueldo,es_multisede,pago_por_sesion,numero_cuenta,cci'}).catch(function(){return[];}),
       sbGet('recepcionistas',{select:'nombre,sede,dia_pago,fecha_ingreso,estado,sueldo,numero_cuenta,cci'}).catch(function(){return[];}),
       sbGet('pagos_recurrentes',{select:'*'}).catch(function(){return[];}),
       sbGet('pacientes',{select:'nombre,fecha_nac',estado:'eq.activo'}).catch(function(){return[];})
     ]);
+    res[0]=(res[0]||[]).filter(function(p){return !p.es_multisede||(p.pago_por_sesion||0)>0;});
     _calTrabajadoras=res[0].concat(res[1]);
     _calPagosRecurrentes=res[2];
     var eventos={};
