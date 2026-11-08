@@ -58,6 +58,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .alert{padding:10px 14px;border-radius:8px;margin-bottom:8px;font-size:13px}
 .al-warn{background:#fef3c7;border-left:3px solid #f59e0b}
 .al-info{background:#fce7f3;border-left:3px solid var(--acc)}
+.al-danger{background:#fee2e2;border-left:3px solid #dc2626}
 @media(max-width:768px){.sidebar{transform:translateX(-100%);position:fixed;z-index:100;top:0;height:100vh}.sidebar.open{transform:translateX(0)}.g4{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr}select,input,.form-control{font-size:16px!important;min-height:44px}}
 
 </style>
@@ -233,7 +234,7 @@ try{
     <!-- INVENTARIO -->
     <div class='page' id='page-inventario'>
       <div class='card'>
-        <div class='card-header'><div class='card-title'>📦 Inventario e Insumos</div><button class='btn btn-primary btn-sm' onclick="document.getElementById('modalInsumo').classList.add('open')">+ Agregar insumo</button></div>
+        <div class='card-header'><div class='card-title'>📦 Inventario e Insumos</div><button class='btn btn-primary btn-sm' onclick="abrirModalInsumoNuevo()">+ Agregar insumo</button></div>
         <div style='overflow-x:auto;padding:12px' id='listaInventario'></div>
       </div>
     </div>
@@ -557,17 +558,31 @@ try{
 <!-- MODAL INSUMO -->
 <div class='modal-overlay' id='modalInsumo'>
 <div class='modal'>
-  <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px'>📦 Nuevo Insumo</span><button onclick="document.getElementById('modalInsumo').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
-  <div class='form-group'><label class='form-label'>Nombre del insumo</label><input class='form-control' id='inNombre' placeholder='Ej: Papel bond A4'></div>
+  <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px' id='inTit'>📦 Nuevo Activo / Insumo</span><button onclick="document.getElementById('modalInsumo').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
+  <input type='hidden' id='inId'>
+  <div class='form-group'><label class='form-label'>Nombre del artículo</label><input class='form-control' id='inNombre' placeholder='Ej: Silla de madera' onblur='inPrevisualizarCodigo()'></div>
   <div class='grid g2'>
-    <div class='form-group'><label class='form-label'>Categoría</label><input class='form-control' id='inCat' placeholder='Oficina, Limpieza...'></div>
-    <div class='form-group'><label class='form-label'>Unidad</label><input class='form-control' id='inUnidad' placeholder='unid, kg, lt...'></div>
+    <div class='form-group'><label class='form-label'>Categoría</label><select class='form-control' id='inCat' onchange='inPrevisualizarCodigo()'>
+      <option value='Mobiliario'>🪑 Mobiliario</option>
+      <option value='Juguetes y material terapéutico'>🧸 Juguetes y material terapéutico</option>
+      <option value='Insumos de oficina'>🖇️ Insumos de oficina</option>
+      <option value='Insumos de limpieza'>🧴 Insumos de limpieza</option>
+      <option value='Equipos'>💻 Equipos</option>
+      <option value='Otros'>📦 Otros</option>
+    </select></div>
+    <div class='form-group'><label class='form-label'>Código de activo</label><input class='form-control' id='inCodigo' placeholder='Se genera automático' readonly style='background:#f8faff;font-weight:800;color:var(--acc)'></div>
+    <div class='form-group'><label class='form-label'>Unidad</label><input class='form-control' id='inUnidad' placeholder='unid, kg, lt...' value='unid'></div>
     <div class='form-group'><label class='form-label'>Cantidad actual</label><input class='form-control' type='number' id='inCant' value='0'></div>
     <div class='form-group'><label class='form-label'>Stock mínimo</label><input class='form-control' type='number' id='inMin' value='0'></div>
     <div class='form-group'><label class='form-label'>Precio unitario</label><input class='form-control' type='number' id='inPrecio' step='0.01' value='0'></div>
-    <div class='form-group'><label class='form-label'>Fecha vencimiento</label><input class='form-control' type='date' id='inVence'></div>
+    <div class='form-group'><label class='form-label'>Fecha vencimiento (si aplica)</label><input class='form-control' type='date' id='inVence'></div>
+    <div class='form-group'><label class='form-label'>Estado del activo</label><select class='form-control' id='inEstado'>
+      <option value='bueno'>Buen estado</option>
+      <option value='medio'>Estado medio</option>
+      <option value='malo'>Mal estado</option>
+    </select></div>
   </div>
-  <button class='btn btn-primary' style='width:100%;padding:12px;font-size:14px;margin-top:4px' onclick='guardarInsumo()'>💾 Registrar Insumo</button>
+  <button class='btn btn-primary' style='width:100%;padding:12px;font-size:14px;margin-top:4px' onclick='guardarInsumo()' id='inBtnGuardar'>💾 Registrar</button>
 </div>
 </div>
 
@@ -894,6 +909,7 @@ function renderDashboard(){
   var alertas=[];
   D.contratos.filter(function(c){return c.estado==='pendiente'||c.estado==='por_firmar';}).forEach(function(c){alertas.push('<div class="alert al-warn">📋 Contrato pendiente: '+c.trabajadora+'</div>');});
   D.insumos.filter(function(i){return (i.cantidad_actual||0)<=(i.stock_minimo||0);}).forEach(function(i){alertas.push('<div class="alert al-info">📦 Stock bajo: '+i.nombre+' ('+i.cantidad_actual+' '+i.unidad+')</div>');});
+  D.insumos.filter(function(i){return i.estado_activo==='malo';}).forEach(function(i){alertas.push('<div class="alert al-danger">🔴 Activo en mal estado: '+i.nombre+' ('+(i.sede||D.sede||'-')+')</div>');});
   var elA=document.getElementById('alertasAdmin');if(elA)elA.innerHTML=alertas.join('')||'<p style="color:var(--muted);padding:12px">Sin alertas críticas ✅</p>';
   renderEvolutivo();
 }
@@ -1131,6 +1147,24 @@ function _montoPorSesionDelMes(p,mesStr){
   });
   var n=Object.keys(ids).length;
   return{monto:n*p.pago_por_sesion,n:n};
+}
+// Mismo cálculo que hace renderSueldos fila por fila, pero reusable desde
+// otros lados (ej. Pagos Fijos, para sumar la planilla del mes junto al
+// alquiler) - evita que el total de un lado se desincronice del otro.
+function _calcTotalTrabajador(p,mesStr){
+  var hon=D.honorarios.find(function(h){return h.psicologa_nombre===p.nombre;});
+  var rTard=hon?(hon.descuento_tardanza||0):0,rInas=hon?(hon.descuento_inasistencia||0):0;
+  var asist=_descuentoPorAsistencia(p,mesStr,rTard,rInas);
+  var aplicaDescuento=hon?hon.aplicar_descuento!==false:true;
+  var descuento=aplicaDescuento?asist.descuento:0;
+  var bonos=(D.bonos||[]).filter(function(b){return(b.nombre||b.psicologa_nombre)===p.nombre;}).reduce(function(a,b){return a+(b.monto_bono||0);},0);
+  var otroDescuento=hon?(hon.descuento_otro||0):0;
+  var otroDescuentoMotivo=hon?(hon.descuento_otro_motivo||''):'';
+  var porSesion=_montoPorSesionDelMes(p,mesStr);
+  var base=porSesion?porSesion.monto:(hon?hon.monto_base:(p.sueldo||0));
+  var total=base+bonos-descuento-otroDescuento;
+  return{base:base,descuento:descuento,bonos:bonos,otroDescuento:otroDescuento,otroDescuentoMotivo:otroDescuentoMotivo,
+    total:total,hon:hon,porSesion:porSesion,yaPagado:!!(hon&&hon.estado==='pagado')};
 }
 function renderSueldos(){
   var el=document.getElementById('listaSueldos');if(!el)return;
@@ -1422,16 +1456,95 @@ function renderAsistencia(){
 }
 
 // INVENTARIO
+function _prefijoActivo(cat){
+  var m={'Mobiliario':'MOB','Juguetes y material terapéutico':'JUG','Insumos de oficina':'OFI','Insumos de limpieza':'LIM','Equipos':'EQU','Otros':'OTR'};
+  return m[cat]||'OTR';
+}
+async function _buscarOGenerarCodigo(categoria,nombre){
+  var nom=String(nombre||'').trim().toLowerCase();
+  if(!nom)return'';
+  var todos=[];
+  try{todos=await sbGet('insumos',{select:'categoria,nombre,codigo_activo'});}catch(e){todos=[];}
+  var existente=todos.find(function(i){return String(i.nombre||'').trim().toLowerCase()===nom&&i.categoria===categoria&&i.codigo_activo;});
+  if(existente)return existente.codigo_activo;
+  var pref=_prefijoActivo(categoria);
+  var max=0;
+  todos.forEach(function(i){
+    if(i.codigo_activo&&i.codigo_activo.indexOf(pref+'-')===0){
+      var n=parseInt(i.codigo_activo.slice(pref.length+1),10);
+      if(!isNaN(n)&&n>max)max=n;
+    }
+  });
+  return pref+'-'+String(max+1).padStart(3,'0');
+}
+function _badgeCondicion(e){
+  var m={bueno:{t:'🟢 Buen estado',bg:'#dcfce7',c:'#166534'},medio:{t:'🟡 Estado medio',bg:'#fffbeb',c:'#92400e'},malo:{t:'🔴 Mal estado',bg:'#fee2e2',c:'#991b1b'}};
+  var x=m[e]||m.bueno;
+  return'<span class="badge" style="background:'+x.bg+';color:'+x.c+'">'+x.t+'</span>';
+}
+async function inPrevisualizarCodigo(){
+  if(document.getElementById('inId').value)return;
+  var nombre=document.getElementById('inNombre').value;
+  var categoria=document.getElementById('inCat').value;
+  if(!nombre){document.getElementById('inCodigo').value='';return;}
+  document.getElementById('inCodigo').value=await _buscarOGenerarCodigo(categoria,nombre);
+}
+function abrirModalInsumoNuevo(){
+  document.getElementById('inId').value='';
+  document.getElementById('inTit').textContent='📦 Nuevo Activo / Insumo';
+  document.getElementById('inBtnGuardar').textContent='💾 Registrar';
+  document.getElementById('inNombre').value='';
+  document.getElementById('inCat').value='Mobiliario';
+  document.getElementById('inCodigo').value='';
+  document.getElementById('inUnidad').value='unid';
+  document.getElementById('inCant').value='0';
+  document.getElementById('inMin').value='0';
+  document.getElementById('inPrecio').value='0';
+  document.getElementById('inVence').value='';
+  document.getElementById('inEstado').value='bueno';
+  document.getElementById('modalInsumo').classList.add('open');
+}
+function editarInsumo(id){
+  var i=D.insumos.find(function(x){return x.id===id;});if(!i)return;
+  document.getElementById('inId').value=i.id;
+  document.getElementById('inTit').textContent='📦 Editar Activo / Insumo';
+  document.getElementById('inBtnGuardar').textContent='💾 Guardar cambios';
+  document.getElementById('inNombre').value=i.nombre||'';
+  document.getElementById('inCat').value=i.categoria||'Mobiliario';
+  document.getElementById('inCodigo').value=i.codigo_activo||'';
+  document.getElementById('inUnidad').value=i.unidad||'unid';
+  document.getElementById('inCant').value=i.cantidad_actual||0;
+  document.getElementById('inMin').value=i.stock_minimo||0;
+  document.getElementById('inPrecio').value=i.precio_unitario||0;
+  document.getElementById('inVence').value=i.fecha_vencimiento||'';
+  document.getElementById('inEstado').value=i.estado_activo||'bueno';
+  document.getElementById('modalInsumo').classList.add('open');
+}
+async function eliminarInsumo(id){
+  var i=D.insumos.find(function(x){return x.id===id;});if(!i)return;
+  if(!confirm('¿Eliminar "'+i.nombre+'" del inventario de esta sede?'))return;
+  try{await sbDelete('insumos',{id:'eq.'+id});toast('✅ Eliminado');await recargar();}catch(e){toast('Error: '+e.message,'error');}
+}
 function renderInventario(){
   var el=document.getElementById('listaInventario');if(!el)return;
   if(!D.insumos.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin insumos registrados</p>';return;}
-  el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Insumo</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Precio</th><th>Vence</th><th>Estado</th></tr></thead><tbody>'+
-  D.insumos.map(function(i){var bajo=(i.cantidad_actual||0)<=(i.stock_minimo||0);return'<tr style="border-bottom:1px solid var(--border)'+(bajo?';background:#fff5f5':'')+'">'+'<td style="padding:9px 10px;font-weight:700">'+i.nombre+'</td><td style="font-size:12px">'+(i.categoria||'-')+'</td><td style="font-weight:900;color:'+(bajo?'#dc2626':'#15803d')+'">'+( i.cantidad_actual||0)+' '+(i.unidad||'')+'</td><td style="font-size:12px">'+(i.stock_minimo||0)+'</td><td style="font-size:12px">S/'+(i.precio_unitario||0)+'</td><td style="font-size:12px">'+fmtF(i.fecha_vencimiento)+'</td><td>'+badge(bajo?'vencido':'activo')+'</td></tr>';}).join('')+'</tbody></table>';
+  el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Código</th><th>Insumo</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Precio</th><th>Vence</th><th>Estado</th><th>Condición</th><th></th></tr></thead><tbody>'+
+  D.insumos.map(function(i){var bajo=(i.cantidad_actual||0)<=(i.stock_minimo||0);return'<tr style="border-bottom:1px solid var(--border)'+(bajo?';background:#fff5f5':'')+'">'+
+  '<td style="padding:9px 10px;font-size:11px;font-weight:800;color:var(--acc)">'+(i.codigo_activo||'-')+'</td>'+
+  '<td style="font-weight:700">'+i.nombre+'</td><td style="font-size:12px">'+(i.categoria||'-')+'</td><td style="font-weight:900;color:'+(bajo?'#dc2626':'#15803d')+'">'+( i.cantidad_actual||0)+' '+(i.unidad||'')+'</td><td style="font-size:12px">'+(i.stock_minimo||0)+'</td><td style="font-size:12px">S/'+(i.precio_unitario||0)+'</td><td style="font-size:12px">'+fmtF(i.fecha_vencimiento)+'</td><td>'+badge(bajo?'vencido':'activo')+'</td><td>'+_badgeCondicion(i.estado_activo)+'</td>'+
+  '<td style="white-space:nowrap"><button class="btn btn-sm" onclick="editarInsumo('+_sq(i.id)+')" style="padding:4px 8px;font-size:11px">✏️</button> <button class="btn btn-sm" onclick="eliminarInsumo('+_sq(i.id)+')" style="padding:4px 8px;font-size:11px">🗑️</button></td>'+
+  '</tr>';}).join('')+'</tbody></table>';
 }
 async function guardarInsumo(){
-  var d={nombre:document.getElementById('inNombre').value,sede:D.sede,categoria:document.getElementById('inCat').value,unidad:document.getElementById('inUnidad').value,cantidad_actual:parseFloat(document.getElementById('inCant').value)||0,stock_minimo:parseFloat(document.getElementById('inMin').value)||0,precio_unitario:parseFloat(document.getElementById('inPrecio').value)||0,fecha_vencimiento:document.getElementById('inVence').value||null};
+  var id=document.getElementById('inId').value;
+  var d={nombre:document.getElementById('inNombre').value,sede:D.sede,categoria:document.getElementById('inCat').value,codigo_activo:document.getElementById('inCodigo').value,unidad:document.getElementById('inUnidad').value,cantidad_actual:parseFloat(document.getElementById('inCant').value)||0,stock_minimo:parseFloat(document.getElementById('inMin').value)||0,precio_unitario:parseFloat(document.getElementById('inPrecio').value)||0,fecha_vencimiento:document.getElementById('inVence').value||null,estado_activo:document.getElementById('inEstado').value||'bueno'};
   if(!d.nombre){toast('Ingresa el nombre del insumo','error');return;}
-  try{await sbPost('insumos',d);document.getElementById('modalInsumo').classList.remove('open');toast('✅ Insumo registrado');await recargar();}catch(e){toast('Error: '+e.message,'error');}
+  if(!d.codigo_activo)d.codigo_activo=await _buscarOGenerarCodigo(d.categoria,d.nombre);
+  try{
+    if(id){await sbPatch('insumos',d,{id:'eq.'+id});toast('✅ Insumo actualizado');}
+    else{await sbPost('insumos',d);toast('✅ Insumo registrado');}
+    document.getElementById('modalInsumo').classList.remove('open');await recargar();
+  }catch(e){toast('Error: '+e.message,'error');}
 }
 
 // PERSONAL
@@ -2364,10 +2477,19 @@ function exportarSUNAT(){
 function renderAlquiler(){
   var el=document.getElementById('listaAlquiler');if(!el)return;
   var rows=D.pagosRecurrentes||[];
-  if(!rows.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin pagos fijos registrados (alquiler, internet, servicios...)</p>';return;}
-  var tot=rows.reduce(function(a,r){return a+(r.monto||0);},0);
   var mesStr=mesY();
-  el.innerHTML='<div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:8px">Total mensual fijo: S/'+tot.toFixed(2)+'</div>'+
+  var totRecurrentes=rows.reduce(function(a,r){return a+(r.monto||0);},0);
+  // Planilla (sueldos fijos + pagos por evaluación como el del Dr. Daniel)
+  // se suma aquí también, junto al alquiler/servicios - mismo cálculo que
+  // Sueldos y Bonos (ver _calcTotalTrabajador), para que ambos lados
+  // siempre muestren el mismo monto por persona.
+  var planilla=(D.psicologas||[]).map(function(p){return Object.assign({},p,{_tabla:'psicologas',_rol:'Psicóloga'});})
+    .concat((D.recepcionistas||[]).map(function(p){return Object.assign({},p,{_tabla:'recepcionistas',_rol:'Recepción'});}))
+    .map(function(p){return Object.assign({_p:p},_calcTotalTrabajador(p,mesStr));});
+  var totPlanilla=planilla.reduce(function(a,x){return a+(x.total||0);},0);
+  var tot=totRecurrentes+totPlanilla;
+  if(!rows.length&&!planilla.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin pagos fijos registrados (alquiler, internet, servicios...)</p>';return;}
+  el.innerHTML='<div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:8px">Total mensual fijo: S/'+tot.toFixed(2)+' <span style="font-weight:600;color:var(--muted)">(alquiler/servicios: S/'+totRecurrentes.toFixed(2)+' + planilla: S/'+totPlanilla.toFixed(2)+')</span></div>'+
     '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Concepto</th><th>Monto</th><th>Día de pago</th><th>Sede</th><th>Estado</th><th></th></tr></thead><tbody>'+
     rows.map(function(r){
       // Si ya existe un gasto de este mismo pago fijo registrado este mes
@@ -2379,6 +2501,14 @@ function renderAlquiler(){
         (yaPagado?'<span class="badge bg">✅ Pagado este mes</span>':'<button class="btn btn-sm" style="background:#dcfce7;color:#166534;font-weight:800" onclick="marcarRecurrentePagado(\''+r.id+'\')">✅ Marcar pagado</button>')+
         ' <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b" onclick="eliminarRecurrente(\''+r.id+'\')">🗑</button></td></tr>';
     }).join('')+
+    (planilla.length?'<tr><td colspan="6" style="padding:10px;font-size:11px;font-weight:800;color:var(--acc);background:#fdf2f8">👥 PLANILLA (sueldos y pagos por evaluación)</td></tr>'+
+      planilla.map(function(x){
+        var p=x._p;
+        return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 10px;font-weight:700">'+(x.porSesion?'Pago por evaluación':'Sueldo')+' - '+p.nombre+'</td><td style="font-weight:900;color:#dc2626">S/'+x.total.toFixed(2)+'</td><td style="font-size:12px">Día '+(p.dia_pago||'-')+'</td><td style="font-size:12px">'+(p.sede||'-')+'</td><td>'+badge(x.yaPagado?'pagado':'pendiente')+'</td>'+
+        '<td style="text-align:right;white-space:nowrap">'+
+        (x.yaPagado?'<span class="badge bg">✅ Pagado este mes</span>':'<button class="btn btn-sm" style="background:#dcfce7;color:#166534;font-weight:800" onclick="marcarHonorarioPagado('+_sq(p._tabla)+','+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+x.base+','+x.descuento+','+x.bonos+','+x.total+','+x.otroDescuento+','+_sq(x.otroDescuentoMotivo)+')">✅ Marcar pagado</button>')+
+        '</td></tr>';
+      }).join(''):'')+
     '</tbody></table>';
 }
 // Registra de un clic el gasto del mes para este pago fijo (sin tener que
