@@ -486,6 +486,9 @@ try{
   <div style="font-size:11px;color:var(--muted);margin:6px 0 10px">Monto en soles que se descuenta por CADA tardanza o inasistencia registrada este mes. Deja en 0 para no aplicar descuento.</div>
   <label class='flabel'>S/ por tardanza</label><input type='number' step='0.01' class='finput' id='dsTardanza' placeholder='0.00'>
   <label class='flabel'>S/ por inasistencia</label><input type='number' step='0.01' class='finput' id='dsInasistencia' placeholder='0.00'>
+  <div style="font-size:11px;color:var(--muted);margin:10px 0 6px;padding-top:8px;border-top:1px solid var(--border)">Descuento adicional por otro motivo (adelanto, préstamo, etc.) - se aplica una sola vez este mes, no se multiplica.</div>
+  <label class='flabel'>S/ otro descuento (monto fijo)</label><input type='number' step='0.01' class='finput' id='dsOtro' placeholder='0.00'>
+  <label class='flabel'>Motivo</label><input type='text' class='finput' id='dsOtroMotivo' placeholder='Ej: Adelanto de sueldo'>
   <button class='btn btn-primary' style='width:100%;margin-top:12px' onclick='guardarDescuento()'>Guardar Descuentos</button>
  </div>
 </div>
@@ -1131,7 +1134,9 @@ function renderSueldos(){
     var descuento=aplicaDescuento?descuentoCalc:0;
     var costoHora=_costoPorHora(p.sueldo);
     var bonos=(D.bonos||[]).filter(function(b){return (b.nombre||b.psicologa_nombre)===p.nombre;}).reduce(function(a,b){return a+(b.monto_bono||0);},0);
-    var base=hon?hon.monto_base:(p.sueldo||0);var total=base+bonos-descuento;
+    var otroDescuento=hon?(hon.descuento_otro||0):0;
+    var otroDescuentoMotivo=hon?(hon.descuento_otro_motivo||''):'';
+    var base=hon?hon.monto_base:(p.sueldo||0);var total=base+bonos-descuento-otroDescuento;
     var yaPagado=hon&&hon.estado==='pagado';
     var esHoy=p._diasHastaPago===0;
     var col=esPs?'#4a0e2e':'#0369a1';
@@ -1155,16 +1160,18 @@ function renderSueldos(){
         +'<div class="stat-card" style="padding:7px 5px'+(asist.nTard?';cursor:pointer':'')+'"'+(asist.nTard?' onclick="verDetalleTardanza('+_sq(p.nombre)+')" title="Ver detalle"':'')+'><div class="stat-value" style="font-size:13px;color:'+(asist.nTard?'#d97706':'var(--muted)')+'">'+asist.minTardTotal+' min</div><div class="stat-label" style="font-size:8.5px">🕐 Tardanza'+(asist.nTard?' · 👁 ver':'')+'</div></div>'
         +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:'+(descuentoCalc>0?(aplicaDescuento?'#dc2626':'var(--muted)'):'var(--muted)')+(aplicaDescuento?'':';text-decoration:line-through')+'">'+(descuentoCalc>0?'-S/'+descuentoCalc.toFixed(2):'S/0.00')+'</div><div class="stat-label" style="font-size:8.5px">Descuento'+(descuentoCalc>0&&!aplicaDescuento?' (no aplicado)':'')+'</div></div>'
         +'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:#15803d">S/'+bonos.toFixed(2)+'</div><div class="stat-label" style="font-size:8.5px">Bonos</div></div>'
+        +(otroDescuento>0?'<div class="stat-card" style="padding:7px 5px"><div class="stat-value" style="font-size:13px;color:#dc2626">-S/'+otroDescuento.toFixed(2)+'</div><div class="stat-label" style="font-size:8.5px">Otro descuento</div></div>':'')
         +'<div class="stat-card" style="padding:7px 5px;border-color:'+col+';grid-column:span 2"><div class="stat-value" style="font-size:17px;color:'+col+'">S/'+total.toFixed(2)+'</div><div class="stat-label" style="font-size:8.5px">Total a pagar</div></div>'
       +'</div>'
+      +(otroDescuento>0?'<div style="padding:0 12px 4px;font-size:10px;color:var(--muted)">➖ Otro descuento: S/'+otroDescuento.toFixed(2)+(otroDescuentoMotivo?' - '+otroDescuentoMotivo:'')+'</div>':'')
       +(asist.nFaltas>0?'<div style="padding:0 12px 4px;font-size:10px;color:var(--muted)">Incluye S/'+asist.descDSO.toFixed(2)+' de descanso semanal proporcional por '+asist.nFaltas+' falta(s) (D.S. 012-92-TR, no se descuenta el domingo completo).</div>':'')
       +(descuentoCalc>0?'<div style="padding:0 12px 8px;display:flex;gap:8px;align-items:center;font-size:10.5px;color:var(--muted)">Este mes tiene S/'+descuentoCalc.toFixed(2)+' en descuento calculado - '
         +'<button class="btn btn-sm" style="padding:3px 8px;font-size:10px;background:'+(aplicaDescuento?'#dcfce7':'#f1f5f9')+';color:'+(aplicaDescuento?'#166534':'#475569')+'" onclick="toggleAplicarDescuento('+_sq(p.nombre)+','+_sq(p.sede||D.sede)+','+(p.sueldo||0)+',true)">'+(aplicaDescuento?'✅':'⬜')+' Aplicar</button>'
         +'<button class="btn btn-sm" style="padding:3px 8px;font-size:10px;background:'+(!aplicaDescuento?'#fee2e2':'#f1f5f9')+';color:'+(!aplicaDescuento?'#991b1b':'#475569')+'" onclick="toggleAplicarDescuento('+_sq(p.nombre)+','+_sq(p.sede||D.sede)+','+(p.sueldo||0)+',false)">'+(!aplicaDescuento?'✅':'⬜')+' Solo informativo</button>'
         +'</div>':'')
       +'<div style="display:flex;border-top:1px solid var(--border)">'
-      +'<button class="btn btn-sm" style="flex:1;border-radius:0;background:#eef2ff;color:#4338ca;font-weight:800" onclick="generarReciboHonorario('+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+_sq(mesStr)+','+base+','+descuento+','+bonos+','+total+')">📄 Recibo</button>'
-      +(yaPagado?'<div style="flex:1;text-align:center;padding:9px;font-size:12px;font-weight:800;color:#166534;background:#dcfce7">✅ Ya pagado este mes</div>':'<button class="btn btn-sm" style="flex:1;border-radius:0;background:#dcfce7;color:#166534;font-weight:800" onclick="marcarHonorarioPagado('+_sq(p._tabla)+','+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+base+','+descuento+','+bonos+','+total+')">💾 Marcar pagado</button>')
+      +'<button class="btn btn-sm" style="flex:1;border-radius:0;background:#eef2ff;color:#4338ca;font-weight:800" onclick="generarReciboHonorario('+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+_sq(mesStr)+','+base+','+descuento+','+bonos+','+total+','+otroDescuento+','+_sq(otroDescuentoMotivo)+')">📄 Recibo</button>'
+      +(yaPagado?'<div style="flex:1;text-align:center;padding:9px;font-size:12px;font-weight:800;color:#166534;background:#dcfce7">✅ Ya pagado este mes</div>':'<button class="btn btn-sm" style="flex:1;border-radius:0;background:#dcfce7;color:#166534;font-weight:800" onclick="marcarHonorarioPagado('+_sq(p._tabla)+','+_sq(p.nombre)+','+_sq(p._rol)+','+_sq(p.sede||D.sede)+','+base+','+descuento+','+bonos+','+total+','+otroDescuento+','+_sq(otroDescuentoMotivo)+')">💾 Marcar pagado</button>')
       +'</div>'
       +'</div>';
   }).join('')+'</div>'
@@ -1216,7 +1223,7 @@ async function toggleAplicarDescuento(nombre,sede,sueldo,aplicar){
 // no había ningún botón para esto, así que un sueldo pagado en la vida
 // real nunca quedaba registrado como gasto en el sistema. De paso genera
 // el recibo en PDF, que tampoco existía.
-async function marcarHonorarioPagado(tabla,nombre,rol,sede,base,descuento,bonos,total){
+async function marcarHonorarioPagado(tabla,nombre,rol,sede,base,descuento,bonos,total,otroDescuento,otroDescuentoMotivo){
   if(!confirm('¿Confirmas que ya se le pagó a '+nombre+' S/'+total.toFixed(2)+' este mes? Esto lo va a sumar a Gastos de la sede.'))return;
   try{
     var mes=mesY();
@@ -1225,7 +1232,7 @@ async function marcarHonorarioPagado(tabla,nombre,rol,sede,base,descuento,bonos,
     else await sbPost('honorarios',{mes:mes,psicologa_nombre:nombre,sede:sede,monto_base:total,descuento_tardanza:0,descuento_inasistencia:0,estado:'pagado',total:total});
     await sbPost('gastos',{fecha:today(),sede:sede,concepto:(tabla==='psicologas'?'Honorarios':'Sueldo')+' - '+nombre+' ('+mes+')',categoria:'planilla',monto:total,registrado_por:ADM.nombre});
     toast('✅ Pago registrado y sumado a Gastos');
-    generarReciboHonorario(nombre,rol,sede,mes,base,descuento,bonos,total);
+    generarReciboHonorario(nombre,rol,sede,mes,base,descuento,bonos,total,otroDescuento,otroDescuentoMotivo);
     await recargar();
   }catch(e){toast('Error: '+e.message,'error');}
 }
@@ -1261,7 +1268,8 @@ function _folioRecibo(nombre,mes){
 }
 // Recibo de pago en PDF - no existía ningún documento que dejara
 // constancia de un pago de honorarios/sueldo a una trabajadora.
-function generarReciboHonorario(nombre,rol,sede,mes,base,descuento,bonos,total){
+function generarReciboHonorario(nombre,rol,sede,mes,base,descuento,bonos,total,otroDescuento,otroDescuentoMotivo){
+  otroDescuento=otroDescuento||0;
   _getJsPDF(function(jsPDF){
     var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
     var W=210,M=14,y=10;
@@ -1299,6 +1307,7 @@ function generarReciboHonorario(nombre,rol,sede,mes,base,descuento,bonos,total){
     var filas=[['Sueldo/Honorario base','S/'+base.toFixed(2),false],
       ['Descuento (tardanzas/faltas)',(descuento>0?'-S/'+descuento.toFixed(2):'S/0.00'),descuento>0],
       ['Bonos',(bonos>0?'+S/'+bonos.toFixed(2):'S/0.00'),false]];
+    if(otroDescuento>0)filas.push(['Otro descuento'+(otroDescuentoMotivo?' ('+otroDescuentoMotivo+')':''),'-S/'+otroDescuento.toFixed(2),true]);
     doc.setDrawColor(225,225,225);
     filas.forEach(function(f,i){
       var rowH=9;
@@ -2267,10 +2276,14 @@ function abrirModalDescuento(){
   var hon=D.honorarios.find(function(h){return h.psicologa_nombre===sel.value;});
   document.getElementById('dsTardanza').value=hon?(hon.descuento_tardanza||0):0;
   document.getElementById('dsInasistencia').value=hon?(hon.descuento_inasistencia||0):0;
+  document.getElementById('dsOtro').value=hon?(hon.descuento_otro||0):0;
+  document.getElementById('dsOtroMotivo').value=hon?(hon.descuento_otro_motivo||''):'';
   sel.onchange=function(){
     var h=D.honorarios.find(function(x){return x.psicologa_nombre===sel.value;});
     document.getElementById('dsTardanza').value=h?(h.descuento_tardanza||0):0;
     document.getElementById('dsInasistencia').value=h?(h.descuento_inasistencia||0):0;
+    document.getElementById('dsOtro').value=h?(h.descuento_otro||0):0;
+    document.getElementById('dsOtroMotivo').value=h?(h.descuento_otro_motivo||''):'';
   };
   document.getElementById('modalDescuento').classList.add('open');
 }
@@ -2278,14 +2291,16 @@ async function guardarDescuento(){
   var nom=document.getElementById('dsNombre').value;
   var dTard=parseFloat(document.getElementById('dsTardanza').value)||0;
   var dInas=parseFloat(document.getElementById('dsInasistencia').value)||0;
+  var dOtro=parseFloat(document.getElementById('dsOtro').value)||0;
+  var dOtroMotivo=document.getElementById('dsOtroMotivo').value||'';
   if(!nom){toast('Selecciona una trabajadora','error');return;}
   try{
     var hon=D.honorarios.find(function(h){return h.psicologa_nombre===nom;});
     if(hon){
-      await sbPatch('honorarios',{descuento_tardanza:dTard,descuento_inasistencia:dInas},{id:'eq.'+hon.id});
+      await sbPatch('honorarios',{descuento_tardanza:dTard,descuento_inasistencia:dInas,descuento_otro:dOtro,descuento_otro_motivo:dOtroMotivo},{id:'eq.'+hon.id});
     }else{
       var p=(D.psicologas||[]).find(function(x){return x.nombre===nom;});
-      await sbPost('honorarios',{mes:mesY(),psicologa_nombre:nom,sede:(p&&p.sede)||D.sede,monto_base:(p&&p.sueldo)||0,descuento_tardanza:dTard,descuento_inasistencia:dInas,estado:'pendiente'});
+      await sbPost('honorarios',{mes:mesY(),psicologa_nombre:nom,sede:(p&&p.sede)||D.sede,monto_base:(p&&p.sueldo)||0,descuento_tardanza:dTard,descuento_inasistencia:dInas,descuento_otro:dOtro,descuento_otro_motivo:dOtroMotivo,estado:'pendiente'});
     }
     document.getElementById('modalDescuento').classList.remove('open');
     toast('✅ Descuentos configurados para '+nom);await recargar();
