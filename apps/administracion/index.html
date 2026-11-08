@@ -398,7 +398,7 @@ try{
 
 <!-- MODAL TERAPIA -->
 <div class='modal-overlay' id='modalTerapiaAdm'>
- <div class='modal-box'>
+ <div class='modal'>
   <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px' id='terAdmTit'>🧠 Nueva Terapia</span><button onclick="document.getElementById('modalTerapiaAdm').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
   <input type='hidden' id='terAdmId'>
   <label class='flabel'>Nombre *</label><input class='finput' id='terAdmNombre' placeholder='Ej: Psicología Clínica'>
@@ -416,7 +416,7 @@ try{
 
 <!-- MODAL CONTRATO -->
 <div class='modal-overlay' id='modalTarifa'>
- <div class='modal-box'>
+ <div class='modal'>
   <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px'>💲 Tarifa</span><button onclick="document.getElementById('modalTarifa').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
   <input type='hidden' id='tfId'>
   <label class='flabel'>Sede</label><select class='finput' id='tfSede'></select>
@@ -431,7 +431,7 @@ try{
  </div>
 </div>
 <div class='modal-overlay' id='modalPrecio'>
- <div class='modal-box'>
+ <div class='modal'>
   <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px'>⭐ Precio Especial</span><button onclick="document.getElementById('modalPrecio').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
   <label class='flabel'>Paciente *</label><select class='finput' id='peNombre'></select>
   <label class='flabel'>Servicio</label><input class='finput' id='peServicio' placeholder='Ej: Paquete 12 sesiones'>
@@ -441,7 +441,7 @@ try{
  </div>
 </div>
 <div class='modal-overlay' id='modalOferta'>
- <div class='modal-box'>
+ <div class='modal'>
   <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px'>🎁 Oferta Especial</span><button onclick="document.getElementById('modalOferta').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
   <input type='hidden' id='ofId'>
   <label class='flabel'>Sede</label><select class='finput' id='ofSede'></select>
@@ -453,7 +453,7 @@ try{
  </div>
 </div>
 <div class='modal-overlay' id='modalBono'>
- <div class='modal-box'>
+ <div class='modal'>
   <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px'>🏅 Asignar Bono</span><button onclick="document.getElementById('modalBono').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
   <label class='flabel'>Trabajadora *</label><select class='finput' id='bnNombre'></select>
   <label class='flabel'>Monto del bono (S/) *</label><input type='number' class='finput' id='bnMonto'>
@@ -462,7 +462,7 @@ try{
  </div>
 </div>
 <div class='modal-overlay' id='modalFeriado'>
- <div class='modal-box'>
+ <div class='modal'>
   <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px' id='ferModalTit'>🎉 Nuevo Feriado</span><button onclick="document.getElementById('modalFeriado').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
   <input type='hidden' id='ferId'>
   <label class='flabel'>Fecha *</label><input type='date' class='finput' id='ferFecha'>
@@ -480,7 +480,7 @@ try{
  </div>
 </div>
 <div class='modal-overlay' id='modalDescuento'>
- <div class='modal-box'>
+ <div class='modal'>
   <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px'>➖ Configurar Descuentos</span><button onclick="document.getElementById('modalDescuento').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
   <label class='flabel'>Trabajadora</label><select class='finput' id='dsNombre'></select>
   <div style="font-size:11px;color:var(--muted);margin:6px 0 10px">Monto en soles que se descuenta por CADA tardanza o inasistencia registrada este mes. Deja en 0 para no aplicar descuento.</div>
