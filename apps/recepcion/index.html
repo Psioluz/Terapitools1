@@ -870,6 +870,7 @@ try{
         <select class="form-control" id="ag-servId" onchange="agOnServ()">
           <option value="">- Selecciona el servicio -</option>
         </select>
+        <div id="ag-notaPagoLic" style="display:none;margin-top:6px;font-size:11.5px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;color:#1e40af;font-weight:700"></div>
       </div>
       <!-- Precio exclusivo: precio negociado para ESTE paciente, no viene
            del catálogo - el costo se escribe a mano (queda registrado en
@@ -3599,9 +3600,32 @@ function agOnPaq(){
   agActualizarResumen();
 }
 
+// Algunos servicios (ej. Evaluación Neuropsicológica con el Dr. Daniel,
+// externo) no le pagan sueldo fijo a la licenciada/o - se le paga un
+// monto fijo por cada vez que se agenda ese servicio (psicologas.
+// pago_por_sesion/terapia_pago_por_sesion). Esto solo avisa en pantalla
+// al agendar - el cálculo real para el pago vive en Administración
+// (Sueldos y Bonos), que cuenta cuántas veces se agendó este mes.
+function _agNotaPagoLic(serv){
+  const el=document.getElementById('ag-notaPagoLic');
+  if(!el)return;
+  if(!serv){el.style.display='none';return;}
+  const nomServ=_normalizaTxt(serv.nombre);
+  const ps=(DB.psicologas||[]).find(function(p){
+    const key=p._sb&&p._sb.terapia_pago_por_sesion;
+    return key&&(p._sb.pago_por_sesion||0)>0&&_normalizaTxt(key)===nomServ;
+  });
+  if(ps){
+    el.style.display='block';
+    el.textContent='💰 Este servicio le corresponde pagar S/'+(ps._sb.pago_por_sesion||0)+' a '+ps.nombre+' (no tiene sueldo fijo - se le paga por cada evaluación).';
+  }else{
+    el.style.display='none';
+  }
+}
 function agOnServ(){
   const servId=document.getElementById('ag-servId')?.value||'';
   const serv=servId?getPaq(servId):null;
+  _agNotaPagoLic(serv);
   const esMultiSesion=!!(serv&&(serv.nroSes||1)>1);
   const grpSimple=document.getElementById('ag-grp-terapiaSimple');
   const grpFH=document.getElementById('ag-grp-fechaHora');
