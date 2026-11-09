@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ERI Inventario Cíclico RASH</title>
+<style>
+:root{--navy:#1F3864;--yellow:#E7DB0E;--teal:#39C8BB;--green:#9AD25B;
+  --bg:#F0F4F8;--white:#fff;--border:#D0D8E4;--text:#2B3A52;
+  --gray:#6B7A92;--danger:#E53935;--ok:#2E7D32;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text)}
+.header{background:var(--yellow);color:#000;padding:0 22px;height:56px;
+  display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.hb{display:flex;align-items:center;gap:12px}
+.hl{width:36px;height:36px;border-radius:8px;background:var(--navy);
+  color:var(--yellow);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px}
+.ht{font-size:16px;font-weight:700;color:#000} .hs{font-size:11px;color:#444;margin-top:1px}
+.badge{background:rgba(0,0,0,.1);border:1px solid rgba(0,0,0,.2);
+  padding:3px 12px;border-radius:20px;font-size:12px;color:#222}
+.setup-bar{background:#FFF3CD;border-bottom:2px solid #F9A825;padding:9px 22px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px}
+.setup-bar span{font-size:12px;color:#7B5E00}
+.tabs{display:flex;background:var(--navy);padding:0 22px;border-top:1px solid rgba(255,255,255,.1)}
+.tb{padding:10px 20px;color:#9EC7E4;border:none;background:none;cursor:pointer;
+  font-size:13px;font-weight:600;border-bottom:3px solid transparent;transition:all .2s}
+.tb:hover{color:#fff} .tb.on{color:var(--yellow);border-bottom-color:var(--yellow)}
+.main{max-width:920px;margin:0 auto;padding:18px 14px}
+.tc{display:none} .tc.on{display:block}
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);
+  box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:14px;overflow:hidden}
+.ch{background:var(--navy);color:#fff;padding:11px 18px;font-size:13px;font-weight:700;
+  display:flex;align-items:center;gap:8px}
+.sb{width:22px;height:22px;border-radius:50%;background:var(--yellow);color:var(--navy);
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900}
+.cb{padding:18px}
+.tipo-row{display:flex;gap:12px;margin-bottom:14px}
+.tipo{flex:1;padding:14px;border-radius:10px;border:2px solid var(--border);
+  cursor:pointer;text-align:center;transition:all .2s}
+.tipo:hover{border-color:var(--teal);background:#F0FAFA} .tipo.on{border-color:var(--navy);background:#EBF0F8}
+.tipo-icon{font-size:24px;margin-bottom:3px} .tipo-name{font-weight:700;font-size:13px;color:var(--navy)}
+.tipo-sub{font-size:11px;color:var(--gray);margin-top:2px}
+.frow{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.fg{display:flex;flex-direction:column;gap:5px;flex:1;min-width:140px}
+.fg label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray)}
+.fg input,.fg select{border:1.5px solid var(--border);border-radius:8px;padding:9px 11px;
+  font-size:13px;color:var(--text);background:#fff;outline:none;transition:border-color .2s}
+.fg input:focus,.fg select:focus{border-color:var(--teal)}
+.hint{font-size:10px;color:var(--gray);margin-top:2px}
+.rg{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.rs{flex:1;min-width:110px;padding:12px;background:var(--bg);border-radius:10px;
+  border:1px solid var(--border);text-align:center}
+.rv{font-size:26px;font-weight:900;color:var(--navy);line-height:1}
+.rv.w{color:#C47C00} .rv.g{color:var(--ok)} .rv.t{color:var(--teal)}
+.rl{font-size:10px;color:var(--gray);margin-top:3px;text-transform:uppercase}
+.si{padding:9px 12px;background:#F0FAFA;border-radius:8px;border-left:3px solid var(--teal);font-size:12px;color:var(--gray)}
+.prog-wrap{margin-bottom:14px;display:none}
+.prog-label{font-size:12px;color:var(--navy);font-weight:700;margin-bottom:5px;display:flex;justify-content:space-between}
+.prog-bar{height:10px;background:var(--border);border-radius:10px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--green));border-radius:10px;transition:width .5s}
+.btn{padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;
+  border:none;display:inline-flex;align-items:center;gap:7px;transition:all .18s;text-decoration:none}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-n{background:var(--navy);color:#fff}   .btn-n:hover:not(:disabled){background:#2a4d8c}
+.btn-t{background:var(--teal);color:#fff}   .btn-t:hover:not(:disabled){background:#2ab0a4}
+.btn-y{background:var(--yellow);color:var(--navy)} .btn-y:hover:not(:disabled){background:#cfc90c}
+.btn-g{background:var(--green);color:var(--navy)}  .btn-g:hover:not(:disabled){background:#85be49}
+.btn-o{background:transparent;color:var(--navy);border:2px solid var(--navy)}
+.btn-o:hover:not(:disabled){background:var(--navy);color:#fff}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap}
+.divider{border:none;border-top:1px solid var(--border);margin:12px 0}
+.al{padding:10px 14px;border-radius:8px;font-size:13px;display:flex;align-items:flex-start;gap:9px;margin-bottom:12px}
+.al-s{background:#E8F5E9;border-left:4px solid var(--ok);color:var(--ok)}
+.al-e{background:#FFEBEE;border-left:4px solid var(--danger);color:var(--danger)}
+.al-i{background:#E3F2FD;border-left:4px solid #1976D2;color:#1565C0}
+.al-w{background:#FFF8E1;border-left:4px solid #F9A825;color:#7B5E00}
+.ai{font-size:16px;flex-shrink:0}
+.lw{display:none;flex-direction:column;align-items:center;padding:24px;gap:10px}
+.lw.on{display:flex}
+.sp{width:36px;height:36px;border:4px solid var(--border);border-top-color:var(--teal);
+  border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lt{font-size:13px;color:var(--gray);font-weight:600;text-align:center}
+.lt-sub{font-size:11px;color:#AAB0BC;text-align:center}
+/* Botones de resultado */
+.res-card{background:#EBF5FF;border:2px solid var(--teal);border-radius:12px;padding:18px;display:none}
+.res-card.on{display:block}
+.res-card h3{color:#0D47A1;font-size:14px;margin-bottom:8px}
+.res-card p{font-size:12px;color:#444;margin-bottom:14px;line-height:1.6}
+.res-btns{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:0}
+/* 2 acciones principales destacadas */
+.btn-print{background:#0D47A1;color:#fff;padding:12px 22px;font-size:14px;border-radius:10px;
+  cursor:pointer;border:none;display:inline-flex;align-items:center;gap:9px;font-weight:700;transition:all .2s}
+.btn-print:hover{background:#1565C0}
+.btn-xlsx{background:var(--yellow);color:var(--navy);padding:12px 22px;font-size:14px;border-radius:10px;
+  cursor:pointer;border:none;display:inline-flex;align-items:center;gap:9px;font-weight:700;transition:all .2s;text-decoration:none}
+.btn-xlsx:hover{background:#cfc90c}
+/* Siguiente ficha */
+.next-card{background:#EBF0F8;border:2px solid var(--navy);border-radius:12px;padding:16px;margin-top:14px;display:none}
+.next-card.on{display:block}
+.next-card h4{color:var(--navy);font-size:13px;font-weight:700;margin-bottom:10px}
+/* Info del stock (archivo detectado + botón recargar) */
+.stock-info{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  flex-wrap:wrap;font-size:11px}
+/* Upload */
+.dz{border:2px dashed var(--border);border-radius:12px;padding:28px;text-align:center;
+  cursor:pointer;transition:all .2s;background:var(--bg)}
+.dz:hover,.dz.drag{border-color:var(--teal);background:#F0FAFA}
+.dz-icon{font-size:34px;margin-bottom:5px}
+#fileInput{display:none}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="hb">
+    <div class="hl">ERI</div>
+    <div>
+      <div class="ht">Inventario Cíclico RASH</div>
+      <div class="hs">Yobel · Generador de Fichas ERI</div>
+    </div>
+  </div>
+  <div class="badge" id="badgeMes">Cargando…</div>
+</div>
+
+<div class="setup-bar" id="setupBar" style="display:none">
+  <span>⚠️ <strong>Primera vez:</strong> convierte el Esquema_ERI para acelerar la generación de fichas.</span>
+  <button class="btn btn-y" onclick="prepararPlantilla()" id="btnPrep" style="padding:6px 14px;font-size:12px">⚙️ Preparar Plantilla (1 vez)</button>
+</div>
+
+<div class="tabs">
+  <button class="tb on" onclick="tab('g',this)">📋 Generar Ficha ERI</button>
+  <button class="tb" onclick="tab('c',this)">📤 Cargar Ficha Completada</button>
+</div>
+
+<div class="main">
+
+<!-- ════ TAB GENERAR ════ -->
+<div id="tab-g" class="tc on">
+  <div id="aG"></div>
+
+  <div class="card">
+    <div class="ch"><span class="sb">1</span> TIPO Y FILTROS</div>
+    <div class="cb">
+      <div class="tipo-row">
+        <div class="tipo on" id="c-lpr" onclick="setTipo('LPR')">
+          <div class="tipo-icon">📦</div><div class="tipo-name">LINEA / LPR</div>
+          <div class="tipo-sub">RA · RB · RC · UR · RJ · RM</div>
+        </div>
+        <div class="tipo" id="c-alm" onclick="setTipo('ALM')">
+          <div class="tipo-icon">🏭</div><div class="tipo-name">ALMACEN / ALM</div>
+          <div class="tipo-sub">Rack 301 · 302 · 303 · BALANZA · RAMPA · PAS1xx · PCENTRAL</div>
+        </div>
+      </div>
+      <div class="frow">
+        <div class="fg" id="g-area"><label>Área LPR</label>
+          <select id="sel-area"><option value="">— Cargar desde stock —</option></select></div>
+        <div class="fg" id="g-rack" style="display:none"><label>Rack Almacén</label>
+          <select id="sel-rack"><option value="">— Cargar desde stock —</option></select></div>
+        <div class="fg" style="max-width:160px"><label>N° de Vuelta</label>
+          <select id="sel-vuelta"><option value="1">Vuelta 1</option></select></div>
+      </div>
+      <div class="hint" id="hintStock">Selecciona un tipo (LPR/ALM) para cargar las ubicaciones desde el stock actual.</div>
+      <div class="si stock-info" id="stockOptsInfo" style="display:none">
+        <span id="stockOptsFile"></span>
+        <button class="btn btn-o" id="btnRecarga" onclick="cargarOpcionesStock()" style="padding:4px 10px;font-size:11px">🔄 Recargar</button>
+      </div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn btn-t" onclick="calcPend()" id="btnCalc" disabled>🔍 Calcular Pendientes</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="lw" id="lCalc">
+    <div class="sp"></div>
+    <div class="lt">Leyendo stock y maestro…</div>
+    <div class="lt-sub">Puede tomar hasta 30 seg si el stock es un archivo Excel</div>
+  </div>
+
+  <div class="card" id="cRes" style="display:none">
+    <div class="ch"><span class="sb">2</span> RESUMEN DE PENDIENTES</div>
+    <div class="cb">
+      <div class="rg" id="resGrid"></div>
+      <div class="si" id="siInfo"></div>
+    </div>
+  </div>
+
+  <div class="card" id="cFicha" style="display:none">
+    <div class="ch"><span class="sb">3</span> CONFIGURAR FICHA</div>
+    <div class="cb">
+      <div class="prog-wrap" id="progWrap">
+        <div class="prog-label"><span>Progreso de asignación</span><span id="progText">0 / 0</span></div>
+        <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label>Colaborador / Inventariador</label>
+          <input type="text" id="colaborador" placeholder="Nombre del colaborador" /></div>
+        <div class="fg" style="max-width:180px"><label>Cantidad de líneas</label>
+          <input type="number" id="numLineas" value="50" min="1" max="999" oninput="updHint()" />
+          <span class="hint" id="lHint"></span></div>
+      </div>
+      <div class="frow">
+        <div class="fg" style="max-width:230px"><label>Supervisor</label>
+          <input type="text" id="supervisor" value="EXAVIER MEJIA" /></div>
+        <div class="fg" style="max-width:150px"><label>Proceso</label>
+          <input type="text" id="proceso" value="RASH" /></div>
+      </div>
+      <hr class="divider">
+      <div class="btn-row">
+        <button class="btn btn-n" onclick="generarFicha()" id="btnGen">🖨️ Generar Ficha</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="lw" id="lGen">
+    <div class="sp"></div>
+    <div class="lt" id="lGenTxt">Generando ficha…</div>
+    <div class="lt-sub" id="lGenSub"></div>
+  </div>
+
+  <!-- RESULTADO -->
+  <div class="res-card" id="resCard">
+    <h3 id="resTitle">✅ Ficha lista</h3>
+    <p id="resInfo"></p>
+    <div class="res-btns">
+      <!-- Botón 1: Abrir PDF para imprimir -->
+      <a id="btnPdf" href="#" target="_blank" class="btn-print">
+        🖨️ Vista Previa / Imprimir (PDF)
+      </a>
+      <!-- Botón 2: Descargar XLSX plano para llenado -->
+      <a id="btnXlsx" href="#" target="_blank" class="btn-xlsx">
+        ⬇️ Descargar XLSX para Llenado
+      </a>
+    </div>
+    <div class="next-card" id="nextCard">
+      <h4>⏭️ Siguiente colaborador — continúa desde línea <span id="nextFrom">—</span></h4>
+      <div class="frow">
+        <div class="fg"><label>Siguiente colaborador</label>
+          <input type="text" id="nextColab" placeholder="Nombre" /></div>
+        <div class="fg" style="max-width:175px"><label>Cantidad de líneas</label>
+          <input type="number" id="nextLineas" value="50" min="1" max="999" /></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-n" onclick="generarSiguiente()" id="btnNext">⏭️ Generar Siguiente Ficha</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ TAB CARGAR ════ -->
+<div id="tab-c" class="tc">
+  <div id="aC"></div>
+  <div class="al al-i"><span class="ai">ℹ️</span>
+    <span>Sube la ficha XLSX ya contada con los valores FÍSICO completados.
+    Se registrará en el histórico para el control de vueltas del mes.</span></div>
+  <div class="card">
+    <div class="ch"><span class="sb">1</span> SELECCIONAR ARCHIVO</div>
+    <div class="cb">
+      <div class="dz" id="dz" onclick="document.getElementById('fileInput').click()"
+           ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddr(event)">
+        <div class="dz-icon">📁</div>
+        <p><strong>Clic o arrastra</strong> la ficha XLSX completada</p>
+        <p style="font-size:11px;color:var(--gray);margin-top:4px">Solo archivos .xlsx</p>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx" onchange="onFile(this)">
+      <div id="fInfo" style="display:none;margin-top:10px" class="al al-i">
+        <span class="ai">📄</span>
+        <div><strong id="fName"></strong><div class="hint" id="fSize"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="lw" id="lCarg"><div class="sp"></div><div class="lt">Procesando…</div></div>
+  <div class="card" id="cConf" style="display:none">
+    <div class="ch"><span class="sb">2</span> CONFIRMAR CARGA</div>
+    <div class="cb">
+      <div class="al al-w"><span class="ai">⚠️</span>
+        <span>Se añadirán las filas al histórico con la fecha de hoy. Verifica que la ficha esté completa.</span></div>
+      <div class="btn-row">
+        <button class="btn btn-g" onclick="confirmar()" id="btnConf">✅ Confirmar y Cargar</button>
+        <button class="btn btn-o" onclick="cancelar()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+var S={tipo:'LPR',filtro:'',vuelta:1,opts:null,res:null,
+       currentOffset:0,totalPendientes:0,upFile:null};
+var ROWS_PER_PAGE=17;
+
+document.addEventListener('DOMContentLoaded',iniciar);
+function iniciar(){
+  // Solo carga el mes del historial (rápido) — las opciones de área vienen del stock
+  google.script.run
+    .withSuccessHandler(function(r){
+      if(!r.ok) return;
+      document.getElementById('badgeMes').textContent = r.mes || '';
+      // Pre-llenar vueltas
+      var sv=document.getElementById('sel-vuelta'); sv.innerHTML='';
+      for(var v=1;v<=Math.max((r.maxVueltas||0)+1,4);v++)
+        sv.innerHTML+='<option value="'+v+'">Vuelta '+v+(v===1?' (pendientes)':'')+'</option>';
+    })
+    .withFailureHandler(function(){})
+    .getFilterOptions();
+  // Cargar las opciones del stock para el tipo seleccionado por defecto (LPR)
+  cargarOpcionesStock();
+}
+
+function cargarOpcionesStock(){
+  // Mostrar "Leyendo stock..." en el dropdown correspondiente
+  var sa=document.getElementById('sel-area');
+  var sr=document.getElementById('sel-rack');
+  sa.innerHTML='<option>⏳ Leyendo stock...</option>';
+  sr.innerHTML='<option>⏳ Leyendo stock...</option>';
+  document.getElementById('btnCalc').disabled=true;
+  var infoBox=document.getElementById('stockOptsInfo');
+  if(infoBox) infoBox.style.display='none';
+  var hintEl=document.getElementById('hintStock');
+  if(hintEl){ hintEl.style.display='block'; hintEl.textContent='⏳ Leyendo stock actual, puede tardar unos segundos…'; }
+  // Botón de recarga
+  var br=document.getElementById('btnRecarga');
+  if(br){br.disabled=true; br.textContent='⏳ Cargando...';}
+  clrAlerta('g');
+  google.script.run
+    .withSuccessHandler(function(r){
+      if(br){br.disabled=false; br.textContent='🔄 Recargar';}
+      if(!r.ok){ alerta('g','e','❌','Error al leer stock: '+r.error);
+        sa.innerHTML='<option value="">⚠️ Error al cargar</option>';
+        sr.innerHTML='<option value="">⚠️ Error al cargar</option>';
+        return; }
+      poblarDesdeStock(r);
+    })
+    .withFailureHandler(function(e){
+      if(br){br.disabled=false; br.textContent='🔄 Recargar';}
+      alerta('g','e','❌','Error: '+e.message);
+      sa.innerHTML='<option value="">⚠️ Error</option>';
+      sr.innerHTML='<option value="">⚠️ Error</option>';
+    })
+    .getOpcionesDesdeStock();
+}
+
+function poblarDesdeStock(r){
+  // LPR areas
+  var sa=document.getElementById('sel-area'); sa.innerHTML='';
+  if(r.lprPrefixes && r.lprPrefixes.length>0){
+    r.lprPrefixes.forEach(function(a){
+      sa.innerHTML+='<option value="'+a.prefix+'">'+a.prefix+' ('+a.totalUbic+' ubic.)</option>';
+    });
+  } else {
+    sa.innerHTML='<option value="">Sin opciones LPR</option>';
+  }
+  // ALM racks
+  var sr=document.getElementById('sel-rack'); sr.innerHTML='';
+  if(r.almRacks && r.almRacks.length>0){
+    r.almRacks.forEach(function(rk){
+      sr.innerHTML+='<option value="'+rk.rack+'">Rack '+rk.rack+' ('+rk.totalUbic+' ubic.)</option>';
+    });
+  } else {
+    sr.innerHTML='<option value="">Sin opciones ALM</option>';
+  }
+  // Stock info
+  var info = document.getElementById('stockOptsFile');
+  if(info){
+    info.innerHTML = 'Stock: <b>'+(r.fileName||'—')+'</b> &nbsp;|&nbsp; '+(r.fileDate||'—');
+    if(r.fromCache) info.innerHTML += ' &nbsp;<span style="color:var(--teal);font-weight:700">(cache)</span>';
+  }
+  var infoBox=document.getElementById('stockOptsInfo');
+  if(infoBox) infoBox.style.display='flex';
+  var hintEl = document.getElementById('hintStock');
+  if(hintEl) hintEl.style.display='none';
+  // Habilitar calcular
+  document.getElementById('btnCalc').disabled=false;
+  syncFiltro();
+  clrAlerta('g');
+  alerta('g','s','✅',
+    (r.fromCache ? '⚡ Desde caché (rápido) — ' : '📥 Archivo convertido — ') +
+    (r.lprPrefixes?r.lprPrefixes.length:0)+' áreas LPR, '+
+    (r.almRacks?r.almRacks.length:0)+' racks ALM detectados en el stock actual.');
+}
+function prepararPlantilla(){
+  var btn=document.getElementById('btnPrep');
+  btn.disabled=true;btn.textContent='⏳ Convirtiendo…';
+  google.script.run
+    .withSuccessHandler(function(r){
+      hide('setupBar');
+      alerta('g','s','✅','Plantilla lista. Las próximas generaciones serán más rápidas.');
+    })
+    .withFailureHandler(function(e){
+      btn.disabled=false;btn.textContent='⚙️ Preparar Plantilla (1 vez)';
+      alert('Error: '+e.message);
+    })
+    .prepararPlantilla();
+}
+function setTipo(t){
+  S.tipo=t;
+  document.getElementById('c-lpr').classList.toggle('on',t==='LPR');
+  document.getElementById('c-alm').classList.toggle('on',t==='ALM');
+  document.getElementById('g-area').style.display=t==='LPR'?'flex':'none';
+  document.getElementById('g-rack').style.display=t==='ALM'?'flex':'none';
+  resetPasos();
+  // Auto-cargar opciones desde stock al seleccionar tipo
+  cargarOpcionesStock();
+}
+function syncFiltro(){
+  S.filtro=S.tipo==='LPR'?document.getElementById('sel-area').value:document.getElementById('sel-rack').value;
+  S.vuelta=parseInt(document.getElementById('sel-vuelta').value,10);
+}
+function calcPend(){
+  syncFiltro();clrAlerta('g');resetPasos();
+  show('lCalc');document.getElementById('btnCalc').disabled=true;
+  google.script.run
+    .withSuccessHandler(function(r){
+      hide('lCalc');document.getElementById('btnCalc').disabled=false;
+      if(!r.ok){alerta('g','e','❌',r.error);return;}
+      S.res=r;S.currentOffset=0;S.totalPendientes=r.lineasPendientes;
+      mostrarRes(r);
+    })
+    .withFailureHandler(function(e){
+      hide('lCalc');document.getElementById('btnCalc').disabled=false;
+      alerta('g','e','❌',e.message);
+    })
+    .getResumenPendientes(S.tipo,S.filtro,S.vuelta);
+}
+function mostrarRes(r){
+  document.getElementById('resGrid').innerHTML=
+    stat(r.ubicsPendientes,'Ubicaciones pendientes','w')+
+    stat(r.lineasPendientes,'Líneas totales','t')+
+    stat(Math.ceil(r.lineasPendientes/ROWS_PER_PAGE),'Páginas (ficha completa)','g');
+  document.getElementById('siInfo').innerHTML='📂 Stock: <strong>'+(r.fileName||'—')+'</strong> | '+(r.fileDate||'—');
+  show('cRes');
+  if(r.ubicsPendientes===0){
+    alerta('g','i','✅','¡Todo al día! No hay pendientes para este filtro.');
+    hide('cFicha');
+  } else {
+    clrAlerta('g');show('cFicha');updProg(0,r.lineasPendientes);updHint();
+  }
+}
+function stat(v,l,c){return '<div class="rs"><div class="rv '+c+'">'+v+'</div><div class="rl">'+l+'</div></div>';}
+function updHint(){
+  if(!S.res)return;
+  var nl=parseInt(document.getElementById('numLineas').value,10)||50;
+  var rem=S.totalPendientes-S.currentOffset;
+  var actual=Math.min(nl,rem);
+  document.getElementById('lHint').textContent=
+    Math.ceil(actual/ROWS_PER_PAGE)+' pág(s) · '+ROWS_PER_PAGE+' filas/pág | Quedan: '+rem;
+}
+function updProg(a,t){
+  var pct=t>0?Math.round(a/t*100):0;
+  document.getElementById('progText').textContent=a+' / '+t+' ('+pct+'%)';
+  document.getElementById('progFill').style.width=pct+'%';
+  document.getElementById('progWrap').style.display=t>0?'block':'none';
+}
+function generarFicha(){
+  syncFiltro();
+  _doGenerar(
+    document.getElementById('colaborador').value.trim().toUpperCase(),
+    parseInt(document.getElementById('numLineas').value,10)||50,
+    S.currentOffset
+  );
+}
+function generarSiguiente(){
+  var nc=document.getElementById('nextColab').value.trim().toUpperCase();
+  var nl=parseInt(document.getElementById('nextLineas').value,10)||50;
+  document.getElementById('colaborador').value=nc;
+  document.getElementById('numLineas').value=nl;
+  hide('resCard');
+  _doGenerar(nc,nl,S.currentOffset);
+}
+function _doGenerar(colaborador,numLineas,offset){
+  var params={
+    tipoUbic:S.tipo,filtro:S.filtro,numVuelta:S.vuelta,
+    colaborador:colaborador,numLineas:numLineas,offset:offset,
+    supervisor:document.getElementById('supervisor').value.trim().toUpperCase(),
+    proceso:document.getElementById('proceso').value.trim().toUpperCase()
+  };
+  hide('resCard');show('lGen');document.getElementById('btnGen').disabled=true;
+  var el=document.getElementById('btnNext');if(el)el.disabled=true;
+  var steps=[
+    ['Leyendo maestro de ubicaciones…',''],
+    ['Procesando stock diario…','~20 seg si el stock es un archivo .xlsx'],
+    ['Cruzando con histórico de vueltas…',''],
+    ['Abriendo plantilla Esquema ERI…',''],
+    ['Copiando páginas con formato completo…','Cada página mantiene logo, instrucciones y márgenes'],
+    ['Preparando PDF y XLSX de llenado…','']
+  ];
+  var si=0,tk=setInterval(function(){
+    var s=steps[si%steps.length];
+    document.getElementById('lGenTxt').textContent=s[0];
+    document.getElementById('lGenSub').textContent=s[1];
+    si++;
+  },3500);
+  google.script.run
+    .withSuccessHandler(function(r){
+      clearInterval(tk);hide('lGen');document.getElementById('btnGen').disabled=false;
+      if(!r.ok){alerta('g','e','❌',r.error);return;}
+      S.currentOffset=r.nextOffset;S.totalPendientes=r.totalPendientes;
+      mostrarResultado(r);
+      updProg(S.currentOffset,S.totalPendientes);updHint();
+    })
+    .withFailureHandler(function(e){
+      clearInterval(tk);hide('lGen');document.getElementById('btnGen').disabled=false;
+      alerta('g','e','❌','Error: '+e.message);
+    })
+    .generarFichaERI(params);
+}
+function mostrarResultado(r){
+  document.getElementById('resTitle').textContent='✅ Ficha generada — '+r.totalLineas+' líneas · '+r.totalPaginas+' página'+(r.totalPaginas!==1?'s':'');
+  document.getElementById('resInfo').innerHTML=
+    'Líneas '+(r.nextOffset-r.totalLineas+1)+' – '+r.nextOffset+' de '+r.totalPendientes+' pendientes<br>'+
+    'Stock: '+(r.stockFile||'—')+' · '+(r.stockDate||'—');
+  // PDF: abre el PDF directamente en nueva pestaña (sin abrir Sheets)
+  document.getElementById('btnPdf').href=r.pdfUrl;
+  // XLSX: descarga el libro plano (una sola hoja con todas las filas)
+  document.getElementById('btnXlsx').href=r.xlsxUrl;
+  var nc=document.getElementById('nextCard');
+  if(r.hasMore){
+    document.getElementById('nextFrom').textContent=r.nextOffset+1;
+    document.getElementById('nextLineas').value=document.getElementById('numLineas').value;
+    document.getElementById('nextColab').value='';
+    nc.classList.add('on');
+    var nb=document.getElementById('btnNext');if(nb)nb.disabled=false;
+  } else {
+    nc.classList.remove('on');
+    alerta('g','s','🏁','¡Todas las ubicaciones asignadas! ('+r.totalPendientes+' líneas)');
+  }
+  show('resCard');
+}
+// ── CARGAR ──
+function dov(e){e.preventDefault();document.getElementById('dz').classList.add('drag')}
+function dlv(){document.getElementById('dz').classList.remove('drag')}
+function ddr(e){e.preventDefault();dlv();if(e.dataTransfer.files[0])procFile(e.dataTransfer.files[0])}
+function onFile(i){if(i.files[0])procFile(i.files[0])}
+function procFile(f){
+  clrAlerta('c');
+  if(!f.name.toLowerCase().endsWith('.xlsx')){alerta('c','e','❌','Solo archivos .xlsx');return;}
+  S.upFile=f;
+  document.getElementById('fName').textContent=f.name;
+  document.getElementById('fSize').textContent=(f.size/1024).toFixed(1)+' KB';
+  show('fInfo');show('cConf');
+}
+function confirmar(){
+  if(!S.upFile){alerta('c','e','❌','Sin archivo');return;}
+  show('lCarg');document.getElementById('btnConf').disabled=true;hide('cConf');
+  var rd=new FileReader();
+  rd.onload=function(e){
+    var b64=e.target.result.split(',')[1];
+    google.script.run
+      .withSuccessHandler(function(r){
+        hide('lCarg');document.getElementById('btnConf').disabled=false;
+        if(!r.ok){alerta('c','e','❌',r.error);show('cConf');return;}
+        alerta('c','s','✅','<strong>'+r.rowsCargadas+' registros</strong> cargados · '+r.fecha);
+        cancelar();
+      })
+      .withFailureHandler(function(e){
+        hide('lCarg');document.getElementById('btnConf').disabled=false;
+        alerta('c','e','❌',e.message);
+      })
+      .cargarFichaCompletada(b64,S.upFile.name);
+  };
+  rd.readAsDataURL(S.upFile);
+}
+function cancelar(){
+  S.upFile=null;document.getElementById('fileInput').value='';
+  hide('fInfo');hide('cConf');
+}
+// ── UI ──
+function tab(t,btn){
+  document.querySelectorAll('.tc').forEach(function(e){e.classList.remove('on')});
+  document.querySelectorAll('.tb').forEach(function(e){e.classList.remove('on')});
+  document.getElementById('tab-'+t).classList.add('on');btn.classList.add('on');
+}
+function show(id){
+  var el=document.getElementById(id);if(!el)return;
+  if(el.classList.contains('lw'))        el.classList.add('on');
+  else if(el.classList.contains('res-card')) el.classList.add('on');
+  else el.style.display='block';
+}
+function hide(id){
+  var el=document.getElementById(id);if(!el)return;
+  if(el.classList.contains('lw'))        el.classList.remove('on');
+  else if(el.classList.contains('res-card')) el.classList.remove('on');
+  else el.style.display='none';
+}
+function alerta(t,tp,ic,msg){
+  var id='a'+(t==='g'?'G':'C');
+  var cls={s:'al-s',e:'al-e',i:'al-i',w:'al-w'}[tp]||'al-i';
+  document.getElementById(id).innerHTML='<div class="al '+cls+'"><span class="ai">'+ic+'</span><span>'+msg+'</span></div>';
+}
+function clrAlerta(t){document.getElementById(t==='g'?'aG':'aC').innerHTML='';}
+function resetPasos(){
+  ['cRes','cFicha','lCalc','lGen','resCard'].forEach(hide);
+  document.getElementById('progWrap').style.display='none';
+  S.currentOffset=0;S.totalPendientes=0;S.res=null;
+}
+</script>
+</body>
+</html>
