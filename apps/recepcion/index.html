@@ -1963,6 +1963,21 @@ function horasPs(psId,fecha){
   });
   return todas.filter(function(h){return!ocupadas[h];});
 }
+// Mismo chequeo de día/horario que horasPs, pero SIN restar las horas ya
+// ocupadas - sirve para saber si una hora cae dentro de su jornada laboral
+// (ej. pintar gris lo que está fuera de horario en el PDF de Agenda
+// Semanal), no para ofrecer slots libres al agendar. Usar horasPs ahí
+// pintaba de gris sus propias sesiones ya agendadas (porque horasPs las
+// resta por estar "ocupadas"), dejando un borde/franja gris alrededor del
+// bloque azul de la sesión aunque esa hora sí fuera parte de su horario.
+function horasTrabajoPsEnDia(psId,fecha){
+  const ps=DB.psicologas.find(p=>p.id===psId);
+  if(!ps)return[];
+  const d=new Date(fecha+'T12:00:00');
+  const diaNom=diaFull[d.getDay()];
+  if(diasTrabajaPs(ps).indexOf(diaNom)===-1)return[];
+  return horasPsEnDia(ps,diaNom);
+}
 
 // ── Días/horarios reales de cada psicóloga (dias_trabajo, dia_completo) ──
 // En Supabase vienen como rango ("Martes-Sabado") o lista ("Lunes, jueves").
@@ -7858,7 +7873,7 @@ function exportarAgendaPDF(){
     // libres dentro de su jornada.
     const trabajaEstaPs={};
     if(filtPs){
-      dias.forEach(function(dia){trabajaEstaPs[dia.f]=new Set(horasPs(filtPs,dia.f));});
+      dias.forEach(function(dia){trabajaEstaPs[dia.f]=new Set(horasTrabajoPsEnDia(filtPs,dia.f));});
     }
 
     // Psicólogas con sesiones esta semana - solo se usan para la leyenda
