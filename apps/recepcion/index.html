@@ -5133,11 +5133,16 @@ async function recalcularSaldoPaciente(pacNombre){
   for(const prog of progs){
     const pagosProg=await sbGet('pagos',{programa_id:'eq.'+prog.id,select:'monto'})||[];
     const totalPagado=Math.round(pagosProg.reduce(function(a,p){return a+(parseFloat(p.monto)||0);},0)*100)/100;
-    const sesionesProg=await sbGet('sesiones',{programa_id:'eq.'+prog.id,tipo:'eq.paquete',select:'id,fecha,hora,nro_en_paquete,estado,saldo'})||[];
+    const sesionesProg=await sbGet('sesiones',{programa_id:'eq.'+prog.id,tipo:'eq.paquete',select:'id,fecha,hora,nro_en_paquete,estado,saldo,saldo_fijado'})||[];
     // Reinicia en 0 el saldo de TODAS sus sesiones del paquete - la
     // cascada de abajo solo vuelve a poner algo en las que de verdad
-    // quedan con una cuota pendiente.
-    await Promise.all(sesionesProg.map(function(s){
+    // quedan con una cuota pendiente. Las marcadas "saldo_fijado" se
+    // saltan por completo (ni se resetean ni la cascada las toca después)
+    // - son un acuerdo manual con la familia que no sigue el cronograma
+    // automático de cuotas (ej. "paga el resto el sábado" cuando el
+    // cronograma real de cuotas cae en otra sesión), y este recálculo
+    // automático no debe deshacerlo cada vez que se abre el Historial.
+    await Promise.all(sesionesProg.filter(function(s){return!s.saldo_fijado;}).map(function(s){
       return (s.saldo||0)!==0?sbPatch('sesiones',{saldo:0},{id:'eq.'+s.id}):Promise.resolve();
     }));
     const vivas=sesionesProg.filter(function(s){
@@ -5165,6 +5170,15 @@ async function recalcularSaldoPaciente(pacNombre){
     checkpoints.forEach(function(cp){
       const sesDestino=vivasOrdenadas[cp.sesion-1];
       if(!sesDestino)return;
+      // Si esta cuota cayó justo en una sesión con saldo fijado a mano, no
+      // se le toca el saldo (se respeta el acuerdo manual) - pero su monto
+      // SÍ se descuenta completo del pool de "restante", como si ya
+      // estuviera resuelta, para que la plata que en verdad se pagó no se
+      // cuente dos veces en la siguiente cuota.
+      if(sesDestino.saldo_fijado){
+        restante=Math.round((restante-cp.monto)*100)/100;
+        return;
+      }
       const aplicado=Math.max(0,Math.min(restante,cp.monto));
       const saldoCuota=Math.round((cp.monto-aplicado)*100)/100;
       restante=Math.round((restante-aplicado)*100)/100;
