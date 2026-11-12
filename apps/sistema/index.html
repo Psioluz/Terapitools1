@@ -1888,6 +1888,8 @@ async function auditVolverActivo(programaId,btn){
     btn.closest('div[style*="border-top"],div[style*="border:1px solid var(--orange)"]').remove();
   }catch(e){toast('Error: '+e.message,'error');}
 }
+const ESTADO_LABELS_SIS={programado:'Programado',asistio:'Asistió',tardanza:'Tardanza',noasistio:'No asistió',permiso:'Permiso',reprogramado:'Reprogramado',cancelado:'Cancelado',congelado:'Congelada'};
+function estadoLabelSis(e){return ESTADO_LABELS_SIS[e]||(e?e.charAt(0).toUpperCase()+e.slice(1):'');}
 async function _auditarCuposDuplicados(){
   const {data}=await sbGet('sesiones',{select:'id,paciente_nombre,programa_id,nro_en_paquete,fecha,estado',programa_id:'not.is.null',nro_en_paquete:'not.is.null',limit:'20000'});
   const grupos={};
@@ -1906,7 +1908,7 @@ async function _auditarCuposDuplicados(){
         '<div style="font-weight:800;font-size:12px;margin-bottom:4px">'+g[0].paciente_nombre+' · cupo #'+g[0].nro_en_paquete+' ('+g.length+' sesiones)</div>'+
         g.map(function(s){
           return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-top:1px dashed var(--border);font-size:11px">'+
-            '<span>'+(s.fecha||'-')+' · '+s.estado+' · id: '+s.id+'</span></div>';
+            '<span>'+(s.fecha||'-')+' · '+estadoLabelSis(s.estado)+' · id: '+s.id+'</span></div>';
         }).join('')+
         '<button class="btn btn-outline btn-sm" style="margin-top:6px" onclick="irATablas(\'sesiones\',\''+String(g[0].paciente_nombre).replace(/'/g,"\\'")+'\')">🔍 Revisar en Tablas de Supabase</button>'+
         '</div>';

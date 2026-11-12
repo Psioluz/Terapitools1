@@ -3239,7 +3239,7 @@ function abrirDetallePersonal(nombre,tipo){
       '<div style="font-weight:800;font-size:12px;margin-bottom:6px" id="detBonosMeta">🎯 Bonos de meta este mes: ⏳</div>'+
       '<div style="font-weight:800;font-size:12px;margin:10px 0 6px">🕐 Últimos registros de asistencia</div>'+
       (asistHist.length?'<table><thead><tr><th>Fecha</th><th>Estado</th><th>Hora</th></tr></thead><tbody>'+
-        asistHist.map(function(a){return '<tr><td>'+(a.fecha||'')+'</td><td>'+(a.estado||'')+'</td><td>'+(a.entrada||'')+'</td></tr>';}).join('')+
+        asistHist.map(function(a){return '<tr><td>'+(a.fecha||'')+'</td><td>'+estadoLabelGer(a.estado)+'</td><td>'+(a.entrada||'')+'</td></tr>';}).join('')+
         '</tbody></table>':'<div class="hint">Sin registros.</div>')+
       '<div style="font-weight:800;font-size:12px;margin:10px 0 6px">📞 Datos</div>'+
       '<div class="hint">Tel: '+(ps.tel||'-')+' · Email: '+(ps.email||'-')+' · Ingreso: '+(ps.fechaIngreso?fmtF(ps.fechaIngreso):'-')+'</div>';
@@ -3370,6 +3370,8 @@ function colorPsAgendaGer(psNombre){
   var h=0;for(var i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0;}
   return PALETA_PS_AGENDA_GER[h%PALETA_PS_AGENDA_GER.length];
 }
+const ESTADO_LABELS_GER={programado:'Programado',asistio:'Asistió',tardanza:'Tardanza',noasistio:'No asistió',permiso:'Permiso',reprogramado:'Reprogramado',cancelado:'Cancelado',congelado:'Congelada',presente:'Presente',ausente:'Ausente'};
+function estadoLabelGer(e){return ESTADO_LABELS_GER[e]||(e?e.charAt(0).toUpperCase()+e.slice(1):'');}
 function colorEstadoAgGer(estado){
   return estado==='asistio'?'#059669':estado==='noasistio'?'#dc2626':
     estado==='permiso'?'#f59e0b':'rgba(0,0,0,.45)';
@@ -3522,7 +3524,7 @@ function renderAgendaGer(){
           '<div style="font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.pacNombre||'-')+'</div>'+
           '<div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.psNombre||'-').replace('Lic.','').trim()+' · '+(s.terNombre||'-')+'</div>'+
           '</div>'+
-          '<span class="badge" style="background:'+bc+';color:#000;font-weight:800">'+(s.estado||'-')+'</span>'+
+          '<span class="badge" style="background:'+bc+';color:#000;font-weight:800">'+(s.estado?estadoLabelGer(s.estado):'-')+'</span>'+
           '</div>';
       }).join('')+
       '</div>';
@@ -4571,7 +4573,7 @@ async function renderAsistHist(){
         +porFecha[f].map(function(r){
           return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">'
             +'<div><span style="font-weight:700;font-size:12px">'+(r.psicologa||'-')+'</span> <span style="font-size:10px;color:var(--muted)">· '+(r.sede||'')+'</span></div>'
-            +'<div style="font-size:11px"><span style="color:'+(r.estado==='presente'?'#059669':'#dc2626')+';font-weight:800">'+(r.estado||'')+'</span>'
+            +'<div style="font-size:11px"><span style="color:'+(r.estado==='presente'?'#059669':'#dc2626')+';font-weight:800">'+estadoLabelGer(r.estado)+'</span>'
             +' <span style="color:var(--muted)">'+String(r.entrada||'').substring(0,5)+'</span></div></div>';
         }).join('')+'</div></div>';
     }).join('');
