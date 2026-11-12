@@ -442,6 +442,7 @@ select.fsel{
     <div class="ger-nav-item" id="gnav-tFichas" onclick="goTab('tFichas',this);if(typeof renderFichasIndicador==='function')renderFichasIndicador()">📝 Fichas</div>
     <div class="ger-nav-section">Sedes</div>
     <div class="ger-nav-item" id="gnav-tSedes" onclick="goTab('tSedes',this)">🏥 Sedes</div>
+    <div class="ger-nav-item" id="gnav-tInventario" onclick="goTab('tInventario',this)">📦 Inventario</div>
     <div class="ger-nav-item" id="gnav-tAgenda" onclick="goTab('tAgenda',this);if(typeof renderAgendaGer==='function')renderAgendaGer()">🗓️ Agenda</div>
     <div class="ger-nav-item" id="gnav-tDocsPsicologas" onclick="goTab('tDocsPsicologas',this);if(typeof renderDocsPsicologas==='function')renderDocsPsicologas()">📋 Docs Psicólogas</div>
     <div class="ger-nav-section">Sistema</div>
@@ -829,6 +830,26 @@ select.fsel{
      hay cambio en caja quedaba mezclado dentro de la columna "Yape/Plin"
      sin distinguirse de un cobro real a un paciente, lo que inflaba ese
      número para efectos de arqueo. -->
+<div class="page" id="tInventario" style="padding:14px">
+  <div class="card" style="margin-bottom:14px">
+    <div class="ch"><div class="ct">📦 Inventario de Activos</div></div>
+    <div style="padding:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">Sede</label>
+        <select class="fsel" id="invSede"><option value="">🏢 Todas las sedes</option></select>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="renderInventarioGer()" style="border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 12px;font-weight:800;font-size:12px;cursor:pointer">🔄 Cargar inventario</button>
+        <button onclick="exportarInventarioPDF()" style="border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 12px;font-weight:800;font-size:12px;cursor:pointer">📄 Exportar PDF</button>
+      </div>
+    </div>
+    <div class="cb" style="overflow-x:auto">
+      <table id="tblInventario"><thead><tr><th>Código</th><th>Activo</th><th>Categoría</th><th>Sede</th><th>Stock</th><th>Mínimo</th><th>Precio</th><th>Estado</th><th>Condición</th></tr></thead>
+      <tbody id="tblInventarioBody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Pulsa "Cargar inventario" para ver los activos.</td></tr></tbody></table>
+    </div>
+  </div>
+</div>
+
 <div class="page" id="tCajaVerif" style="padding:14px">
   <div class="card" style="margin-bottom:14px">
     <div class="ch"><div class="ct">🧾 Verificación de Caja</div></div>
@@ -1118,6 +1139,8 @@ let G = {
   programas  : [],   // programas_paciente activos, para el saldo real (deuda de paquete)
   pagosLocal : [],   // pagos, cargados de Supabase en sincronizar()
   fichas     : [],   // fichas_seguimiento, para el indicador de llenado de fichas
+  inventario : [],   // insumos/activos, cargado solo a demanda (no entra en sincronizar())
+  inventarioMalo: [], // activos en mal estado - sí se refresca en cada sincronizar(), para la alerta
   primerIngresoPs: {}, // {nombrePsicologa: 'YYYY-MM-DD' de su primer login a la app Psicóloga}
   loaded     : false,
   ts         : null
@@ -1669,7 +1692,18 @@ async function sincronizar(mostrar){
     console.log('Sheet:',err.message);
     renderTodo();
   }
+  _actualizarAlertaInventario();
   sbar(false);
+}
+// Chequeo liviano de activos en mal estado - independiente del reporte
+// completo de Inventario (ese es a demanda, ver renderInventarioGer), para
+// que la alerta a Gerencia/Administración salga sola en cada sincronizar(),
+// sin que alguien tenga que abrir la pestaña de Inventario primero.
+async function _actualizarAlertaInventario(){
+  try{
+    G.inventarioMalo=await accGet('insumos',{select:'id,nombre,sede',estado_activo:'eq.malo'});
+  }catch(e){G.inventarioMalo=G.inventarioMalo||[];}
+  renderAlertas();
 }
 
 // ── FILTROS ──────────────────────────────────────────────────────────────────
@@ -1684,7 +1718,7 @@ async function cargarSedesActivasGer(){
     SEDES_ACTIVAS=(rows||[]).map(function(s){return s.nombre;});
   }catch(e){console.warn('[sedes]',e.message);SEDES_ACTIVAS=['Comas','Ovalo Zapallal','Flecha','Pachacutec','Rosaluz'];}
   var opts=SEDES_ACTIVAS.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
-  ['fSede','precSede','chatSedeSelGer','docsPsFilSede'].forEach(function(id){
+  ['fSede','precSede','chatSedeSelGer','docsPsFilSede','invSede'].forEach(function(id){
     var sel=document.getElementById(id);if(sel)sel.insertAdjacentHTML('beforeend',opts);
   });
   var accSel=document.getElementById('accSede');
@@ -2827,6 +2861,78 @@ function exportarCajaPDF(){
   });
 }
 
+// ── INVENTARIO DE ACTIVOS (carga a demanda, no entra en sincronizar()) ──────
+function _badgeCondicion(e){
+  var m={bueno:{t:'🟢 Buen estado',bg:'#dcfce7',c:'#166534'},medio:{t:'🟡 Estado medio',bg:'#fffbeb',c:'#92400e'},malo:{t:'🔴 Mal estado',bg:'#fee2e2',c:'#991b1b'}};
+  var x=m[e]||m.bueno;
+  return'<span class="badge" style="background:'+x.bg+';color:'+x.c+'">'+x.t+'</span>';
+}
+async function renderInventarioGer(){
+  var tbody=document.getElementById('tblInventarioBody');
+  if(tbody)tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Cargando…</td></tr>';
+  var sede=document.getElementById('invSede')?document.getElementById('invSede').value:'';
+  var q={select:'*',order:'categoria.asc,nombre.asc'};
+  if(sede)q.sede='eq.'+sede;
+  try{
+    G.inventario=await accGet('insumos',q);
+  }catch(e){
+    if(tbody)tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--red);padding:20px">Error: '+e.message+'</td></tr>';
+    return;
+  }
+  if(!tbody)return;
+  if(!G.inventario.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Sin activos registrados.</td></tr>';return;}
+  tbody.innerHTML=G.inventario.map(function(i){
+    var bajo=(i.cantidad_actual||0)<=(i.stock_minimo||0);
+    return'<tr style="'+(bajo?'background:#fff5f5':'')+'">'+
+      '<td style="font-weight:800;color:var(--acc)">'+(i.codigo_activo||'-')+'</td>'+
+      '<td style="font-weight:700">'+i.nombre+'</td>'+
+      '<td>'+(i.categoria||'-')+'</td>'+
+      '<td>'+(i.sede||'-')+'</td>'+
+      '<td style="font-weight:900;color:'+(bajo?'#dc2626':'#15803d')+'">'+(i.cantidad_actual||0)+' '+(i.unidad||'')+'</td>'+
+      '<td>'+(i.stock_minimo||0)+'</td>'+
+      '<td>S/'+(i.precio_unitario||0)+'</td>'+
+      '<td>'+(bajo?'⚠️ Stock bajo':'✅ OK')+'</td>'+
+      '<td>'+_badgeCondicion(i.estado_activo)+'</td>'+
+    '</tr>';
+  }).join('');
+}
+function exportarInventarioPDF(){
+  if(!G.inventario.length){alert('Primero pulsa "Cargar inventario" (y espera a que termine) para exportar.');return;}
+  var sedeLbl=document.getElementById('invSede')&&document.getElementById('invSede').value||'Todas las sedes';
+  _cargarLibsPDF(function(){
+    try{
+      var jsPDF=window.jspdf.jsPDF;
+      var doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+      var W=297,M=12;
+      doc.setFillColor(74,14,46);doc.rect(0,0,W,18,'F');
+      doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
+      doc.text('Inventario de Activos - '+sedeLbl,M,11);
+      doc.setFillColor(233,30,140);doc.rect(0,18,W,2,'F');
+      var condLbl={bueno:'Buen estado',medio:'Estado medio',malo:'Mal estado'};
+      var filas=G.inventario.map(function(i){
+        var bajo=(i.cantidad_actual||0)<=(i.stock_minimo||0);
+        return[i.codigo_activo||'-',i.nombre,i.categoria||'-',i.sede||'-',(i.cantidad_actual||0)+' '+(i.unidad||''),String(i.stock_minimo||0),'S/'+(i.precio_unitario||0),bajo?'Stock bajo':'OK',condLbl[i.estado_activo]||'Buen estado'];
+      });
+      doc.autoTable({startY:24,margin:{left:M,right:M},
+        head:[['Código','Activo','Categoría','Sede','Stock','Mínimo','Precio','Estado','Condición']],
+        body:filas,
+        headStyles:{fillColor:[74,14,46],textColor:255,fontStyle:'bold'},
+        alternateRowStyles:{fillColor:[248,250,255]},
+        didParseCell:function(dt){
+          if(dt.section!=='body')return;
+          if(dt.row.raw[7]==='Stock bajo'){dt.cell.styles.fillColor=[255,245,245];dt.cell.styles.textColor=[220,38,38];}
+          if(dt.column.index===8){
+            if(dt.cell.raw==='Mal estado'){dt.cell.styles.fillColor=[254,226,226];dt.cell.styles.textColor=[153,27,27];dt.cell.styles.fontStyle='bold';}
+            else if(dt.cell.raw==='Estado medio'){dt.cell.styles.fillColor=[255,251,235];dt.cell.styles.textColor=[146,64,14];}
+            else{dt.cell.styles.fillColor=[220,252,231];dt.cell.styles.textColor=[22,101,52];}
+          }
+        }
+      });
+      guardarPDF(doc,'Inventario_'+sedeLbl.replace(/\s+/g,'_')+'_'+today()+'.pdf');
+    }catch(e){console.error('[exportarInventarioPDF]',e);alert('Error al generar el PDF: '+e.message);}
+  });
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 //  PACIENTES
 // ════════════════════════════════════════════════════════════════════════════
@@ -3489,6 +3595,11 @@ function renderAlertas(){
       alertas.push({tipo:'r',icon:'👤',txt:`Ausente hoy: <strong>${ps.nombre}</strong> (${ps.sede||ps._sede||'-'})`});
   });
 
+  // Activos de inventario en mal estado
+  (G.inventarioMalo||[]).filter(i=>!sdAl||(i.sede||'')===sdAl).forEach(i=>{
+    alertas.push({tipo:'r',icon:'🔴',txt:`Activo en <strong>mal estado</strong>: <strong>${i.nombre}</strong> (${i.sede||'-'})`});
+  });
+
   // Sin sesiones esta semana
   var semAnt=new Date(); semAnt.setDate(semAnt.getDate()-7);
   var semAntStr=fechaLima(semAnt);
@@ -3652,7 +3763,7 @@ function goTab(id,btn){
   // La Agenda tiene su propio filtro de sede independiente - el filtro
   // global de mes/sede de arriba no aplica ahí y se oculta para no confundir.
   var fb=document.querySelector('.filtros-bar');
-  if(fb)fb.style.display=(id==='tAgenda'||id==='tCajaVerif'||id==='tChat')?'none':'';
+  if(fb)fb.style.display=(id==='tAgenda'||id==='tCajaVerif'||id==='tChat'||id==='tInventario')?'none':'';
 
   // Renderizar solo la pestaña activa
   var renderMap={
