@@ -6388,6 +6388,10 @@ async function aplicarCascadaCheckpoints(programaId,montoDisponible){
   try{
     pendientes=await sbGet('sesiones',{programa_id:'eq.'+programaId,saldo:'gt.0',select:'*',order:'fecha.asc,hora.asc'});
   }catch(e){console.error('[cascada checkpoints]',e);return null;}
+  // Las sesiones con saldo_fijado tienen un acuerdo manual con la familia
+  // (ver recalcularSaldoPaciente) - un pago nuevo no debe tocarlas ni
+  // consumirse en ellas, se salta a la siguiente cuota realmente pendiente.
+  pendientes=(pendientes||[]).filter(function(s){return!s.saldo_fijado;});
   const patches=[];
   let restante=montoDisponible;
   let primeraTocada=null;
@@ -6419,6 +6423,9 @@ async function aplicarCascadaSueltas(pacNombre,montoDisponible){
     pendientes=await sbGet('sesiones',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+DB.sede,
       saldo:'gt.0',programa_id:'is.null',select:'*',order:'fecha.asc,hora.asc'});
   }catch(e){console.error('[cascada sueltas]',e);return null;}
+  // Mismo criterio que aplicarCascadaCheckpoints: respetar un saldo fijado
+  // a mano, no consumirlo con un pago nuevo que no era para eso.
+  pendientes=(pendientes||[]).filter(function(s){return!s.saldo_fijado;});
   const patches=[];
   let restante=montoDisponible;
   let primeraTocada=null;
