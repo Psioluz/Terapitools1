@@ -340,6 +340,7 @@ try{
     <div class="nav-item" onclick="showPage('psicologas',this)">👩‍⚕️ Psicólogas</div>
     <div class="nav-item" onclick="showPage('terapias',this)">🧠 Terapias</div>
     <div class="nav-item" onclick="showPage('paquetes',this)">💼 Servicios y Tarifas</div>
+    <div class="nav-item" onclick="showPage('inventario',this)">📦 Inventario</div>
 
     <div class="nav-section">Reportes</div>
     <div class="nav-item" onclick="showPage('reportes',this)">📋 Reporte del Día</div>
@@ -649,6 +650,45 @@ try{
     </div>
     <div class="grid g3" style="padding:12px" id="gridPaq"></div>
   </div>
+</div>
+
+<!-- ═══ INVENTARIO ═══ -->
+<div id="page-inventario" class="page">
+  <div class="card">
+    <div class="card-header"><div class="card-title">📦 Inventario de Activos</div><button class="btn btn-primary btn-sm" onclick="abrirModalInsumoNuevo()">+ Agregar activo</button></div>
+    <div id="listaInventarioRec" style="padding:12px"></div>
+  </div>
+</div>
+
+<!-- MODAL INSUMO -->
+<div class='modal-overlay' id='modalInsumo'>
+<div class='modal'>
+  <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px'><span style='font-weight:800;font-size:15px' id='inTit'>📦 Nuevo Activo</span><button onclick="document.getElementById('modalInsumo').classList.remove('open')" style='background:none;border:none;font-size:22px;cursor:pointer'>✕</button></div>
+  <input type='hidden' id='inId'>
+  <div class='form-group'><label class='form-label'>Nombre del artículo</label><input class='form-control' id='inNombre' placeholder='Ej: Silla de madera' onblur='inPrevisualizarCodigo()'></div>
+  <div class='grid g2'>
+    <div class='form-group'><label class='form-label'>Categoría</label><select class='form-control' id='inCat' onchange='inPrevisualizarCodigo()'>
+      <option value='Mobiliario'>🪑 Mobiliario</option>
+      <option value='Juguetes y material terapéutico'>🧸 Juguetes y material terapéutico</option>
+      <option value='Insumos de oficina'>🖇️ Insumos de oficina</option>
+      <option value='Insumos de limpieza'>🧴 Insumos de limpieza</option>
+      <option value='Equipos'>💻 Equipos</option>
+      <option value='Otros'>📦 Otros</option>
+    </select></div>
+    <div class='form-group'><label class='form-label'>Código de activo</label><input class='form-control' id='inCodigo' placeholder='Se genera automático' readonly style='background:#f8faff;font-weight:800;color:var(--acc)'></div>
+    <div class='form-group'><label class='form-label'>Unidad</label><input class='form-control' id='inUnidad' placeholder='unid, kg, lt...' value='unid'></div>
+    <div class='form-group'><label class='form-label'>Cantidad actual</label><input class='form-control' type='number' id='inCant' value='0'></div>
+    <div class='form-group'><label class='form-label'>Stock mínimo</label><input class='form-control' type='number' id='inMin' value='0'></div>
+    <div class='form-group'><label class='form-label'>Precio unitario</label><input class='form-control' type='number' id='inPrecio' step='0.01' value='0'></div>
+    <div class='form-group'><label class='form-label'>Fecha vencimiento (si aplica)</label><input class='form-control' type='date' id='inVence'></div>
+    <div class='form-group'><label class='form-label'>Estado del activo</label><select class='form-control' id='inEstado'>
+      <option value='bueno'>Buen estado</option>
+      <option value='medio'>Estado medio</option>
+      <option value='malo'>Mal estado</option>
+    </select></div>
+  </div>
+  <button class='btn btn-primary' style='width:100%;padding:12px;font-size:14px;margin-top:4px' onclick='guardarInsumo()' id='inBtnGuardar'>💾 Registrar</button>
+</div>
 </div>
 
 <!-- ═══ WHATSAPP ═══ -->
@@ -1325,6 +1365,15 @@ try{
       <label class="form-label">Motivo de la tardanza *</label>
       <input class="form-control" id="tardanza-motivo" placeholder="Ej: tráfico, cita médica, etc.">
     </div>
+    <div class="form-group">
+      <label class="form-label">¿De quién es la responsabilidad?</label>
+      <select class="form-control" id="tardanza-responsable">
+        <option value="recepcionista">Recepcionista</option>
+        <option value="psicologa">Psicóloga</option>
+        <option value="centro">Responsabilidad del centro (no se descuenta)</option>
+      </select>
+      <div style="font-size:10.5px;color:var(--muted);margin-top:3px">Si es responsabilidad del centro (ej. se le pidió llegar en otro horario), la tardanza queda registrada en los reportes pero NO se descuenta de su sueldo.</div>
+    </div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="cancelarTardanza()">Cancelar</button>
@@ -1547,7 +1596,7 @@ function mostrarError(el, msg) {
 
 
 // ── STATE ──
-let DB={sede:'',usuario:'',psicologas:[],terapias:[],paquetes:[],pacientes:[],sesiones:[],pagos:[],programas:[],feriados:[],fichas:[],gastos:[]};
+let DB={sede:'',usuario:'',psicologas:[],terapias:[],paquetes:[],pacientes:[],sesiones:[],pagos:[],programas:[],feriados:[],fichas:[],gastos:[],insumos:[]};
 // terapias.sede puede estar vacía (todas las sedes), tener UNA sede, o
 // varias separadas por coma (ej. "Comas, Flecha") -- esto último para
 // terapias que se dan en más de una sede pero no en todas.
@@ -1737,7 +1786,7 @@ function _cerrarSesionSilenciosa(){
   if(window._recAutoSync)clearInterval(window._recAutoSync);
   document.getElementById('app').style.display='none';
   document.getElementById('loginScreen').style.display='flex';
-  _sede='';DB={sede:'',usuario:'',psicologas:[],terapias:[],paquetes:[],pacientes:[],sesiones:[],pagos:[],programas:[],gastos:[]};
+  _sede='';DB={sede:'',usuario:'',psicologas:[],terapias:[],paquetes:[],pacientes:[],sesiones:[],pagos:[],programas:[],gastos:[],insumos:[]};
 }
 function cerrarSesion(){
   if(!confirm('¿Cerrar sesión?'))return;
@@ -2083,7 +2132,7 @@ document.querySelectorAll('.modal-overlay').forEach(o=>{
 
 const _PAGE_TITULOS={dashboard:'Inicio',agenda:'Agenda',pacientes:'Pacientes',pagos:'Caja / Pagos',
   asistPersonal:'Asistencia Personal',psicologas:'Psicólogas',terapias:'Terapias',
-  paquetes:'Servicios y Tarifas',reportes:'Reporte del Día',whatsapp:'WhatsApp',alertas:'Alertas',
+  paquetes:'Servicios y Tarifas',inventario:'Inventario de Activos',reportes:'Reporte del Día',whatsapp:'WhatsApp',alertas:'Alertas',
   solicitudesWeb:'Solicitudes Web',historial:'Historial Clínico',cumpleanos:'Cumpleaños',chat:'Chat',
   fichasAud:'Fichas de Psicólogas'};
 // El botón ☰ colapsa el sidebar fijo en escritorio (más espacio de
@@ -2112,7 +2161,7 @@ function showPage(name,el){
   document.getElementById('sidebar').classList.remove('open');
   const fn={dashboard:renderDashboard,agenda:renderAgenda,pacientes:renderPacientes,
     pagos:renderPagos,asistPersonal:renderAsistPersonal,psicologas:renderPsicologas,
-    terapias:renderTerapias,paquetes:()=>renderPaquetes(_paqFiltro),
+    terapias:renderTerapias,paquetes:()=>renderPaquetes(_paqFiltro),inventario:renderInventarioRec,
     whatsapp:renderWA,alertas:renderAlertas,reportes:generarReporte,
     cumpleanos:renderCumpleanos,chat:abrirChatRec,fichasAud:renderFichasAcumuladoRec};
   if(fn[name])fn[name]();
@@ -6713,7 +6762,7 @@ function _asistFromSB(){
     const ps=esRecep?null:DB.psicologas.find(function(p){return p.nombre===nom;});
     return {id:a.id,psId:ps?ps.id:nom,fecha:a.fecha,horaLlegada:a.entrada||'',nombre:nom,
       cargo:esRecep?'Recepción':'Psicóloga',sede:a.sede||DB.sede,estado:a.estado||'presente',
-      registradoPor:a.registrado_por||'',motivoTardanza:a.motivo_tardanza||''};
+      registradoPor:a.registrado_por||'',motivoTardanza:a.motivo_tardanza||'',responsable:a.responsable||''};
   }).filter(function(r){return r.sede===DB.sede;});
 }
 
@@ -6726,7 +6775,7 @@ function renderMiAsistencia(lista,fecha){
   const estado=reg
     ?'<div style="font-size:12px;font-weight:700;color:'+(reg.estado==='presente'?'var(--green)':'var(--red)')+'">'+
       (reg.estado==='presente'?'✅ Llegaste a las '+reg.horaLlegada:'❌ Marcada ausente - '+reg.horaLlegada)+'</div>'+
-      (reg.motivoTardanza?'<div style="font-size:11px;color:var(--orange);margin-top:2px">⏰ Tardanza: '+reg.motivoTardanza+'</div>':'')
+      (reg.motivoTardanza?'<div style="font-size:11px;color:var(--orange);margin-top:2px">⏰ Tardanza: '+reg.motivoTardanza+_labelResponsableTardanza(reg.responsable)+'</div>':'')
     :'<div style="font-size:12px;color:var(--muted)">⏳ Aún no marcas tu asistencia de hoy</div>';
   const btns=reg
     ?'<button class="btn btn-outline btn-sm" onclick="desmarcarAsistPropia()">↩️ Desmarcar</button>'
@@ -6770,7 +6819,7 @@ async function renderAsistPersonal(){
     const estado=reg
       ?'<div style="font-size:12px;font-weight:700;color:'+(reg.estado==='presente'?'var(--green)':'var(--red)')+'">'+
         (reg.estado==='presente'?'✅ Llegó a las '+reg.horaLlegada:'❌ Ausente - '+reg.horaLlegada)+'</div>'+
-        (reg.motivoTardanza?'<div style="font-size:11px;color:var(--orange);margin-top:2px">⏰ Tardanza: '+reg.motivoTardanza+'</div>':'')
+        (reg.motivoTardanza?'<div style="font-size:11px;color:var(--orange);margin-top:2px">⏰ Tardanza: '+reg.motivoTardanza+_labelResponsableTardanza(reg.responsable)+'</div>':'')
       :'<div style="font-size:12px;color:var(--muted)">⏳ Sin registrar</div>';
     const btns=reg
       ?'<button class="btn btn-outline btn-sm" data-pid="'+ps.id+'" data-fecha="'+fecha+'" onclick="desmarcarP(this)">↩️ Desmarcar</button>'
@@ -6799,12 +6848,19 @@ async function renderAsistPersonal(){
         '<td>'+r.nombre+'</td><td>'+r.cargo+'</td>'+
         '<td><span style="color:'+(r.estado==='presente'?'var(--green)':'var(--red)')+'">'+
         (r.estado==='presente'?'✅ Presente':'❌ Ausente')+'</span></td>'+
-        '<td>'+r.horaLlegada+(r.motivoTardanza?'<br><span style="font-size:10px;color:var(--orange)">⏰ '+r.motivoTardanza+'</span>':'')+'</td><td>'+r.registradoPor+'</td></tr>').join('')
+        '<td>'+r.horaLlegada+(r.motivoTardanza?'<br><span style="font-size:10px;color:var(--orange)">⏰ '+r.motivoTardanza+_labelResponsableTardanza(r.responsable)+'</span>':'')+'</td><td>'+r.registradoPor+'</td></tr>').join('')
       :'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:12px">Sin registros históricos.</td></tr>';
   }
   renderAsistPersonalDash();
 }
 
+// Texto corto para marcar de quién es la responsabilidad de una tardanza -
+// solo se destaca "centro" (no se descuenta del sueldo); recepcionista/
+// psicóloga no agregan texto extra porque ya se sabe de quién es la
+// asistencia que se está marcando.
+function _labelResponsableTardanza(responsable){
+  return responsable==='centro'?' <b>(responsabilidad del centro - no se descuenta)</b>':'';
+}
 let _tardanzaPend=null;
 async function marcarP(btn){
   const _pidRaw=btn.dataset.pid;
@@ -6825,6 +6881,7 @@ async function marcarP(btn){
     const info=document.getElementById('tardanza-info');
     if(info)info.innerHTML='<b>'+ps.nombre+'</b> - entrada '+hora+' (horario: '+horaInicio+')';
     const motInp=document.getElementById('tardanza-motivo');if(motInp)motInp.value='';
+    const respInp=document.getElementById('tardanza-responsable');if(respInp)respInp.value='psicologa';
     openModal('modalTardanza');
     return;
   }
@@ -6835,15 +6892,16 @@ async function confirmarTardanza(){
   if(!_tardanzaPend)return;
   const motivo=(document.getElementById('tardanza-motivo')?.value||'').trim();
   if(!motivo){showToast('Indica el motivo de la tardanza','error');return;}
+  const responsable=document.getElementById('tardanza-responsable')?.value||'';
   const p=_tardanzaPend;_tardanzaPend=null;
   closeModal('modalTardanza');
-  if(p.self){await _guardarAsistPersonal(p.rec,p.fecha,p.estado,p.hora,motivo,'recepcionista');}
-  else{await _guardarAsistPersonal(p.ps,p.fecha,p.estado,p.hora,motivo);}
+  if(p.self){await _guardarAsistPersonal(p.rec,p.fecha,p.estado,p.hora,motivo,'recepcionista',responsable);}
+  else{await _guardarAsistPersonal(p.ps,p.fecha,p.estado,p.hora,motivo,undefined,responsable);}
 }
-async function _guardarAsistPersonal(ps,fecha,estado,hora,motivoTardanza,rol){
+async function _guardarAsistPersonal(ps,fecha,estado,hora,motivoTardanza,rol,responsable){
   showToast('⏳ Guardando...');
   try{
-    const rows=await sbPost('asistencia_personal',{fecha:fecha,sede:DB.sede,psicologa:ps.nombre,entrada:hora,estado:estado,registrado_por:DB.usuario||'',motivo_tardanza:motivoTardanza||null,rol:rol||'psicologa'});
+    const rows=await sbPost('asistencia_personal',{fecha:fecha,sede:DB.sede,psicologa:ps.nombre,entrada:hora,estado:estado,registrado_por:DB.usuario||'',motivo_tardanza:motivoTardanza||null,rol:rol||'psicologa',responsable:motivoTardanza?(responsable||(rol==='recepcionista'?'recepcionista':'psicologa')):null});
     if(rows&&rows[0]){DB.asistPersonal=(DB.asistPersonal||[]).concat([rows[0]]);}
     renderAsistPersonal();
     showToast(estado==='presente'?(motivoTardanza?'⏰ '+ps.nombre+' llegó tarde - motivo registrado':'✅ '+ps.nombre+' marcada presente'):'❌ '+ps.nombre+' ausente');
@@ -6881,6 +6939,7 @@ async function marcarAsistPropia(estado){
     const info=document.getElementById('tardanza-info');
     if(info)info.innerHTML='<b>'+rec.nombre+'</b> - entrada '+hora+' (horario: '+horaInicio+')';
     const motInp=document.getElementById('tardanza-motivo');if(motInp)motInp.value='';
+    const respInp=document.getElementById('tardanza-responsable');if(respInp)respInp.value='recepcionista';
     openModal('modalTardanza');
     return;
   }
@@ -7173,6 +7232,102 @@ function filtrarPaq(tipo,btn){
   document.querySelectorAll('#tabsPaq .tab-btn').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   renderPaquetes(tipo);
+}
+
+// ══════════════════════════════════════════════════
+//  INVENTARIO DE ACTIVOS
+// ══════════════════════════════════════════════════
+function _prefijoActivo(cat){
+  var m={'Mobiliario':'MOB','Juguetes y material terapéutico':'JUG','Insumos de oficina':'OFI','Insumos de limpieza':'LIM','Equipos':'EQU','Otros':'OTR'};
+  return m[cat]||'OTR';
+}
+async function _buscarOGenerarCodigo(categoria,nombre){
+  var nom=String(nombre||'').trim().toLowerCase();
+  if(!nom)return'';
+  var todos=[];
+  try{todos=await sbGet('insumos',{select:'categoria,nombre,codigo_activo'});}catch(e){todos=[];}
+  var existente=todos.find(function(i){return String(i.nombre||'').trim().toLowerCase()===nom&&i.categoria===categoria&&i.codigo_activo;});
+  if(existente)return existente.codigo_activo;
+  var pref=_prefijoActivo(categoria);
+  var max=0;
+  todos.forEach(function(i){
+    if(i.codigo_activo&&i.codigo_activo.indexOf(pref+'-')===0){
+      var n=parseInt(i.codigo_activo.slice(pref.length+1),10);
+      if(!isNaN(n)&&n>max)max=n;
+    }
+  });
+  return pref+'-'+String(max+1).padStart(3,'0');
+}
+async function inPrevisualizarCodigo(){
+  if(document.getElementById('inId').value)return;
+  var nombre=document.getElementById('inNombre').value;
+  var categoria=document.getElementById('inCat').value;
+  if(!nombre){document.getElementById('inCodigo').value='';return;}
+  document.getElementById('inCodigo').value=await _buscarOGenerarCodigo(categoria,nombre);
+}
+function abrirModalInsumoNuevo(){
+  document.getElementById('inId').value='';
+  document.getElementById('inTit').textContent='📦 Nuevo Activo';
+  document.getElementById('inBtnGuardar').textContent='💾 Registrar';
+  document.getElementById('inNombre').value='';
+  document.getElementById('inCat').value='Mobiliario';
+  document.getElementById('inCodigo').value='';
+  document.getElementById('inUnidad').value='unid';
+  document.getElementById('inCant').value='0';
+  document.getElementById('inMin').value='0';
+  document.getElementById('inPrecio').value='0';
+  document.getElementById('inVence').value='';
+  document.getElementById('inEstado').value='bueno';
+  document.getElementById('modalInsumo').classList.add('open');
+}
+function editarInsumo(id){
+  var i=(DB.insumos||[]).find(function(x){return x.id===id;});if(!i)return;
+  document.getElementById('inId').value=i.id;
+  document.getElementById('inTit').textContent='📦 Editar Activo';
+  document.getElementById('inBtnGuardar').textContent='💾 Guardar cambios';
+  document.getElementById('inNombre').value=i.nombre||'';
+  document.getElementById('inCat').value=i.categoria||'Mobiliario';
+  document.getElementById('inCodigo').value=i.codigo_activo||'';
+  document.getElementById('inUnidad').value=i.unidad||'unid';
+  document.getElementById('inCant').value=i.cantidad_actual||0;
+  document.getElementById('inMin').value=i.stock_minimo||0;
+  document.getElementById('inPrecio').value=i.precio_unitario||0;
+  document.getElementById('inVence').value=i.fecha_vencimiento||'';
+  document.getElementById('inEstado').value=i.estado_activo||'bueno';
+  document.getElementById('modalInsumo').classList.add('open');
+}
+async function eliminarInsumo(id){
+  var i=(DB.insumos||[]).find(function(x){return x.id===id;});if(!i)return;
+  if(!confirm('¿Eliminar "'+i.nombre+'" del inventario?'))return;
+  try{await sbDelete('insumos',{id:'eq.'+id});toast('✅ Eliminado');await cargarDesdeSB();renderInventarioRec();}catch(e){toast('Error: '+e.message,'error');}
+}
+async function guardarInsumo(){
+  var id=document.getElementById('inId').value;
+  var d={nombre:document.getElementById('inNombre').value,sede:DB.sede,categoria:document.getElementById('inCat').value,codigo_activo:document.getElementById('inCodigo').value,unidad:document.getElementById('inUnidad').value,cantidad_actual:parseFloat(document.getElementById('inCant').value)||0,stock_minimo:parseFloat(document.getElementById('inMin').value)||0,precio_unitario:parseFloat(document.getElementById('inPrecio').value)||0,fecha_vencimiento:document.getElementById('inVence').value||null,estado_activo:document.getElementById('inEstado').value||'bueno'};
+  if(!d.nombre){toast('Ingresa el nombre del activo','error');return;}
+  if(!d.codigo_activo)d.codigo_activo=await _buscarOGenerarCodigo(d.categoria,d.nombre);
+  try{
+    if(id){await sbPatch('insumos',d,{id:'eq.'+id});toast('✅ Activo actualizado');}
+    else{await sbPost('insumos',d);toast('✅ Activo registrado');}
+    document.getElementById('modalInsumo').classList.remove('open');
+    await cargarDesdeSB();renderInventarioRec();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+function _badgeCondicion(e){
+  var m={bueno:{t:'🟢 Buen estado',bg:'#dcfce7',c:'#166534'},medio:{t:'🟡 Estado medio',bg:'#fffbeb',c:'#92400e'},malo:{t:'🔴 Mal estado',bg:'#fee2e2',c:'#991b1b'}};
+  var x=m[e]||m.bueno;
+  return'<span class="badge" style="background:'+x.bg+';color:'+x.c+'">'+x.t+'</span>';
+}
+function renderInventarioRec(){
+  var el=document.getElementById('listaInventarioRec');if(!el)return;
+  var items=DB.insumos||[];
+  if(!items.length){el.innerHTML='<p style="color:var(--muted);padding:20px;text-align:center">Sin activos registrados en esta sede</p>';return;}
+  el.innerHTML='<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#f8faff"><th style="padding:9px 10px;font-size:10px;font-weight:700;text-align:left;color:var(--muted)">Código</th><th>Activo</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Precio</th><th>Vence</th><th>Condición</th><th></th></tr></thead><tbody>'+
+  items.map(function(i){var bajo=(i.cantidad_actual||0)<=(i.stock_minimo||0);return'<tr style="border-bottom:1px solid var(--border)'+(bajo?';background:#fff5f5':'')+'">'+
+  '<td style="padding:9px 10px;font-size:11px;font-weight:800;color:var(--acc)">'+(i.codigo_activo||'-')+'</td>'+
+  '<td style="font-weight:700">'+i.nombre+'</td><td style="font-size:12px">'+(i.categoria||'-')+'</td><td style="font-weight:900;color:'+(bajo?'#dc2626':'#15803d')+'">'+(i.cantidad_actual||0)+' '+(i.unidad||'')+'</td><td style="font-size:12px">'+(i.stock_minimo||0)+'</td><td style="font-size:12px">S/'+(i.precio_unitario||0)+'</td><td style="font-size:12px">'+fmtF(i.fecha_vencimiento)+'</td><td>'+_badgeCondicion(i.estado_activo)+'</td>'+
+  '<td style="white-space:nowrap"><button class="btn btn-sm" onclick="editarInsumo(\''+i.id+'\')" style="padding:4px 8px;font-size:11px">✏️</button> <button class="btn btn-sm" onclick="eliminarInsumo(\''+i.id+'\')" style="padding:4px 8px;font-size:11px">🗑️</button></td>'+
+  '</tr>';}).join('')+'</tbody></table>';
 }
 
 // ══════════════════════════════════════════════════
@@ -7680,7 +7835,7 @@ async function exportarPDF(){
       doc.text(r.estado==='presente'?('Entrada: '+r.horaLlegada):'Ausente',M+95,y+4);
       if(r.motivoTardanza){
         doc.setTextColor(180,83,9);doc.setFontSize(7.5);
-        doc.text('Tardanza: '+r.motivoTardanza,M+135,y+4);
+        doc.text('Tardanza: '+r.motivoTardanza+(r.responsable==='centro'?' (resp. del centro)':''),M+135,y+4);
       }
       y+=7;
     });
@@ -9123,13 +9278,15 @@ async function cargarDesdeSB(silencioso) {
       sbGet('fichas_seguimiento',{sede:'eq.'+DB.sede,fecha:'eq.'+ayer,select:'*'}).catch(function(){return[];}),
       // Gastos de esta sede (ventana de 45 días, igual que pagos) - para
       // descontarlos de la Caja del Día por método de pago (ver renderPagos).
-      sbGet('gastos',{sede:'eq.'+DB.sede,fecha:'gte.'+desdeCompleto,select:'*',order:'fecha.desc'}).catch(function(){return[];})
+      sbGet('gastos',{sede:'eq.'+DB.sede,fecha:'gte.'+desdeCompleto,select:'*',order:'fecha.desc'}).catch(function(){return[];}),
+      sbGet('insumos',{sede:'eq.'+DB.sede,select:'*',order:'nombre.asc'}).catch(function(){return[];})
     ]);
     DB.avisosBot=res[9]||[];
     DB.fichasAyer=res[10]||[];
     DB.gastos=(res[11]||[]).map(function(g){return{id:g.id,fecha:g.fecha,monto:g.monto||0,
       metodo:g.metodo_pago||'Efectivo',concepto:g.concepto||'',categoria:g.categoria||'',
       registradoPor:g.registrado_por||'',_sb:g};});
+    DB.insumos=res[12]||[];
     const sesionesVentana=(res[0]||[]).map(function(s){return{id:s.id,fecha:s.fecha,hora:normHoraRec(s.hora),
       pacId:s.paciente_nombre,pacNom:s.paciente_nombre,psId:s.psicologa,psNom:s.psicologa,
       terId:s.terapia,terNom:s.terapia,estado:s.estado,saldo:s.saldo||0,tipo:s.tipo||'sesion',notas:s.notas||'',

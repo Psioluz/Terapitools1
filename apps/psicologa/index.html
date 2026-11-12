@@ -483,7 +483,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
             <div id="asistMesTitulo" style="font-weight:800;font-size:14px;text-transform:capitalize">-</div>
             <button onclick="navMesAsistencia(1)" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;font-size:16px;cursor:pointer">›</button>
           </div>
-          <div id="asistKpis" style="display:flex;gap:8px"></div>
+          <div id="asistKpis" style="display:flex;gap:8px;flex-wrap:wrap"></div>
         </div>
         <div id="asistLista"></div>
       </div>
@@ -1365,6 +1365,8 @@ function today(){
   return fechaLima();
 }
 function fmtF(f){if(!f)return'-';const p=String(f).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f;}
+const ESTADO_LABELS_PS={programado:'Programado',asistio:'Asistió',tardanza:'Tardanza',noasistio:'No asistió',permiso:'Permiso',reprogramado:'Reprogramado',cancelado:'Cancelado',congelado:'Congelada'};
+function estadoLabelPs(e){return ESTADO_LABELS_PS[e]||(e?e.charAt(0).toUpperCase()+e.slice(1):'');}
 // Comparar nombres de psicóloga por "primer nombre contenido en" fallaba
 // cuando un nombre corto es substring literal de otro (ej. "Liz" dentro de
 // "e-LIZ-abeth") - una psicóloga terminaba viendo mezclados los datos
@@ -2532,8 +2534,16 @@ function renderClinico(){
   const sesPaqCl=sesiones.filter(s=>s.tipo==='paquete'&&s.totalPaq);
   const paqTotalCl=sesPaqCl.length?(sesPaqCl[0].totalPaq||0):0;
   const sesPaqActualCl=sesPaqCl.filter(s=>s.totalPaq===paqTotalCl);
-  const asistCnt=sesPaqActualCl.length?Math.max.apply(null,sesPaqActualCl.map(function(s){return s.nroEnPaq||0;})):0;
-  const pct=paqTotalCl>0?Math.min(100,Math.round((asistCnt/paqTotalCl)*100)):0;
+  // Avance DENTRO del paquete actual (posición más alta alcanzada) - solo
+  // tiene sentido para pacientes con paquete; se usa nada más para la
+  // barra de progreso de abajo.
+  const paqAvanceCl=sesPaqActualCl.length?Math.max.apply(null,sesPaqActualCl.map(function(s){return s.nroEnPaq||0;})):0;
+  const pct=paqTotalCl>0?Math.min(100,Math.round((paqAvanceCl/paqTotalCl)*100)):0;
+  // Conteo real de sesiones asistidas (de TODA su historia, con o sin
+  // paquete) - antes esto reusaba paqAvanceCl, que siempre daba 0 en
+  // pacientes sin paquete (pago por sesión) aunque sí tuvieran sesiones
+  // "asistio" en la lista de abajo.
+  const asistCnt=sesiones.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
 
   // Cargar fichas de seguimiento (caché en memoria mientras se actualiza)
   const listKey='fichas_pac_'+PS.sede+'_'+pacNom.replace(/\s/g,'_');
@@ -2709,7 +2719,7 @@ function renderClinico(){
         return`<div style="padding:10px 12px;border-left:4px solid ${bc};margin-bottom:1px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px">
           <div>
             <div style="font-size:12px;font-weight:800;color:var(--acc)">${fmtF(s.fecha)} ${normHora(s.hora)}</div>
-            <div style="font-size:11px;color:var(--muted)">${s.terNombre||'Sin terapia'} · <span style="font-weight:700">${s.estado}</span></div>
+            <div style="font-size:11px;color:var(--muted)">${s.terNombre||'Sin terapia'} · <span style="font-weight:700">${estadoLabelPs(s.estado)}</span></div>
           </div>
           ${sinFicha?'':`<button onclick="abrirFichaSeguimiento('${_pacEsc}','${_terEsc}','${s.fecha||''}','${s.hora||''}')" style="padding:5px 10px;background:${hasFicha?'var(--green)':'var(--acc)'};color:#fff;border:none;border-radius:8px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0">
             ${hasFicha?'✏️ Editar ficha':'✍️ Llenar Ficha'}
@@ -3163,7 +3173,7 @@ function cardSes(s){
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">'
       +'<span style="font-size:18px;font-weight:900;color:#0891b2">'+hora+'</span>'
       +'<span style="font-size:14px;font-weight:800">'+(s.pacNombre||'')+'</span>'
-      +'<span class="badge '+badgeC+'" style="font-size:10px">'+s.estado+'</span>'
+      +'<span class="badge '+badgeC+'" style="font-size:10px">'+estadoLabelPs(s.estado)+'</span>'
       +'</div>'
       +'<div style="font-size:12px;color:#0891b2;font-weight:700">📞 Llamar a: '+(s.maestraNom||'-')+(s.maestraTel?' · '+s.maestraTel:'')+'</div>'
       +'</div>'
@@ -3187,7 +3197,7 @@ function cardSes(s){
     +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">'
     +'<span style="font-size:18px;font-weight:900;color:var(--acc)">'+hora+'</span>'
     +'<span style="font-size:14px;font-weight:800">'+(s.pacNombre||'')+'</span>'
-    +'<span class="badge '+badgeC+'" style="font-size:10px">'+s.estado+'</span>'
+    +'<span class="badge '+badgeC+'" style="font-size:10px">'+estadoLabelPs(s.estado)+'</span>'
     +'</div>'
     +(s.terNombre?'<div style="font-size:12px;color:var(--muted)">🧠 '+s.terNombre+'</div>':'')
     +(esPaq?'<div style="margin-top:4px;font-size:11px;color:var(--muted)">Paquete: '+asistCnt+'/'+s.totalPaq+' ('+pct+'%)</div>':'')
@@ -3279,6 +3289,36 @@ function renderListaDocs(todos,el){
 // el resto de la app.
 var _asistMesOffset=0;
 function navMesAsistencia(dir){_asistMesOffset+=dir;renderMiAsistencia();}
+// Mismo cálculo de "a qué hora le tocaba entrar" que usa Administración
+// (ver _horaEsperadaDia/_minutosTarde en apps/administracion) - aquí con
+// los nombres de campo ya mapeados que usa esta app (PS.diaEspecial viene
+// de dia_completo, PS.inicio de hora_inicio).
+function _diaCompletoIncluyePs(diaCompletoStr,fecha){
+  var DOW=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  var dia=DOW[new Date(fecha+'T12:00:00').getDay()];
+  function norm(s){return(s||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+  var raw=(diaCompletoStr||'').trim();if(!raw)return false;
+  if(raw.indexOf(',')===-1&&raw.indexOf('-')!==-1){
+    var partes=raw.split('-').map(function(s){return s.trim();});
+    if(partes.length===2){
+      var DOW_NORM=DOW.map(norm);
+      var i1=DOW_NORM.indexOf(norm(partes[0])),i2=DOW_NORM.indexOf(norm(partes[1]));
+      if(i1!==-1&&i2!==-1){
+        var dias=[];var i=i1;
+        while(true){dias.push(DOW[i]);if(i===i2)break;i=(i+1)%7;}
+        return dias.map(norm).indexOf(norm(dia))>-1;
+      }
+    }
+  }
+  return raw.split(',').map(norm).indexOf(norm(dia))>-1;
+}
+function _horaEsperadaDiaPs(fecha){
+  return _diaCompletoIncluyePs(PS.diaEspecial,fecha)?'08:00':(PS.inicio||'13:15').substring(0,5);
+}
+function _minutosTardePs(entrada,esperada){
+  function toMin(s){var pp=(s||'').split(':');return(parseInt(pp[0])||0)*60+(parseInt(pp[1])||0);}
+  return Math.max(0,toMin(entrada)-toMin(esperada));
+}
 async function renderMiAsistencia(){
   var base=new Date();base.setMonth(base.getMonth()+_asistMesOffset);
   var anio=base.getFullYear(),mes=base.getMonth();
@@ -3299,14 +3339,34 @@ async function renderMiAsistencia(){
     var regs=(todos||[]).filter(function(a){
       return normNombrePs(a.psicologa)===nomPropio;
     });
+    // Tasa fija por tardanza configurada en Administración (si la tiene) -
+    // mismo dato que usa esa app para el descuento real de sueldo.
+    var rTard=0;
+    try{
+      var rh=await fetch(SB_URL+'/rest/v1/honorarios?sede=eq.'+encodeURIComponent(PS.sede||'')+'&mes=eq.'+mesStr+'&psicologa_nombre=eq.'+encodeURIComponent(PS.nombre||'')+'&select=descuento_tardanza',{
+        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
+      });
+      var honRows=await rh.json();
+      if(honRows&&honRows[0])rTard=honRows[0].descuento_tardanza||0;
+    }catch(e){}
     var nPres=regs.filter(function(a){return a.estado==='presente'&&!a.motivo_tardanza;}).length;
-    var nTard=regs.filter(function(a){return a.estado==='presente'&&a.motivo_tardanza;}).length;
+    var tardReg=regs.filter(function(a){return a.estado==='presente'&&a.motivo_tardanza;});
+    var nTard=tardReg.length;
     var nAus=regs.filter(function(a){return a.estado==='ausente';}).length;
+    // Lo mismo que hace Administración: una tardanza por responsabilidad
+    // del centro sigue contando arriba (nTard) pero no se cobra.
+    var tardCobrables=tardReg.filter(function(a){return a.responsable!=='centro';});
+    var costoHora=(PS.sueldo||0)/30/8;
+    var minTardCobrable=tardCobrables.reduce(function(a,reg){
+      return a+_minutosTardePs(reg.entrada,_horaEsperadaDiaPs(reg.fecha));
+    },0);
+    var equivTardanzas=rTard>0?Math.round(tardCobrables.length*rTard*100)/100:Math.round((minTardCobrable/60)*costoHora*100)/100;
     var kpis=document.getElementById('asistKpis');
     if(kpis)kpis.innerHTML=
-      '<div style="flex:1;background:#f0fdf4;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:900;color:#16a34a">'+nPres+'</div><div style="font-size:10px;color:#64748b">A TIEMPO</div></div>'+
-      '<div style="flex:1;background:#fffbeb;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:900;color:#d97706">'+nTard+'</div><div style="font-size:10px;color:#64748b">TARDANZAS</div></div>'+
-      '<div style="flex:1;background:#fef2f2;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:900;color:#dc2626">'+nAus+'</div><div style="font-size:10px;color:#64748b">FALTAS</div></div>';
+      '<div style="flex:1;min-width:70px;background:#f0fdf4;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:900;color:#16a34a">'+nPres+'</div><div style="font-size:10px;color:#64748b">A TIEMPO</div></div>'+
+      '<div style="flex:1;min-width:70px;background:#fffbeb;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:900;color:#d97706">'+nTard+'</div><div style="font-size:10px;color:#64748b">TARDANZAS</div></div>'+
+      '<div style="flex:1;min-width:70px;background:#fef2f2;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:900;color:#dc2626">'+nAus+'</div><div style="font-size:10px;color:#64748b">FALTAS</div></div>'+
+      '<div style="flex:1;min-width:70px;background:#fef2f2;border-radius:10px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:900;color:#dc2626">S/'+equivTardanzas.toFixed(2)+'</div><div style="font-size:10px;color:#64748b">EQUIV. S/</div></div>';
     if(!listaEl)return;
     if(!regs.length){
       listaEl.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">Sin registros de asistencia este mes.</div>';
@@ -3315,6 +3375,7 @@ async function renderMiAsistencia(){
     listaEl.innerHTML=regs.map(function(a){
       var esAus=a.estado==='ausente';
       var esTard=!esAus&&a.motivo_tardanza;
+      var esCentro=esTard&&a.responsable==='centro';
       var color=esAus?'#dc2626':esTard?'#d97706':'#059669';
       var bg=esAus?'#fef2f2':esTard?'#fffbeb':'#f0fdf4';
       var icono=esAus?'❌':esTard?'🕐':'✅';
@@ -3324,6 +3385,7 @@ async function renderMiAsistencia(){
         +'<div style="flex:1;min-width:0">'
         +'<div style="font-weight:700;font-size:13px">'+fmtF(a.fecha)+'</div>'
         +(a.motivo_tardanza?'<div style="font-size:11px;color:var(--muted);margin-top:1px">Motivo: '+a.motivo_tardanza+'</div>':'')
+        +(esCentro?'<div style="font-size:10.5px;color:#0369a1;font-weight:700;margin-top:1px">🏢 Responsabilidad del centro - no se descuenta</div>':'')
         +'</div>'
         +'<div style="text-align:right">'
         +'<div style="font-size:11px;font-weight:800;color:'+color+'">'+etiqueta+'</div>'
