@@ -452,6 +452,7 @@ select.fsel{
     <div class="ger-nav-item" id="gnav-tPagos" onclick="goTab('tPagos',this);if(typeof renderCalendarioPagos==='function')renderCalendarioPagos('calendarioPagosContainer');if(typeof renderPagosRecurrentesLista==='function')renderPagosRecurrentesLista()">📅 Calendario</div>
     <div class="ger-nav-item" id="gnav-tCumple" onclick="goTab('tCumple',this);if(typeof renderCumple==='function')renderCumple('listCumple2')">🎂 Cumpleaños</div>
     <div class="ger-nav-item" id="gnav-tChat" onclick="goTab('tChat',this);abrirChatGer()">💬 Chat <span id="chatBadgeGer" style="display:none;background:#e91e8c;color:#fff;border-radius:10px;font-size:9px;padding:1px 5px;font-weight:800;margin-left:4px"></span></div>
+    <div class="ger-nav-item" id="gnav-tWhatsappBot" onclick="goTab('tWhatsappBot',this);cargarConversacionesWAGer()">🤖 WhatsApp Bot</div>
   </div>
   <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,.1)">
     <label for="inputFotoGer" style="display:block;cursor:pointer;text-align:center;margin-bottom:8px">
@@ -656,6 +657,18 @@ select.fsel{
   <div id="accPsicologas"></div>
   <div id="accRecepcion" style="margin-top:14px"></div>
   <div id="accGerencia" style="margin-top:14px"></div>
+</div>
+<div class="page" id="tWhatsappBot" style="display:flex;flex-direction:column;height:calc(100vh - 64px)">
+  <div style="padding:12px 16px;background:linear-gradient(135deg,#3d0c28,#ad1457);color:#fff;flex-shrink:0;display:flex;justify-content:space-between;align-items:center">
+    <div style="font-weight:800;font-size:14px">🤖 Conversaciones del bot de WhatsApp</div>
+    <button onclick="cargarConversacionesWAGer()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer">Actualizar</button>
+  </div>
+  <div style="flex:1;display:flex;overflow:hidden">
+    <div id="waListaConvGer" style="width:280px;flex-shrink:0;border-right:1px solid #e2e8f0;overflow-y:auto;background:#fff">Cargando…</div>
+    <div id="waHiloMensajesGer" style="flex:1;overflow-y:auto;padding:14px;background:#f0f2f5">
+      <div style="text-align:center;color:#94a3b8;padding:40px 10px">Selecciona una conversación de la izquierda</div>
+    </div>
+  </div>
 </div>
 <div class="page" id="tSedes">
 
@@ -4162,6 +4175,50 @@ async function accGet(t,q){var r=await fetch(_ACC_SBU+'/rest/v1/'+t+'?'+_accQS(q
 async function accPost(t,d){var r=await fetch(_ACC_SBU+'/rest/v1/'+t,{method:'POST',headers:_ACC_H,body:JSON.stringify(d)});if(!r.ok)throw new Error(await r.text());return r.json();}
 async function accPatch(t,d,q){var r=await fetch(_ACC_SBU+'/rest/v1/'+t+'?'+_accQS(q),{method:'PATCH',headers:_ACC_H,body:JSON.stringify(d)});if(!r.ok)throw new Error(await r.text());return r.json();}
 async function accDel(t,q){var r=await fetch(_ACC_SBU+'/rest/v1/'+t+'?'+q,{method:'DELETE',headers:_ACC_H});if(!r.ok)throw new Error(await r.text());return true;}
+
+// ── CONVERSACIONES WHATSAPP (solo lectura) ──
+let _waConvSelGer=null;
+function _waFmtHoraGer(ts){
+  if(!ts)return'';
+  const d=new Date(ts);
+  return d.toLocaleString('es-PE',{timeZone:'America/Lima',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+async function cargarConversacionesWAGer(){
+  const el=document.getElementById('waListaConvGer');if(!el)return;
+  el.innerHTML='⏳ cargando…';
+  try{
+    const data=await accGet('whatsapp_conversaciones',{select:'*',order:'ultima_actividad.desc',limit:'200'});
+    if(!data||!data.length){el.innerHTML='<div style="padding:14px;font-size:11px;color:#94a3b8">Sin conversaciones todavía.</div>';return;}
+    el.innerHTML=data.map(function(c){
+      const sel=_waConvSelGer===c.id?'background:#fdf2f8;':'';
+      return '<div style="padding:10px 12px;border-bottom:1px solid #e2e8f0;cursor:pointer;'+sel+'" onclick="abrirConversacionWAGer(\''+c.id+'\',this)">'
+        +'<div style="font-weight:800;font-size:12.5px;color:#4a0e2e">'+(c.nombre_contacto||c.telefono||'Sin nombre')+'</div>'
+        +'<div style="font-size:10.5px;color:#64748b">'+(c.telefono||'')+(c.sede?' · '+c.sede:'')+'</div>'
+        +'<div style="font-size:10px;color:#94a3b8;margin-top:2px">'+_waFmtHoraGer(c.ultima_actividad)+(c.bot_pausado?' · 🔇 bot pausado':'')+'</div>'
+        +'</div>';
+    }).join('');
+  }catch(e){el.innerHTML='❌ '+e.message;}
+}
+async function abrirConversacionWAGer(convId,elClicked){
+  _waConvSelGer=convId;
+  document.querySelectorAll('#waListaConvGer > div').forEach(function(d){d.style.background='';});
+  if(elClicked)elClicked.style.background='#fdf2f8';
+  const hilo=document.getElementById('waHiloMensajesGer');
+  hilo.innerHTML='⏳ cargando…';
+  try{
+    const data=await accGet('whatsapp_mensajes',{select:'*','conversacion_id':'eq.'+convId,order:'created_at.asc',limit:'500'});
+    if(!data||!data.length){hilo.innerHTML='<div style="color:#94a3b8;font-size:12px">Sin mensajes.</div>';return;}
+    hilo.innerHTML=data.map(function(m){
+      const esIn=m.direccion==='in';
+      return '<div style="display:flex;justify-content:'+(esIn?'flex-start':'flex-end')+';margin-bottom:8px">'
+        +'<div style="max-width:75%;background:'+(esIn?'#fff':'#d9fdd3')+';border-radius:10px;padding:8px 11px;font-size:12.5px;box-shadow:0 1px 1px rgba(0,0,0,.08)">'
+        +'<div style="white-space:pre-wrap">'+(m.contenido||'').replace(/</g,'&lt;')+'</div>'
+        +'<div style="text-align:right;font-size:9.5px;color:#64748b;margin-top:3px">'+_waFmtHoraGer(m.created_at)+'</div>'
+        +'</div></div>';
+    }).join('');
+    hilo.scrollTop=hilo.scrollHeight;
+  }catch(e){hilo.innerHTML='❌ '+e.message;}
+}
 
 var _ACCESOS={psicologas:[],recepcionistas:[],usuarios_gerencia:[]};
 async function renderAccesos(){
