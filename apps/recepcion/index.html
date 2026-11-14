@@ -4883,21 +4883,41 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
   let restante=Math.max(0,Math.round((disponibleParaPaquete-totalAViejos)*100)/100);
   const idsAVincular=[];
   let totalVinculado=0;
+  // Cada fila huérfana se parte si excede lo "restante" disponible - antes
+  // se arrastraba la fila ENTERA con solo que `restante` fuera positivo,
+  // así que una fila grande (ej. S/25) se iba completa al paquete nuevo
+  // aunque el presupuesto protegido para sueltas pendientes solo dejara
+  // disponibles S/10, dejando esa sesión suelta (ej. una Consulta) sin la
+  // plata real que necesitaba (caso Neithan Mauricio Condori: su pago de
+  // consulta de S/25 terminó en el paquete nuevo en vez de cubrir su
+  // propia consulta, que quedó "debiendo" pese a estar pagada).
   for(const p of huerfanosParaNuevo){
     if(restante<=0.004)break;
     const monto=Math.round((parseFloat(p.monto)||0)*100)/100;
+    const cabeEntera=monto<=restante+0.004;
+    const montoAlPaquete=cabeEntera?monto:restante;
     if(p._esSobranteViejo){
       // El sobrante de la fila partida arriba todavía no existe como fila
-      // propia - se crea ya atada al paquete nuevo.
-      patches.push(sbPost('pagos',{fecha:p.fecha,hora:p.hora,monto:monto,metodo:p.metodo,
+      // propia - se crea ya atada al paquete nuevo (recortada si hace falta).
+      patches.push(sbPost('pagos',{fecha:p.fecha,hora:p.hora,monto:montoAlPaquete,metodo:p.metodo,
         concepto:'Adelanto de paquete (sobrante tras cubrir un paquete anterior)',
         paciente_nombre:pacNombre,psicologa_nombre:p.psicologa_nombre,sede:sede,
         registrado_por:p.registrado_por,notas:p.notas,programa_id:progId}));
-    }else{
+    }else if(cabeEntera){
       idsAVincular.push(p.id);
+    }else{
+      // La fila no cabe entera: se recorta al costo real que protege a las
+      // sueltas pendientes (se queda huérfana, sigue disponible para
+      // ellas) y el resto se separa como un pago nuevo, ya atado al
+      // paquete nuevo.
+      patches.push(sbPatch('pagos',{monto:Math.round((monto-restante)*100)/100},{id:'eq.'+p.id}));
+      patches.push(sbPost('pagos',{fecha:p.fecha,hora:p.hora,monto:restante,metodo:p.metodo,
+        concepto:'Adelanto de paquete (separado de un pago suelto)',
+        paciente_nombre:pacNombre,psicologa_nombre:p.psicologa_nombre||'',sede:sede,
+        registrado_por:p.registrado_por||'',notas:p.notas||'',programa_id:progId}));
     }
-    totalVinculado=Math.round((totalVinculado+monto)*100)/100;
-    restante=Math.round((restante-monto)*100)/100;
+    totalVinculado=Math.round((totalVinculado+montoAlPaquete)*100)/100;
+    restante=Math.round((restante-montoAlPaquete)*100)/100;
   }
   if(!idsAVincular.length&&!pagosDividir.length&&!idsAViejos.length&&!filaPartidaViejo)return 0;
   idsAVincular.forEach(function(id){patches.push(sbPatch('pagos',{programa_id:progId},{id:'eq.'+id}));});
