@@ -711,6 +711,28 @@ try{
     </div>
     <div style="padding:0 12px 12px" id="waList"></div>
   </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="card-header">
+      <div class="card-title">🤖 Conversaciones del bot (en vivo)</div>
+      <button class="btn btn-outline btn-sm" onclick="cargarConversacionesWaBot()">Actualizar</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);padding:0 16px 10px">
+      Si le vas a escribir a un cliente directo desde la app de WhatsApp mientras el bot está activo, <b>pausa el bot aquí primero</b> - si no, el bot le puede seguir respondiendo al mismo tiempo con información distinta a la tuya y confundir al cliente.
+    </div>
+    <div style="padding:0;display:flex;min-height:50vh;max-height:65vh;border-top:1px solid var(--border,#e2e8f0)">
+      <div id="waBotListaConv" style="width:260px;flex-shrink:0;border-right:1px solid var(--border,#e2e8f0);overflow-y:auto;font-size:12px">Cargando…</div>
+      <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+        <div id="waBotHeader" style="padding:10px 14px;border-bottom:1px solid var(--border,#e2e8f0);display:none;align-items:center;justify-content:space-between;gap:8px">
+          <div id="waBotHeaderNombre" style="font-weight:800;font-size:13px"></div>
+          <button id="waBotBtnPausa" class="btn btn-sm" onclick="toggleBotPausadoActual()">⏸️ Pausar bot</button>
+        </div>
+        <div id="waBotHilo" style="flex:1;overflow-y:auto;padding:14px;background:#f0f2f5">
+          <div style="text-align:center;color:var(--muted);padding:40px 10px">Selecciona una conversación de la izquierda</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ ALERTAS ═══ -->
@@ -2162,7 +2184,7 @@ function showPage(name,el){
   const fn={dashboard:renderDashboard,agenda:renderAgenda,pacientes:renderPacientes,
     pagos:renderPagos,asistPersonal:renderAsistPersonal,psicologas:renderPsicologas,
     terapias:renderTerapias,paquetes:()=>renderPaquetes(_paqFiltro),inventario:renderInventarioRec,
-    whatsapp:renderWA,alertas:renderAlertas,reportes:generarReporte,
+    whatsapp:function(){renderWA();cargarConversacionesWaBot();},alertas:renderAlertas,reportes:generarReporte,
     cumpleanos:renderCumpleanos,chat:abrirChatRec,fichasAud:renderFichasAcumuladoRec};
   if(fn[name])fn[name]();
 }
@@ -8277,6 +8299,81 @@ function exportarAgendaPDF(){
 //  WHATSAPP
 // ══════════════════════════════════════════════════
 var _waEnviados={}; // sesionId -> {enviado_por, enviado_el} - recordatorios ya marcados hoy
+
+// ── Conversaciones del bot (visor + pausa manual) ──
+// No se filtra por sede: whatsapp_conversaciones no siempre trae la sede
+// poblada (el bot la deja vacía hasta identificar al paciente), así que
+// filtrar de entrada podría esconder justo la conversación que hay que pausar.
+var _waBotConvSel=null;
+var _waBotConvs=[];
+function _waBotFmtHora(ts){
+  if(!ts)return'';
+  try{return new Date(ts).toLocaleString('es-PE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return'';}
+}
+async function cargarConversacionesWaBot(){
+  const el=document.getElementById('waBotListaConv');if(!el)return;
+  el.innerHTML='Cargando…';
+  try{
+    const data=await sbGet('whatsapp_conversaciones',{select:'*',order:'ultima_actividad.desc',limit:'200'});
+    _waBotConvs=data||[];
+    if(!_waBotConvs.length){el.innerHTML='<div style="padding:14px;color:var(--muted)">Sin conversaciones todavía.</div>';return;}
+    el.innerHTML=_waBotConvs.map(function(c){
+      const sel=_waBotConvSel===c.id?'background:#fde7f3;':'';
+      return '<div style="padding:9px 12px;border-bottom:1px solid var(--border,#e2e8f0);cursor:pointer;'+sel+'" onclick="abrirConversacionWaBot(\''+c.id+'\')">'
+        +'<div style="font-weight:800">'+((c.nombre_contacto||c.telefono||'Sin nombre')+'').replace(/</g,'&lt;')+'</div>'
+        +'<div style="font-size:10.5px;color:var(--muted)">'+(c.telefono||'')+(c.sede?' · '+c.sede:'')+'</div>'
+        +'<div style="font-size:10px;color:var(--muted);margin-top:2px">'+_waBotFmtHora(c.ultima_actividad)+(c.bot_pausado?' · 🔇 bot pausado':'')+'</div>'
+        +'</div>';
+    }).join('');
+  }catch(e){el.innerHTML='❌ '+e.message;}
+}
+async function abrirConversacionWaBot(convId){
+  _waBotConvSel=convId;
+  cargarConversacionesWaBot();
+  const conv=_waBotConvs.find(c=>c.id===convId);
+  const header=document.getElementById('waBotHeader');
+  const hilo=document.getElementById('waBotHilo');
+  if(conv){
+    header.style.display='flex';
+    document.getElementById('waBotHeaderNombre').textContent=conv.nombre_contacto||conv.telefono||'Sin nombre';
+    _pintarBotonPausaWa(conv.bot_pausado);
+  }
+  hilo.innerHTML='⏳ cargando…';
+  try{
+    const data=await sbGet('whatsapp_mensajes',{select:'*','conversacion_id':'eq.'+convId,order:'created_at.asc',limit:'500'});
+    if(!data||!data.length){hilo.innerHTML='<div style="color:var(--muted)">Sin mensajes.</div>';return;}
+    hilo.innerHTML=data.map(function(m){
+      const esIn=m.direccion==='in';
+      return '<div style="display:flex;justify-content:'+(esIn?'flex-start':'flex-end')+';margin-bottom:8px">'
+        +'<div style="max-width:75%;background:'+(esIn?'#fff':'#d9fdd3')+';border-radius:10px;padding:8px 11px;font-size:12.5px;box-shadow:0 1px 1px rgba(0,0,0,.08)">'
+        +'<div style="white-space:pre-wrap">'+((m.contenido||'')+'').replace(/</g,'&lt;')+'</div>'
+        +'<div style="text-align:right;font-size:9.5px;color:var(--muted);margin-top:3px">'+_waBotFmtHora(m.created_at)+'</div>'
+        +'</div></div>';
+    }).join('');
+    hilo.scrollTop=hilo.scrollHeight;
+  }catch(e){hilo.innerHTML='❌ '+e.message;}
+}
+function _pintarBotonPausaWa(pausado){
+  const btn=document.getElementById('waBotBtnPausa');if(!btn)return;
+  if(pausado){
+    btn.textContent='▶️ Reanudar bot';
+    btn.className='btn btn-success btn-sm';
+  }else{
+    btn.textContent='⏸️ Pausar bot';
+    btn.className='btn btn-danger btn-sm';
+  }
+}
+async function toggleBotPausadoActual(){
+  if(!_waBotConvSel)return;
+  const conv=_waBotConvs.find(c=>c.id===_waBotConvSel);if(!conv)return;
+  const nuevo=!conv.bot_pausado;
+  try{
+    await sbPatch('whatsapp_conversaciones',{bot_pausado:nuevo},{id:'eq.'+_waBotConvSel});
+    conv.bot_pausado=nuevo;
+    _pintarBotonPausaWa(nuevo);
+    showToast(nuevo?'🔇 Bot pausado para esta conversación':'🔊 Bot reanudado para esta conversación');
+  }catch(e){alert('❌ No se pudo actualizar: '+e.message);}
+}
 
 async function renderWA(){
   const hoy=today();
