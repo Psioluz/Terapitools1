@@ -5927,8 +5927,17 @@ async function guardarSesion(){
         // como un registro retroactivo con fecha pasada (se fecha con esa
         // fecha real, no con hoy).
         const fechaPagoSes=(fecha&&fecha<today())?fecha:today();
+        // Mismo criterio que el concepto de "Cobrar" (abrirPago): cada tipo
+        // tiene su propio texto ("Adelanto de evaluación", "Adelanto de
+        // informe", etc.) en vez de caer todo en el genérico "Adelanto
+        // sesión" para cualquier cosa que no fuera paquete. "adelanto" es
+        // el tipo "Adelanto / Reserva" (sin servicio específico todavía),
+        // así que ese queda como "Adelanto" a secas.
+        const _conceptoAdelanto=tipo==='paquete'&&paq?'Adelanto '+(paq.nombre||'paquete'):
+          tipo==='adelanto'?'Adelanto':
+          'Adelanto de '+(tipo||'sesión').toLowerCase().replace(/_/g,' ');
         const pagoRow={fecha:fechaPagoSes,hora:horaPago,
-          monto:fp.monto,metodo:fp.metodo,concepto:'Adelanto '+(tipo==='paquete'&&paq?(paq.nombre||'paquete'):'sesión'),
+          monto:fp.monto,metodo:fp.metodo,concepto:_conceptoAdelanto,
           paciente_nombre:pac.nombre,psicologa_nombre:ps.nombre,terapia_nombre:ter.nombre,
           sede:DB.sede,registrado_por:DB.usuario||'',notas:notas||''};
         if(sesionIdCreada)pagoRow.sesion_id=sesionIdCreada;
@@ -6374,7 +6383,7 @@ async function pgOnPaciente(){
     info.innerHTML='⚠️ Debe actualmente: <b>S/'+deudaSuelta+'</b> (sesiones sueltas, sin paquete)'+
       (cuotaPend?' - ademas tiene una cuota pendiente de <b>S/'+cuotaPend.saldo+'</b> en el paquete <b>'+(prog.paquete_nombre||'Paquete')+'</b> (sesión del '+fmtF(cuotaPend.fecha)+').':
         (prog?' - ademas tiene el paquete activo <b>'+(prog.paquete_nombre||'Paquete')+'</b>, sin cuota pendiente por ahora.':''));
-    elConcepto.value='Pago sesión - '+pac.nombre;
+    elConcepto.value='Pago de sesión';
     elMonto.value=deudaSuelta;
     pgInicializarMetodos(elMonto.value);
     return;
