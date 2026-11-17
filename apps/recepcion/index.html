@@ -6202,8 +6202,20 @@ function abrirPago(sesId){
     }
   }
   _pagoSesionId=sesId;
-  const el=document.getElementById('pg-pac');if(el)el.value=ses.pacId;
-  const elP=document.getElementById('pg-ps');if(elP)elP.value=ses.psId;
+  // pg-pac/pg-ps son <select> cuyas <option value="..."> usan el ID del
+  // paciente/psicóloga (ver fillSelects), pero ses.pacId/ses.psId son sus
+  // NOMBRES (así vienen las sesiones de Supabase) - asignar el nombre
+  // directo a el.value nunca calza con ninguna opción, así que el <select>
+  // se queda mudo en lo que haya quedado de una cobranza anterior. El
+  // título del modal (más abajo) se arma aparte con el nombre y por eso
+  // SIEMPRE se ve bien, aunque el paciente realmente seleccionado en el
+  // formulario sea otro - el pago terminaba guardándose a nombre de quien
+  // sea que haya quedado marcado antes (caso real: Dafne García, cuota de
+  // S/207, terminó registrada a nombre de Mateo Linares).
+  const pacPreSel=getPac(ses.pacId);
+  const psPreSel=getPs(ses.psId);
+  const el=document.getElementById('pg-pac');if(el)el.value=pacPreSel?pacPreSel.id:'';
+  const elP=document.getElementById('pg-ps');if(elP)elP.value=psPreSel?psPreSel.id:'';
   document.getElementById('pg-fecha').value=ses.fecha;
   document.getElementById('pg-monto').value=ses.saldo||ses.costoTotal||0;
   pgInicializarMetodos(document.getElementById('pg-monto').value);
@@ -6537,6 +6549,17 @@ async function _guardarPagoInterno(){
   // sesión/cuota se está pagando - evita adivinar por fecha o, peor,
   // aplicar el pago a todas las cuotas pendientes del paquete a la vez.
   const sesPagada=_pagoSesionId?DB.sesiones.find(s=>s.id===_pagoSesionId):null;
+  // Red de seguridad: si "Cobrar" se abrió desde una sesión puntual, el
+  // paciente del formulario DEBE ser el mismo de esa sesión - si no
+  // coincide (el <select> no se preseleccionó bien, o alguien lo cambió a
+  // mano sin querer), se bloquea el guardado en vez de guardar el pago a
+  // nombre de otra persona sin que nadie lo note hasta que el paciente
+  // reclama (caso real: Dafne García, cuota de S/207, terminó registrada
+  // a nombre de Mateo Linares).
+  if(sesPagada&&pac.nombre!==sesPagada.pacId){
+    showToast('❌ El paciente seleccionado ('+pac.nombre+') no coincide con la sesión que se está cobrando ('+sesPagada.pacId+'). Vuelve a abrir "Cobrar" desde la fila correcta.','error');
+    return;
+  }
   showToast('⏳ Registrando pago...');
   try{
     // Un método (caso normal) o varios (pago dividido, ej. parte efectivo +
