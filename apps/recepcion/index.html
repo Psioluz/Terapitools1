@@ -2228,7 +2228,7 @@ function renderDashboard(){
           (s.tipo==='llamada_maestra'?
             '<div style="font-size:11px;color:#0891b2;font-weight:700">📞 Llamada con maestra: '+(s.maestraNom||'-')+(s.maestraTel?' · '+s.maestraTel:'')+'</div>':
             (terBadge(ter)+progresoPacInline(pac)))+
-          (cuotaPend?'<div style="font-size:11px;font-weight:800;color:#fff;background:var(--red);display:inline-block;border-radius:6px;padding:2px 8px;margin-top:4px">💰 '+cuotaPend.texto+'</div>':'')+
+          (cuotaPend?'<div style="font-size:11px;font-weight:800;color:#fff;background:var(--red);display:inline-block;border-radius:6px;padding:2px 8px;margin-top:4px">💰 '+cuotaPend.texto+' <button style="margin-left:6px;background:#fff;color:var(--red);border:none;border-radius:4px;padding:1px 6px;font-weight:800;cursor:pointer" onclick="abrirPago(\''+s.id+'\')">💰 Cobrar</button></div>':'')+
           (deudaVencida?'<div style="font-size:11px;font-weight:800;color:#fff;background:var(--orange);display:inline-block;border-radius:6px;padding:2px 8px;margin-top:4px;margin-left:4px">⚠️ '+deudaVencida.texto+' <button style="margin-left:6px;background:#fff;color:var(--orange);border:none;border-radius:4px;padding:1px 6px;font-weight:800;cursor:pointer" onclick="abrirPago(\''+deudaVencida.sesionId+'\')">💰 Cobrar</button></div>':'')+
           '</div>'+
           // Los botones de acción van en su propia fila de ancho completo
@@ -7551,7 +7551,9 @@ function renderAlertas(){
   });
   DB.sesiones.filter(s=>s.saldo>0&&s.estado==='programado'&&s.fecha>=today()).forEach(s=>{
     const pac=getPac(s.pacId);
-    h+='<div class="alert al-info">💰 <strong>'+pac.nombre+'</strong> - Saldo por cobrar: S/'+s.saldo+' - '+fmtF(s.fecha)+' '+s.hora+'</div>';
+    h+='<div class="alert al-info" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
+      '<span>💰 <strong>'+pac.nombre+'</strong> - Saldo por cobrar: S/'+s.saldo+' - '+fmtF(s.fecha)+' '+s.hora+'</span>'+
+      '<button class="btn btn-primary btn-sm" onclick="abrirPago(\''+s.id+'\')">💰 Cobrar</button></div>';
   });
   const empty='<div style="color:var(--muted);padding:14px;text-align:center">Sin alertas ✅</div>';
   ['alertasPage','alertasDash'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=h||empty;});
