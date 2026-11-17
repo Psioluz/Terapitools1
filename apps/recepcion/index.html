@@ -6219,16 +6219,18 @@ function abrirPago(sesId){
   document.getElementById('pg-fecha').value=ses.fecha;
   document.getElementById('pg-monto').value=ses.saldo||ses.costoTotal||0;
   pgInicializarMetodos(document.getElementById('pg-monto').value);
-  // 'Consulta' tiene su propio texto ('Pago de consulta') en vez del
-  // genérico 'Pago de sesión' - antes salía "Sesión - Nombre" para una
-  // consulta igual que para cualquier otra sesión suelta, lo que no se
-  // entendía al toque en el detalle de Caja (caso real: Juan Diego Lora
-  // Chilca). Sin el nombre al final: el paciente ya se identifica aparte
-  // (fila/encabezado), repetirlo en el concepto solo hacía el texto más
-  // largo sin agregar información.
+  // Cada tipo de sesión suelta tiene su propio texto ("Pago de consulta",
+  // "Pago de evaluación", "Pago de informe", etc.) en vez del genérico
+  // "Sesión" para todas por igual, que no se entendía al toque en el
+  // detalle de Caja (caso real: Juan Diego Lora Chilca). Genérico por
+  // tipo (en vez de una lista fija) para que cualquier tipo nuevo que se
+  // agregue en el futuro también salga correcto sin tener que acordarse
+  // de venir a esta función a sumarlo. Sin el nombre al final: el
+  // paciente ya se identifica aparte (fila/encabezado), repetirlo en el
+  // concepto solo hacía el texto más largo sin agregar información.
   document.getElementById('pg-concepto').value=
     ses.tipo==='paquete'?'Paquete '+ses.totalPaq+' ses.':
-    (ses.tipo==='Consulta'?'Pago de consulta':'Pago de sesión');
+    'Pago de '+(ses.tipo||'sesión').toLowerCase().replace(/_/g,' ');
   const elPgNotas=document.getElementById('pg-notas');if(elPgNotas)elPgNotas.value='';
   const elDeudaInfo=document.getElementById('pg-deuda-info');if(elDeudaInfo)elDeudaInfo.style.display='none';
   // El título antes solo mostraba el nombre, sin fecha - si el paciente
