@@ -1479,7 +1479,15 @@ async function suscribirPushRecepcion(){
       sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:_urlB64ToUint8Array(VAPID_PUBLIC_KEY)});
     }
     var j=sub.toJSON();
-    await fetch(SBU+'/rest/v1/push_subscriptions',{
+    // on_conflict=endpoint es obligatorio para que "merge-duplicates"
+    // de verdad actualice - sin esto, Supabase solo mira la PRIMARY KEY
+    // (id, que siempre es nueva) para decidir si hay conflicto, nunca la
+    // restricción UNIQUE de "endpoint", así que cada vez que el mismo
+    // navegador se re-suscribía (ej. al recargar la página) intentaba
+    // crear una fila nueva y chocaba con "push_subscriptions_endpoint_key"
+    // - error atrapado y sin impacto visible, pero llenaba los logs de
+    // Supabase de ruido constante.
+    await fetch(SBU+'/rest/v1/push_subscriptions?on_conflict=endpoint',{
       method:'POST',
       headers:{'apikey':SBK,'Authorization':'Bearer '+SBK,'Content-Type':'application/json',
         'Prefer':'resolution=merge-duplicates,return=minimal'},
