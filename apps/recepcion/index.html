@@ -4900,7 +4900,7 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
       // El sobrante de la fila partida arriba todavía no existe como fila
       // propia - se crea ya atada al paquete nuevo (recortada si hace falta).
       patches.push(sbPost('pagos',{fecha:p.fecha,hora:p.hora,monto:montoAlPaquete,metodo:p.metodo,
-        concepto:'Adelanto de paquete - '+pacNombre,
+        concepto:'Adelanto de paquete',
         paciente_nombre:pacNombre,psicologa_nombre:p.psicologa_nombre,sede:sede,
         registrado_por:p.registrado_por,notas:p.notas,programa_id:progId}));
     }else if(cabeEntera){
@@ -4912,7 +4912,7 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
       // paquete nuevo.
       patches.push(sbPatch('pagos',{monto:Math.round((monto-restante)*100)/100},{id:'eq.'+p.id}));
       patches.push(sbPost('pagos',{fecha:p.fecha,hora:p.hora,monto:restante,metodo:p.metodo,
-        concepto:'Adelanto de paquete - '+pacNombre,
+        concepto:'Adelanto de paquete',
         paciente_nombre:pacNombre,psicologa_nombre:p.psicologa_nombre||'',sede:sede,
         registrado_por:p.registrado_por||'',notas:p.notas||'',programa_id:progId}));
     }
@@ -4934,12 +4934,12 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
       // cuenta en totalVinculado (eso es solo lo que de verdad entra al
       // paquete).
       patches.push(sbPost('pagos',{fecha:pd.fecha,hora:pd.hora,monto:pd.sobrante,metodo:pd.metodo,
-        concepto:'Pago sesión - '+pacNombre,
+        concepto:'Pago de sesión',
         paciente_nombre:pacNombre,psicologa_nombre:pd.psicologa_nombre,sede:sede,
         registrado_por:pd.registrado_por,notas:pd.notas,sesion_id:pd.destinoSesionId}));
     } else {
       patches.push(sbPost('pagos',{fecha:pd.fecha,hora:pd.hora,monto:pd.sobrante,metodo:pd.metodo,
-        concepto:'Adelanto de paquete - '+pacNombre,
+        concepto:'Adelanto de paquete',
         paciente_nombre:pacNombre,psicologa_nombre:pd.psicologa_nombre,sede:sede,
         registrado_por:pd.registrado_por,notas:pd.notas,programa_id:progId}));
       totalVinculado+=pd.sobrante;
@@ -6220,11 +6220,15 @@ function abrirPago(sesId){
   document.getElementById('pg-monto').value=ses.saldo||ses.costoTotal||0;
   pgInicializarMetodos(document.getElementById('pg-monto').value);
   // 'Consulta' tiene su propio texto ('Pago de consulta') en vez del
-  // genérico 'Sesión -' - antes salía "Sesión - Nombre" para una consulta
-  // igual que para cualquier otra sesión suelta, lo que no se entendía al
-  // toque en el detalle de Caja (caso real: Juan Diego Lora Chilca).
-  const _pgConceptoTipo=ses.tipo==='paquete'?'Paquete '+ses.totalPaq+' ses.':(ses.tipo==='Consulta'?'Pago de consulta':'Sesión');
-  document.getElementById('pg-concepto').value=_pgConceptoTipo+' - '+getPac(ses.pacId).nombre;
+  // genérico 'Pago de sesión' - antes salía "Sesión - Nombre" para una
+  // consulta igual que para cualquier otra sesión suelta, lo que no se
+  // entendía al toque en el detalle de Caja (caso real: Juan Diego Lora
+  // Chilca). Sin el nombre al final: el paciente ya se identifica aparte
+  // (fila/encabezado), repetirlo en el concepto solo hacía el texto más
+  // largo sin agregar información.
+  document.getElementById('pg-concepto').value=
+    ses.tipo==='paquete'?'Paquete '+ses.totalPaq+' ses.':
+    (ses.tipo==='Consulta'?'Pago de consulta':'Pago de sesión');
   const elPgNotas=document.getElementById('pg-notas');if(elPgNotas)elPgNotas.value='';
   const elDeudaInfo=document.getElementById('pg-deuda-info');if(elDeudaInfo)elDeudaInfo.style.display='none';
   // El título antes solo mostraba el nombre, sin fecha - si el paciente
