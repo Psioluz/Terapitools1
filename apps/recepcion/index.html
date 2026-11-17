@@ -6584,6 +6584,7 @@ async function _guardarPagoInterno(){
     // más abajo) - se muestra en el mensaje de éxito para que quede visible
     // al toque si el pago fue a parar a una sesión distinta a la esperada.
     let _fechaSesionCobradaToast=null;
+    let _avisoFalloCascada=false;
     // pacientes.saldo es SOLO el saldo corriente de sesiones/consultas
     // SUELTAS (fuera de paquete) - la deuda de un paquete vive aparte, en
     // programas_paciente.saldo + el checkpoint de cada sesión. Si el pago
@@ -6600,16 +6601,40 @@ async function _guardarPagoInterno(){
         // Se sabe exactamente qué sesión/cuota se pagó, pero si el monto
         // pagado supera esa cuota puntual, el resto debe seguir cayendo
         // en cascada sobre las demás cuotas pendientes del MISMO paquete.
-        await aplicarCascadaCheckpoints(progIdPagada,monto);
+        try{await aplicarCascadaCheckpoints(progIdPagada,monto);}
+        catch(eCascada){console.error('[pago->cascada checkpoints]',eCascada);_avisoFalloCascada=true;}
+        let _saldoProgEsperado=null;
         try{
           const progRows=await sbGet('programas_paciente',{id:'eq.'+progIdPagada,select:'*'});
           const progPagado=progRows&&progRows[0];
           if(progPagado){
             const adelantoAcum=(progPagado.adelanto_acumulado||0)+monto;
             const saldoProgNuevo=Math.max(0,(progPagado.costo_total||0)-adelantoAcum);
+            _saldoProgEsperado=saldoProgNuevo;
             promesas.push(sbPatch('programas_paciente',{adelanto_acumulado:adelantoAcum,saldo:saldoProgNuevo},{id:'eq.'+progPagado.id}));
           }
-        }catch(eProg){console.error('[pago->programa]',eProg);}
+        }catch(eProg){console.error('[pago->programa]',eProg);_avisoFalloCascada=true;}
+        // Verificación real, no solo "no hubo excepción": antes, si la
+        // cascada o la actualización del paquete fallaban en silencio (red,
+        // timing - aplicarCascadaCheckpoints ya se traga sus propios
+        // errores y devuelve null), el toast de "✅ Pago registrado" salía
+        // igual y nadie se enteraba hasta que la cuota seguía apareciendo
+        // como pendiente pese a estar "cobrada" (caso real: Dafne García,
+        // cuota 3ra de S/207 - pagó, el pago quedó bien guardado y
+        // vinculado a su sesión, pero este paso falló y el botón "Cobrar"
+        // seguía ahí). Ahora se relee DIRECTO de Supabase (nunca de
+        // DB.sesiones/DB.programas, que todavía no se refrescaron) tanto la
+        // sesión recién pagada como el total del paquete, y si cualquiera
+        // de los dos sigue sin reflejar el pago, se avisa de inmediato.
+        try{
+          await Promise.all(promesas);
+          const sesVerif=await sbGet('sesiones',{id:'eq.'+sesPagada._sb.id,select:'saldo'});
+          if(sesVerif&&sesVerif[0]&&(parseFloat(sesVerif[0].saldo)||0)>0.004)_avisoFalloCascada=true;
+          if(_saldoProgEsperado!==null){
+            const progVerif=await sbGet('programas_paciente',{id:'eq.'+progIdPagada,select:'saldo'});
+            if(progVerif&&progVerif[0]&&Math.abs((parseFloat(progVerif[0].saldo)||0)-_saldoProgEsperado)>0.01)_avisoFalloCascada=true;
+          }
+        }catch(eVerif){console.error('[pago->verificacion saldo]',eVerif);_avisoFalloCascada=true;}
       }else{
         // Sesión puntual suelta (no paquete): reduce solo su propio saldo.
         promesas.push(sbPatch('sesiones',{saldo:Math.max(0,(sesPagada.saldo||0)-monto)},{id:'eq.'+sesPagada._sb.id}));
@@ -6722,6 +6747,9 @@ async function _guardarPagoInterno(){
     // vez de recién en el reporte diario.
     showToast('✅ Pago S/'+monto+' ('+metodosTxt+') - '+pac.nombre+
       (_fechaSesionCobradaToast?' (sesión del '+fmtF(_fechaSesionCobradaToast)+')':''));
+    if(_avisoFalloCascada){
+      showToast('⚠️ El pago de '+pac.nombre+' se guardó, pero hubo un problema de conexión al descontar el saldo de la cuota/paquete - puede seguir saliendo como pendiente. Revisa su Historial Clínico o usa "Recalcular Saldo en Sistema".','error');
+    }
     await cargarDesdeSB();
   }catch(e){showToast('Error en pago: '+e.message,'error');console.error('[pago SB]',e);}
 }
