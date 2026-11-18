@@ -132,6 +132,13 @@ try{
       <div class="nav-item" onclick="showPage('vaciar',this)">🧼 Vaciar Paciente</div>
       <div class="nav-item" onclick="showPage('recalcular',this)">🧮 Recalcular Saldo</div>
       <div class="nav-item" onclick="showPage('auditoria',this)">⚠️ Auditoría</div>
+      <div class="nav-item" onclick="showPage('trasladar',this)">🔀 Trasladar Sesiones</div>
+      <div class="nav-item" onclick="showPage('reasignarpago',this)">🔁 Reasignar Pago</div>
+      <div class="nav-item" onclick="showPage('dividirpago',this)">➗ Dividir Pago en Cuotas</div>
+      <div class="nav-item" onclick="showPage('eliminarpago',this)">🗑️ Eliminar Pago</div>
+      <div class="nav-item" onclick="showPage('credito',this)">🎁 Crédito / Cortesía</div>
+      <div class="nav-item" onclick="showPage('vincularpago',this)">🔗 Vincular Pago Suelto</div>
+      <div class="nav-item" onclick="showPage('fichas',this)">📋 Fichas Pendientes</div>
       <div class="nav-item" onclick="showPage('whatsapp',this)">💬 Conversaciones WhatsApp</div>
       <div class="nav-item" onclick="showPage('cuentas',this)">👤 Cuentas y Accesos</div>
       <div class="nav-item" onclick="showPage('sedes',this)">🏥 Sedes</div>
@@ -292,6 +299,119 @@ try{
           <div class="cb hint" style="margin-bottom:0">Revisa automáticamente toda la base de datos buscando los mismos tipos de inconsistencias que normalmente hay que detectar a mano: paquetes marcados "completado" sin tener en realidad todas sus sesiones, cupos duplicados dentro de un mismo paquete, y paquetes activos cuyo saldo/adelanto guardado no coincide con lo que de verdad se pagó. No corrige nada solo, salvo donde el botón lo diga explícitamente - siempre revisa antes de aplicar.</div>
         </div>
         <div id="auditoriaContent"></div>
+      </div>
+
+      <!-- TRASLADAR SESIONES -->
+      <div class="page" id="pg-trasladar">
+        <div class="card">
+          <div class="ch"><div class="ct">🔀 Trasladar Sesiones entre pacientes</div></div>
+          <div class="cb">
+            <div class="hint" style="margin-bottom:10px">Mueve sesiones programadas (sin asistir todavía) de un paciente a otro - por ejemplo, cuando una familia pide pasar las sesiones de un hermano que deja de venir al paquete de otro. Cancela las sesiones de origen y las crea en el paquete de destino, ajustando su costo total proporcionalmente, sin cobrar de más.</div>
+            <label class="hint">Paciente ORIGEN (de quién se quitan las sesiones)</label>
+            <div style="position:relative;max-width:420px;margin-bottom:10px">
+              <input class="fsel" id="trasOrigBusq" placeholder="Escribe el nombre del paciente…" style="width:100%" oninput="trasBuscarPac('orig')" autocomplete="off">
+              <div id="trasOrigLista" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:8px;max-height:220px;overflow:auto;z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.12)"></div>
+            </div>
+            <div id="trasOrigSesiones"></div>
+          </div>
+        </div>
+        <div class="card" id="trasDestinoCard" style="display:none">
+          <div class="ch"><div class="ct">Paciente DESTINO (a quién se le agregan)</div></div>
+          <div class="cb">
+            <div style="position:relative;max-width:420px;margin-bottom:10px">
+              <input class="fsel" id="trasDestBusq" placeholder="Escribe el nombre del paciente…" style="width:100%" oninput="trasBuscarPac('dest')" autocomplete="off">
+              <div id="trasDestLista" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:8px;max-height:220px;overflow:auto;z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.12)"></div>
+            </div>
+            <div id="trasDestPaquete"></div>
+          </div>
+        </div>
+        <div id="trasPreview"></div>
+      </div>
+
+      <!-- REASIGNAR PAGO -->
+      <div class="page" id="pg-reasignarpago">
+        <div class="card">
+          <div class="ch"><div class="ct">🔁 Reasignar un pago mal atribuido</div></div>
+          <div class="cb">
+            <div class="hint" style="margin-bottom:10px">Para cuando un pago quedó guardado a nombre del paciente o la sesión equivocada (ej. por el desplegable del formulario de Cobrar). Recalcula automáticamente el saldo real tanto del paquete/sesión de donde se quita la plata como del paquete/sesión a donde se mueve.</div>
+            <label class="hint">Buscar pagos del paciente</label>
+            <div style="position:relative;max-width:420px;margin-bottom:10px">
+              <input class="fsel" id="rpBusqPac" placeholder="Escribe el nombre del paciente…" style="width:100%" oninput="rpBuscarPac()" autocomplete="off">
+              <div id="rpListaPac" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:8px;max-height:220px;overflow:auto;z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.12)"></div>
+            </div>
+            <div id="rpPagosList"></div>
+          </div>
+        </div>
+        <div id="rpFormDestino"></div>
+      </div>
+
+      <!-- DIVIDIR PAGO EN CUOTAS -->
+      <div class="page" id="pg-dividirpago">
+        <div class="card">
+          <div class="ch"><div class="ct">➗ Dividir el pago de un paquete en cuotas</div></div>
+          <div class="cb">
+            <div class="hint" style="margin-bottom:10px">Para cuando coordinación aprueba que un paquete ya registrado se pague en varias partes (ej. "paga el resto en la 3ra sesión"). Define en qué sesión exacta del paquete debe caer cada cuota pendiente.</div>
+            <label class="hint">Buscar paciente</label>
+            <div style="position:relative;max-width:420px;margin-bottom:10px">
+              <input class="fsel" id="dcBusqPac" placeholder="Escribe el nombre del paciente…" style="width:100%" oninput="dcBuscarPac()" autocomplete="off">
+              <div id="dcListaPac" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:8px;max-height:220px;overflow:auto;z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.12)"></div>
+            </div>
+            <div id="dcPaquetes"></div>
+          </div>
+        </div>
+        <div id="dcForm"></div>
+      </div>
+
+      <!-- ELIMINAR PAGO -->
+      <div class="page" id="pg-eliminarpago">
+        <div class="card">
+          <div class="ch"><div class="ct">🗑️ Eliminar un pago registrado por error</div></div>
+          <div class="cb">
+            <div class="hint" style="margin-bottom:10px">A diferencia de borrar la fila directo en "Tablas de Supabase", esta herramienta recalcula automáticamente el saldo de la sesión o paquete afectado después de eliminar el pago, para que no quede un paquete mostrando "pagado" de más cuando en realidad ya no tiene ese dinero.</div>
+            <label class="hint">Buscar pagos del paciente</label>
+            <div style="position:relative;max-width:420px;margin-bottom:10px">
+              <input class="fsel" id="epBusqPac" placeholder="Escribe el nombre del paciente…" style="width:100%" oninput="epBuscarPac()" autocomplete="off">
+              <div id="epListaPac" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:8px;max-height:220px;overflow:auto;z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.12)"></div>
+            </div>
+            <div id="epPagosList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CRÉDITO / CORTESÍA -->
+      <div class="page" id="pg-credito">
+        <div class="card">
+          <div class="ch"><div class="ct">🎁 Agregar un crédito o cortesía a un paquete</div></div>
+          <div class="cb">
+            <div class="hint" style="margin-bottom:10px">Para cuando se le da a la familia una ampliación o beneficio sin costo (ej. sesiones trasladadas de un hermano, una cortesía de coordinación) - registra el monto como si fuera un pago más del paquete, para que el saldo quede en S/0 de forma permanente y no se vuelva a marcar como pendiente la próxima vez que se recalcule el saldo o se abra el Historial Clínico.</div>
+            <label class="hint">Buscar paciente</label>
+            <div style="position:relative;max-width:420px;margin-bottom:10px">
+              <input class="fsel" id="crBusqPac" placeholder="Escribe el nombre del paciente…" style="width:100%" oninput="crBuscarPac()" autocomplete="off">
+              <div id="crListaPac" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:8px;max-height:220px;overflow:auto;z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.12)"></div>
+            </div>
+            <div id="crPaquetes"></div>
+          </div>
+        </div>
+        <div id="crForm"></div>
+      </div>
+
+      <!-- VINCULAR PAGO SUELTO -->
+      <div class="page" id="pg-vincularpago">
+        <div class="card">
+          <div class="ch"><div class="ct">🔗 Vincular un pago suelto a su propio servicio</div></div>
+          <div class="cb hint" style="margin-bottom:0">Pagos que quedaron sin sesión ni paquete asignado (ej. una constancia, una consulta aparte, el salón de juegos) - el sistema ya NO los engancha solo al paquete activo del paciente (eso causaba paquetes "sobrepagados" con plata ajena), así que hay que vincularlos a mano a su propia sesión. Para cualquier otro pago suelto que no sea de estos 3 tipos, créale su sesión correspondiente desde "Tablas de Supabase" y luego asígnale el <code>sesion_id</code> ahí mismo.</div>
+        </div>
+        <div id="vpContent"></div>
+      </div>
+
+      <!-- FICHAS PENDIENTES -->
+      <div class="page" id="pg-fichas">
+        <div class="card">
+          <div class="ch"><div class="ct">📋 Fichas de seguimiento sin llenar</div>
+            <button class="btn btn-outline btn-sm" onclick="renderFichasPendientes()">🔍 Analizar de nuevo</button></div>
+          <div class="cb hint" style="margin-bottom:0">Por cada sesión ya atendida (Asistió/Tardanza, sin contar llamadas con maestra), revisa si existe su ficha de seguimiento correspondiente - mismo criterio que usa la propia app de Psicóloga para marcarlas como pendientes. Agrupado por psicóloga.</div>
+        </div>
+        <div id="fichasContent"></div>
       </div>
 
       <!-- CUENTAS -->
@@ -533,6 +653,8 @@ function showPage(id,btn){
   if(id==='duplicados')renderDuplicados();
   if(id==='visor')visorCargar();
   if(id==='auditoria'&&!document.getElementById('auditoriaContent').children.length)renderAuditoria();
+  if(id==='fichas'&&!document.getElementById('fichasContent').children.length)renderFichasPendientes();
+  if(id==='vincularpago')renderPagosSueltos();
   if(id==='whatsapp')cargarConversacionesWA();
 }
 
@@ -1848,6 +1970,644 @@ async function borrarDuplicado(tabla,id,btn){
     btn.closest('div[style*="border-top"]').remove();
   }catch(e){toast('Error: '+e.message,'error');}
 }
+
+// ══════════ HELPERS COMPARTIDOS DE SOPORTE ══════════
+// Recalcula un paquete (checkpoints por sesión + totales) desde sus pagos
+// REALES en Supabase - mismo criterio que usa Recepción al abrir el
+// Historial Clínico de un paciente (recalcularSaldoPaciente), portado
+// aquí para que Reasignar Pago / Eliminar Pago / Crédito dejen el
+// paquete exactamente consistente, sin depender de que alguien después
+// abra Recepción para que se recalcule solo.
+const _CUOTAS_CHECKPOINTS_SISTEMA={8:[1],12:[1,3],16:[1,4,9],20:[1,5,12],30:[1,7,16,24]};
+function _checkpointsDePaqueteSistema(totalSesiones,nroCuotas,costoTotal){
+  nroCuotas=Math.max(1,nroCuotas||1);
+  costoTotal=parseFloat(costoTotal)||0;
+  if(nroCuotas===1)return[{sesion:1,monto:Math.round(costoTotal*100)/100}];
+  const montoBase=Math.floor(costoTotal/nroCuotas);
+  const checkpoints=_CUOTAS_CHECKPOINTS_SISTEMA[totalSesiones];
+  if(checkpoints&&checkpoints.length===nroCuotas){
+    return checkpoints.map(function(sesionCobro,j){
+      const esUltima=j===checkpoints.length-1;
+      const monto=esUltima?Math.round((costoTotal-montoBase*(nroCuotas-1))*100)/100:montoBase;
+      return{sesion:sesionCobro,monto:monto};
+    });
+  }
+  const sesionesPorCuota=Math.floor(totalSesiones/nroCuotas);
+  const posiciones=[];
+  for(let j=0;j<nroCuotas;j++){
+    const esUltima=j===nroCuotas-1;
+    const sesionCobro=j===0?1:Math.max(1,sesionesPorCuota*j);
+    const monto=esUltima?Math.round((costoTotal-montoBase*(nroCuotas-1))*100)/100:montoBase;
+    posiciones.push({sesion:sesionCobro,monto:monto});
+  }
+  return posiciones;
+}
+async function _recalcProgramaCompleto(progId){
+  const progR=await sbGet('programas_paciente',{id:'eq.'+progId,select:'*'});
+  const prog=(progR.data||[])[0];
+  if(!prog)return null;
+  const pagosR=await sbGet('pagos',{programa_id:'eq.'+progId,select:'monto'});
+  const totalPagado=Math.round((pagosR.data||[]).reduce(function(a,p){return a+(parseFloat(p.monto)||0);},0)*100)/100;
+  const sesR=await sbGet('sesiones',{programa_id:'eq.'+progId,tipo:'eq.paquete',select:'id,fecha,hora,estado,saldo,saldo_fijado'});
+  const sesiones=sesR.data||[];
+  for(const s of sesiones){
+    if(s.saldo_fijado)continue;
+    if((parseFloat(s.saldo)||0)!==0)await sbPatch('sesiones',{saldo:0},{id:'eq.'+s.id});
+  }
+  const vivas=sesiones.filter(function(s){return['permiso','reprogramado','cancelado','congelado'].indexOf(s.estado)===-1;})
+    .sort(function(a,b){return((a.fecha||'')+(a.hora||'')).localeCompare((b.fecha||'')+(b.hora||''));});
+  const checkpoints=_checkpointsDePaqueteSistema(prog.nro_sesiones_total,prog.nro_cuotas,prog.costo_total);
+  let restante=totalPagado;
+  for(const cp of checkpoints){
+    const sesDestino=vivas[cp.sesion-1];
+    if(!sesDestino)continue;
+    if(sesDestino.saldo_fijado){restante=Math.round((restante-cp.monto)*100)/100;continue;}
+    const aplicado=Math.max(0,Math.min(restante,cp.monto));
+    const saldoCuota=Math.round((cp.monto-aplicado)*100)/100;
+    restante=Math.round((restante-aplicado)*100)/100;
+    if(saldoCuota>0)await sbPatch('sesiones',{saldo:saldoCuota},{id:'eq.'+sesDestino.id});
+  }
+  const saldoProg=Math.max(0,Math.round(((parseFloat(prog.costo_total)||0)-totalPagado)*100)/100);
+  await sbPatch('programas_paciente',{adelanto_acumulado:totalPagado,saldo:saldoProg},{id:'eq.'+prog.id});
+  return{costoTotal:parseFloat(prog.costo_total)||0,totalPagado:totalPagado,saldo:saldoProg};
+}
+// Recalcula también el saldo "suelto" (fuera de paquete) de un paciente,
+// igual que el trigger de Supabase que ya corre con cada pago/sesión -
+// se usa aquí tras desvincular un pago de una sesión suelta (ej. Eliminar
+// Pago), por si el trigger todavía no alcanzó a correr.
+async function _recalcSaldoSueltoPaciente(pacNombre,sede){
+  if(!pacNombre||!sede)return;
+  const sesR=await sbGet('sesiones',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,programa_id:'is.null',tipo:'neq.paquete',select:'id,costo_total,estado'});
+  const ses=(sesR.data||[]).filter(function(s){return['cancelado','permiso','reprogramado','noasistio'].indexOf(s.estado)===-1;});
+  const pagosR=await sbGet('pagos',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,programa_id:'is.null',select:'monto'});
+  const pagado=(pagosR.data||[]).reduce(function(a,p){return a+(parseFloat(p.monto)||0);},0);
+  const costo=ses.reduce(function(a,s){return a+(parseFloat(s.costo_total)||0);},0);
+  const saldo=Math.round((costo-pagado)*100)/100;
+  const pacR=await sbGet('pacientes',{nombre:'eq.'+pacNombre,sede:'eq.'+sede,select:'id'});
+  const pac=(pacR.data||[])[0];
+  if(pac)await sbPatch('pacientes',{saldo:saldo},{id:'eq.'+pac.id});
+}
+// ══════════ TRASLADAR SESIONES ══════════
+let _trasOrig=null,_trasOrigSesiones=[],_trasOrigSelIds=[],_trasDest=null,_trasPreview=null;
+async function trasBuscarPac(which){
+  const q=(document.getElementById('tras'+(which==='orig'?'Orig':'Dest')+'Busq').value||'').trim();
+  const list=document.getElementById('tras'+(which==='orig'?'Orig':'Dest')+'Lista');
+  if(q.length<2){list.style.display='none';list.innerHTML='';return;}
+  try{
+    const {data}=await sbGet('pacientes',{select:'id,nombre,sede',nombre:'ilike.*'+q+'*',limit:'8',order:'nombre.asc'});
+    if(!data||!data.length){list.style.display='none';list.innerHTML='';return;}
+    list.innerHTML=data.map(function(p){
+      const nEsc=String(p.nombre).replace(/'/g,"\\'"),sEsc=String(p.sede||'').replace(/'/g,"\\'");
+      return '<div onclick="trasElegirPac(\''+which+'\',\''+nEsc+'\',\''+sEsc+'\')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border)" '+
+        'onmouseover="this.style.background=\'#f4f6fb\'" onmouseout="this.style.background=\'\'">'+p.nombre+' <span class="hint">· '+(p.sede||'-')+'</span></div>';
+    }).join('');
+    list.style.display='block';
+  }catch(e){}
+}
+async function trasElegirPac(which,nombre,sede){
+  document.getElementById('tras'+(which==='orig'?'Orig':'Dest')+'Lista').style.display='none';
+  document.getElementById('tras'+(which==='orig'?'Orig':'Dest')+'Busq').value=nombre;
+  if(which==='orig'){
+    _trasOrig={nombre:nombre,sede:sede};_trasOrigSelIds=[];_trasDest=null;_trasPreview=null;
+    document.getElementById('trasDestinoCard').style.display='none';
+    document.getElementById('trasPreview').innerHTML='';
+    const el=document.getElementById('trasOrigSesiones');
+    el.innerHTML='⏳ Buscando sesiones programadas…';
+    try{
+      const {data}=await sbGet('sesiones',{paciente_nombre:'eq.'+nombre,sede:'eq.'+sede,tipo:'eq.paquete',estado:'eq.programado',select:'id,fecha,hora,terapia,psicologa,programa_id',order:'fecha.asc'});
+      _trasOrigSesiones=data||[];
+      if(!_trasOrigSesiones.length){el.innerHTML='<div class="hint">No tiene sesiones "Programado" de paquete para trasladar.</div>';return;}
+      trasRenderOrigLista();
+    }catch(e){el.innerHTML='<div style="color:#dc2626">Error: '+e.message+'</div>';}
+  }else{
+    _trasDest={nombre:nombre,sede:sede,progId:null};_trasPreview=null;
+    document.getElementById('trasPreview').innerHTML='';
+    const el=document.getElementById('trasDestPaquete');
+    el.innerHTML='⏳ Buscando su paquete activo…';
+    try{
+      const {data}=await sbGet('programas_paciente',{paciente_nombre:'eq.'+nombre,sede:'eq.'+sede,estado:'eq.activo',select:'*'});
+      if(!data||!data.length){el.innerHTML='<div style="color:#dc2626">No tiene ningún paquete activo - créalo primero desde Recepción.</div>';return;}
+      if(data.length===1){trasElegirPrograma(data[0]);return;}
+      el.innerHTML='<div class="hint" style="margin-bottom:6px">Tiene '+data.length+' paquetes activos - elige a cuál se agregan las sesiones:</div>'+
+        data.map(function(pr){return '<div class="btn btn-outline btn-sm" style="margin:2px" onclick=\'trasElegirPrograma('+JSON.stringify(pr).replace(/'/g,"&#39;")+')\'>'+(pr.paquete_nombre||'Paquete')+' (S/'+pr.costo_total+')</div>';}).join('');
+    }catch(e){el.innerHTML='<div style="color:#dc2626">Error: '+e.message+'</div>';}
+  }
+}
+function trasRenderOrigLista(){
+  const el=document.getElementById('trasOrigSesiones');
+  el.innerHTML='<div class="hint" style="margin:8px 0 4px">Marca las sesiones a trasladar ('+_trasOrigSelIds.length+' seleccionada(s)):</div>'+
+    _trasOrigSesiones.map(function(s){
+      const chk=_trasOrigSelIds.indexOf(s.id)>-1;
+      return '<label style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid var(--border);cursor:pointer">'+
+        '<input type="checkbox" '+(chk?'checked':'')+' onchange="trasToggleSesion(\''+s.id+'\')">'+
+        '<span>'+fmtFechaSistema(s.fecha)+' '+(s.hora||'').slice(0,5)+' - '+(s.terapia||'-')+' ('+(s.psicologa||'-')+')</span></label>';
+    }).join('');
+  document.getElementById('trasDestinoCard').style.display=_trasOrigSelIds.length?'block':'none';
+}
+function trasToggleSesion(id){
+  const i=_trasOrigSelIds.indexOf(id);
+  if(i>-1)_trasOrigSelIds.splice(i,1);else _trasOrigSelIds.push(id);
+  _trasPreview=null;document.getElementById('trasPreview').innerHTML='';
+  trasRenderOrigLista();
+  if(_trasDest&&_trasDest.progId)trasRenderDestForm();
+}
+function trasElegirPrograma(pr){
+  _trasDest.progId=pr.id;_trasDest.costoTotal=parseFloat(pr.costo_total)||0;_trasDest.nroSesTotal=pr.nro_sesiones_total||1;
+  _trasDest.nombreProg=pr.paquete_nombre;
+  document.getElementById('trasDestPaquete').innerHTML='<div class="hint">📦 Paquete elegido: <b>'+(pr.paquete_nombre||'Paquete')+'</b> - S/'+pr.costo_total+' ('+pr.nro_sesiones_total+' sesiones)</div>';
+  trasRenderDestForm();
+}
+async function trasRenderDestForm(){
+  if(!_trasDest||!_trasDest.progId||!_trasOrigSelIds.length)return;
+  const sesSel=_trasOrigSesiones.filter(function(s){return _trasOrigSelIds.indexOf(s.id)>-1;});
+  // Trae la sesión más reciente del paquete destino para copiar su
+  // psicóloga/terapia por defecto (lo más común es que la sesión
+  // trasladada siga con la misma profesional/terapia del destino).
+  let psDefault='',terDefault='';
+  try{
+    const {data}=await sbGet('sesiones',{programa_id:'eq.'+_trasDest.progId,select:'psicologa,terapia',order:'fecha.desc',limit:'1'});
+    if(data&&data[0]){psDefault=data[0].psicologa||'';terDefault=data[0].terapia||'';}
+  }catch(e){}
+  const html='<div class="card"><div class="ch"><div class="ct">Nuevas sesiones en el paquete destino</div></div><div class="cb">'+
+    '<label class="hint">Motivo / relación (se guarda en la nota de cada sesión)</label>'+
+    '<input class="fsel" id="trasMotivo" style="width:100%;max-width:420px;margin-bottom:10px" placeholder="Ej. hermana Solange López Cabrera">'+
+    '<table><thead><tr><th>Sesión origen</th><th>Nueva fecha</th><th>Nueva hora</th><th>Terapia</th><th>Psicóloga</th></tr></thead><tbody>'+
+    sesSel.map(function(s,i){
+      return '<tr><td>'+fmtFechaSistema(s.fecha)+' '+(s.hora||'').slice(0,5)+' - '+(s.terapia||'-')+'</td>'+
+        '<td><input class="fsel" id="trasFecha'+i+'" type="date" value="'+(s.fecha||'')+'"></td>'+
+        '<td><input class="fsel" id="trasHora'+i+'" type="time" value="'+((s.hora||'').slice(0,5))+'"></td>'+
+        '<td><input class="fsel" id="trasTer'+i+'" value="'+(terDefault||s.terapia||'').replace(/"/g,'&quot;')+'"></td>'+
+        '<td><input class="fsel" id="trasPs'+i+'" value="'+(psDefault||s.psicologa||'').replace(/"/g,'&quot;')+'"></td></tr>';
+    }).join('')+
+    '</tbody></table>'+
+    '<button class="btn btn-outline btn-sm" style="margin-top:10px" onclick="trasRevisar()">🔍 Revisar traslado</button>'+
+    '</div></div>';
+  document.getElementById('trasPreview').innerHTML=html;
+}
+function trasRevisar(){
+  const sesSel=_trasOrigSesiones.filter(function(s){return _trasOrigSelIds.indexOf(s.id)>-1;});
+  const motivo=(document.getElementById('trasMotivo').value||'').trim();
+  if(!motivo){toast('Indica el motivo/relación antes de revisar','error');return;}
+  const nuevas=sesSel.map(function(s,i){
+    return{fecha:document.getElementById('trasFecha'+i).value,hora:document.getElementById('trasHora'+i).value,
+      terapia:document.getElementById('trasTer'+i).value,psicologa:document.getElementById('trasPs'+i).value};
+  });
+  const n=sesSel.length;
+  const costoPorSesion=Math.round((_trasDest.costoTotal/_trasDest.nroSesTotal)*100)/100;
+  const extra=Math.round(costoPorSesion*n*100)/100;
+  const nuevoCosto=Math.round((_trasDest.costoTotal+extra)*100)/100;
+  const nuevoTotal=_trasDest.nroSesTotal+n;
+  _trasPreview={sesOrigIds:sesSel.map(function(s){return s.id;}),nuevas:nuevas,motivo:motivo,extra:extra,nuevoCosto:nuevoCosto,nuevoTotal:nuevoTotal};
+  const html='<div class="card"><div class="ch"><div class="ct">Resumen del traslado</div></div><div class="cb">'+
+    '<ul style="margin:0;padding-left:18px">'+
+    '<li>'+n+' sesión(es) de <b>'+_trasOrig.nombre+'</b> se marcarán como "Cancelado" (motivo: '+motivo+').</li>'+
+    '<li>El paquete de <b>'+_trasDest.nombre+'</b> pasa de '+_trasDest.nroSesTotal+' a <b>'+nuevoTotal+'</b> sesiones, y su costo de S/'+_trasDest.costoTotal+' a <b>S/'+nuevoCosto+'</b>.</li>'+
+    '<li>Se agrega un crédito de <b>cortesía por S/'+extra+'</b> al paquete destino (sin cargo adicional para la familia) y se recalcula su saldo real.</li>'+
+    '</ul>'+
+    '<button class="btn btn-primary" style="width:auto;margin-top:10px" onclick="trasAplicar()">✅ Aplicar traslado</button>'+
+    '</div></div>';
+  document.getElementById('trasPreview').insertAdjacentHTML('beforeend',html);
+}
+async function trasAplicar(){
+  if(!_trasPreview)return;
+  if(!confirm('¿Aplicar el traslado de '+_trasPreview.sesOrigIds.length+' sesión(es) de '+_trasOrig.nombre+' a '+_trasDest.nombre+'?'))return;
+  try{
+    for(const id of _trasPreview.sesOrigIds){
+      const ses=_trasOrigSesiones.find(function(s){return s.id===id;});
+      await sbPatch('sesiones',{estado:'cancelado',notas:((ses&&ses.notas)||'')+' - Trasladada a '+_trasDest.nombre+' ('+_trasPreview.motivo+')'},{id:'eq.'+id});
+    }
+    await sbPatch('programas_paciente',{nro_sesiones_total:_trasPreview.nuevoTotal,costo_total:_trasPreview.nuevoCosto},{id:'eq.'+_trasDest.progId});
+    await sbPatch('sesiones',{total_paquete:_trasPreview.nuevoTotal,costo_total:_trasPreview.nuevoCosto},{programa_id:'eq.'+_trasDest.progId});
+    let nroEnPaquete=_trasDest.nroSesTotal;
+    for(let i=0;i<_trasPreview.nuevas.length;i++){
+      nroEnPaquete++;
+      const n=_trasPreview.nuevas[i];
+      await sbPost('sesiones',{fecha:n.fecha,hora:n.hora+':00',paciente_nombre:_trasDest.nombre,psicologa:n.psicologa,
+        terapia:n.terapia,estado:'programado',tipo:'paquete',nro_en_paquete:nroEnPaquete,total_paquete:_trasPreview.nuevoTotal,
+        costo_total:_trasPreview.nuevoCosto,adelanto:0,saldo:0,sede:_trasDest.sede,programa_id:_trasDest.progId,
+        notas:'Traslado de sesión de '+_trasOrig.nombre+' ('+_trasPreview.motivo+') - sesión '+(i+1)+' de '+_trasPreview.nuevas.length});
+    }
+    await sbPost('pagos',{fecha:hoySistema(),hora:horaSistema(),monto:_trasPreview.extra,metodo:'Cortesía',
+      concepto:'Cortesía - traslado de sesión de '+_trasOrig.nombre+' ('+_trasPreview.motivo+')',
+      paciente_nombre:_trasDest.nombre,sede:_trasDest.sede,registrado_por:(SESSION&&SESSION.email)||'sistema',programa_id:_trasDest.progId});
+    await _recalcProgramaCompleto(_trasDest.progId);
+    toast('✅ Traslado aplicado');
+    document.getElementById('trasPreview').innerHTML='<div class="hint">✅ Listo - traslado aplicado y saldo del paquete destino recalculado.</div>';
+    _trasOrig=null;_trasOrigSesiones=[];_trasOrigSelIds=[];_trasDest=null;_trasPreview=null;
+    document.getElementById('trasOrigSesiones').innerHTML='';document.getElementById('trasOrigBusq').value='';
+    document.getElementById('trasDestBusq').value='';document.getElementById('trasDestPaquete').innerHTML='';
+    document.getElementById('trasDestinoCard').style.display='none';
+  }catch(e){toast('Error al aplicar: '+e.message,'error');}
+}
+function fmtFechaSistema(f){if(!f)return'-';const p=f.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f;}
+function hoySistema(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
+function horaSistema(){const n=new Date();return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}
+
+// ══════════ REASIGNAR PAGO ══════════
+let _rpPagos=[],_rpSel=null,_rpDestPac=null,_rpDestProgs=[];
+async function rpBuscarPac(){
+  const q=(document.getElementById('rpBusqPac').value||'').trim();
+  const list=document.getElementById('rpListaPac');
+  if(q.length<2){list.style.display='none';list.innerHTML='';return;}
+  try{
+    const {data}=await sbGet('pacientes',{select:'id,nombre,sede',nombre:'ilike.*'+q+'*',limit:'8',order:'nombre.asc'});
+    if(!data||!data.length){list.style.display='none';list.innerHTML='';return;}
+    list.innerHTML=data.map(function(p){
+      const nEsc=String(p.nombre).replace(/'/g,"\\'"),sEsc=String(p.sede||'').replace(/'/g,"\\'");
+      return '<div onclick="rpElegirPac(\''+nEsc+'\',\''+sEsc+'\')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border)" '+
+        'onmouseover="this.style.background=\'#f4f6fb\'" onmouseout="this.style.background=\'\'">'+p.nombre+' <span class="hint">· '+(p.sede||'-')+'</span></div>';
+    }).join('');
+    list.style.display='block';
+  }catch(e){}
+}
+async function rpElegirPac(nombre,sede){
+  document.getElementById('rpListaPac').style.display='none';
+  document.getElementById('rpBusqPac').value=nombre;
+  document.getElementById('rpFormDestino').innerHTML='';_rpSel=null;
+  const el=document.getElementById('rpPagosList');
+  el.innerHTML='⏳ Cargando pagos…';
+  try{
+    const {data}=await sbGet('pagos',{paciente_nombre:'eq.'+nombre,sede:'eq.'+sede,select:'*',order:'fecha.desc,hora.desc',limit:'40'});
+    _rpPagos=data||[];
+    if(!_rpPagos.length){el.innerHTML='<div class="hint">Sin pagos registrados.</div>';return;}
+    el.innerHTML='<table><thead><tr><th>Fecha</th><th>Monto</th><th>Concepto</th><th>Vinculado a</th><th></th></tr></thead><tbody>'+
+      _rpPagos.map(function(p){
+        const vinc=p.programa_id?'📦 paquete':(p.sesion_id?'📅 sesión':'suelto (sin vínculo)');
+        return '<tr><td>'+fmtFechaSistema(p.fecha)+' '+(p.hora||'')+'</td><td>S/'+p.monto+'</td><td>'+(p.concepto||'-')+'</td><td>'+vinc+'</td>'+
+          '<td><button class="btn btn-outline btn-sm" onclick=\'rpElegirPago('+JSON.stringify(p).replace(/'/g,"&#39;")+')\'>Elegir</button></td></tr>';
+      }).join('')+'</tbody></table>';
+  }catch(e){el.innerHTML='<div style="color:#dc2626">Error: '+e.message+'</div>';}
+}
+function rpElegirPago(p){
+  _rpSel=p;_rpDestPac=null;_rpDestProgs=[];
+  const html='<div class="card"><div class="ch"><div class="ct">Reasignar este pago</div></div><div class="cb">'+
+    '<div class="hint" style="margin-bottom:10px">Pago actual: <b>S/'+p.monto+'</b> · '+(p.concepto||'-')+' · '+
+    (p.programa_id?'vinculado a un paquete':(p.sesion_id?'vinculado a una sesión suelta':'sin vínculo'))+'.</div>'+
+    '<label class="hint">Paciente al que en realidad pertenece</label>'+
+    '<div style="position:relative;max-width:420px;margin-bottom:10px">'+
+    '<input class="fsel" id="rpDestBusq" placeholder="Escribe el nombre del paciente…" style="width:100%" oninput="rpBuscarDest()" autocomplete="off">'+
+    '<div id="rpDestLista" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:8px;max-height:220px;overflow:auto;z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.12)"></div></div>'+
+    '<div id="rpDestOpciones"></div>'+
+    '</div></div>';
+  document.getElementById('rpFormDestino').innerHTML=html;
+}
+async function rpBuscarDest(){
+  const q=(document.getElementById('rpDestBusq').value||'').trim();
+  const list=document.getElementById('rpDestLista');
+  if(q.length<2){list.style.display='none';list.innerHTML='';return;}
+  try{
+    const {data}=await sbGet('pacientes',{select:'id,nombre,sede',nombre:'ilike.*'+q+'*',limit:'8',order:'nombre.asc'});
+    if(!data||!data.length){list.style.display='none';list.innerHTML='';return;}
+    list.innerHTML=data.map(function(p){
+      const nEsc=String(p.nombre).replace(/'/g,"\\'"),sEsc=String(p.sede||'').replace(/'/g,"\\'");
+      return '<div onclick="rpElegirDest(\''+nEsc+'\',\''+sEsc+'\')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border)" '+
+        'onmouseover="this.style.background=\'#f4f6fb\'" onmouseout="this.style.background=\'\'">'+p.nombre+' <span class="hint">· '+(p.sede||'-')+'</span></div>';
+    }).join('');
+    list.style.display='block';
+  }catch(e){}
+}
+async function rpElegirDest(nombre,sede){
+  document.getElementById('rpDestLista').style.display='none';
+  document.getElementById('rpDestBusq').value=nombre;
+  _rpDestPac={nombre:nombre,sede:sede};
+  const el=document.getElementById('rpDestOpciones');
+  el.innerHTML='⏳ Buscando sus sesiones con saldo pendiente…';
+  try{
+    const [progsR,sesR]=await Promise.all([
+      sbGet('programas_paciente',{paciente_nombre:'eq.'+nombre,sede:'eq.'+sede,estado:'eq.activo',select:'id,paquete_nombre,costo_total'}),
+      sbGet('sesiones',{paciente_nombre:'eq.'+nombre,sede:'eq.'+sede,saldo:'gt.0',select:'id,fecha,hora,terapia,tipo,saldo,programa_id',order:'fecha.asc',limit:'20'})
+    ]);
+    _rpDestProgs=progsR.data||[];
+    const sesiones=sesR.data||[];
+    let html='<label class="hint">¿A qué vincular el pago en '+nombre+'?</label><div style="margin-bottom:10px">'+
+      '<label style="display:block;margin:4px 0"><input type="radio" name="rpDestTipo" value="ninguno" checked onchange="rpOnTipoDest()"> Sin vínculo específico (queda suelto)</label>';
+    if(sesiones.length){
+      html+='<label style="display:block;margin:4px 0"><input type="radio" name="rpDestTipo" value="sesion" onchange="rpOnTipoDest()"> A una sesión con saldo pendiente:</label>'+
+        '<select class="fsel" id="rpDestSesion" style="width:100%;max-width:420px;margin:4px 0 4px 22px" onchange="document.querySelector(\'input[name=rpDestTipo][value=sesion]\').checked=true">'+
+        sesiones.map(function(s){return '<option value="'+s.id+'" data-prog="'+(s.programa_id||'')+'">'+fmtFechaSistema(s.fecha)+' '+(s.hora||'').slice(0,5)+' - '+(s.terapia||s.tipo||'-')+' (debe S/'+s.saldo+')</option>';}).join('')+'</select>';
+    }
+    if(_rpDestProgs.length){
+      html+='<label style="display:block;margin:4px 0"><input type="radio" name="rpDestTipo" value="paquete" onchange="rpOnTipoDest()"> Como adelanto directo de su paquete:</label>'+
+        '<select class="fsel" id="rpDestPrograma" style="width:100%;max-width:420px;margin:4px 0 4px 22px" onchange="document.querySelector(\'input[name=rpDestTipo][value=paquete]\').checked=true">'+
+        _rpDestProgs.map(function(pr){return '<option value="'+pr.id+'">'+(pr.paquete_nombre||'Paquete')+' (S/'+pr.costo_total+')</option>';}).join('')+'</select>';
+    }
+    html+='</div><button class="btn btn-primary" style="width:auto" onclick="rpAplicar()">✅ Aplicar reasignación</button>';
+    el.innerHTML=html;
+  }catch(e){el.innerHTML='<div style="color:#dc2626">Error: '+e.message+'</div>';}
+}
+function rpOnTipoDest(){}
+async function rpAplicar(){
+  if(!_rpSel||!_rpDestPac)return;
+  const tipo=(document.querySelector('input[name="rpDestTipo"]:checked')||{}).value||'ninguno';
+  let nuevoSesionId=null,nuevoProgId=null;
+  if(tipo==='sesion'){
+    const sel=document.getElementById('rpDestSesion');
+    nuevoSesionId=sel.value;nuevoProgId=sel.selectedOptions[0].dataset.prog||null;
+  }else if(tipo==='paquete'){
+    nuevoProgId=document.getElementById('rpDestPrograma').value;
+  }
+  if(!confirm('¿Reasignar el pago de S/'+_rpSel.monto+' a '+_rpDestPac.nombre+'?'))return;
+  const origProgId=_rpSel.programa_id;
+  try{
+    await sbPatch('pagos',{paciente_nombre:_rpDestPac.nombre,sede:_rpDestPac.sede,sesion_id:nuevoSesionId,programa_id:nuevoProgId},{id:'eq.'+_rpSel.id});
+    if(origProgId)await _recalcProgramaCompleto(origProgId);
+    if(nuevoProgId&&nuevoProgId!==origProgId)await _recalcProgramaCompleto(nuevoProgId);
+    toast('✅ Pago reasignado y saldos recalculados');
+    document.getElementById('rpFormDestino').innerHTML='<div class="hint">✅ Listo - el pago quedó reasignado y los saldos afectados ya se recalcularon. Busca de nuevo al paciente si quieres ver la lista actualizada.</div>';
+    _rpSel=null;
+  }catch(e){toast('Error al reasignar: '+e.message,'error');}
+}
+
+// ══════════ DIVIDIR PAGO EN CUOTAS ══════════
+let _dcPac=null,_dcProg=null,_dcSesiones=[];
+async function dcBuscarPac(){
+  const q=(document.getElementById('dcBusqPac').value||'').trim();
+  const list=document.getElementById('dcListaPac');
+  if(q.length<2){list.style.display='none';list.innerHTML='';return;}
+  try{
+    const {data}=await sbGet('pacientes',{select:'id,nombre,sede',nombre:'ilike.*'+q+'*',limit:'8',order:'nombre.asc'});
+    if(!data||!data.length){list.style.display='none';list.innerHTML='';return;}
+    list.innerHTML=data.map(function(p){
+      const nEsc=String(p.nombre).replace(/'/g,"\\'"),sEsc=String(p.sede||'').replace(/'/g,"\\'");
+      return '<div onclick="dcElegirPac(\''+nEsc+'\',\''+sEsc+'\')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border)" '+
+        'onmouseover="this.style.background=\'#f4f6fb\'" onmouseout="this.style.background=\'\'">'+p.nombre+' <span class="hint">· '+(p.sede||'-')+'</span></div>';
+    }).join('');
+    list.style.display='block';
+  }catch(e){}
+}
+async function dcElegirPac(nombre,sede){
+  document.getElementById('dcListaPac').style.display='none';
+  document.getElementById('dcBusqPac').value=nombre;
+  document.getElementById('dcForm').innerHTML='';_dcPac={nombre:nombre,sede:sede};_dcProg=null;
+  const el=document.getElementById('dcPaquetes');
+  el.innerHTML='⏳ Buscando paquetes activos…';
+  try{
+    const {data}=await sbGet('programas_paciente',{paciente_nombre:'eq.'+nombre,sede:'eq.'+sede,estado:'eq.activo',select:'*'});
+    if(!data||!data.length){el.innerHTML='<div class="hint">No tiene ningún paquete activo.</div>';return;}
+    el.innerHTML=data.map(function(pr){
+      const saldo=Math.max(0,(parseFloat(pr.costo_total)||0)-(parseFloat(pr.adelanto_acumulado)||0));
+      return '<div style="padding:8px;border-bottom:1px solid var(--border)">'+(pr.paquete_nombre||'Paquete')+' - costo S/'+pr.costo_total+
+        ' · pagado S/'+pr.adelanto_acumulado+' · pendiente S/'+saldo.toFixed(2)+' '+
+        '<button class="btn btn-outline btn-sm" onclick=\'dcElegirPrograma('+JSON.stringify(pr).replace(/'/g,"&#39;")+')\'>Elegir</button></div>';
+    }).join('');
+  }catch(e){el.innerHTML='<div style="color:#dc2626">Error: '+e.message+'</div>';}
+}
+async function dcElegirPrograma(pr){
+  _dcProg=pr;
+  const saldoPend=Math.max(0,Math.round(((parseFloat(pr.costo_total)||0)-(parseFloat(pr.adelanto_acumulado)||0))*100)/100);
+  const el=document.getElementById('dcForm');
+  if(saldoPend<=0.004){el.innerHTML='<div class="card"><div class="cb hint">Este paquete ya está pagado por completo - no hay saldo pendiente que dividir.</div></div>';return;}
+  el.innerHTML='⏳ Buscando sus sesiones programadas…';
+  try{
+    const {data}=await sbGet('sesiones',{programa_id:'eq.'+pr.id,estado:'eq.programado',select:'id,fecha,hora,nro_en_paquete',order:'fecha.asc'});
+    _dcSesiones=data||[];
+    if(!_dcSesiones.length){el.innerHTML='<div class="card"><div class="cb hint">No tiene sesiones "Programado" en este paquete para asignarles una cuota.</div></div>';return;}
+    el.innerHTML='<div class="card"><div class="ch"><div class="ct">Saldo pendiente: S/'+saldoPend.toFixed(2)+'</div></div><div class="cb">'+
+      '<label class="hint">¿En cuántas cuotas se divide?</label> '+
+      '<input class="fsel" id="dcNroCuotas" type="number" min="2" max="6" value="2" style="width:70px">'+
+      ' <button class="btn btn-outline btn-sm" onclick="dcGenerarCuotas('+saldoPend+')">Generar</button>'+
+      '<div id="dcCuotasForm" style="margin-top:12px"></div></div></div>';
+  }catch(e){el.innerHTML='<div style="color:#dc2626">Error: '+e.message+'</div>';}
+}
+function dcGenerarCuotas(saldoPend){
+  const n=Math.max(2,Math.min(6,parseInt(document.getElementById('dcNroCuotas').value,10)||2));
+  const base=Math.floor((saldoPend/n)*100)/100;
+  const opciones=_dcSesiones.map(function(s){return '<option value="'+s.id+'">'+fmtFechaSistema(s.fecha)+' '+(s.hora||'').slice(0,5)+' (Paq '+(s.nro_en_paquete||'-')+')</option>';}).join('');
+  let html='<table><thead><tr><th>Cuota</th><th>Monto</th><th>Sesión en la que vence</th></tr></thead><tbody>';
+  for(let i=0;i<n;i++){
+    const esUltima=i===n-1;
+    const monto=esUltima?Math.round((saldoPend-base*(n-1))*100)/100:base;
+    html+='<tr><td>'+(i+1)+'ra</td><td><input class="fsel" id="dcMonto'+i+'" type="number" step="0.01" value="'+monto.toFixed(2)+'" style="width:90px"></td>'+
+      '<td><select class="fsel" id="dcSesion'+i+'" style="width:100%;max-width:260px">'+opciones+'</select></td></tr>';
+  }
+  html+='</tbody></table><button class="btn btn-primary" style="width:auto;margin-top:10px" onclick="dcAplicar('+n+','+saldoPend+')">✅ Aplicar división</button>';
+  document.getElementById('dcCuotasForm').innerHTML=html;
+}
+async function dcAplicar(n,saldoPend){
+  const cuotas=[];
+  let suma=0;
+  for(let i=0;i<n;i++){
+    const monto=parseFloat(document.getElementById('dcMonto'+i).value)||0;
+    const sesId=document.getElementById('dcSesion'+i).value;
+    cuotas.push({monto:monto,sesId:sesId});
+    suma=Math.round((suma+monto)*100)/100;
+  }
+  if(Math.abs(suma-saldoPend)>0.02){toast('La suma de las cuotas (S/'+suma.toFixed(2)+') no coincide con el saldo pendiente (S/'+saldoPend.toFixed(2)+')','error');return;}
+  const sesIds=cuotas.map(function(c){return c.sesId;});
+  if(new Set(sesIds).size!==sesIds.length){toast('No puedes repetir la misma sesión en dos cuotas','error');return;}
+  if(!confirm('¿Dividir el saldo pendiente de '+_dcPac.nombre+' en '+n+' cuota(s)?'))return;
+  try{
+    for(const c of cuotas){
+      await sbPatch('sesiones',{saldo_fijado:true,saldo:c.monto},{id:'eq.'+c.sesId});
+    }
+    await sbPatch('programas_paciente',{nro_cuotas:n},{id:'eq.'+_dcProg.id});
+    await _recalcProgramaCompleto(_dcProg.id);
+    toast('✅ Pago dividido en '+n+' cuota(s)');
+    document.getElementById('dcForm').innerHTML='<div class="hint">✅ Listo - cada cuota quedó fijada a su sesión elegida y el saldo del paquete se recalculó.</div>';
+  }catch(e){toast('Error al aplicar: '+e.message,'error');}
+}
+
+// ══════════ ELIMINAR PAGO (con restauración de saldo) ══════════
+let _epPagos=[];
+async function epBuscarPac(){
+  const q=(document.getElementById('epBusqPac').value||'').trim();
+  const list=document.getElementById('epListaPac');
+  if(q.length<2){list.style.display='none';list.innerHTML='';return;}
+  try{
+    const {data}=await sbGet('pacientes',{select:'id,nombre,sede',nombre:'ilike.*'+q+'*',limit:'8',order:'nombre.asc'});
+    if(!data||!data.length){list.style.display='none';list.innerHTML='';return;}
+    list.innerHTML=data.map(function(p){
+      const nEsc=String(p.nombre).replace(/'/g,"\\'"),sEsc=String(p.sede||'').replace(/'/g,"\\'");
+      return '<div onclick="epElegirPac(\''+nEsc+'\',\''+sEsc+'\')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border)" '+
+        'onmouseover="this.style.background=\'#f4f6fb\'" onmouseout="this.style.background=\'\'">'+p.nombre+' <span class="hint">· '+(p.sede||'-')+'</span></div>';
+    }).join('');
+    list.style.display='block';
+  }catch(e){}
+}
+async function epElegirPac(nombre,sede){
+  document.getElementById('epListaPac').style.display='none';
+  document.getElementById('epBusqPac').value=nombre;
+  const el=document.getElementById('epPagosList');
+  el.innerHTML='⏳ Cargando pagos…';
+  try{
+    const {data}=await sbGet('pagos',{paciente_nombre:'eq.'+nombre,sede:'eq.'+sede,select:'*',order:'fecha.desc,hora.desc',limit:'40'});
+    _epPagos=data||[];
+    if(!_epPagos.length){el.innerHTML='<div class="hint">Sin pagos registrados.</div>';return;}
+    el.innerHTML='<table><thead><tr><th>Fecha</th><th>Monto</th><th>Concepto</th><th>Vinculado a</th><th></th></tr></thead><tbody>'+
+      _epPagos.map(function(p){
+        const vinc=p.programa_id?'📦 paquete (se recalculará)':(p.sesion_id?'📅 sesión (se restaura sola)':'suelto (sin vínculo)');
+        return '<tr><td>'+fmtFechaSistema(p.fecha)+' '+(p.hora||'')+'</td><td>S/'+p.monto+'</td><td>'+(p.concepto||'-')+'</td><td>'+vinc+'</td>'+
+          '<td><button class="btn btn-danger btn-sm" onclick=\'epEliminar('+JSON.stringify(p).replace(/'/g,"&#39;")+',this)\'>🗑️ Eliminar</button></td></tr>';
+      }).join('')+'</tbody></table>';
+  }catch(e){el.innerHTML='<div style="color:#dc2626">Error: '+e.message+'</div>';}
+}
+async function epEliminar(p,btn){
+  if(!confirm('¿Eliminar el pago de S/'+p.monto+' ('+(p.concepto||'-')+') del '+fmtFechaSistema(p.fecha)+'? Esto no se puede deshacer.'))return;
+  btn.disabled=true;btn.textContent='⏳...';
+  try{
+    await sbDelete('pagos',{id:'eq.'+p.id});
+    if(p.programa_id)await _recalcProgramaCompleto(p.programa_id);
+    toast('✅ Pago eliminado y saldo restaurado');
+    btn.closest('tr').style.opacity='0.4';
+    btn.closest('tr').innerHTML='<td colspan="5">✅ Eliminado</td>';
+  }catch(e){toast('Error al eliminar: '+e.message,'error');btn.disabled=false;btn.textContent='🗑️ Eliminar';}
+}
+
+// ══════════ CRÉDITO / CORTESÍA ══════════
+let _crPac=null,_crProg=null;
+async function crBuscarPac(){
+  const q=(document.getElementById('crBusqPac').value||'').trim();
+  const list=document.getElementById('crListaPac');
+  if(q.length<2){list.style.display='none';list.innerHTML='';return;}
+  try{
+    const {data}=await sbGet('pacientes',{select:'id,nombre,sede',nombre:'ilike.*'+q+'*',limit:'8',order:'nombre.asc'});
+    if(!data||!data.length){list.style.display='none';list.innerHTML='';return;}
+    list.innerHTML=data.map(function(p){
+      const nEsc=String(p.nombre).replace(/'/g,"\\'"),sEsc=String(p.sede||'').replace(/'/g,"\\'");
+      return '<div onclick="crElegirPac(\''+nEsc+'\',\''+sEsc+'\')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border)" '+
+        'onmouseover="this.style.background=\'#f4f6fb\'" onmouseout="this.style.background=\'\'">'+p.nombre+' <span class="hint">· '+(p.sede||'-')+'</span></div>';
+    }).join('');
+    list.style.display='block';
+  }catch(e){}
+}
+async function crElegirPac(nombre,sede){
+  document.getElementById('crListaPac').style.display='none';
+  document.getElementById('crBusqPac').value=nombre;
+  document.getElementById('crForm').innerHTML='';_crPac={nombre:nombre,sede:sede};_crProg=null;
+  const el=document.getElementById('crPaquetes');
+  el.innerHTML='⏳ Buscando paquetes activos…';
+  try{
+    const {data}=await sbGet('programas_paciente',{paciente_nombre:'eq.'+nombre,sede:'eq.'+sede,estado:'eq.activo',select:'*'});
+    if(!data||!data.length){el.innerHTML='<div class="hint">No tiene ningún paquete activo.</div>';return;}
+    el.innerHTML=data.map(function(pr){
+      return '<div style="padding:8px;border-bottom:1px solid var(--border)">'+(pr.paquete_nombre||'Paquete')+' - costo S/'+pr.costo_total+' · pagado S/'+pr.adelanto_acumulado+' · saldo S/'+pr.saldo+' '+
+        '<button class="btn btn-outline btn-sm" onclick=\'crElegirPrograma('+JSON.stringify(pr).replace(/'/g,"&#39;")+')\'>Elegir</button></div>';
+    }).join('');
+  }catch(e){el.innerHTML='<div style="color:#dc2626">Error: '+e.message+'</div>';}
+}
+function crElegirPrograma(pr){
+  _crProg=pr;
+  document.getElementById('crForm').innerHTML='<div class="card"><div class="ch"><div class="ct">Nuevo crédito/cortesía para "'+(pr.paquete_nombre||'Paquete')+'"</div></div><div class="cb">'+
+    '<label class="hint">Monto</label><input class="fsel" id="crMonto" type="number" step="0.01" style="width:120px;margin-bottom:8px" placeholder="0.00">'+
+    '<br><label class="hint">Fecha</label><input class="fsel" id="crFecha" type="date" value="'+hoySistema()+'" style="margin-bottom:8px">'+
+    '<br><label class="hint">Motivo (se guarda como concepto del pago)</label><input class="fsel" id="crConcepto" style="width:100%;max-width:420px;margin-bottom:10px" placeholder="Ej. Cortesía - sesiones trasladadas sin costo">'+
+    '<br><button class="btn btn-primary" style="width:auto" onclick="crAplicar()">✅ Agregar crédito</button>'+
+    '</div></div>';
+}
+async function crAplicar(){
+  const monto=parseFloat(document.getElementById('crMonto').value)||0;
+  const fecha=document.getElementById('crFecha').value||hoySistema();
+  const concepto=(document.getElementById('crConcepto').value||'').trim();
+  if(monto<=0){toast('Indica un monto válido','error');return;}
+  if(!concepto){toast('Indica el motivo del crédito','error');return;}
+  if(!confirm('¿Agregar un crédito de S/'+monto+' a '+_crPac.nombre+'?'))return;
+  try{
+    await sbPost('pagos',{fecha:fecha,hora:horaSistema(),monto:monto,metodo:'Cortesía',concepto:concepto,
+      paciente_nombre:_crPac.nombre,sede:_crPac.sede,registrado_por:(SESSION&&SESSION.email)||'sistema',programa_id:_crProg.id});
+    await _recalcProgramaCompleto(_crProg.id);
+    toast('✅ Crédito agregado y saldo recalculado');
+    document.getElementById('crForm').innerHTML='<div class="hint">✅ Listo - el crédito ya cuenta para el saldo del paquete de forma permanente.</div>';
+  }catch(e){toast('Error al agregar: '+e.message,'error');}
+}
+
+// ══════════ VINCULAR PAGO SUELTO ══════════
+function _vpTipoDesdeConcepto(c){
+  c=(c||'').toLowerCase();
+  if(c.indexOf('constancia')>-1)return{tipo:'Constancia',terapia:'Constancia de terapia'};
+  if(c.indexOf('juegos')>-1)return{tipo:'Sesión',terapia:'Juegos'};
+  if(c.indexOf('consulta')>-1)return{tipo:'Consulta',terapia:'Consultas psicológica'};
+  if(c.indexOf('evaluaci')>-1)return{tipo:'Evaluación',terapia:'Evaluación neuropsicológica'};
+  if(c.indexOf('informe')>-1)return{tipo:'Informe',terapia:'Informe psicológico clínico'};
+  if(c.indexOf('campa')>-1)return{tipo:'Campaña',terapia:'Campaña'};
+  return{tipo:'Sesión',terapia:''};
+}
+async function renderPagosSueltos(){
+  const el=document.getElementById('vpContent');
+  el.innerHTML='⏳ Buscando pagos sin sesión ni paquete asignado…';
+  try{
+    const {data}=await sbGet('pagos',{sesion_id:'is.null',programa_id:'is.null',select:'*',order:'fecha.desc,hora.desc',limit:'200'});
+    const pagos=(data||[]).filter(function(p){return !String(p.paciente_nombre||'').startsWith('[Ajuste de caja]');});
+    if(!pagos.length){el.innerHTML='<div class="card"><div class="cb hint">✅ No hay pagos sueltos pendientes de vincular.</div></div>';return;}
+    el.innerHTML='<div class="card"><div class="cb" style="overflow:auto"><table><thead><tr><th>Fecha</th><th>Sede</th><th>Paciente</th><th>Monto</th><th>Concepto</th><th></th></tr></thead><tbody>'+
+      pagos.map(function(p){
+        return '<tr><td>'+fmtFechaSistema(p.fecha)+'</td><td>'+(p.sede||'-')+'</td><td>'+(p.paciente_nombre||'-')+'</td><td>S/'+p.monto+'</td><td>'+(p.concepto||'-')+'</td>'+
+          '<td><button class="btn btn-outline btn-sm" onclick=\'vpAbrirForm('+JSON.stringify(p).replace(/'/g,"&#39;")+',this)\'>🔗 Vincular</button></td></tr>';
+      }).join('')+'</tbody></table></div></div>';
+  }catch(e){el.innerHTML='<div style="color:#dc2626">Error: '+e.message+'</div>';}
+}
+function vpAbrirForm(p,btn){
+  const guess=_vpTipoDesdeConcepto(p.concepto);
+  const fila=btn.closest('tr');
+  const tr=document.createElement('tr');
+  tr.innerHTML='<td colspan="6" style="background:#f4f6fb"><div style="padding:8px">'+
+    '<label class="hint">Tipo de servicio</label> '+
+    '<select class="fsel" id="vpTipo'+p.id+'"><option'+(guess.tipo==='Constancia'?' selected':'')+'>Constancia</option>'+
+    '<option'+(guess.tipo==='Consulta'?' selected':'')+'>Consulta</option><option'+(guess.tipo==='Evaluación'?' selected':'')+'>Evaluación</option>'+
+    '<option'+(guess.tipo==='Informe'?' selected':'')+'>Informe</option><option'+(guess.tipo==='Campaña'?' selected':'')+'>Campaña</option>'+
+    '<option'+(guess.tipo==='Sesión'?' selected':'')+'>Sesión</option></select> '+
+    '<label class="hint">Terapia/detalle</label> <input class="fsel" id="vpTer'+p.id+'" value="'+guess.terapia.replace(/"/g,'&quot;')+'" style="width:200px"> '+
+    '<label class="hint">Psicóloga</label> <input class="fsel" id="vpPs'+p.id+'" style="width:200px"> '+
+    '<button class="btn btn-primary btn-sm" onclick=\'vpConfirmar('+JSON.stringify(p).replace(/'/g,"&#39;")+',this)\'>✅ Crear sesión y vincular</button>'+
+    '</div></td>';
+  fila.insertAdjacentElement('afterend',tr);
+  btn.disabled=true;
+}
+async function vpConfirmar(p,btn){
+  const tipo=document.getElementById('vpTipo'+p.id).value;
+  const terapia=document.getElementById('vpTer'+p.id).value;
+  const ps=document.getElementById('vpPs'+p.id).value;
+  btn.disabled=true;btn.textContent='⏳...';
+  try{
+    const monto=parseFloat(p.monto)||0;
+    const r=await sbPost('sesiones',{fecha:p.fecha,hora:(p.hora||'10:00')+':00',paciente_nombre:p.paciente_nombre,
+      psicologa:ps,terapia:terapia,estado:'asistio',tipo:tipo,costo_total:monto,adelanto:monto,saldo:0,sede:p.sede,notas:''});
+    const nuevaSesId=r&&r[0]&&r[0].id;
+    if(!nuevaSesId)throw new Error('No se pudo crear la sesión');
+    await sbPatch('pagos',{sesion_id:nuevaSesId},{id:'eq.'+p.id});
+    toast('✅ Pago vinculado a su propia sesión');
+    btn.closest('tr').previousElementSibling.style.opacity='0.4';
+    btn.closest('tr').outerHTML='<tr><td colspan="6" style="color:#065f46">✅ Vinculado como '+tipo+'</td></tr>';
+  }catch(e){toast('Error: '+e.message,'error');btn.disabled=false;btn.textContent='✅ Crear sesión y vincular';}
+}
+
+// ══════════ FICHAS PENDIENTES ══════════
+function _normTxtFichaSistema(s){
+  return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ');
+}
+async function renderFichasPendientes(){
+  const el=document.getElementById('fichasContent');
+  el.innerHTML='⏳ Analizando los últimos 30 días…';
+  try{
+    const desde=fechaHaceDiasSistema(30);
+    const [sesR,fichR]=await Promise.all([
+      sbGet('sesiones',{estado:'in.(asistio,tardanza)',tipo:'neq.llamada_maestra',fecha:'gte.'+desde,select:'paciente_nombre,terapia,fecha,psicologa,sede',limit:'5000'}),
+      sbGet('fichas_seguimiento',{fecha:'gte.'+desde,select:'paciente_nombre,terapia,fecha',limit:'5000'})
+    ]);
+    const sesiones=sesR.data||[],fichas=fichR.data||[];
+    const porPs={};
+    sesiones.forEach(function(s){
+      const tiene=fichas.some(function(f){
+        return _normTxtFichaSistema(f.paciente_nombre)===_normTxtFichaSistema(s.paciente_nombre)&&
+          _normTxtFichaSistema(f.terapia)===_normTxtFichaSistema(s.terapia)&&f.fecha===s.fecha;
+      });
+      if(!tiene){
+        const k=(s.psicologa||'-')+'|'+(s.sede||'-');
+        (porPs[k]=porPs[k]||[]).push(s);
+      }
+    });
+    const keys=Object.keys(porPs);
+    if(!keys.length){el.innerHTML='<div class="card"><div class="cb hint">✅ Sin fichas pendientes en los últimos 30 días.</div></div>';return;}
+    el.innerHTML=keys.sort(function(a,b){return porPs[b].length-porPs[a].length;}).map(function(k){
+      const parts=k.split('|');
+      const rows=porPs[k].sort(function(a,b){return(b.fecha||'').localeCompare(a.fecha||'');});
+      return '<div class="card"><div class="ch"><div class="ct">'+parts[0]+' <span class="hint">· '+parts[1]+'</span></div><span class="chip warn">'+rows.length+' pendiente(s)</span></div>'+
+        '<div class="cb" style="overflow:auto"><table><thead><tr><th>Fecha</th><th>Paciente</th><th>Terapia</th></tr></thead><tbody>'+
+        rows.map(function(s){return '<tr><td>'+fmtFechaSistema(s.fecha)+'</td><td>'+s.paciente_nombre+'</td><td>'+(s.terapia||'-')+'</td></tr>';}).join('')+
+        '</tbody></table></div></div>';
+    }).join('');
+  }catch(e){el.innerHTML='<div style="color:#dc2626">Error: '+e.message+'</div>';}
+}
+function fechaHaceDiasSistema(n){const d=new Date();d.setDate(d.getDate()-n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 
 // ── AUDITORÍA DE CONFLICTOS ──
 // Mismos chequeos que normalmente hay que hacer a mano revisando Supabase
