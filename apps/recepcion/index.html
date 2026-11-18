@@ -3963,6 +3963,17 @@ function agOnRowPs(selPs){
   const row=selPs.closest('.ag-terapia-row');
   const selDia=row.querySelector('.ag-row-dia');
   const selHora=row.querySelector('.ag-row-hora');
+  // Se guarda el horario que ya tenía esta fila ANTES de reconstruir la
+  // lista - si no está, el cambio de Terapia/Psicóloga de una fila ya
+  // agendada (ej. "Cambiar terapia/horario/psicóloga de las sesiones
+  // pendientes") la movía silenciosamente al primer horario libre de la
+  // nueva terapia en vez de respetar el horario real de la paciente (caso
+  // Cloe Tapia: su cita de la 1:15pm se iba sola a las 2:00pm con solo
+  // cambiar la Terapia, sin que nadie tocara el Horario). La precarga
+  // inicial (agCargarFilasDesdeProgPendiente) ya protegía esto una vez al
+  // abrir el modal, pero un cambio de Terapia DESPUÉS de esa precarga
+  // volvía a perderlo porque pasaba de nuevo por acá sin esa protección.
+  const horaPrevia=selHora?selHora.value:'';
   const ps=getPs(selPs.value);
   const dia=selDia.value;
   let horas=(selPs.value&&dia)?horasPsEnDia(ps,dia):[];
@@ -3987,6 +3998,19 @@ function agOnRowPs(selPs){
     }
   }
   selHora.innerHTML=horas.length?horas.map(function(h){return '<option value="'+h+'">'+h+'</option>';}).join(''):'<option value="">-</option>';
+  // Si la fila ya tenía un horario (venía de una sesión real agendada) y
+  // ese horario sigue siendo válido, se mantiene en vez de caer al
+  // primero de la lista nueva - y si la nueva Terapia/Psicóloga no lo
+  // ofrece de forma "estándar", igual se agrega como opción y se
+  // selecciona, para no perderlo sin que la recepcionista se dé cuenta.
+  if(horaPrevia){
+    if(!horas.some(function(h){return h===horaPrevia;})){
+      const op=document.createElement('option');
+      op.value=horaPrevia;op.textContent=horaPrevia;
+      selHora.insertBefore(op,selHora.firstChild);
+    }
+    selHora.value=horaPrevia;
+  }
 }
 
 // ── Método(s) de pago del adelanto/pago (soporta pago dividido: parte
