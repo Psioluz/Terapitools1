@@ -4733,8 +4733,26 @@ async function _vincularPagosHuerfanosAPrograma(pacNombre,sede,progId){
   let huerfanos=[];
   try{
     huerfanos=await sbGet('pagos',{paciente_nombre:'eq.'+pacNombre,sede:'eq.'+sede,
-      sesion_id:'is.null',programa_id:'is.null',select:'id,monto,fecha,hora,metodo,psicologa_nombre,registrado_por,notas'})||[];
+      sesion_id:'is.null',programa_id:'is.null',select:'id,monto,fecha,hora,metodo,concepto,psicologa_nombre,registrado_por,notas'})||[];
   }catch(e){console.error('[vincular pagos huérfanos]',e);huerfanos=[];}
+  // Un pago "suelto" (sin sesion_id ni programa_id) NO siempre es plata
+  // de un paquete que recién se va a crear - puede ser un servicio
+  // puntual que por diseño nunca forma su propio paquete (Constancia,
+  // Juegos) o una Consulta suelta (si de verdad fuera parte de un
+  // paquete de 1 sesión, ya habría quedado con sesion_id al cobrarla, así
+  // que una huérfana nunca lo es). Antes esta función arrastraba
+  // CUALQUIER huérfano al paquete activo sin fijarse en qué era - varios
+  // casos reales en distintas sedes terminaron con esa plata enganchada
+  // a un paquete que no tenía nada que ver (Leandro Correa Cartagena:
+  // S/50 de "constancia de terapias" inflando su paquete nuevo;
+  // Leo Mathías Zevallos Aliaga: S/15 de "Pago de consulta"; Carlos
+  // Carnero y Luke Drake Yuto Villaorduña: pagos de "Juegos" - todos
+  // mostrando un paquete "sobrepagado" con plata que en realidad era de
+  // otra cosa). Ahora se excluyen esos conceptos del barrido.
+  huerfanos=huerfanos.filter(function(h){
+    const c=(h.concepto||'').toLowerCase();
+    return!(c.indexOf('constancia')>-1||c.indexOf('juegos')>-1||c.indexOf('consulta')>-1);
+  });
   // Un pago puede estar atado a una sesión SUELTA puntual (sesion_id SÍ
   // tiene valor) por un monto MAYOR al costo real de esa sesión - eso pasa
   // cuando la recepcionista cobra en un solo pago la consulta Y el
