@@ -6644,6 +6644,19 @@ async function _guardarPagoInterno(){
         paciente_nombre:pac.nombre,psicologa_nombre:ps.nombre||'',
         sede:DB.sede,registrado_por:DB.usuario||''};
       if(sesPagada&&sesPagada._sb&&sesPagada._sb.id)pagoRow.sesion_id=sesPagada._sb.id;
+      // Si la sesión que se cobra es de un paquete, el pago queda atado
+      // también al programa_id desde el insert mismo - más abajo
+      // (pagoAtadoAPaquete) se actualiza el saldo de programas_paciente en
+      // base a este pago, pero sin este campo la fila de "pagos" quedaba
+      // SIN programa_id (solo con sesion_id). recalcularSaldoPaciente, que
+      // corre solo con abrir el Historial Clínico, recalcula el saldo del
+      // paquete sumando ÚNICAMENTE los pagos con ese programa_id - al no
+      // encontrar este pago, volvía a marcar la cuota como pendiente pese a
+      // estar cobrada (casos reales: Leonardo Gómez y Sofía Inche Nolasco,
+      // ambos el mismo día - "Cobrar" desde Agenda sobre una sesión de
+      // paquete, el saldo se veía bien un rato y volvía a aparecer como
+      // deuda apenas alguien abría su Historial).
+      if(sesPagada&&sesPagada._sb&&sesPagada._sb.programa_id)pagoRow.programa_id=sesPagada._sb.programa_id;
       const pagoInsertado=await sbPost('pagos',pagoRow);
       const idInsertado=pagoInsertado&&pagoInsertado[0]&&pagoInsertado[0].id;
       if(idInsertado)pagoIds.push(idInsertado);
