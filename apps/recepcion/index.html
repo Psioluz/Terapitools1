@@ -6275,7 +6275,16 @@ function abrirPago(sesId){
   const psPreSel=getPs(ses.psId);
   const el=document.getElementById('pg-pac');if(el)el.value=pacPreSel?pacPreSel.id:'';
   const elP=document.getElementById('pg-ps');if(elP)elP.value=psPreSel?psPreSel.id:'';
-  document.getElementById('pg-fecha').value=ses.fecha;
+  // Antes se precargaba con la fecha de LA SESIÓN que se cobra, no con la
+  // fecha real de hoy - un pago cobrado hoy por una sesión de hace unos
+  // días se guardaba fechado en el pasado sin que nadie lo notara, y por
+  // eso no aparecía en la Caja del Día de cuando de verdad entró el
+  // dinero (casos reales: Leonardo Gómez y Cloe Tapia, ambos "no me
+  // figura en caja" porque el pago había quedado fechado en el día de la
+  // sesión en vez del día del cobro). La fecha de un pago no debe
+  // depender de a qué sesión se aplica - siempre es HOY, el día real en
+  // que se recibe el dinero.
+  document.getElementById('pg-fecha').value=today();
   document.getElementById('pg-monto').value=ses.saldo||ses.costoTotal||0;
   pgInicializarMetodos(document.getElementById('pg-monto').value);
   // Cada tipo de sesión suelta tiene su propio texto ("Pago de consulta",
