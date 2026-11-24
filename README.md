@@ -14,3 +14,14 @@ Apps del Centro Terapéutico Integral Psicoluz. Todo el sistema vive en
 - `flutter-desktop/` — proyecto de escritorio de Sistema, Recepción y
   Administración (Windows).
 - `sql/` — migraciones de la base de datos, en orden.
+- `sitio-publico/` — página pública de Psicoluz.
+
+## Sitio público e Intranet
+
+- `sitio-publico/` — página pública con formulario de reserva de cita
+  por sede (WhatsApp propio de cada sede + registro en Supabase). Incluye
+  la intranet administrativa como overlay (`#intranetOverlay`, acceso vía
+  "Acceso administrativo" en el pie de página), con login usando las
+  cuentas de `usuarios_gerencia` de Supabase: directorio de apps, bandeja
+  de solicitudes web, editor de contenido del sitio y gestor de
+  publicaciones destacadas.
