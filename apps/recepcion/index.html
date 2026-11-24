@@ -8070,7 +8070,16 @@ async function exportarPDF(){
       grp.sesiones.sort((a,b)=>a.hora.localeCompare(b.hora)).forEach(function(s,i){
         if(y>188){doc.addPage();y=20;}
         const pac=getPac(s.pacId),ter=getTer(s.terId);
-        const pg=pags.find(p=>p._sb&&p._sb.sesion_id===s.id);
+        // Un pago dividido en varios métodos (ej. S/100 Efectivo + S/8 Yape)
+        // queda como VARIAS filas en "pagos" con el mismo sesion_id - con
+        // .find() se mostraba solo la primera fila encontrada, no la suma
+        // real cobrada (caso real: Loren Romina Cabello Rojas, sede Ovalo
+        // Zapallal 23/11 - el reporte mostraba "S/100" en su fila pero en
+        // realidad pagó S/108, y el total de Caja del Día sí sumaba las dos
+        // filas, así que no cuadraba con la suma de las filas individuales
+        // del reporte).
+        const pagosDeEstaSesion=pags.filter(p=>p._sb&&p._sb.sesion_id===s.id);
+        const pg=pagosDeEstaSesion.length?{monto:pagosDeEstaSesion.reduce(function(a,p){return a+(parseFloat(p.monto)||0);},0)}:null;
         doc.setFillColor(i%2?248:255,i%2?250:255,i%2?255:255);
         doc.rect(M,y,W-M*2,rowH,'F');
         doc.setDrawColor(230);doc.line(M,y+rowH,W-M,y+rowH);
@@ -8096,7 +8105,7 @@ async function exportarPDF(){
         doc.text(estTxt,M+187,y+5);
         doc.setTextColor(...(pg?[16,185,129]:[180,180,180]));
         doc.setFont('helvetica','bold');doc.setFontSize(7.5);
-        doc.text(pg?'S/'+pg.monto:'-',W-M-2,y+5.5,{align:'right'});
+        doc.text(pg?'S/'+(Math.round(pg.monto*100)/100):'-',W-M-2,y+5.5,{align:'right'});
         y+=rowH;
       });
       y+=6;
