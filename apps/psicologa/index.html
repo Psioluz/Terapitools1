@@ -59,7 +59,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .avatar{width:60px;height:60px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;font-weight:900;flex-shrink:0}
 .info-box{background:#e6fafa;border:1.5px solid var(--acc);border-radius:10px;padding:10px 14px;font-size:12px;color:#003d3d;margin-bottom:12px;line-height:1.5}
 .info-box strong{font-weight:800}
-/* GRILLA SEMANA */
+
 .sem-grid{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
 .sem-inner{display:grid;min-width:400px}
 .sem-head{background:var(--dark);color:#fff;padding:9px 4px;text-align:center;font-size:11px;font-weight:800}
@@ -81,15 +81,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ps-nav-badge{background:#e91e8c;color:#fff;border-radius:10px;font-size:9px;padding:1px 6px;font-weight:800;margin-left:auto}
 .ps-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .ps-content{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;padding-bottom:80px;-webkit-overflow-scrolling:touch}
-/* El chat necesita el alto COMPLETO sin el padding-bottom de 80px que las
-   demás pestañas sí necesitan (para que un botón flotante no les tape el
-   contenido) - ese padding fijo era justo el espacio vacío que quedaba
-   abajo del chat. flex:1 en #tabChat no alcanzaba porque .ps-content no
-   es un contenedor flex por defecto - aquí se vuelve flex SOLO mientras
-   el chat está activo, sin tocar el comportamiento de scroll normal de
-   las demás pestañas. */
+
 .ps-content:has(> #tabChat.pg.active){display:flex;flex-direction:column;padding-bottom:0;overflow:hidden}
-/* Overlay sidebar en móvil */
+
 .ps-sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99}
 .ps-sidebar-overlay.on{display:block}
 @media(max-width:768px){
@@ -100,28 +94,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .ps-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
   select{font-size:16px!important;min-height:44px}
 }
-/* En pantallas anchas (escritorio) el sidebar va siempre visible en flujo
-   normal - el botón hamburguesa lo colapsa/expande con un ancho animado
-   en vez del overlay que se usa en móvil. */
+
 @media(min-width:769px){
   .ps-sidebar{transition:width .22s ease,opacity .18s ease;overflow:hidden}
   .ps-wrap.sb-collapsed .ps-sidebar{width:0;min-width:0;opacity:0;pointer-events:none}
-  /* El avatar chico junto al botón hamburguesa solo tiene sentido cuando
-     el sidebar (que ya trae su propio avatar) está oculto. */
+  
   #headerAvatarPs{display:none}
   .ps-wrap.sb-collapsed #headerAvatarPs{display:flex}
 }
-/* Páginas */
+
 .pg{display:none;padding:14px}
 .pg.active{display:block}
-/* El chat necesita layout de columna (encabezado + mensajes que se
-   estiran + caja de texto abajo) en vez del bloque normal - si no, la
-   caja de escribir queda flotando encima de mensajes en vez de debajo.
-   goTab() fija display:block por JS al cambiar de pestaña, por eso el
-   !important: si no, esa línea de JS gana siempre. */
+
 #tabChat.pg.active{display:flex!important;flex-direction:column;flex:1;min-height:0;padding:0}
 
-/* ── FICHA DE SEGUIMIENTO ── */
+
 .ficha-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:flex-end;justify-content:center}
 .ficha-modal.open{display:flex}
 .ficha-box{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom)}
@@ -131,7 +118,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ficha-input{width:100%;padding:11px 13px;border:1.5px solid #f48fb1;border-radius:10px;font-size:13px;font-family:inherit;outline:none;resize:vertical;min-height:70px;color:#333;background:#fef8fb;box-sizing:border-box}
 .ficha-input:focus{border-color:#c2185b;background:#fff}
 .ficha-meta{background:linear-gradient(135deg,#fce4ec,#fdf2f8);border-radius:12px;padding:12px 14px;margin:12px 16px;border:1px solid #f48fb1}
-/* ── Widgets de fichas clínicas estructuradas (campos medibles por familia de terapia) ── */
+
 .fe-field{padding:0 16px;margin-bottom:14px}
 .fe-label{font-size:11px;font-weight:800;color:#c2185b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;display:block}
 .fe-chipbank{display:flex;flex-wrap:wrap;gap:6px}
@@ -169,11 +156,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .cl-tab{transition:.15s;-webkit-tap-highlight-color:rgba(233,30,140,.2);touch-action:manipulation}
 .cl-panel{animation:fadeIn .2s}
 
-/* ── FIRMA DIGITAL ── */
+
 .firma-canvas{border:2px dashed #f48fb1;border-radius:12px;background:#fef8fb;width:100%;max-width:400px;display:block;cursor:crosshair;touch-action:none}
 .firma-box{background:#f8f0f5;border-radius:14px;padding:14px;border:1px solid #f48fb1}
 
-/* ── NOTIFICACIONES ── */
+
 .notif-toast{position:fixed;top:16px;right:16px;left:16px;z-index:9999;
   background:linear-gradient(135deg,#4a0e2e,#c2185b);color:#fff;
   border-radius:16px;padding:14px 16px;box-shadow:0 8px 32px rgba(74,14,46,.4);
@@ -191,7 +178,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <body>
 <script>
-// Log de errores no capturados → tabla log_errores (ver Sistema/Log de Errores)
+
 (function(){
   var U='https://uorxwmgaekeeuxeiikkw.supabase.co',K='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
   function rep(msg,stack){
@@ -225,7 +212,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     })();
   </script>
 
-  <!-- PANEL EMAIL -->
+  
   <div id="panelEmail">
     <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">📧 Correo institucional</label>
     <input class="fc" type="email" id="lEmail" placeholder="tu@psicoluz.pe" autocomplete="email"
@@ -238,7 +225,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div style="text-align:center;margin-top:14px;font-size:11px;color:#94a3b8">© Todos los derechos reservados para Psicoluz V1</div>
   </div>
 
-  <!-- PANEL SEDE (primera vez) -->
+  
   
 
   <button class="pwa-install-btn" onclick="window._instalarPWA&&_instalarPWA()" 
@@ -253,11 +240,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div id="app">
 <div class="ps-sidebar-overlay" id="psSidebarOverlay" onclick="toggleSidebar()"></div>
 <div class="ps-wrap">
-  <!-- SIDEBAR VERTICAL -->
+  
   <div class="ps-sidebar" id="psSidebar">
-    <!-- Logo + nombre -->
+    
     <div class="ps-sidebar-logo" onclick="goTab('tabPerfil',null)">
-      <!-- Foto del usuario (se llena por JS al entrar) -->
+      
       <div id="psAvatarSide" style="width:52px;height:52px;border-radius:50%;overflow:hidden;
            background:linear-gradient(135deg,rgba(255,255,255,.3),rgba(255,255,255,.1));
            display:flex;align-items:center;justify-content:center;
@@ -269,12 +256,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div style="font-size:11px;opacity:.65;margin-top:1px" id="hdrSede">Sede -</div>
       </div>
     </div>
-    <!-- Reloj -->
+    
     <div style="padding:8px 16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center">
       <div class="reloj" id="relojPs" style="font-size:14px;font-weight:800;color:#f48fb1">00:00:00</div>
       <div class="hdr-fecha" id="fechaPs" style="font-size:11px;opacity:.7"></div>
     </div>
-    <!-- Navegación -->
+    
     <div style="overflow-y:auto;flex:1;padding:6px 0">
       <div class="ps-nav-section">Mi Agenda</div>
       <div class="ps-nav-item active" id="nav-tabHoy" onclick="goTab('tabHoy',this)">📅 Hoy</div>
@@ -296,7 +283,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="ps-nav-item" id="nav-tabPerfil" onclick="goTab('tabPerfil',this)">👤 Mi Perfil</div>
 
     </div>
-    <!-- Cerrar sesión -->
+    
     <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,.12)">
       <button onclick="logout()" style="width:100%;padding:9px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer">
         🚪 Cerrar Sesión
@@ -304,9 +291,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
   </div>
 
-  <!-- MAIN CONTENT -->
+  
   <div class="ps-main">
-    <!-- Header superior -->
+    
     <div style="background:linear-gradient(135deg,#3a0a24,#c2185b);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;min-height:54px;-webkit-tap-highlight-color:rgba(255,255,255,.1)">
       <button onclick="toggleSidebar()" 
         style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;cursor:pointer;
@@ -315,10 +302,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div style="flex:1;font-size:15px;font-weight:800;letter-spacing:-.2px" id="pageTitlePs">Mi Agenda</div>
       <div id="headerAvatarPs" style="width:34px;height:34px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,.4);flex-shrink:0;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;cursor:pointer" onclick="goTab('tabPerfil',null)">P</div>
     </div>
-    <!-- Contenido scrollable -->
+    
     <div class="ps-content">
 
-  <!-- HOY -->
+  
   <div class="pg active" id="tabHoy">
     <div class="stat-row" id="statsHoy">
       <div class="stat"><div class="sv" id="stTotal">0</div><div class="sl">Sesiones</div></div>
@@ -335,7 +322,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
   </div>
 
-  <!-- SEMANA -->
+  
   <div class="pg" id="tabSemana">
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
       <button onclick="navSem(-1)" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-weight:700;font-size:13px">◀</button>
@@ -348,15 +335,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="sem-inner" id="gridSemana"></div></div>
   </div>
 
-  <!-- PACIENTES -->
+  
   <div class="pg" id="tabPacs">
     <input type="text" class="fc" id="srchPac" placeholder="Buscar paciente..." oninput="renderPacsPs()" style="margin-bottom:8px">
     <div id="listPacs"></div>
   </div>
 
-  <!-- CLÍNICO -->
+  
   <div class="pg" id="tabClinico">
-    <!-- Selector de paciente -->
+    
     <div style="margin-bottom:10px">
       <select class="fc" id="clPacSel" onchange="renderClinico()" style="font-size:14px;font-weight:700;margin-bottom:0">
         <option value="">- Selecciona un paciente -</option>
@@ -369,13 +356,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
   </div>
 
-  <!-- DOCS (oculta, acceso desde pacientes) -->
+  
   <div class="pg" id="tabDocs">
     <div id="listDocs"></div>
   </div>
 
 
-  <!-- CHAT SEDE -->
+  
   <div class="pg" id="tabMetas">
     <div class="card" style="margin-bottom:10px">
       <div class="ch">🎯 Mis Metas del Mes - <span id="mtMes"></span></div>
@@ -410,7 +397,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="cb" id="mtBonosMes"><div style="color:var(--muted);font-size:12px;text-align:center;padding:10px">⏳ Cargando...</div></div>
     </div>
   </div>
-  <!-- HERRAMIENTAS PARA TERAPIAS -->
+  
   <div class="pg" id="tabHerramientas">
     <div class="card" style="margin-bottom:10px">
       <div class="ch">🧰 Herramientas para Terapias</div>
@@ -445,13 +432,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div id="materialesBox"><div style="color:var(--muted);font-size:12px;text-align:center;padding:20px">⏳ Cargando...</div></div>
   </div>
   <div class="pg" id="tabChat">
-    <!-- Encabezado del chat -->
+    
     <div style="padding:12px 16px;background:linear-gradient(135deg,#4a0e2e,#c2185b);color:#fff;border-radius:12px 12px 0 0;margin:-0px;flex-shrink:0">
       <div style="font-weight:800;font-size:14px">💬 Chat - Sede <span id="chatSedeTitulo"></span></div>
       <div style="font-size:11px;opacity:.8;margin-top:2px">Psicólogas + Recepción · Solo esta sede</div>
     </div>
 
-    <!-- Mensajes -->
+    
     <div id="chatMensajes" style="flex:1;min-height:0;overflow-y:auto;padding:14px 16px;background:#f8f0f5;-webkit-overflow-scrolling:touch">
       <div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">
         <div style="font-size:32px;margin-bottom:8px">💬</div>
@@ -459,7 +446,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
     </div>
 
-    <!-- Input mensaje -->
+    
     <div style="flex-shrink:0;padding:10px 12px;border-top:1px solid var(--border);background:#fff;display:flex;gap:8px;align-items:flex-end">
       <textarea id="chatInput" placeholder="Escribe un mensaje..." onkeydown="chatKeyDown(event)"
         style="flex:1;padding:10px 14px;border:1.5px solid #f48fb1;border-radius:20px;font-size:13px;
@@ -475,7 +462,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 
 
-      <!-- ASISTENCIA DEL PERSONAL -->
+      
       <div class="pg" id="tabAsistencia">
         <div class="card" style="margin-bottom:12px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">
@@ -488,12 +475,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div id="asistLista"></div>
       </div>
 
-  <!-- PERFIL -->
+  
   <div class="pg" id="tabPerfil">
-    <!-- Card principal psicóloga -->
+    
     <div class="card" style="margin-bottom:10px">
       <div class="cb" style="display:flex;align-items:center;gap:16px">
-        <!-- Foto con opción de cambiar -->
+        
         <div style="position:relative;flex-shrink:0">
           <div class="avatar" id="perAvatar" style="width:80px;height:80px;font-size:32px;cursor:pointer;border:3px solid var(--acc)"
             onclick="document.getElementById('inputFoto').click()" title="Toca para cambiar foto">P</div>
@@ -511,7 +498,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
     </div>
 
-    <!-- Configuración de cuenta (email y contraseña) -->
+    
     <div class="card" style="margin-bottom:10px">
       <div class="ch">🔒 Seguridad</div>
       <div class="cb">
@@ -534,9 +521,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
       </div>
     </div>
-    <!-- Horario e info laboral -->
     
-    <!-- ══ CONTRATO Y FIRMA DIGITAL ══ -->
+    
+    
     <div class="card" style="margin-bottom:10px;padding:16px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <span style="font-size:18px">🔔</span>
@@ -572,7 +559,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
             <span style="font-size:12px;font-weight:700;color:var(--acc)">⭐ Día completo (desde 08:00)</span>
             <span style="font-size:13px;font-weight:800;color:var(--dark)" id="perDiaEspLabel">-</span>
           </div>
-    <!-- ASISTENCIA DEL DÍA -->
+    
     <div id="perAsistenciaCard" style="background:var(--bg);border-radius:12px;padding:12px;margin-top:12px;border:1px solid var(--border)">
       <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🕐 Asistencia de Hoy</div>
       <div id="perAsistenciaContent" style="font-size:13px;color:var(--text)">
@@ -593,7 +580,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
       </div>
     </div>
-    <!-- Estadísticas -->
+    
     <div class="card" style="margin-bottom:10px">
       <div class="ch">📊 Mis Estadísticas</div>
       <div class="cb">
@@ -605,7 +592,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--muted);text-align:center" id="perUltimaSes">Última sesión: -</div>
       </div>
     </div>
-    <!-- Instalar app (solo visible si no está instalada) -->
+    
     <div class="card" style="margin-bottom:10px">
       <div class="cb">
         <div id="conexStatus" style="display:none"></div>
@@ -613,7 +600,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div id="ultimaSync" style="display:none"></div>
       </div>
 
-<!-- ══ MODAL FIRMA CONTRATO ══ -->
+
 <div class="ficha-modal" id="modalFirmaContrato">
   <div class="ficha-box">
     <div class="ficha-hdr">
@@ -649,10 +636,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
   </div>
 </div>
-</div><!-- /ps-content -->
-  </div><!-- /ps-main -->
+</div>
+  </div>
 
-<!-- ══ MODAL HERRAMIENTA (fonemas, atención/concentración) - pantalla completa dentro del app ══ -->
+
 <div id="modalHerramienta" style="display:none;position:fixed;inset:0;z-index:10000;background:#fff">
   <button onclick="cerrarHerramienta()" aria-label="Cerrar herramienta"
     style="position:absolute;top:max(10px,env(safe-area-inset-top));right:10px;z-index:2;background:rgba(0,0,0,.45);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
@@ -660,7 +647,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     style="width:100%;height:100%;border:none;display:block"></iframe>
 </div>
 
-<!-- ══ MODAL FICHA DE SEGUIMIENTO ══ -->
+
 <div class="ficha-modal" id="modalDetalleSesion">
   <div class="ficha-box" style="max-width:420px">
     <div class="ficha-hdr">
@@ -681,7 +668,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button onclick="cerrarFichaSeguimiento()" 
         style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
-    <!-- Datos pre-llenados -->
+    
     <div class="ficha-meta">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">
         <div><span style="color:#880e4f;font-weight:700">Paciente:</span><br><span id="fichaPacNom" style="font-weight:800">-</span></div>
@@ -690,21 +677,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div><span style="color:#880e4f;font-weight:700">Psicóloga:</span><br><span id="fichaPsicologa" style="font-weight:800">-</span></div>
       </div>
     </div>
-    <!-- Selector de paciente cuando la sesión es compartida entre 2 (ej.
-         "Enzo y Lyam Mendoza Laboriano" - hermanos con un mismo paquete) -
-         oculto salvo que abrirFichaSeguimiento detecte el patrón " y ". -->
+    
     <div id="fichaPersonasBox" style="display:none;padding:0 16px 10px">
       <div style="font-size:11px;font-weight:700;color:#880e4f;margin-bottom:6px">👥 Esta sesión es compartida entre 2 pacientes - completa la ficha de cada uno por separado:</div>
       <div style="display:flex;gap:8px" id="fichaPersonasBtns"></div>
     </div>
-    <!-- Campos estructurados (chips/escalas/checks) según la familia clínica
-         de la terapia - ver FICHA_FAMILIAS. Se construyen dinámicamente en
-         abrirFichaSeguimiento(); si la terapia no matchea ninguna familia,
-         este bloque se queda oculto y se usan los 4 campos genéricos de
-         abajo, exactamente como antes. -->
+    
     <div id="fichaCamposDinamicos" style="display:none"></div>
-    <!-- Campos genéricos de texto libre (comportamiento original, sin
-         cambios) - se ocultan cuando sí hay una familia estructurada. -->
+    
     <div id="fichaCamposGenericos">
       <div class="ficha-campo">
         <label class="ficha-label" id="fichaLblObjetivo">🎯 Objetivo de la sesión</label>
@@ -723,7 +703,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <textarea class="ficha-input" id="fichaProxSesion" placeholder="Objetivos y actividades para la próxima sesión..."></textarea>
       </div>
     </div>
-    <!-- Botones -->
+    
     <div style="padding:12px 16px 20px;display:flex;gap:10px">
       <button onclick="cerrarFichaSeguimiento()" 
         style="flex:1;padding:12px;background:#f1f5f9;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;color:#64748b">
@@ -740,12 +720,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
     
 
-</div><!-- /ps-wrap -->
+</div>
 <script>
-// ══════════════════════════════════════════════════════
-// SUPABASE BACKEND - Interceptor transparente para Psicoluz
-// Reemplaza Google Apps Script manteniendo el mismo formato de respuesta
-// ══════════════════════════════════════════════════════
+
+
+
+
 (function(){
   var SB='https://uorxwmgaekeeuxeiikkw.supabase.co',SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
   var HDR={'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','Prefer':'return=representation'};
@@ -755,16 +735,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     if(p)u+='?'+Object.keys(p).map(function(k){return k+'='+encodeURIComponent(p[k]);}).join('&');
     return fetch(u,{headers:HDR}).then(function(r){return r.json();});
   }
-  // Trae TODAS las filas de una tabla sin depender de un límite fijo que con
-  // el tiempo se queda corto (ej. sesiones: 500 -> se cortaba antes de hoy
-  // en sedes con mucho historial). Pagina de a 1000 y sigue pidiendo hasta
-  // que una página vuelve incompleta, sin importar cuánto crezca la tabla.
+  
+  
+  
+  
   function _sbAll(t,p){
     var PAGE=1000;
     function pedir(offset,acc){
       var params=Object.assign({},p||{},{limit:String(PAGE),offset:String(offset)});
       return _sb(t,params).then(function(r){
-        if(!Array.isArray(r))return acc; // error de la API: no seguir paginando sobre basura
+        if(!Array.isArray(r))return acc; 
         acc=acc.concat(r);
         if(r.length<PAGE)return acc;
         return pedir(offset+PAGE,acc);
@@ -779,7 +759,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     var u=SB+'/rest/v1/'+t+'?'+Object.keys(f).map(function(k){return k+'='+encodeURIComponent(f[k]);}).join('&');
     return fetch(u,{method:'PATCH',headers:HDR,body:JSON.stringify(d)}).then(function(r){return r.json();});
   }
-  function _jr(d){return d;} // ya no se simula una Response - sbApi() devuelve el objeto directo
+  function _jr(d){return d;} 
   function _fH(h){return h?h.substring(0,5):'';}
   function _sede(){try{return PS.sede||'Comas';}catch(e){return 'Comas';}}
 
@@ -790,13 +770,13 @@ function _diasTrabajoANum(txt){
     var nums=txt.split(',').map(function(s){return map[s.trim().toLowerCase()];}).filter(function(n){return n!==undefined;});
     return nums.length?nums:[1,2,3,4,5,6];
   }
-  // Todas las lecturas/escrituras de esta app van directo a Supabase - antes
-  // pasaban por una capa que simulaba llamar a un Google Apps Script/Sheet
-  // (interceptando window.fetch) para no tener que tocar cada función que
-  // llamaba a esa URL vieja; los datos siempre vinieron de Supabase, nunca
-  // de una hoja de cálculo real. Se quitó esa capa: ahora cada función de
-  // abajo se llama directo (sbApi('accion',{...params})) sin URLs, sin
-  // querystring y sin el viaje de ida y vuelta por JSON.stringify/parse.
+  
+  
+  
+  
+  
+  
+  
   async function sbApi(action,p){
     p=p||{};
     var sede=p.sede||_sede();
@@ -807,13 +787,13 @@ function _diasTrabajoANum(txt){
     {
       if(action==='getData'){
         return Promise.all([
-          // Antes era _sb() con un límite fijo (500) ordenado de más antiguo
-          // a más nuevo: en sedes con mucho historial (ej. Ovalo Zapallal con
-          // 900+ sesiones) eso cortaba justo antes de hoy, así que "Hoy" y
-          // "Semana" quedaban vacíos y no se podían llenar fichas de sesiones
-          // que ni siquiera llegaban al dispositivo. Con _sbAll() se pagina y
-          // se trae TODO sin importar cuánto crezca la tabla - no hay techo
-          // que se pueda volver a desbordar con el tiempo.
+          
+          
+          
+          
+          
+          
+          
           _sbAll('sesiones',{'sede':'eq.'+sede,'select':'*','order':'fecha.desc,hora.desc'}),
           _sb('psicologas',{'sede':'eq.'+sede,'select':'*'}),
           _sb('pacientes',{'sede':'eq.'+sede,'estado':'eq.activo','select':'*'}),
@@ -954,9 +934,9 @@ function _diasTrabajoANum(txt){
       return _jr({status:'ok',data:[]});
     }
   }
-  window.sbApi=sbApi; // el resto de la app (otros <script>) llama a esto directo
+  window.sbApi=sbApi; 
 
-  // Función extra: cargar bonos del mes para el apartado de Metas
+  
   window.cargarBonosMes=function(psicologa,sede){
     var mes=new Date(Date.now()-5*3600000);
     var mesStr=mes.getFullYear()+'-'+String(mes.getMonth()+1).padStart(2,'0');
@@ -964,7 +944,7 @@ function _diasTrabajoANum(txt){
       'fecha':'gte.'+mesStr+'-01','select':'*','order':'fecha.desc'});
   };
 
-  // Función extra: marcar asistencia de sesión
+  
   window.marcarAsistencia=function(sesId,estado){
     return _sbU('sesiones',{estado:estado},{'id':'eq.'+sesId});
   };
@@ -974,7 +954,7 @@ function _diasTrabajoANum(txt){
 </script>
 
 <script>
-// Datos de fichas indexados - acceso directo por número
+
 window._fd=[];
 window._openFicha=function(n){
   var d=window._fd[n];
@@ -983,12 +963,12 @@ window._openFicha=function(n){
   abrirFichaSeguimiento(d.pac,d.ter,d.fec,d.hor);
 };
 
-// Función para abrir ficha - llamada con ID del botón
+
 window.LF=function(id){
-  // id puede ser string (id del botón) o el id mismo
+  
   var btn = typeof id==='string' ? document.getElementById(id) : document.getElementById(id);
   if(!btn){
-    // Último fallback: buscar por onclick
+    
     btn = document.querySelector('[onclick*="LF(this.id)"][id="'+id+'"]');
   }
   if(!btn){console.error('LF: no encontrado:',id);return;}
@@ -999,7 +979,7 @@ window.LF=function(id){
   abrirFichaSeguimiento(pac,ter,fec,hor);
 };
 
-// Actualizar estado de notificaciones al cargar la página
+
 document.addEventListener('DOMContentLoaded', function(){
   setTimeout(function(){
     var st = document.getElementById('notifStatus');
@@ -1022,20 +1002,20 @@ document.addEventListener('DOMContentLoaded', function(){
 console.log('Psicoluz Psicologa v2.9 cargado',new Date().toISOString());
 
 
-// ── Capturar errores JS globales para que la app no se congele ──
+
 window.onerror = function(msg, src, line, col, err){
   console.error('[App Error]', msg, 'L'+line);
-  // Intentar recuperar la UI si hay error
+  
   try{
     var app=document.getElementById('app');
     var ls=document.getElementById('loginScreen');
     if(app&&app.style.display!=='none'){
-      // La app está visible, intentar reactivar
+      
       document.body.style.overflow='';
       document.body.style.pointerEvents='';
     }
   }catch(e){}
-  return false; // no suprimir el error en consola
+  return false; 
 };
 window.onunhandledrejection = function(e){
   console.error('[Promise Error]', e.reason);
@@ -1044,13 +1024,13 @@ window.onunhandledrejection = function(e){
 
 
 
-// ══ PWA: Instalable como app ════════════════════════════════
-// Estrategia corregida: el manifest se registra con el logo
-// como data URL directamente, sin blob URL intermedio
+
+
+
 (function setupPWA(){
   'use strict';
 
-  // ── Manifest: registrar con icono data URL ──────────────────
+  
   function registerManifest(){
     const logoEl = document.getElementById('loginLogo');
     const logoSrc = (logoEl && logoEl.complete && logoEl.src) ? logoEl.src : '';
@@ -1070,7 +1050,7 @@ window.onunhandledrejection = function(e){
       ] : []
     };
     const json = JSON.stringify(manifest);
-    // Inyectar manifest como data URI (más compatible que blob URL)
+    
     const b64 = btoa(unescape(encodeURIComponent(json)));
     const dataUrl = 'data:application/manifest+json;base64,' + b64;
     let link = document.querySelector('link[rel="manifest"]');
@@ -1082,10 +1062,10 @@ window.onunhandledrejection = function(e){
     link.href = dataUrl;
   }
 
-  // ── Service Worker ──────────────────────────────────────────
+  
   function registerSW(){
-  // SW deshabilitado - usa blob URL que no es compatible
-  // Registrar el service worker real (archivo sw.js junto al index)
+  
+  
   if('serviceWorker' in navigator&&location.protocol==='https:'){
     navigator.serviceWorker.register('sw.js').then(function(){console.log('[PWA] SW registrado ✅');})
       .catch(function(e){console.log('[PWA] SW no registrado:',e.message);});
@@ -1094,7 +1074,7 @@ window.onunhandledrejection = function(e){
   }
 }
 
-  // ── Botón instalar ──────────────────────────────────────────
+  
   let _deferredPrompt = null;
 
   function mostrarBtnInstalar(){
@@ -1119,7 +1099,7 @@ window.onunhandledrejection = function(e){
     console.log('[PWA] App instalada');
   });
 
-  // Función global para llamar desde el botón
+  
   window._instalarPWA = function() {
     if (_deferredPrompt) {
       _deferredPrompt.prompt();
@@ -1131,7 +1111,7 @@ window.onunhandledrejection = function(e){
         }
       });
     } else {
-      // Instrucciones manuales por navegador
+      
       const ua = navigator.userAgent.toLowerCase();
       const isIOS = /iphone|ipad|ipod/.test(ua);
       const isSamsung = ua.includes('samsungbrowser');
@@ -1145,21 +1125,21 @@ window.onunhandledrejection = function(e){
     }
   };
 
-  // ── Inicializar ─────────────────────────────────────────────
+  
   function init(){
     registerSW();
     setTimeout(registerManifest, 200);
-    // Ocultar botón si ya está instalado como PWA
+    
     if (window.matchMedia('(display-mode:standalone)').matches || navigator.standalone === true) {
       document.querySelectorAll('.pwa-install-btn,[id^="btnInstalar"]').forEach(b=>{
         b.style.display='none';
       });
       localStorage.setItem('psicoluz_pwa_instalada','1');
     } else {
-      // Mostrar el botón siempre (no solo cuando el navegador dispara
-      // beforeinstallprompt - iOS Safari nunca lo dispara, por eso el botón
-      // nunca aparecía ahí. _instalarPWA() ya tiene instrucciones manuales
-      // para cuando no hay prompt nativo disponible.
+      
+      
+      
+      
       mostrarBtnInstalar();
     }
   }
@@ -1169,9 +1149,9 @@ window.onunhandledrejection = function(e){
     init();
   }
 
-})();// ══ PWA: Instalable como app ════════════════════════════════════════════
+})();
 (function(){
-  // Manifest
+  
   const logoSrc = document.getElementById('loginLogo')?.src || '';
   const manifest = {
     name: 'Psicoluz Agenda',
@@ -1195,7 +1175,7 @@ window.onunhandledrejection = function(e){
     link.href = mUrl;
   }catch(e){}
 
-  // Service Worker para caché offline
+  
   if('serviceWorker' in navigator){
     const sw = `
 const CACHE='psicoluz-v4-agenda';
@@ -1214,11 +1194,11 @@ self.addEventListener('fetch',e=>{
     }catch(e){}
   }
 
-  // Botón instalar
+  
   let _dp=null;
   window.addEventListener('beforeinstallprompt',e=>{
     e.preventDefault(); _dp=e;
-    // No mostrar si ya está en modo standalone (instalado)
+    
     if(window.matchMedia('(display-mode:standalone)').matches||navigator.standalone)return;
     if(localStorage.getItem('psicoluz_pwa_ok')==='1')return;
     document.querySelectorAll('[id^="btnInstalar"]').forEach(b=>b.style.display='flex');
@@ -1241,10 +1221,10 @@ self.addEventListener('fetch',e=>{
 })();
 
 const PASS='psico2025';
-// Llave pública VAPID (segura de exponer en el cliente - es la pública) -
-// se usa para suscribir el navegador a notificaciones push reales, que sí
-// llegan con la pantalla del teléfono apagada (a diferencia de la
-// Notification local, que solo suena con la app abierta en memoria).
+
+
+
+
 const VAPID_PUBLIC_KEY='BGL9wnopcYCdmIJ6RtdYwEbkYaK-CyqUCf-LpURf7WrYGCq-YPqbQ4g_dRYuDVWM7oT1xwgYBr48zf6r5DzrKQ8';
 const SB_URL='https://uorxwmgaekeeuxeiikkw.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
@@ -1253,20 +1233,20 @@ const DIAS_F=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábad
 const MESES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const MESES_LARGO=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-// Estado global
+
 let PS={sede:'',nombre:'',email:'',foto:'',cop:'',esp:'',diaEspecial:'',inicio:'13:15',fin:'20:00',fechaIngreso:'',
         sesiones:[],pacientes:[],archivos:[]};
-// Caché en memoria (no localStorage) de datos clínicos, solo para evitar el
-// "parpadeo" de re-render mientras se actualiza desde Supabase. Se vacía al
-// recargar la página - nada clínico queda guardado en el dispositivo.
+
+
+
 let _clinicoCache={};
 let _loginAttempts=0;
 let _lastActivity=Date.now();
 let _sessionTimer=null;
 let _pinMode=false;
-const SESSION_TIMEOUT=30*60*1000; // 30 minutos
+const SESSION_TIMEOUT=30*60*1000; 
 
-// ── ACTIVIDAD ──────────────────────────────────────────────────
+
 function resetActivity(){_lastActivity=Date.now();}
 document.addEventListener('touchstart',resetActivity,true);
 document.addEventListener('click',resetActivity,true);
@@ -1278,18 +1258,18 @@ function checkTimeout(){
     lockSession();
   }
 }
-// Se quitó el cierre/bloqueo automático por inactividad (interrumpía el
-// trabajo preguntando "¿Cerrar sesión?" cada cierto tiempo) - la sesión
-// ahora dura hasta que la psicóloga toque "Cerrar Sesión" ella misma.
-// setInterval(checkTimeout,60000);
+
+
+
+
 
 function lockSession(){
   const app=document.getElementById('app');
   if(app&&app.style.display!=='none'){
-    // Si no hay PIN configurado → cerrar sesión directamente (no bloquear)
+    
     const hasPin=!!localStorage.getItem('psicoluz_pin_'+(PS.email||PS.nombre));
     if(!hasPin){
-      // Sin PIN: simplemente cerrar sesión al expirar
+      
       logout();
       return;
     }
@@ -1323,7 +1303,7 @@ function pinPress(v){
   } else if(_pinInput.length<4){
     _pinInput+=String(v);
   }
-  // Actualizar dots
+  
   [0,1,2,3].forEach(i=>{
     const dot=document.getElementById('pd'+i);
     if(dot)dot.style.background=i<_pinInput.length?'#00c5c5':'rgba(255,255,255,.2)';
@@ -1336,7 +1316,7 @@ function pinPress(v){
       _pinInput='';
       return;
     }
-    // PIN incorrecto
+    
     const msg=document.getElementById('pinMsg');
     if(msg){msg.textContent='PIN incorrecto';msg.style.color='#ef4444';}
     setTimeout(()=>{
@@ -1354,10 +1334,10 @@ function lockLogout(){
 let _semOff=0;
 let _tick=null;
 
-// ── UTILS ──
-// Perú usa GMT-5 todo el año (sin horario de verano) - se calcula restando
-// 5h al instante UTC y leyendo los componentes UTC del resultado, para que
-// la fecha/hora no dependa de cómo esté configurado el equipo/navegador.
+
+
+
+
 function _limaMs(d){return(d instanceof Date?d:new Date()).getTime()-5*3600000;}
 function fechaLima(d){var l=new Date(_limaMs(d));return l.getUTCFullYear()+'-'+String(l.getUTCMonth()+1).padStart(2,'0')+'-'+String(l.getUTCDate()).padStart(2,'0');}
 function horaLima(d){var l=new Date(_limaMs(d));return String(l.getUTCHours()).padStart(2,'0')+':'+String(l.getUTCMinutes()).padStart(2,'0');}
@@ -1367,22 +1347,22 @@ function today(){
 function fmtF(f){if(!f)return'-';const p=String(f).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f;}
 const ESTADO_LABELS_PS={programado:'Programado',asistio:'Asistió',tardanza:'Tardanza',noasistio:'No asistió',permiso:'Permiso',reprogramado:'Reprogramado',cancelado:'Cancelado',congelado:'Congelada'};
 function estadoLabelPs(e){return ESTADO_LABELS_PS[e]||(e?e.charAt(0).toUpperCase()+e.slice(1):'');}
-// Comparar nombres de psicóloga por "primer nombre contenido en" fallaba
-// cuando un nombre corto es substring literal de otro (ej. "Liz" dentro de
-// "e-LIZ-abeth") - una psicóloga terminaba viendo mezclados los datos
-// (horario, sesiones, pacientes, asistencia) de otra colega con nombre
-// parecido. Se normaliza y compara el nombre COMPLETO en su lugar.
+
+
+
+
+
 function normNombrePs(s){
   return (s||'').toLowerCase().replace(/lic\.?/gi,'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
 }
-// Algunos pacientes comparten un mismo paquete/sesión entre 2 personas (ej.
-// hermanos) y el nombre queda guardado como "Enzo y Lyam Mendoza Laboriano"
-// - la " y " (siempre rodeada de espacios, nunca dentro de otra palabra)
-// marca la unión. Cuando la segunda parte trae más de una palabra se asume
-// que las últimas son el apellido compartido y se completa a la primera
-// parte si esta vino como un solo nombre suelto (si ya trae su propio
-// apellido, se respeta tal cual). El resultado es solo una sugerencia -
-// la psicóloga puede corregirla si no calza exactamente.
+
+
+
+
+
+
+
+
 function _dividirNombreCompartido(nombreCompleto){
   var m=(nombreCompleto||'').match(/^(.+?)\s+y\s+(.+)$/i);
   if(!m)return null;
@@ -1399,12 +1379,12 @@ function _dividirNombreCompartido(nombreCompleto){
 function normF(v){
   if(!v)return'';
   v=String(v).trim();
-  // yyyy-mm-dd ya está correcto
+  
   if(v.match(/^\d{4}-\d{2}-\d{2}$/))return v;
-  // dd/mm/yyyy → yyyy-mm-dd
+  
   const m1=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if(m1)return m1[3]+'-'+m1[2].padStart(2,'0')+'-'+m1[1].padStart(2,'0');
-  // Fecha ISO con T
+  
   if(v.includes('T'))return v.split('T')[0];
   return v;
 }
@@ -1412,18 +1392,18 @@ function horaAMin(v){
   var h=normHora(v);var p=h?h.split(':'):null;
   return p?parseInt(p[0],10)*60+parseInt(p[1],10):null;
 }
-// Extraer HH:MM de cualquier formato de hora (incluyendo "Sat Dec 30 1899 13:15:00 GMT-0508")
+
 function normHora(v){
   if(!v)return'';
   v=String(v).trim();
-  // Ya es HH:MM
+  
   if(v.match(/^\d{1,2}:\d{2}(:\d{2})?$/)){
     const p=v.split(':');return p[0].padStart(2,'0')+':'+p[1];
   }
-  // Formato JS Date string: "Sat Dec 30 1899 13:15:00 GMT-0508..."
+  
   const m=v.match(/(\d{1,2}):(\d{2}):\d{2}/);
   if(m)return m[1].padStart(2,'0')+':'+m[2];
-  // Intentar parsear como Date
+  
   try{
     const d=new Date(v);
     if(!isNaN(d.getTime()))return horaLima(d);
@@ -1439,9 +1419,9 @@ function showToast(msg,tipo){toast(msg,tipo);}
 
 function savePS(){
   try{
-    // Guardar por sede+nombre (siempre)
+    
     localStorage.setItem('psicoluz_ps_'+PS.sede+'_'+PS.nombre,JSON.stringify(PS));
-    // Guardar también por email si lo tenemos (para cross-device parcial)
+    
     if(PS.email){
       localStorage.setItem('psicoluz_ps_email_'+PS.email,JSON.stringify(PS));
     }
@@ -1451,7 +1431,7 @@ function loadPS(){
   try{
     const CAMPOS=['sesiones','pacientes','archivos','diaEspecial','inicio','fin',
                   'cop','esp','fechaIngreso','foto','tel','fechaNac','diasSemana'];
-    // Intentar cargar por email primero (más confiable entre sesiones)
+    
     const kEmail=PS.email?'psicoluz_ps_email_'+PS.email:null;
     const kSede='psicoluz_ps_'+PS.sede+'_'+PS.nombre;
     const raw=localStorage.getItem(kEmail||kSede)||localStorage.getItem(kSede);
@@ -1459,23 +1439,23 @@ function loadPS(){
       const p=JSON.parse(raw);
       CAMPOS.forEach(k=>{if(p[k]!==undefined)PS[k]=p[k];});
     }
-    // Recuperar foto cross-device: primero URL de Drive, luego data URL local
+    
     if(!PS.foto&&PS.email){
       const fotoUrl=localStorage.getItem('psicoluz_foto_'+PS.email)||'';
       if(fotoUrl)PS.foto=fotoUrl;
     }
-    // Recuperar foto por clave directa si no está en el objeto
+    
     if(!PS.foto){
       PS.foto=(PS.email?localStorage.getItem('psicoluz_foto_'+PS.email):null)||
                localStorage.getItem('psicoluz_foto_'+PS.sede+'_'+PS.nombre)||'';
     }
-    // Normalizar horarios
+    
     if(PS.inicio)PS.inicio=normHora(PS.inicio);
     if(PS.fin)PS.fin=normHora(PS.fin);
   }catch(e){}
 }
 
-// ── CARGAR PSICÓLOGAS EN LOGIN ──
+
 function onSede(){
   const sede=document.getElementById('lSede').value;
   const sel=document.getElementById('lPs');
@@ -1483,8 +1463,8 @@ function onSede(){
   sel.disabled=true;
   if(!sede){sel.innerHTML='<option value="">- Primero elige la sede -</option>';return;}
   
-  // Leer del caché local (psicoluz_v3_<sede>, alimentado por getData() de Supabase)
-  // getPsFromLocalStorage ya filtra cesadas/inactivas
+  
+  
   const psList=getPsFromLocalStorage(sede);
   if(psList.length>0){
     sel.innerHTML='<option value="">- Selecciona tu nombre -</option>'+
@@ -1492,11 +1472,11 @@ function onSede(){
     sel.disabled=false;
     toast('✅ '+psList.length+' psicólogas cargadas','ok');
   } else {
-    // Consultar directo a Supabase
+    
     sel.innerHTML='<option value="">Consultando servidor...</option>';
     sbApi('getData',{sede:sede}).then(data=>{
         if(data.psicologas&&data.psicologas.length>0){
-            // sbApi ya filtra cesadas/inactivas en getData()
+            
             const nombres=[...new Set(data.psicologas
               .filter(p=>p.estado!=='cesada'&&p.estado!=='inactiva')
               .map(p=>p.nombre).filter(Boolean))];
@@ -1527,7 +1507,7 @@ function getPsFromLocalStorage(sede){
       if(!s)continue;
       const db=JSON.parse(s);
       if(db.psicologas&&db.psicologas.length>0)
-        // Filtrar cesadas e inactivas - no deben aparecer en el login
+        
         return db.psicologas
           .filter(p=>p.estado!=='cesada'&&p.estado!=='inactiva')
           .map(p=>p.nombre).filter(Boolean);
@@ -1547,9 +1527,9 @@ function getDBFromLocalStorage(sede){
   return null;
 }
 
-// ── LOGIN ──
 
-// ── PRE-FILL EMAIL GUARDADO ─────────────────────────────────────────────
+
+
 window.addEventListener('DOMContentLoaded',function(){
   try{
     const lastEmail=localStorage.getItem('psicoluz_last_email');
@@ -1560,8 +1540,8 @@ window.addEventListener('DOMContentLoaded',function(){
   }catch(e){}
 });
 
-// ── TOGGLE PANEL LOGIN ────────────────────────────────────────────────────
-// Pre-fill email guardado
+
+
 window.addEventListener('DOMContentLoaded',function(){
   try{const e=localStorage.getItem('psicoluz_last_email');if(e){const el=document.getElementById('lEmail');if(el)el.value=e;}}catch(err){}
 });
@@ -1570,7 +1550,7 @@ function toggleLoginPanel(emailMode){
   document.getElementById('panelSede').style.display  = emailMode ? 'none'  : 'block';
 }
 
-// ── LOGIN CON EMAIL ───────────────────────────────────────────────────────
+
 async function doLoginEmail(){
   const email = (document.getElementById('lEmail')?.value||'').trim().toLowerCase();
   const pass  = document.getElementById('lPassEmail')?.value||'';
@@ -1580,14 +1560,14 @@ async function doLoginEmail(){
   if(!email){ showErr('Ingresa tu correo'); return; }
   if(!pass){  showErr('Ingresa tu contraseña'); return; }
 
-  // Buscar en el registro local de psicólogas (guardado por la administradora)
+  
   let psEncontrada = null;
 
-  // Fuente 1: cache local de la psicóloga (login previo en este dispositivo).
-  // Solo se usa SIN internet - con conexión siempre se valida contra
-  // Supabase primero, para que un correo que la administradora ya cambió
-  // (ej. de personal a corporativo) deje de funcionar en el dispositivo
-  // aunque haya quedado guardado de un login anterior.
+  
+  
+  
+  
+  
   if(!psEncontrada && !navigator.onLine){
     try{
       const cacheKey = 'psicoluz_ps_cred_'+email;
@@ -1597,11 +1577,11 @@ async function doLoginEmail(){
   }
 
   if(!psEncontrada){
-    // Buscar directo en Supabase
+    
     err.textContent = '⏳ Verificando...'; err.style.display='block';
     sbApi('getByEmail',{email:email}).then(async data=>{
         {
-          // Aceptar tanto data.psicologa como data.usuario (compatibilidad)
+          
           const rawData = data.psicologa || data.usuario;
           if(data.status==='ok' && rawData){
             const ps2 = rawData;
@@ -1613,17 +1593,17 @@ async function doLoginEmail(){
               showErr('Tu cuenta está temporalmente inactiva. Contacta a la administradora.');
               return;
             }
-            // Verificar contraseña: acepta la del sheet O la contraseña global
+            
             const passCorrecta = (ps2.password && ps2.password === pass) || pass === PASS;
             if(passCorrecta){
-              // Hasta 2 dispositivos activos por psicóloga (ej. celular + laptop):
-              // evita que comparta su usuario con más gente, pero no la obliga a
-              // entrar siempre desde el mismo aparato. El login registra el
-              // dispositivo en el primer cupo libre (huella guardada en este
-              // navegador); con los 2 cupos ya ocupados por OTROS dispositivos,
-              // un tercero queda bloqueado hasta que Administración la "libere".
-              // Las cuentas de prueba (estado='prueba') quedan exentas: se usan
-              // justamente para probar la app desde varios dispositivos a la vez.
+              
+              
+              
+              
+              
+              
+              
+              
               if(ps2.estado!=='prueba'){
                 const miDispositivo = _getDeviceId();
                 const yaRegistrado = (ps2.deviceId && ps2.deviceId===miDispositivo) || (ps2.deviceId2 && ps2.deviceId2===miDispositivo);
@@ -1636,8 +1616,8 @@ async function doLoginEmail(){
                   try{ await sbPatch('psicologas',{[campoLibre]:miDispositivo},{id:'eq.'+ps2.id}); }catch(eDev){console.warn('[device_id]',eDev);}
                 }
               }
-              // Guardar perfil completo para acceso offline (sin contraseña;
-              // completarLoginConPs se encarga de cachear el hash de la clave)
+              
+              
               try{
                 localStorage.setItem('psicoluz_ps_dia_'+ps2.sede+'_'+ps2.nombre,
                   JSON.stringify({diaEspecial:ps2.diaEspecial||'',inicio:ps2.inicio||'13:15',
@@ -1675,14 +1655,14 @@ async function doLoginEmail(){
   await completarLoginConPs(psEncontrada);
 }
 
-// Hash de un texto con SHA-256 (nativo del navegador) -- se usa para NO
-// guardar la contraseña real en localStorage, solo su huella, así el login
-// offline sigue funcionando sin dejar la contraseña en texto plano en el
-// dispositivo.
-// Huella del dispositivo (navegador) actual, persistida en localStorage -
-// no identifica a la persona, identifica el aparato/navegador donde corre
-// esta sesión, para poder limitar una cuenta de psicóloga a un solo
-// dispositivo a la vez.
+
+
+
+
+
+
+
+
 function _getDeviceId(){
   try{
     var k='psicoluz_device_id';
@@ -1703,17 +1683,17 @@ async function completarLoginConPs(psObj){
   PS.nombre       = psObj.nombre || psObj.name || '';
   PS.sede         = psObj.sede   || psObj._sede || '';
   PS.email        = psObj.email  || '';
-  // La foto puede venir como URL de Drive (cross-device) o data URL (local)
+  
   PS.foto         = psObj.foto   || psObj.fotoUrl || '';
-  // Si es URL de Drive, la usamos directamente (sin base64)
+  
   if(PS.foto&&PS.foto.startsWith('http')){
     try{
-      // Guardar la URL en localStorage por email para acceso rápido
+      
       localStorage.setItem('psicoluz_foto_'+PS.email, PS.foto);
     }catch(e){}
   }else if(!PS.foto){
-    // Supabase ya respondió y esta psicóloga no tiene foto - borrar el
-    // cache viejo para que no siga "resucitando" una foto eliminada.
+    
+    
     try{
       localStorage.removeItem('psicoluz_foto_'+PS.email);
       localStorage.removeItem('psicoluz_foto_'+PS.sede+'_'+PS.nombre);
@@ -1728,7 +1708,7 @@ async function completarLoginConPs(psObj){
   PS.fechaNac     = psObj.fechaNac     || '';
   PS.tel          = psObj.tel          || '';
   PS.diasSemana   = psObj.diasSemana   || [1,2,3,4,5,6];
-  // Persistir en localStorage para acceso offline y cross-session
+  
   try{
     var ck='psicoluz_ps_cred_'+(psObj.email||'').toLowerCase();
     localStorage.setItem(ck, JSON.stringify({
@@ -1750,12 +1730,12 @@ function tickPs(){
   var m=String(now.getUTCMinutes()).padStart(2,'0');
   var s=String(now.getUTCSeconds()).padStart(2,'0');
   var timeStr=h+':'+m+':'+s;
-  // Actualizar reloj en sidebar
+  
   ['clockPs','psReloj','relojPs','sideReloj'].forEach(function(id){
     var el=document.getElementById(id);
     if(el)el.textContent=timeStr;
   });
-  // Actualizar también el texto del reloj que muestra 00:00:00
+  
   document.querySelectorAll('[data-reloj]').forEach(function(el){
     el.textContent=timeStr;
   });
@@ -1763,20 +1743,20 @@ function tickPs(){
 
 function finalizarLogin(){
   try{sbPost('log_accesos',{app:'psicologa',usuario:PS.nombre||PS.email||'',sede:PS.sede||''}).catch(function(){});}catch(e){}
-  // Ocultar login, mostrar app
+  
   var loginScreen=document.getElementById('loginScreen');
   if(loginScreen)loginScreen.style.display='none';
   var app=document.getElementById('app');
   if(app){app.style.display='flex';app.style.flexDirection='column';}
-  // Actualizar header
+  
   var nombre=PS.nombre||'';
   var sede=PS.sede||'';
   var short=nombre.replace(/lic\.?/gi,'').trim().split(' ')[0];
   var elHdrName=document.getElementById('hdrName');if(elHdrName)elHdrName.textContent=nombre;
   var elSideNom=document.getElementById('ps-sidebar-nombre');if(elSideNom)elSideNom.textContent=nombre||'Psicóloga';
-  // Recuperar foto guardada ANTES de decidir si mostrar inicial o foto
-  // (si no, se pinta la inicial primero y la foto la reemplaza después,
-  // causando el parpadeo inicial→foto en cada login/refresh).
+  
+  
+  
   if(!PS.foto){
     try{
       PS.foto=(PS.email?localStorage.getItem('psicoluz_foto_'+PS.email):null)||
@@ -1793,16 +1773,16 @@ function finalizarLogin(){
   var elHdrSede=document.getElementById('hdrSede');if(elHdrSede)elHdrSede.textContent='Sede '+sede;
   var elPerNom=document.getElementById('perNom');if(elPerNom)elPerNom.textContent=nombre;
   var elPerSede=document.getElementById('perSede');if(elPerSede)elPerSede.textContent='Sede '+sede;
-  // Actualizar avatares
+  
   var av=document.getElementById('perAvatar');
   if(av){
     if(PS.foto){av.innerHTML='<img src="'+PS.foto+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover">';}
     else{av.textContent=short?short.charAt(0).toUpperCase():'P';}
   }
-  // Función para actualizar todos los avatares
+  
   function actualizarAvatares(foto, nombre){
     var inicial=(nombre||'P').replace(/lic\.?\s*/gi,'').trim().charAt(0).toUpperCase()||'P';
-    // Sidebar avatar
+    
     var avSide=document.getElementById('psAvatarSide');
     if(avSide){
       if(foto){
@@ -1811,7 +1791,7 @@ function finalizarLogin(){
         avSide.textContent=inicial;
       }
     }
-    // Header avatar
+    
     var avHdr=document.getElementById('headerAvatarPs');
     if(avHdr){
       if(foto){
@@ -1820,7 +1800,7 @@ function finalizarLogin(){
         avHdr.textContent=inicial;
       }
     }
-    // Perfil avatar
+    
     var avPer=document.getElementById('perAvatar');
     if(avPer){
       if(foto){
@@ -1829,44 +1809,44 @@ function finalizarLogin(){
         avPer.textContent=inicial;
       }
     }
-    // Nombre en sidebar
+    
     var elNom=document.getElementById('ps-sidebar-nombre');
     if(elNom)elNom.textContent=nombre||'Psicóloga';
     var elSede=document.getElementById('hdrSede');
     if(elSede)elSede.textContent='Sede '+(PS.sede||'');
   }
   actualizarAvatares(PS.foto, PS.nombre);
-  // Ocultar botón instalar si ya está instalado
+  
   if(window.matchMedia('(display-mode:standalone)').matches||navigator.standalone===true){
     document.querySelectorAll('.pwa-install-btn,[id^="btnInstalar"]').forEach(function(b){b.style.display='none';});
     localStorage.setItem('psicoluz_pwa_instalada','1');
   }
-  // Iniciar app
+  
   _tick=setInterval(tickPs,1000);tickPs();
   PS._syncing=true;
   cargarDeLocalStorage();
   renderHoy();renderSemana();renderPacsPs();renderDocs();renderPerfil();
   sync(false);
-  // Se salta el refresco si la pestaña está en segundo plano (visibilityState):
-  // antes volvía a traer TODO sesiones (sin ventana de fecha, vía _sbAll)
-  // cada 30s aunque nadie estuviera mirando.
+  
+  
+  
   if(window._psAutoSync)clearInterval(window._psAutoSync);
   window._psAutoSync=setInterval(function(){
     if(document.visibilityState!=='visible')return;
     sync(false).then(function(){renderHoy();renderSemana();renderPacsPs();}).catch(function(){});
   },60000);
-  // Iniciar chat en background para recibir notificaciones
+  
   if(typeof iniciarChatBg==='function') setTimeout(iniciarChatBg, 2000);
-  // Pedir permiso de notificaciones INMEDIATAMENTE (requiere gesto del usuario)
+  
   if('Notification' in window && Notification.permission==='default'){
     Notification.requestPermission().then(function(result){
       console.log('[Notif] Permiso: '+result);
     });
   }
-  // Iniciar sistema de notificaciones y alarmas
+  
   setTimeout(function(){
     iniciarSistemaNotificaciones();
-    // Si el permiso no está concedido, mostrar banner visible
+    
     if('Notification' in window && Notification.permission !== 'granted'){
       setTimeout(mostrarBannerNotif, 2000);
     }
@@ -1887,13 +1867,13 @@ function doLogin(){
   if(pass!==PASS){showErr('Contraseña incorrecta');return;}
   
   PS.sede=sede; PS.nombre=nombre;
-  // Leer diaEspecial, inicio, fin del localStorage de recepción
+  
   const db=getDBFromLocalStorage(sede);
   if(db){
     const nomPropio=normNombrePs(nombre);
     const psObj=(db.psicologas||[]).find(p=>normNombrePs(p.nombre)===nomPropio);
     if(psObj){PS.diaEspecial=psObj.diaEspecial||'';PS.inicio=psObj.inicio||'13:15';PS.fin=psObj.fin||'20:00';
-      // Guardar para futuros ingresos desde otros dispositivos
+      
       try{localStorage.setItem('psicoluz_ps_dia_'+sede+'_'+nombre,JSON.stringify({diaEspecial:psObj.diaEspecial||'',inicio:psObj.inicio||'13:15',fin:psObj.fin||'20:00'}));}catch(e){}}
   }
   loadPS();
@@ -1907,7 +1887,7 @@ function doLogin(){
   document.getElementById('hdrSede').textContent='Sede '+sede;
   document.getElementById('perNom').textContent=nombre;
   document.getElementById('perSede').textContent='Sede '+sede;
-  // Recuperar foto guardada (por email o por nombre+sede)
+  
   if(!PS.foto){
     try{
       PS.foto=localStorage.getItem('psicoluz_foto_'+(PS.email||''))||
@@ -1919,10 +1899,10 @@ function doLogin(){
     if(PS.foto){av.innerHTML='<img src="'+PS.foto+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover">';}
     else{av.textContent=short.charAt(0).toUpperCase();}
   }
-  // Actualizar sidebar avatar
+  
   const avSide=document.getElementById('psAvatarSide');
   if(avSide&&PS.foto)avSide.src=PS.foto;
-  // Usar finalizarLogin para consistencia (chat, alarmas, auto-refresh 30s)
+  
   finalizarLogin();
 }
 
@@ -1950,9 +1930,9 @@ function _doLogout(){
   if(window._psAutoSync)clearInterval(window._psAutoSync);
   if(window._tickInterval)clearInterval(window._tickInterval);
   if(window._chatBgInterval)clearInterval(window._chatBgInterval);
-  // Limpiar estado
+  
   PS.nombre='';PS.email='';PS.sede='';PS.sesiones=[];PS.pacientes=[];
-  // Mostrar login
+  
   var app=document.getElementById('app');
   var login=document.getElementById('loginScreen');
   if(app)app.style.display='none';
@@ -1961,11 +1941,11 @@ function _doLogout(){
 }
 
 
-// ── HERRAMIENTAS (fonemas, atención/concentración) ──
-// Antes abrían en una pestaña nueva del navegador, lo que sacaba a la
-// psicóloga del PWA instalado. Ahora se cargan en un iframe a pantalla
-// completa dentro del propio app - cada herramienta sabe volver (ver
-// window.parent.cerrarHerramienta en sus propios botones de regreso).
+
+
+
+
+
 function abrirHerramienta(url){
   var modal=document.getElementById('modalHerramienta');
   var ifr=document.getElementById('iframeHerramienta');
@@ -1982,7 +1962,7 @@ function cerrarHerramienta(){
   document.body.style.overflow='';
 }
 
-// ── MATERIALES DE APOYO ──
+
 var _materialesCache=null;
 async function renderMateriales(){
   var box=document.getElementById('materialesBox');
@@ -2033,16 +2013,16 @@ async function renderMateriales(){
   }
 }
 
-// ── TABS ──
+
 function goTab(tabId, el){
-  // Limpiar TODAS las páginas (class Y style inline para evitar acumulación)
+  
   document.querySelectorAll('.pg').forEach(p=>{
     p.classList.remove('active');
-    p.style.display='';  // limpiar display inline
+    p.style.display='';  
   });
   document.querySelectorAll('.ps-nav-item').forEach(n=>n.classList.remove('active'));
 
-  // Activar solo la página seleccionada
+  
   const pg=document.getElementById(tabId);
   if(pg){
     pg.classList.add('active');
@@ -2051,7 +2031,7 @@ function goTab(tabId, el){
   const nav=document.getElementById('nav-'+tabId);
   if(nav)nav.classList.add('active');
 
-  // Título dinámico
+  
   const titles={
     tabHoy:'Mi Agenda - Hoy', tabSemana:'Agenda Semanal',
     tabPacs:'Mis Pacientes',  tabClinico:'Registro Clínico',
@@ -2062,24 +2042,24 @@ function goTab(tabId, el){
   const titleEl=document.getElementById('pageTitlePs');
   if(titleEl)titleEl.textContent=titles[tabId]||tabId;
 
-  // Cerrar sidebar en móvil tras selección
+  
   const sb=document.getElementById('psSidebar');
   const ov=document.getElementById('psSidebarOverlay');
   if(sb)sb.classList.remove('open');
   if(ov)ov.classList.remove('on');
 
-  // Scroll al inicio
+  
   document.querySelector('.ps-content')?.scrollTo(0,0);
   window.scrollTo(0,0);
 
-  // Cerrar TODOS los modales al cambiar de tab
+  
   ['modalFichaSegui','modalFirmaContra','modalContrato','modalDocs','modalAlerta'].forEach(function(id){
     var m=document.getElementById(id);
     if(m){m.classList.remove('open');m.style.display='none';}
   });
   document.body.style.overflow='';
 
-  // Re-renderizar la tab activa con datos actuales
+  
   if(tabId==='tabHoy')          renderHoy();
   else if(tabId==='tabSemana')  renderSemana();
   else if(tabId==='tabPacs')    renderPacsPs();
@@ -2100,17 +2080,17 @@ function toggleSidebar(){
   const wrap=document.querySelector('.ps-wrap');
   if(sb)sb.classList.toggle('open');
   if(ov)ov.classList.toggle('on');
-  // En escritorio (pantallas anchas) el sidebar no es un overlay - se
-  // colapsa/expande con esta clase en vez de con "open".
+  
+  
   if(wrap)wrap.classList.toggle('sb-collapsed');
 }
 
-// ── CARGA DESDE LOCALSTORAGE (SIEMPRE DISPONIBLE) ──
+
 function cargarDeLocalStorage(){
   const db=getDBFromLocalStorage(PS.sede);
   if(!db){
-    // Sin datos de recepción en este dispositivo
-    // Intentar cargar desde cache propio de la psicóloga
+    
+    
     const cacheKey='psicoluz_ps_cred_'+(PS.email||'');
     try{
       const cached=JSON.parse(localStorage.getItem(cacheKey)||'{}');
@@ -2125,7 +2105,7 @@ function cargarDeLocalStorage(){
   const psObj=(db.psicologas||[]).find(p=>normNombrePs(p.nombre)===nomPropio);
   if(!psObj)return false;
   
-  // Sesiones
+  
   const misSes=(db.sesiones||[]).filter(s=>s.psId===psObj.id);
   PS.sesiones=misSes.map(s=>{
     const pac=(db.pacientes||[]).find(p=>p.id===s.pacId)||{nombre:'-',tel:''};
@@ -2139,7 +2119,7 @@ function cargarDeLocalStorage(){
       costoTotal:s.costoTotal||0,saldo:s.saldo||0};
   });
   
-  // Pacientes
+  
   PS.pacientes=(db.pacientes||[]).filter(p=>p.psId===psObj.id).map(p=>{
     const ter=(db.terapias||[]).find(t=>t.id===p.terId)||{nombre:''};
     const sesUsadas=(db.sesiones||[]).filter(s=>s.pacId===p.id&&(s.estado==='asistio'||s.estado==='tardanza'||s.estado==='noasistio')).length;
@@ -2147,17 +2127,17 @@ function cargarDeLocalStorage(){
       terNombre:ter.nombre||'',mod:p.mod||'sesion',paq:p.paq||0,sesUsadas};
   });
   
-  PS.archivos=[]; // los documentos reales se cargan desde Supabase (tabla documentos) en cargarDocsEnPanel()
+  PS.archivos=[]; 
 
   savePS();
   return PS.sesiones.length>0||PS.pacientes.length>0;
 }
 
-// ── SINCRONIZAR CON SUPABASE ──
+
 async function sync(mostrar){
   var bar=document.getElementById('syncBar');
   var ok=false;
-  PS._syncing=true; // marcar que sync está en curso
+  PS._syncing=true; 
 
   var localOk=cargarDeLocalStorage();
   if(localOk) ok=true;
@@ -2182,7 +2162,7 @@ async function sync(mostrar){
     console.log('[sync] misSes filtradas:',misSes.length);
 
     if(misSes.length>0){
-      // Deduplicar sesiones por fecha+hora+paciente
+      
       var seenSes={};
       misSes=misSes.filter(function(s){
         var k=(s.fecha||'')+'|'+(s.hora||'')+'|'+(s.pacNombre||'');
@@ -2231,9 +2211,9 @@ async function sync(mostrar){
       return normNombrePs(p.nombre)===nomPropio;
     });
     if(psData){
-      // diaEspecial y diasSemana SÍ se sobrescriben aunque vengan vacíos -
-      // si la administradora quita un día especial o reduce los días de
-      // trabajo, este refresco periódico debe reflejarlo, no solo "sumar".
+      
+      
+      
       PS.diaEspecial=psData.diaEspecial||'';
       PS.diasSemana=(psData.diasSemana&&psData.diasSemana.length)?psData.diasSemana:PS.diasSemana;
       if(psData.inicio)      PS.inicio=normHora(psData.inicio)||PS.inicio;
@@ -2250,16 +2230,16 @@ async function sync(mostrar){
     PS._syncing=false;
     console.log('[sync] OK - sesiones:'+PS.sesiones.length+' pacientes:'+PS.pacientes.length);
     savePS();
-    // Si ya había dado permiso antes, re-suscribir por si cambió de
-    // dispositivo/navegador o la suscripción expiró - sin esto, solo se
-    // suscribía la primera vez que tocaba el botón.
+    
+    
+    
     if('Notification' in window&&Notification.permission==='granted')suscribirPush();
-    // Prefetch fichas para los pacientes del día
+    
     if(PS.email){
       sbApi('getFichasPs',{email:PS.email,sede:PS.sede||'Comas'})
         .then(function(d){
           if(d.status==='ok'&&d.fichas){
-            // Guardar por paciente en caché
+            
             var byPac={};
             d.fichas.forEach(function(f){
               var p=(f.pacNombre||f.paciente||'').trim();
@@ -2278,7 +2258,7 @@ async function sync(mostrar){
     renderHoy();
     renderSemana();
     renderPacsPs();
-    // TAMBIÉN forzar actualización de la tab actualmente visible
+    
     var tabActiva=document.querySelector('.pg.active');
     if(tabActiva){
       if(tabActiva.id==='tabHoy')         renderHoy();
@@ -2291,7 +2271,7 @@ async function sync(mostrar){
   }catch(eApi){
     PS._syncing=false;
     console.error('[sync] ERROR CRITICO:', eApi.message, eApi.stack||'');
-    // Mostrar el error real al usuario en vez del spinner
+    
     var listHoyEl=document.getElementById('listHoy');
     if(listHoyEl&&listHoyEl.innerHTML.indexOf('Cargando')>=0){
       listHoyEl.innerHTML='<div style="padding:16px;background:#fee2e2;border-radius:10px;margin:10px;font-size:13px">'
@@ -2305,7 +2285,7 @@ async function sync(mostrar){
 
   var conexEl=document.getElementById('conexStatus');
   var tipEl=document.getElementById('configTip');
-  PS._syncing=false; // sync terminó
+  PS._syncing=false; 
   var ahora=new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
   if(ok){
     if(conexEl)conexEl.textContent='\u2705 Datos cargados ('+ahora+')';
@@ -2345,11 +2325,11 @@ function splitLine(l){
   c.push(cur);return c;
 }
 
-// ── HOY ──
 
-// ════════════════════════════════════════════════════════════
-//  MÓDULO CLÍNICO
-// ════════════════════════════════════════════════════════════
+
+
+
+
 
 function getLunesPs(fechaStr){
   var d=new Date(fechaStr+'T12:00:00');
@@ -2391,9 +2371,9 @@ function renderSemana(){
   var leyEl=document.getElementById('semLeyenda');
   if(leyEl){
     var sw=function(color,texto){return '<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:3px;background:'+color+';display:inline-block"></span>'+texto+'</span>';};
-    // "📣 Campaña" antes salía siempre, aunque esta psicóloga nunca tenga
-    // sesiones de ese tipo (la mayoría solo hace Consulta normal) - ahora
-    // solo aparece si de verdad tiene alguna esta semana.
+    
+    
+    
     var tieneCampana=sesSem.some(function(s){return s.tipo==='Campaña';});
     leyEl.innerHTML=sw(PS.colorAgenda||'#00a0a0','Programado')+
       sw('#059669','Asistió')+sw('#dc2626','No asistió')+
@@ -2403,16 +2383,16 @@ function renderSemana(){
       '<span style="display:flex;align-items:center;gap:4px">📞 Llamada con maestra</span>';
   }
   var el=document.getElementById('gridSemana');if(!el)return;
-  // Días que trabaja: si PS.diasSemana no está definido, mostrar los 6 días
+  
   var diasTrabajo=(PS.diasSemana&&PS.diasSemana.length)?dias.filter(function(d){return PS.diasSemana.indexOf(d.d.getDay())>-1;}):dias;
   if(!diasTrabajo.length)diasTrabajo=dias;
-  // Slots según su horario real de trabajo (PS.inicio-PS.fin, cada 45min),
-  // más cualquier hora de sesión real fuera de ese rango
+  
+  
   var slots=new Set();
   var iniM=horaAMin(PS.inicio)||(13*60+15), finM=horaAMin(PS.fin)||(20*60);
-  // Si tiene uno o más "días completos", ese día empieza a las 08:00 -
-  // se amplía el rango de horas de la cuadrícula para que esas filas
-  // tempranas se vean (los demás días simplemente quedan vacíos ahí).
+  
+  
+  
   if(PS.diaEspecial)iniM=Math.min(iniM,horaAMin('08:00'));
   if(finM<iniM){var tmp=iniM;iniM=finM;finM=tmp;}
   for(var mnt=iniM;mnt<=finM;mnt+=45){
@@ -2429,35 +2409,35 @@ function renderSemana(){
       +'<div style="font-size:13px;font-weight:900">'+String(dia.d.getDate()).padStart(2,'0')+'/'+String(dia.d.getMonth()+1).padStart(2,'0')+'</div>'
       +'</div>';
   });
-  // Detalle al tocar una casilla - se guarda la sesión real (no el string
-  // armado) para no tener que escapar comillas dentro del onclick.
+  
+  
   window._semSesiones=[];
   slots.forEach(function(slot){
     h+='<div class="sem-hora">'+slot+'</div>';
     diasTrabajo.forEach(function(dia){
-      // Cancelado y Congelado dejan de ocupar el horario de verdad (igual
-      // que en Recepción - ver _sesEsVisibleEnAgenda) - sin este filtro, un
-      // paquete congelado seguía apareciendo en la agenda semanal de la
-      // psicóloga como si el horario siguiera ocupado, en vez de quedar
-      // libre para ver qué horas hay disponibles.
+      
+      
+      
+      
+      
       var sesList=PS.sesiones.filter(function(s){return s.fecha===dia.f&&normHora(s.hora)===slot&&s.estado!=='cancelado'&&s.estado!=='congelado';});
       var esH=dia.f===hoy;
       h+='<div class="sem-celda" style="background:'+(esH?'#e6fafa':'#fff')+'">';
       sesList.forEach(function(s){
-        // Mismo color/criterio que usa Recepción al asignar la agenda:
-        // reprogramado/permiso quedan en plomo (ya no ocupan el cupo de
-        // verdad), no asistió en rojo, asistió en verde, y "programado"
-        // usa el color propio que la recepcionista le asignó a esta
-        // psicóloga (PS.colorAgenda) en vez de un color genérico fijo.
+        
+        
+        
+        
+        
         var esLibre=s.estado==='reprogramado'||s.estado==='permiso';
         var esLlamadaMaestra=s.tipo==='llamada_maestra';
         var bc=esLlamadaMaestra?'#0891b2':s.estado==='asistio'?'#059669':s.estado==='noasistio'?'#dc2626':
           esLibre?'#94a3b8':(PS.colorAgenda||'#00a0a0');
         var letra=s.estado==='reprogramado'?'R':s.estado==='permiso'?'P':'';
-        // Consulta y Campaña son ambas consultas normales para la psicóloga
-        // (mismo trabajo), pero recepción las distingue para seguimiento de
-        // marketing - un ícono chiquito en la ficha le deja ver de un
-        // vistazo de dónde vino el paciente, sin cambiarle el color.
+        
+        
+        
+        
         var tipoIcono=s.tipo==='Campaña'?'📣':s.tipo==='Consulta'?'🩺':esLlamadaMaestra?'📞':'';
         var partes=(s.pacNombre||'').split(' ').filter(function(w){return w.length>0;});
         var nom=partes.length>=2?(partes[0]+' '+partes[1]):partes[0]||'';
@@ -2524,41 +2504,41 @@ function renderClinico(){
   const pac=PS.pacientes.find(p=>p.nombre===pacNom)||{nombre:pacNom};
   const sesiones=PS.sesiones.filter(s=>s.pacNombre===pacNom||s.pacId===pac.id)
     .sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora));
-  // pac.paq es heredado del esquema viejo y no refleja el paquete real
-  // (vive en programas_paciente/sesiones) - se calcula de las sesiones.
-  // Antes el "X" se contaba sumando TODA la asistencia histórica del
-  // paciente (de paquetes ya cerrados incluidos) - se acota a las sesiones
-  // del paquete MÁS RECIENTE (mismo total de sesiones que la última
-  // sesión tipo paquete) y se toma su posición real (nroEnPaq), no un
-  // conteo aparte que puede desincronizarse.
+  
+  
+  
+  
+  
+  
+  
   const sesPaqCl=sesiones.filter(s=>s.tipo==='paquete'&&s.totalPaq);
   const paqTotalCl=sesPaqCl.length?(sesPaqCl[0].totalPaq||0):0;
   const sesPaqActualCl=sesPaqCl.filter(s=>s.totalPaq===paqTotalCl);
-  // Avance DENTRO del paquete actual (posición más alta alcanzada) - solo
-  // tiene sentido para pacientes con paquete; se usa nada más para la
-  // barra de progreso de abajo.
+  
+  
+  
   const paqAvanceCl=sesPaqActualCl.length?Math.max.apply(null,sesPaqActualCl.map(function(s){return s.nroEnPaq||0;})):0;
   const pct=paqTotalCl>0?Math.min(100,Math.round((paqAvanceCl/paqTotalCl)*100)):0;
-  // Conteo real de sesiones asistidas (de TODA su historia, con o sin
-  // paquete) - antes esto reusaba paqAvanceCl, que siempre daba 0 en
-  // pacientes sin paquete (pago por sesión) aunque sí tuvieran sesiones
-  // "asistio" en la lista de abajo.
+  
+  
+  
+  
   const asistCnt=sesiones.filter(s=>s.estado==='asistio'||s.estado==='tardanza').length;
 
-  // Cargar fichas de seguimiento (caché en memoria mientras se actualiza)
+  
   const listKey='fichas_pac_'+PS.sede+'_'+pacNom.replace(/\s/g,'_');
   let fichas=_clinicoCache[listKey]||[];
-  // Actualizar de Supabase en background
+  
   sbApi('getFichasPs',{nombre:PS.nombre||'',sede:PS.sede||''})
     .then(function(d){
       if(d.status==='ok'&&d.fichas&&d.fichas.length>0){
-        // Filtrar fichas del paciente seleccionado
+        
         var fichasPac=d.fichas.filter(function(f){
           return (f.pac||f.pacNombre||f.paciente||'').toLowerCase()===pacNom.toLowerCase();
         });
-        // Solo re-renderizar si realmente cambió algo - si no, el usuario
-        // pierde el tab/click que acaba de hacer porque el DOM se reconstruye
-        // de nuevo por debajo (esto causaba el "parpadeo" del apartado clínico).
+        
+        
+        
         if(fichasPac.length>0&&JSON.stringify(fichasPac)!==JSON.stringify(fichas)){
           fichas=fichasPac;
           _clinicoCache[listKey]=fichas;
@@ -2568,13 +2548,13 @@ function renderClinico(){
       }
     }).catch(function(){});
 
-  // Cargar datos clínicos (objetivos, notas, ánimos) - caché en memoria
+  
   const key='psicoluz_cl_'+PS.sede+'_'+PS.nombre+'_'+pacNom.replace(/\s/g,'_');
   let datos=_clinicoCache[key]||{};
   const objetivos=datos.objetivos||[];
   const animos=datos.animos||[];
 
-  // Actualizar objetivos y ánimos desde Supabase en background (fuente real)
+  
   Promise.all([
     sbGet('objetivos_terapeuticos',{sede:'eq.'+PS.sede,paciente_nombre:'eq.'+pacNom,select:'*',order:'fecha.asc'}).catch(function(){return null;}),
     sbGet('registro_animo',{sede:'eq.'+PS.sede,paciente_nombre:'eq.'+pacNom,select:'*',order:'fecha.asc'}).catch(function(){return null;})
@@ -2588,9 +2568,9 @@ function renderClinico(){
       var nuevosAnimos=r[1].map(function(a){return{fecha:a.fecha,val:a.valor};});
       if(JSON.stringify(nuevosAnimos)!==JSON.stringify(datos.animos||[])){datos.animos=nuevosAnimos;cambio=true;}
     }
-    // Solo re-renderizar si los datos realmente cambiaron - evita que el
-    // clínico se reconstruya solo por refrescar, tapando el tab que el
-    // usuario acababa de abrir (era la causa del "parpadeo").
+    
+    
+    
     if(cambio){
       _clinicoCache[key]=datos;
       var pacActual=document.getElementById('clPacSel');
@@ -2697,23 +2677,23 @@ function renderClinico(){
     ${sesiones.length?`<div class="card">
       ${sesiones.map(s=>{
         const bc=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':'var(--acc)';
-        // Sesiones reprogramadas o con permiso no se llegaron a dar - no
-        // corresponde llenarles una ficha de seguimiento.
+        
+        
         const sinFicha=s.estado==='reprogramado'||s.estado==='permiso';
-        // Verificar si hay ficha específica para esta sesión (por fecha+terapia+hora)
+        
         const hasFicha=!sinFicha&&fichas.find(f=>
           f.fecha===s.fecha &&
           (f.terapia||'')===(s.terNombre||'') &&
           (f.hora||'')===(s.hora||'')
         );
-        // Antes esto guardaba los datos en window._fd (un arreglo global
-        // compartido con la agenda "Hoy") y el botón solo recordaba su
-        // posición ahí - si esa pantalla se refrescaba mientras este panel
-        // seguía abierto (pasa con el auto-sync cada 30s), el arreglo se
-        // reiniciaba y la posición guardada quedaba apuntando a otra cosa
-        // o a nada: el botón dejaba de reaccionar, sin ningún error visible.
-        // Ahora el botón lleva sus propios datos (sin depender de nada
-        // externo que se pueda resetear por fuera).
+        
+        
+        
+        
+        
+        
+        
+        
         const _pacEsc=(pacNom||'').replace(/'/g,"\\'");
         const _terEsc=(s.terNombre||'').replace(/'/g,"\\'");
         return`<div style="padding:10px 12px;border-left:4px solid ${bc};margin-bottom:1px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -2778,7 +2758,7 @@ function renderClinico(){
   </div>
   `;
 
-  // Resaltar ánimo del día si existe
+  
   const animoHoy=animos.find(a=>a.fecha===today());
   if(animoHoy){
     setTimeout(()=>{
@@ -2790,7 +2770,7 @@ function renderClinico(){
   }
 }
 
-// Función para cambiar tabs del clínico
+
 function clTab(tabId, btn){
   document.querySelectorAll('.cl-panel').forEach(p=>{p.style.display='none';});
   document.querySelectorAll('.cl-tab').forEach(b=>{
@@ -2799,20 +2779,20 @@ function clTab(tabId, btn){
   const el=document.getElementById(tabId);
   if(el)el.style.display='block';
   if(btn){btn.style.background='linear-gradient(135deg,#4a0e2e,#c2185b)';btn.style.color='#fff';}
-  // Si es docs, cargar documentos en el panel
+  
   if(tabId==='clDocs'){
     const pacNom=document.getElementById('clPacSel')?.value||'';
     if(pacNom) cargarDocsEnPanel(pacNom);
   }
 }
 
-// ══ EXPORTAR HISTORIAL CLÍNICO A PDF ═══════════════════════
-// doc.save() normal no funciona en iPhone/iPad cuando la app está
-// instalada como PWA (modo standalone): WebKit no soporta ahí la
-// navegación a un blob: generado por el <a download>, así que no pasa
-// nada visible. Usamos Web Share API (abre la hoja nativa "Guardar en
-// Archivos") y, si no está disponible, abrimos el PDF en una pestaña
-// para que Safari lo muestre y el usuario lo guarde desde el ícono compartir.
+
+
+
+
+
+
+
 function guardarPDF(doc,filename){
   var esIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
   if(esIOS){
@@ -2878,11 +2858,11 @@ function exportarHistorialPDF(pacNom){
         y+=4;
       }
 
-      // Las fichas van en una página aparte, en horizontal (landscape) y
-      // como una tabla de verdad (una fila por ficha, fecha/hora/terapia a
-      // la izquierda y los 4 campos en columnas) - antes salían apiladas,
-      // una bajo otra como párrafos sueltos, y era imposible comparar una
-      // fecha contra otra sin ir desplazándose bloque por bloque.
+      
+      
+      
+      
+      
       if(!fichas.length){
         doc.setFont(undefined,'bold');doc.setFontSize(11);
         if(y>270){doc.addPage();y=18;}
@@ -2911,7 +2891,7 @@ function exportarHistorialPDF(pacNom){
         }
         encabezadoFichasPagina();
         var yT=encabezadoFichasTabla(TOPY);
-        fichas.slice().reverse().forEach(function(f,idx){ // orden cronológico ascendente, igual que recepción
+        fichas.slice().reverse().forEach(function(f,idx){ 
           var celdas=COLS.map(function(c){
             var txt;
             if(c[2]===null){
@@ -3007,7 +2987,7 @@ function guardarRegistroClinico(pacNom){
     else datos.notas.push(registro);
   }
   _clinicoCache[key]=datos;
-  // Sincronizar nota a Supabase (tabla notas_clinicas)
+  
   if(nota){
     sbPost('notas_clinicas',{
       sede:PS.sede||'',psicologa_nombre:PS.nombre||'',paciente_nombre:pacNom,
@@ -3079,7 +3059,7 @@ function guardarObjetivoModal(){
   var obj={texto:texto,categoria:categoria,progreso:0,fecha:today()};
   datos.objetivos.push(obj);
   _clinicoCache[key]=datos;
-  // Guardar en Supabase (tabla objetivos_terapeuticos)
+  
   sbPost('objetivos_terapeuticos',{
     sede:PS.sede||'',psicologa_nombre:PS.nombre||'',paciente_nombre:_objetivoPac,
     texto:texto,categoria:categoria,progreso:0,fecha:today()
@@ -3137,7 +3117,7 @@ function renderHoy(){
   });
   const el=document.getElementById('listHoy');if(!el)return;
   if(!ses.length){
-    // Si aún está cargando (sync en curso), mostrar spinner en vez de "sin sesiones"
+    
     if(PS._syncing){
       el.innerHTML='<div style="text-align:center;padding:32px;color:var(--muted)">'+
         '<div style="font-size:28px;margin-bottom:8px">⏳</div>'+
@@ -3162,8 +3142,8 @@ function cardSes(s){
   var bc=s.estado==='asistio'?'var(--green)':s.estado==='noasistio'?'var(--red)':'var(--acc)';
   var badgeC=s.estado==='asistio'?'bg':s.estado==='noasistio'?'br':'bt';
   var esPaq=s.tipo==='paquete'&&s.totalPaq;
-  // Llamada con maestra: no es una sesión de terapia (sin costo, sin
-  // ficha que llenar) - solo se muestra a quién debe llamar y con qué datos.
+  
+  
   if(s.tipo==='llamada_maestra'){
     var n0=window._fd.length;
     window._fd.push({pac:s.pacNombre||'',ter:'Llamada con maestra',fec:s.fecha||'',hor:s.hora||''});
@@ -3180,16 +3160,16 @@ function cardSes(s){
       +'</div>'
       +'</div>';
   }
-  // El número de sesión DENTRO del paquete ya viene fijo desde que se creó
-  // (nroEnPaq) - antes se recalculaba contando TODA la asistencia histórica
-  // del paciente (de paquetes ya cerrados incluidos) entre el total del
-  // paquete actual, lo que daba conteos absurdos como "70/1".
+  
+  
+  
+  
   var asistCnt=s.nroEnPaq||0;
   var pct=esPaq?Math.min(100,Math.round((asistCnt/s.totalPaq)*100)):0;
   var n=window._fd.length;
   window._fd.push({pac:s.pacNombre||'',ter:s.terNombre||'',fec:s.fecha||'',hor:s.hora||''});
-  // Sesiones reprogramadas o con permiso no se llegaron a dar - no hay
-  // nada que registrar en una ficha de seguimiento para ellas.
+  
+  
   var sinFicha=s.estado==='reprogramado'||s.estado==='permiso';
   return '<div class="ses" style="border-left-color:'+bc+';padding:12px">'
     +'<div style="display:flex;align-items:center;gap:8px">'
@@ -3207,7 +3187,7 @@ function cardSes(s){
     +'</div>';
 }
 
-// ══ PACIENTES ════════════════════════════════════════════
+
 
 function renderPacsPs(){
   var sel=document.getElementById('clPacSel');
@@ -3231,9 +3211,9 @@ function renderPacsPs(){
   el.innerHTML=pacs.map(function(p){
     var sesPac=PS.sesiones.filter(function(s){return s.pacNombre===p.nombre;})
       .sort(function(a,b){return(b.fecha+(b.hora||'')).localeCompare(a.fecha+(a.hora||''));});
-    // Igual que en Clínico: el "X" es la posición real (nroEnPaq) dentro
-    // del paquete MÁS RECIENTE, no un conteo de toda la asistencia
-    // histórica del paciente (eso mezclaba paquetes ya cerrados).
+    
+    
+    
     var sesPaqLi=sesPac.filter(function(s){return s.tipo==='paquete'&&s.totalPaq;});
     var paqTotalLi=sesPaqLi.length?(sesPaqLi[0].totalPaq||0):0;
     var sesPaqActualLi=sesPaqLi.filter(function(s){return s.totalPaq===paqTotalLi;});
@@ -3249,14 +3229,14 @@ function renderPacsPs(){
   }).join('');
 }
 
-// ══ DOCUMENTOS ═════════════════════════════════════════════
+
 
 function renderDocs(){
   var el=document.getElementById('listDocs');if(!el)return;
   el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)"><div style="font-size:24px">⏳</div>Cargando documentos...</div>';
-  // Antes pedía 'getData' (que nunca trae un campo "archivos" en su
-  // respuesta) así que esta lista siempre salía vacía sin importar cuántos
-  // documentos hubiera - se corrige usando la acción correcta.
+  
+  
+  
   sbApi('getArchivos',{sede:PS.sede})
     .then(function(data){renderListaDocs(data.archivos||[],el);})
     .catch(function(){renderListaDocs([],el);});
@@ -3281,18 +3261,18 @@ function renderListaDocs(todos,el){
   }).join('');
 }
 
-// ══ MI ASISTENCIA (tardanza/falta propia, con motivo) ══════
-// Dato real de asistencia AL TRABAJO (no confundir con que un paciente
-// falte a su cita) - vive en asistencia_personal, igual que en
-// Administración/Gerencia. Se trae directo de Supabase (no por el puente
-// de Google Apps Script) porque esa tabla no está en el "getData" que usa
-// el resto de la app.
+
+
+
+
+
+
 var _asistMesOffset=0;
 function navMesAsistencia(dir){_asistMesOffset+=dir;renderMiAsistencia();}
-// Mismo cálculo de "a qué hora le tocaba entrar" que usa Administración
-// (ver _horaEsperadaDia/_minutosTarde en apps/administracion) - aquí con
-// los nombres de campo ya mapeados que usa esta app (PS.diaEspecial viene
-// de dia_completo, PS.inicio de hora_inicio).
+
+
+
+
 function _diaCompletoIncluyePs(diaCompletoStr,fecha){
   var DOW=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   var dia=DOW[new Date(fecha+'T12:00:00').getDay()];
@@ -3339,8 +3319,8 @@ async function renderMiAsistencia(){
     var regs=(todos||[]).filter(function(a){
       return normNombrePs(a.psicologa)===nomPropio;
     });
-    // Tasa fija por tardanza configurada en Administración (si la tiene) -
-    // mismo dato que usa esa app para el descuento real de sueldo.
+    
+    
     var rTard=0;
     try{
       var rh=await fetch(SB_URL+'/rest/v1/honorarios?sede=eq.'+encodeURIComponent(PS.sede||'')+'&mes=eq.'+mesStr+'&psicologa_nombre=eq.'+encodeURIComponent(PS.nombre||'')+'&select=descuento_tardanza',{
@@ -3353,8 +3333,8 @@ async function renderMiAsistencia(){
     var tardReg=regs.filter(function(a){return a.estado==='presente'&&a.motivo_tardanza;});
     var nTard=tardReg.length;
     var nAus=regs.filter(function(a){return a.estado==='ausente';}).length;
-    // Lo mismo que hace Administración: una tardanza por responsabilidad
-    // del centro sigue contando arriba (nTard) pero no se cobra.
+    
+    
     var tardCobrables=tardReg.filter(function(a){return a.responsable!=='centro';});
     var costoHora=(PS.sueldo||0)/30/8;
     var minTardCobrable=tardCobrables.reduce(function(a,reg){
@@ -3398,7 +3378,7 @@ async function renderMiAsistencia(){
   }
 }
 
-// ══ PERFIL ════════════════════════════════════════════════
+
 
 function renderPerfil(){
   var tot=PS.sesiones.length;
@@ -3414,13 +3394,13 @@ function renderPerfil(){
   var elHor=document.getElementById('perHorario');
   if(elHor)elHor.textContent=normHora(PS.inicio||'13:15')+' - '+normHora(PS.fin||'20:00');
   var elSN=document.getElementById('ps-sidebar-nombre');if(elSN&&PS.nombre)elSN.textContent=PS.nombre;
-  // No pisar la foto si ya existe (evita el parpadeo foto→inicial→foto)
+  
   if(!PS.foto){
     var ini=(PS.nombre||'P')[0].toUpperCase();
     var elHdrN=document.getElementById('headerAvatarPs');if(elHdrN)elHdrN.textContent=ini;
     var elSideAv=document.getElementById('psAvatarSide');if(elSideAv)elSideAv.textContent=ini;
   }
-  // Estado notificaciones
+  
   var notifSt=document.getElementById('notifStatus');
   var btnNotif=document.getElementById('btnActivarNotif');
   if(notifSt){
@@ -3429,7 +3409,7 @@ function renderPerfil(){
     else if(Notification.permission==='denied'){notifSt.textContent='❌ Bloqueadas. Actívalas en ajustes del navegador';}
     else{notifSt.textContent='⏸️ Toca el botón para activarlas';}
   }
-  // Fecha ingreso
+  
   var elFI=document.getElementById('perFechaIngreso');
   if(elFI)elFI.textContent=PS.fechaIngreso?fmtF(PS.fechaIngreso):'No registrada';
   var elTiempo=document.getElementById('perTiempo');
@@ -3440,7 +3420,7 @@ function renderPerfil(){
   setTimeout(function(){if(typeof cargarContrato==='function')cargarContrato();},300);
 }
 
-// ══ CHAT ════════════════════════════════════════════════════
+
 
 var _chatPoll=null;
 var _chatLastTs=0;
@@ -3479,7 +3459,7 @@ function enviarMensajeChat(){
   var texto=(inp.value||'').trim();if(!texto)return;
   inp.value='';
   var sede=PS.sede||'Comas';
-  // El servidor (Supabase) es la única fuente: se envía y se recarga (cero duplicados)
+  
   sbApi('enviarChat',{sede:sede,nombre:PS.nombre,tipo:'psicologa',msg:texto})
     .then(function(){return recargarChat();})
     .catch(function(){toast('Sin conexión - mensaje no enviado','err');});
@@ -3490,7 +3470,7 @@ function recargarChat(){
   return sbApi('getChat',{sede:sede})
     .then(function(data){
       if(data.status==='ok'&&data.mensajes){
-        // Reemplaza por completo el caché local con lo del servidor
+        
         localStorage.setItem('psicoluz_chat_'+sede,JSON.stringify(data.mensajes));
         renderChat();
       }
@@ -3524,36 +3504,36 @@ function abrirChat(){
   recargarChat();
 }
 
-// ══ FICHA DE SEGUIMIENTO ═══════════════════════════════════
+
 
 var _fichaActual={pac:'',terapia:'',fecha:'',hora:''};
 
-// Plantillas de la Ficha de Seguimiento por tipo de terapia - mismos 4
-// campos de siempre (objetivo/actividad/resultados/próxima sesión, misma
-// tabla), solo cambian la etiqueta y el placeholder para guiar qué
-// anotar según la terapia, en vez de un formulario genérico igual para
-// Lenguaje que para Conducta. Se busca por coincidencia de palabra clave
-// (case-insensitive) porque el nombre exacto de la terapia varía un poco
-// entre sedes (ej. "T. Ocupacional" vs "T. Ocupacional con integración
-// sensorial").
-// ══════════════════════════════════════════════════════
-// FICHAS CLÍNICAS ESTRUCTURADAS (reemplaza las plantillas de solo
-// etiquetas/placeholders que había antes). Agrupa las 16 terapias del
-// catálogo en 5 familias clínicas, cada una con sus propios campos
-// medibles (chips, escalas, checks, matriz sensorial, ABC conductual) en
-// vez de 4 cajas de texto libre. Terapias que no matchean ninguna
-// familia (ej. "T. Virtual", certificados/informes/talleres) se quedan
-// con el formulario genérico de texto libre de siempre - ver
-// abrirFichaSeguimiento.
-//
-// Cada familia guarda, además de sus campos, una función resumen() que
-// convierte las respuestas estructuradas en las 4 cadenas de texto
-// (objetivo/actividad/resultados/proxSesion) que ya existían como
-// columnas de la tabla - así el PDF de Historial/Ficha Consolidada que
-// ya arma Administración (y el propio export de Psicóloga) siguen
-// funcionando sin tocarlos, leyendo un resumen legible en vez del dato
-// crudo. Lo estructurado en sí se guarda aparte, en la columna nueva
-// campos_estructurados (JSON), solo para futura visualización/reportes.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 var FICHA_FAMILIAS={
   lenguaje:{
     keywords:['lenguaje'],
@@ -3666,11 +3646,11 @@ var FICHA_FAMILIAS={
     }
   }
 };
-// Documentos/evaluaciones formales del catálogo (certificados, constancias,
-// informes, talleres, evaluaciones) nunca son una sesión recurrente - se
-// excluyen ANTES de buscar familia, para que "Constancia de consulta" o
-// "Informe psicológico clínico" no matcheen por error solo por compartir
-// una palabra con una terapia real (ej. "consulta", "psicológic...").
+
+
+
+
+
 var FICHA_EXCLUSIONES=['certificado','constancia','informe','evaluaci','evalución','test vocacional','talleres'];
 function _familiaFicha(terapia){
   var t=(terapia||'').toLowerCase();
@@ -3682,7 +3662,7 @@ function _familiaFicha(terapia){
   }
   return null;
 }
-// Construye el HTML de un campo estructurado individual.
+
 function _feCampoHTML(campo,prev){
   var html='<div class="fe-field"><label class="fe-label">'+campo.label+'</label>';
   if(campo.tipo==='texto'){
@@ -3764,8 +3744,8 @@ function _feDotCycle(el){
     if(next===2)d.classList.add('lvl2');
   });
 }
-// Lee del DOM las respuestas actuales de un contenedor de campos
-// estructurados, según la definición de campos de la familia.
+
+
 function _feLeer(familia,cont){
   var datos={};
   familia.campos.forEach(function(campo){
@@ -3806,8 +3786,8 @@ function abrirFichaSeguimiento(pacNom,terapia,fecha,hora){
   var personas=_dividirNombreCompartido(pacNom);
   _fichaActual={pac:pacNom,terapia:terapia,fecha:fecha||today(),hora:hora||'',
     personas:personas,personaActiva:0,guardados:[false,false]};
-  // Familia clínica según el tipo de terapia - si no hay una que matchee,
-  // se queda con los 4 campos genéricos de texto libre de siempre.
+  
+  
   _fichaFamiliaActual=_familiaFicha(terapia);
   var contDinamico=document.getElementById('fichaCamposDinamicos');
   var contGenerico=document.getElementById('fichaCamposGenericos');
@@ -3855,10 +3835,10 @@ function abrirFichaSeguimiento(pacNom,terapia,fecha,hora){
   _cargarCamposFichaPersona(personas?personas[0]:null);
   var modal=document.getElementById('modalFichaSegui');
   if(modal){
-    // Siempre mover al body para evitar problemas con overflow/stacking context
+    
     document.body.appendChild(modal);
     document.documentElement.style.overflow='hidden';
-    // Forzar estilos directamente además del CSS
+    
     modal.style.display='flex';
     modal.style.position='fixed';
     modal.style.inset='0';
@@ -3871,13 +3851,13 @@ function abrirFichaSeguimiento(pacNom,terapia,fecha,hora){
   }
 }
 
-// Carga en los 4 textareas la ficha guardada (si existe) para la persona
-// indicada - null/undefined cuando la sesión no es compartida. Misma
-// cascada de siempre: caché ya sincronizado -> localStorage del equipo ->
-// consulta directa a Supabase por si aún no llegó a este dispositivo.
-// Reconstruye el contenedor de campos estructurados con valores previos
-// (reabrir una ficha ya guardada, o cambiar entre hermanos) - igual que
-// _feCampoHTML pero pasando el valor guardado de cada campo como "prev".
+
+
+
+
+
+
+
 function _feRestaurar(familia,cont,datos,terapia){
   datos=datos||{};
   cont.innerHTML=familia.campos
@@ -3907,12 +3887,12 @@ function _cargarCamposFichaPersona(personaInd){
       }
     });
   }
-  // Siempre se confirma contra Supabase (fuente real), no solo cuando la
-  // caché en memoria está vacía: la caché se reinicia cada vez que se
-  // recarga la app (es intencional, no guarda nada clínico en el
-  // dispositivo), así que antes, si la psicóloga volvía a entrar, el
-  // formulario se quedaba mostrando vacío aunque la ficha sí existiera en
-  // el servidor - parecía que "se había perdido" lo que ya había llenado.
+  
+  
+  
+  
+  
+  
   var filtroPref={sede:'eq.'+(PS.sede||''),paciente_nombre:'eq.'+pacNom,fecha:'eq.'+(fecha||today()),terapia:'eq.'+(terapia||'')};
   filtroPref.hora=hora?('eq.'+hora):'is.null';
   filtroPref.paciente_individual=personaInd?('eq.'+personaInd):'is.null';
@@ -3941,10 +3921,10 @@ function _cargarCamposFichaPersona(personaInd){
     _restorePh();
   }).catch(function(){_restorePh();});
 }
-// Cambia de persona dentro de una ficha compartida (hermanos) - guarda en
-// un buffer en memoria lo que se haya escrito para la persona que se deja,
-// para no perderlo si todavía no se guardó en Supabase, y carga/limpia los
-// campos para la persona a la que se cambia.
+
+
+
+
 function _fichaSeleccionarPersona(idx){
   if(!_fichaActual.personas)return;
   var actual=_fichaActual.personaActiva;
@@ -3999,26 +3979,26 @@ function cerrarFichaSeguimiento(){
 function guardarFichaSeguimiento(){
   var pac=_fichaActual.pac,terapia=_fichaActual.terapia,fecha=_fichaActual.fecha;
   if(!pac){showToast('Sin paciente','err');return;}
-  // Si ya hay un guardado en curso (doble clic/doble-tap muy rápido) se
-  // ignora el segundo intento - sin esto, las dos llamadas alcanzan a
-  // consultar "¿ya existe esta ficha?" antes de que la primera termine de
-  // insertar, y ambas terminan creando una fila cada una (ficha duplicada).
+  
+  
+  
+  
   var btnGuardarChk=document.getElementById('fichaBtnGuardar');
   if(btnGuardarChk&&btnGuardarChk.disabled)return;
-  // Sesión compartida entre 2 pacientes (ej. hermanos con el mismo
-  // paquete) - cada ficha se guarda aparte, identificada por
-  // paciente_individual, pero paciente_nombre sigue siendo el nombre
-  // combinado de la sesión para que el Clínico de ese "paciente" (la
-  // sesión/paquete compartido) siga encontrándolas.
+  
+  
+  
+  
+  
   var personas=_fichaActual.personas;
   var personaInd=personas?personas[_fichaActual.personaActiva]:null;
   var objetivo,actividad,resultados,proxSesion,camposEstructurados=null;
   if(_fichaFamiliaActual){
-    // Ficha con campos estructurados (chips/escalas/checks) - se leen del
-    // DOM, se guardan tal cual en campos_estructurados (JSON), y además se
-    // arma un resumen de texto para las 4 columnas de siempre, para que el
-    // historial/PDF que ya lee esas columnas (Administración incluida)
-    // siga mostrando algo legible sin tener que tocar ese código aparte.
+    
+    
+    
+    
+    
     var contG=document.getElementById('fichaCamposDinamicos');
     camposEstructurados=contG?_feLeer(_fichaFamiliaActual,contG):{};
     var resumen=_fichaFamiliaActual.resumen(camposEstructurados);
@@ -4036,22 +4016,22 @@ function guardarFichaSeguimiento(){
     objetivo:objetivo,actividad:actividad,resultados:resultados,proxSesion:proxSesion,
     ts:Date.now(),hora:_fichaActual.hora,personaInd:personaInd||''};
   var listKey='fichas_pac_'+PS.sede+'_'+pac.replace(/\s/g,'_');
-  // Antes el botón mostraba "Ficha guardada" y cerraba el modal de
-  // inmediato, sin esperar a que el guardado en Supabase terminara -
-  // si la psicóloga salía de la app justo después (lo normal, porque ya
-  // había visto el mensaje de éxito) la petición se podía cortar a medias
-  // y la ficha nunca llegaba a quedar guardada en el servidor. Ahora se
-  // espera la confirmación real antes de avisar que se guardó.
+  
+  
+  
+  
+  
+  
   var btnGuardar=document.getElementById('fichaBtnGuardar');
   if(btnGuardar){btnGuardar.disabled=true;btnGuardar.textContent='⏳ Guardando...';btnGuardar.style.opacity='.65';}
-  // Guardar en Supabase (tabla fichas_seguimiento) - directo, sin pasar por el
-  // interceptor de Apps Script (que esperaba campos planos y no un objeto anidado)
-  // Antes esto siempre insertaba una fila nueva, así que "editar" una ficha ya
-  // guardada creaba un duplicado en vez de actualizarla. Ahora se busca primero
-  // si ya existe una fila para esta misma sesión (sede+paciente+fecha+terapia+hora,
-  // y además paciente_individual cuando la sesión es compartida, para que las
-  // 2 fichas de los hermanos no se pisen entre sí) y si existe se actualiza
-  // (PATCH) en lugar de insertar otra.
+  
+  
+  
+  
+  
+  
+  
+  
   var filtroFicha={sede:'eq.'+(PS.sede||''),paciente_nombre:'eq.'+pac,fecha:'eq.'+(ficha.fecha||''),
     terapia:'eq.'+(terapia||''),select:'id'};
   filtroFicha.hora=ficha.hora?('eq.'+ficha.hora):'is.null';
@@ -4069,16 +4049,16 @@ function guardarFichaSeguimiento(){
     return sbPost('fichas_seguimiento',datosFicha);
   }).then(function(){
     console.log('[ficha] guardada en Supabase');
-    // Recién ahora que el guardado en el servidor está confirmado se
-    // actualiza la caché local, se avisa al usuario y se puede cerrar.
+    
+    
     var fichas=_clinicoCache[listKey]||[];
     var idx=fichas.findIndex(function(f){return f.fecha===ficha.fecha&&f.terapia===ficha.terapia&&f.hora===ficha.hora&&(f.personaInd||'')===(personaInd||'');});
     if(idx>=0)fichas[idx]=ficha;else fichas.unshift(ficha);
     _clinicoCache[listKey]=fichas;
     if(btnGuardar){btnGuardar.disabled=false;btnGuardar.textContent='💾 Guardar Ficha';btnGuardar.style.opacity='1';}
-    // Si la sesión es compartida y todavía falta la ficha de la otra persona,
-    // no se cierra el modal - se pasa directo a completarla, para que no se
-    // olvide la segunda ficha (el pendiente más probable de este flujo).
+    
+    
+    
     if(personas){
       _fichaActual.guardados[_fichaActual.personaActiva]=true;
       var faltante=_fichaActual.guardados.findIndex(function(g){return !g;});
@@ -4098,7 +4078,7 @@ function guardarFichaSeguimiento(){
   });
 }
 
-// ══ NOTIFICACIONES ══════════════════════════════════════════
+
 
 function _urlB64ToUint8Array(base64String){
   var padding='='.repeat((4-base64String.length%4)%4);
@@ -4107,10 +4087,10 @@ function _urlB64ToUint8Array(base64String){
   for(var i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);
   return out;
 }
-// Notificación push REAL (llega aunque la pantalla esté apagada o la app
-// cerrada) - se suscribe el navegador y se guarda la suscripción en
-// Supabase para que la función programada del servidor sepa a quién
-// avisarle 5 minutos antes de cada sesión.
+
+
+
+
 async function suscribirPush(){
   try{
     if(!('serviceWorker' in navigator)||!('PushManager' in window))return;
@@ -4123,14 +4103,14 @@ async function suscribirPush(){
       });
     }
     var j=sub.toJSON();
-    // on_conflict=endpoint es obligatorio para que "merge-duplicates"
-    // de verdad actualice - sin esto, Supabase solo mira la PRIMARY KEY
-    // (id, que siempre es nueva) para decidir si hay conflicto, nunca la
-    // restricción UNIQUE de "endpoint", así que cada vez que el mismo
-    // navegador se re-suscribía (ej. al recargar la página) intentaba
-    // crear una fila nueva y chocaba con "push_subscriptions_endpoint_key"
-    // - error atrapado y sin impacto visible, pero llenaba los logs de
-    // Supabase de ruido constante.
+    
+    
+    
+    
+    
+    
+    
+    
     await fetch(SB_URL+'/rest/v1/push_subscriptions?on_conflict=endpoint',{
       method:'POST',
       headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json',
@@ -4212,7 +4192,7 @@ function configurarAlarmasSesiones(){
     var sesionMs=new Date(hoy+'T'+String(parseInt(parts[0])).padStart(2,'0')+':'+String(parseInt(parts[1])).padStart(2,'0')+':00').getTime();
     var alarmaKey=s.fecha+'_'+s.hora+'_'+(s.pacNombre||'');
 
-    // 58 minutos antes
+    
     var diff58=sesionMs-(58*60*1000)-Date.now();
     var key58=alarmaKey+'_58';
     if(diff58>0&&!_alarmasRegistradas.has(key58)){
@@ -4225,7 +4205,7 @@ function configurarAlarmasSesiones(){
       },diff58));
     }
 
-    // 5 minutos antes
+    
     var diff5=sesionMs-(5*60*1000)-Date.now();
     if(diff5>0&&!_alarmasRegistradas.has(alarmaKey)){
       _alarmasRegistradas.add(alarmaKey);
@@ -4237,8 +4217,8 @@ function configurarAlarmasSesiones(){
       },diff5));
     }
 
-    // Aviso si, pasados 15 min de la hora de inicio, la sesión sigue "programado"
-    // (nadie marcó si el paciente asistió)
+    
+    
     var diffSinMarcar=sesionMs+(15*60*1000)-Date.now();
     var keySinMarcar=alarmaKey+'_sinmarcar';
     if(diffSinMarcar>0&&!_alarmasRegistradas.has(keySinMarcar)){
@@ -4268,7 +4248,7 @@ async function iniciarSistemaNotificaciones(){
   setInterval(function(){_alarmasRegistradas.clear();configurarAlarmasSesiones();},3600000);
 }
 
-// ══ PERFIL - EXTRAS ════════════════════════════════════════
+
 
 function guardarPin(){
   var pin=(document.getElementById('cfgPin')?document.getElementById('cfgPin').value:'').replace(/[^0-9]/g,'');
@@ -4291,10 +4271,10 @@ function mostrarBienvenida(nombre){
   setTimeout(function(){el.style.opacity='0';},4000);
 }
 
-// COMUNICADOS: flyers/avisos publicados por Administración, mostrados una
-// sola vez por psicóloga (se marca como "visto" en comunicados_vistos) al
-// iniciar sesión. El filtro de sede/vigencia se hace en el cliente porque
-// involucra un OR (sede=la mía O sede vacía) que el REST simple no expresa.
+
+
+
+
 async function verificarComunicados(){
   try{
     var hoy=new Date(_limaMs()).toISOString().split('T')[0];
@@ -4346,19 +4326,19 @@ async function cerrarComunicado(idx){
   }
 }
 
-// cambiarFoto real está definido más abajo (window.cambiarFoto): sube a
-// Supabase Storage y actualiza psicologas.foto_url, en vez de guardar un
-// data URL solo en localStorage.
+
+
+
 
 function verDocsPaciente(nombre){
-  // Si estamos en Clínico con el paciente seleccionado, activar tab Docs interno
+  
   var sel=document.getElementById('clPacSel');
   if(sel&&sel.value===nombre){
-    // Activar el tab Docs dentro del Clínico
+    
     var btnDocs=document.querySelector('.cl-tab[onclick*="clDocs"]');
     if(btnDocs){btnDocs.click();return;}
   }
-  // Si el paciente no está seleccionado en Clínico, ir a Clínico y seleccionarlo
+  
   goTab('tabClinico');
   setTimeout(function(){
     var sel2=document.getElementById('clPacSel');
@@ -4399,7 +4379,7 @@ function abrirFirmaContrato(){
   if(link&&url)link.href=url;
   if(iframe){
     if(url){
-      // Visor de Google para compatibilidad en celulares (Chrome Android no muestra PDF en iframe)
+      
       iframe.src='https://docs.google.com/viewer?embedded=true&url='+encodeURIComponent(url)+'&t='+Date.now();
     }else{
       iframe.src='about:blank';
@@ -4411,7 +4391,7 @@ function cerrarFirmaContrato(){
   var modal=document.getElementById('modalFirmaContrato');
   if(modal){modal.classList.remove('open');document.body.style.overflow='';}
 }
-// ── Canvas de firma: dibujo táctil/mouse ──
+
 var _firmaTrazos=false,_firmaCtx=null;
 function initFirmaCanvas(){
   var c=document.getElementById('firmaCanvas');if(!c||c._inicializado)return;
@@ -4437,7 +4417,7 @@ function limpiarFirma(){
   var ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);_firmaTrazos=false;
 }
 
-// ── Firma real: incrusta la firma en el PDF y reemplaza el archivo en Storage ──
+
 async function guardarFirmaContrato(){
   if(!_firmaTrazos){toast('Traza tu firma primero','err');return;}
   var url=window._contratoUrl||'';
@@ -4445,21 +4425,21 @@ async function guardarFirmaContrato(){
   if(typeof PDFLib==='undefined'){toast('Cargando componente de firma, intenta en unos segundos...','err');return;}
   toast('⏳ Firmando contrato...');
   try{
-    // 1. Descargar el PDF original
+    
     var pdfBytes=await fetch(url+'?t='+Date.now()).then(function(r){
       if(!r.ok)throw new Error('No se pudo descargar el contrato');
       return r.arrayBuffer();
     });
-    // 2. Cargar con pdf-lib
+    
     var pdfDoc=await PDFLib.PDFDocument.load(pdfBytes);
     var paginas=pdfDoc.getPages();
     var ultima=paginas[paginas.length-1];
     var dims=ultima.getSize();
     var W=Number(dims&&dims.width)||595, H=Number(dims&&dims.height)||842;
 
-    // 3. LOCALIZAR el campo "Firma:" de LA TRABAJADORA (el último de la última página)
-    //    usando pdf.js; si falla, usa las coordenadas del template estándar.
-    var firmaX=130, firmaY=205; // fallback: template Psicoluz (Firma trabajadora en x=85,y=219)
+    
+    
+    var firmaX=130, firmaY=205; 
     try{
       var pjs=window.pdfjsLib||window['pdfjs-dist/build/pdf'];
       if(pjs){
@@ -4469,14 +4449,14 @@ async function guardarFirmaContrato(){
         var tc=await pagJs.getTextContent();
         var candidatos=tc.items.filter(function(it){return (it.str||'').indexOf('Firma')===0;});
         if(candidatos.length){
-          var f=candidatos[candidatos.length-1]; // el último "Firma:" = el de la trabajadora
-          firmaX=(f.transform[4]||85)+45;         // después de la etiqueta "Firma: "
-          firmaY=(f.transform[5]||219)-14;        // apoyada sobre la línea
+          var f=candidatos[candidatos.length-1]; 
+          firmaX=(f.transform[4]||85)+45;         
+          firmaY=(f.transform[5]||219)-14;        
         }
       }
     }catch(ePos){console.warn('[firma] usando posición estándar:',ePos.message);}
 
-    // 4. Incrustar la firma SOBRE la línea del campo
+    
     var c=document.getElementById('firmaCanvas');
     var pngBytes=await fetch(c.toDataURL('image/png')).then(function(r){return r.arrayBuffer();});
     var pngImg=await pdfDoc.embedPng(pngBytes);
@@ -4488,7 +4468,7 @@ async function guardarFirmaContrato(){
     var hoyStr=new Date().toLocaleDateString('es-PE');
     ultima.drawText('Firmado digitalmente por '+(PS.nombre||''),{x:firmaX+165,y:firmaY+20,size:7,font:fuente,color:PDFLib.rgb(0.25,0.25,0.25)});
     ultima.drawText('Sede '+(PS.sede||'')+' - '+hoyStr,{x:firmaX+165,y:firmaY+11,size:7,font:fuente,color:PDFLib.rgb(0.45,0.45,0.45)});
-    // 4. Guardar y REEMPLAZAR el archivo original en Storage (misma ruta, upsert)
+    
     var firmadoBytes=await pdfDoc.save();
     var partes=url.split('/object/public/');
     if(partes.length<2)throw new Error('URL de contrato no válida');
@@ -4496,10 +4476,10 @@ async function guardarFirmaContrato(){
     var bucket=resto.split('/')[0];
     var path=resto.substring(bucket.length+1);
     await sbUpload(bucket,decodeURIComponent(path),new Blob([firmadoBytes],{type:'application/pdf'}),'application/pdf');
-    // 5. Marcar como firmado en la tabla contratos
-    // Sin fallback "solo por nombre": con varias sedes, una trabajadora puede
-    // compartir nombre con otra en otra sede - parchear sin filtrar por sede
-    // podría firmar el contrato equivocado.
+    
+    
+    
+    
     await sbPatch('contratos',{estado:'firmado',firmado_el:new Date().toISOString(),
       notas:'Firmado digitalmente el '+hoyStr},{trabajadora:'eq.'+(PS.nombre||''),sede:'eq.'+(PS.sede||'')});
     toast('✅ Contrato firmado correctamente');
@@ -4509,15 +4489,15 @@ async function guardarFirmaContrato(){
   }catch(e){toast('Error al firmar: '+e.message,'err');console.error('[firma]',e);}
 }
 
-// ══ AUTO-REFRESH ════════════════════════════════════════════
-// (el intervalo de 30s ya se arma en finalizarLogin() vía _psAutoSync -
-// había un segundo setInterval duplicado aquí, corriendo sync() dos veces
-// cada 30s en paralelo. Se quitó para no duplicar carga ni carreras.)
 
-// Iniciar chat en background
+
+
+
+
+
 window.addEventListener('DOMContentLoaded',function(){setTimeout(iniciarChatBg,3000);});
 
-// Cerrar modales al hacer click en backdrop
+
 document.addEventListener('click',function(e){
   if(e.target&&e.target.id==='modalFichaSegui')cerrarFichaSeguimiento();
   if(e.target&&e.target.id==='modalFirmaContrato')cerrarFirmaContrato();
@@ -4525,7 +4505,7 @@ document.addEventListener('click',function(e){
 </script>
 
 <script>
-// ══ CAPA SUPABASE: helpers + foto de perfil ══
+
 const SBU='https://uorxwmgaekeeuxeiikkw.supabase.co', SBK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
 const SBH = {apikey:SBK,'Authorization':'Bearer '+SBK,'Content-Type':'application/json','Prefer':'return=representation'};
 
@@ -4566,7 +4546,7 @@ async function sbUpload(bucket, path, file, ct) {
 }
 
 
-// ══ FOTO DE PERFIL → SUPABASE STORAGE (bucket fotos-perfil, carpeta por sede) ══
+
 window.cambiarFoto=function(input){
   if(!input||!input.files||!input.files[0])return;
   var file=input.files[0];toast('⏳ Subiendo foto...');
@@ -4603,7 +4583,7 @@ window.cambiarFoto=function(input){
 
 
 <script>
-// ══ PWA: instalar aplicación (manifest y service worker reales en Netlify) ══
+
 (function(){
   if(location.protocol.indexOf('http')!==0)return;
   function fijar(){
@@ -4623,10 +4603,10 @@ window.cambiarFoto=function(input){
 
 
 <script>
-// ═══════════════════════════════════════════════════════════════
-//  PSICOLUZ - NOTIFICACIONES UNIVERSALES v2
-//  Sonido + notificación del sistema + banner en la app
-// ═══════════════════════════════════════════════════════════════
+
+
+
+
 (function(){
   var NTF_URL='https://uorxwmgaekeeuxeiikkw.supabase.co';
   var NTF_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
@@ -4651,7 +4631,7 @@ window.cambiarFoto=function(input){
     }catch(e){}
   }
 
-  // Banner flotante dentro de la app (siempre visible)
+  
   function bannerApp(titulo,cuerpo){
     try{
       var b=document.getElementById('psNotifBanner');
@@ -4670,11 +4650,11 @@ window.cambiarFoto=function(input){
 
   window.psNotify=function(titulo,cuerpo){
     var visible=false;
-    // Escritorio (Neutralino): notificación nativa de Windows
+    
     if(window.Neutralino&&Neutralino.os&&Neutralino.os.showNotification){
       try{Neutralino.os.showNotification(titulo,cuerpo||'');visible=true;}catch(e){}
     }
-    // Web/PWA: barra del sistema si hay permiso
+    
     if(!visible&&'Notification' in window&&Notification.permission==='granted'){
       try{
         if(navigator.serviceWorker&&navigator.serviceWorker.controller){
@@ -4686,7 +4666,7 @@ window.cambiarFoto=function(input){
         visible=true;
       }catch(e){}
     }
-    // Respaldo: banner dentro de la app
+    
     bannerApp(titulo,cuerpo);
     sonidoNotif();
   };
@@ -4695,12 +4675,12 @@ window.cambiarFoto=function(input){
     if('Notification' in window&&Notification.permission==='default'){
       Notification.requestPermission().catch(function(){});
     }
-    // La mayoría de navegadores bloquea el audio hasta que haya un gesto
-    // real del usuario (click/touch) - si sonidoNotif() recién crea el
-    // AudioContext cuando llega la primera notificación (por un
-    // setInterval, sin gesto de por medio), el navegador la deja
-    // "suspended" para siempre y no suena nunca, sin ningún error visible.
-    // Se crea/reactiva aquí, en el primer click/touch real de la sesión.
+    
+    
+    
+    
+    
+    
     try{
       if(!_audioCtx)_audioCtx=new (window.AudioContext||window.webkitAudioContext)();
       if(_audioCtx.state==='suspended')_audioCtx.resume();
@@ -4719,7 +4699,7 @@ window.cambiarFoto=function(input){
     return null;
   }
 
-  // Vigilante: ids ya vistos → solo notifica lo realmente nuevo
+  
   var _vistosChat=null,_vistasSes=null;
   async function vigilar(){
     var c=ctxApp();if(!c)return;
@@ -4733,7 +4713,7 @@ window.cambiarFoto=function(input){
         else{
           var nuevos=rows.filter(function(m){return !_vistosChat[m.id];});
           ids.forEach(function(i){_vistosChat[i]=1;});
-          // notificar como máximo 1 por ciclo, solo de otros
+          
           var m=nuevos.reverse().find(function(x){return (x.nombre||'')!==c.quien;});
           if(m)psNotify('💬 '+(m.nombre||'Chat Psicoluz'),String(m.mensaje||'').substring(0,110));
         }
@@ -4777,16 +4757,16 @@ window.cambiarFoto=function(input){
   setTimeout(vigilar,6000);
 })();
 
-// ═══ METAS Y PERFIL EXTRA ═══
+
 async function renderMetas(){
   var mesStr=today().substring(0,7);
   var el=document.getElementById('mtMes');if(el)el.textContent=mesStr;
-  // Las consultas sueltas (sin programa asignado por recepción) y las
-  // llamadas con maestra (sin costo, no son terapia) no cuentan para la meta
+  
+  
   var sesMes=(PS.sesiones||[]).filter(function(x){return (x.fecha||'').substring(0,7)===mesStr&&x.tipo!=='consulta'&&x.tipo!=='llamada_maestra';});
-  // Puntualidad: de las sesiones donde SÍ asistió (a tiempo o tarde),
-  // qué porcentaje fue a tiempo. No asistió/permiso no cuentan para
-  // puntualidad (son ausencias, no llegadas tarde).
+  
+  
+  
   var aTiempo=sesMes.filter(function(x){return x.estado==='asistio';}).length;
   var tarde=sesMes.filter(function(x){return x.estado==='tardanza';}).length;
   var noAsis=sesMes.filter(function(x){return x.estado==='noasistio';}).length;
@@ -4797,7 +4777,7 @@ async function renderMetas(){
   var e2=document.getElementById('mtAsistidas');if(e2)e2.textContent=tarde;
   var e3=document.getElementById('mtPct');if(e3)e3.textContent=pct+'%';
   var barra=document.getElementById('mtBarra');if(barra)barra.style.width=Math.min(100,Math.round(pct/85*100))+'%';
-  // Pacientes únicos atendidos en el mes (criterio de bonos)
+  
   var pacsMes={};sesMes.forEach(function(x){if((x.estado==='asistio'||x.estado==='tardanza')&&(x.pacNombre||x.pacId))pacsMes[x.pacNombre||x.pacId]=1;});
   var nPacs=Object.keys(pacsMes).length;
   var msg=document.getElementById('mtMensaje');
@@ -4810,7 +4790,7 @@ async function renderMetas(){
     else frase='🚀 ¡Ánimo, '+nombreCorto+'! Vas '+pct+'% de puntualidad - sigue construyendo constancia.';
     msg.innerHTML=frase+'<div style="margin-top:6px;font-size:11px;color:var(--muted);font-weight:600">👥 Pacientes atendidos: <b style="color:var(--acc)">'+nPacs+'</b> · 🕐 Tardanzas: <b>'+tarde+'</b> · ❌ No asistió: <b>'+noAsis+'</b> · 🟡 Permiso: <b>'+permiso+'</b></div>';
   }
-  // Bonos diarios (Supabase)
+  
   try{
     var bd=await cargarBonosMes(PS.nombre||'',PS.sede||'');
     var elBD=document.getElementById('mtBonosDiarios');
@@ -4826,7 +4806,7 @@ async function renderMetas(){
       }
     }
   }catch(e){console.error('[metas bd]',e);}
-  // Bonos mensuales (Supabase)
+  
   try{
     var bm=await sbGet('bonos',{mes:'eq.'+mesStr,nombre:'eq.'+(PS.nombre||''),select:'*'});
     var elBM=document.getElementById('mtBonosMes');
@@ -4843,16 +4823,16 @@ async function renderMetas(){
 
 window.refrescarAvatares=async function(){
   var foto=PS.foto||PS.fotoUrl||'';
-  // Siempre confirmar contra Supabase (fuente real) - un caché local viejo
-  // (ej. login con contraseña guardada) puede traer una foto desactualizada.
+  
+  
   if(PS.email){
     try{
       var r=await sbGet('psicologas',{email:'eq.'+PS.email,select:'foto_url'});
       if(r&&r.length){
-        // Supabase es la fuente real: si foto_url viene vacío (se borró la
-        // foto), hay que limpiarla también aquí y en el caché local - antes
-        // solo se actualizaba cuando venía un valor, así que una foto
-        // borrada en Supabase "revivía" sola desde el caché viejo.
+        
+        
+        
+        
         foto=r[0].foto_url||'';
         PS.foto=foto;
         savePS();
@@ -4877,13 +4857,13 @@ window.refrescarAvatares=async function(){
 };
 
 async function cargarPerfilExtra(){
-  // Horario y día completo
+  
   var eh=document.getElementById('perHorario');
   if(eh&&PS.inicio&&PS.fin)eh.textContent=PS.inicio+' - '+PS.fin;
   var ed=document.getElementById('perDiaEspLabel');
   if(ed)ed.textContent=PS.diaEspecial?PS.diaEspecial.split(',').map(function(s){return s.trim();}).join(' y '):'Ninguno';
   refrescarAvatares();
-  // Fecha de ingreso y tiempo en la empresa (consulta directa si el login no la trajo)
+  
   var fi=PS.fechaIngreso||'';
   if(!fi&&PS.email){
     try{var rp=await sbGet('psicologas',{email:'eq.'+PS.email,select:'fecha_ingreso'});
@@ -4899,7 +4879,7 @@ async function cargarPerfilExtra(){
       e2.textContent=meses<1?'Menos de 1 mes':(meses<12?meses+' mes'+(meses>1?'es':''):Math.floor(meses/12)+' año'+(Math.floor(meses/12)>1?'s':'')+(meses%12?' y '+(meses%12)+' mes'+((meses%12)>1?'es':''):''));
     }
   }
-  // Asistencia de hoy desde Supabase
+  
   try{
     var rows=await sbGet('asistencia_personal',{fecha:'eq.'+today(),psicologa:'eq.'+(PS.nombre||''),select:'*'});
     var el=document.getElementById('perAsistenciaContent');
@@ -4917,7 +4897,7 @@ async function cargarPerfilExtra(){
   }catch(e){console.error('[asistencia]',e);}
 }
 
-// Hook de navegación: renders por pestaña + ocultar toast pegado
+
 (function(){
   var _gt=goTab;
   goTab=function(id,el){
@@ -4929,17 +4909,17 @@ async function cargarPerfilExtra(){
 })();
 
 
-// Avatares al iniciar sesión
+
 (function(){
   if(typeof finalizarLogin==='function'){
     var _fl=finalizarLogin;
     finalizarLogin=function(){_fl.apply(this,arguments);setTimeout(function(){try{refrescarAvatares();}catch(e){}},400);};
   }
-  // Si ya hay sesión activa al cargar
+  
   setTimeout(function(){try{if(PS&&PS.nombre)refrescarAvatares();}catch(e){}},1500);
 })();
 
-// Diagnóstico Clínico: registra cada clic dentro del contenido clínico
+
 document.addEventListener('click',function(ev){
   try{
     var cont=document.getElementById('clContenido');
@@ -4954,7 +4934,7 @@ document.addEventListener('click',function(ev){
 
 
 <script>
-// ══ PSICOLUZ LOGS: ingresos y errores (para el Gestor de Proyecto) ══
+
 (function(){
   var LG_URL='https://uorxwmgaekeeuxeiikkw.supabase.co';
   var LG_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
@@ -4967,7 +4947,7 @@ document.addEventListener('click',function(ev){
     try{if(window.D&&D.sede&&window.ADM)return{u:ADM.nombre||'',e:ADM.email||'',s:D.sede};}catch(x){}
     return null;
   }
-  // Registrar el ingreso UNA vez por sesión (cuando detecta login)
+  
   var _logueado=false;
   var _t=setInterval(function(){
     if(_logueado)return;
@@ -4976,7 +4956,7 @@ document.addEventListener('click',function(ev){
     fetch(LG_URL+'/rest/v1/logs_accesos',{method:'POST',headers:H,
       body:JSON.stringify({app:APP,usuario:c.u,email:c.e,sede:c.s})}).catch(function(){});
   },4000);
-  // Registrar errores JS (máx 5 por sesión)
+  
   var _nErr=0;
   window.addEventListener('error',function(ev){
     if(_nErr>=5)return;_nErr++;

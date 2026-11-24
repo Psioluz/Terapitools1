@@ -192,7 +192,7 @@
 
     function draw(){
       ctx.clearRect(0,0,cw,ch);
-      // camino completo (gris punteado)
+      
       ctx.setLineDash([2,10]);
       ctx.lineWidth=tolerancePx*2;
       ctx.strokeStyle='rgba(73,84,104,0.10)';
@@ -200,7 +200,7 @@
       ctx.beginPath();
       path.forEach(function(p,i){ if(i===0)ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
       ctx.stroke();
-      // guía central punteada
+      
       ctx.setLineDash([6,8]);
       ctx.lineWidth=2;
       ctx.strokeStyle='rgba(73,84,104,0.35)';
@@ -208,21 +208,21 @@
       path.forEach(function(p,i){ if(i===0)ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
       ctx.stroke();
       ctx.setLineDash([]);
-      // tramo recorrido (teal)
+      
       if(maxIdx>0){
         ctx.lineWidth=8; ctx.strokeStyle='#12B5AC';
         ctx.beginPath();
         for(var i=0;i<=maxIdx;i++){ if(i===0)ctx.moveTo(path[i].x,path[i].y); else ctx.lineTo(path[i].x,path[i].y); }
         ctx.stroke();
       }
-      // inicio
+      
       ctx.beginPath(); ctx.arc(path[0].x,path[0].y,14,0,7); ctx.fillStyle='#12B5AC'; ctx.fill();
       ctx.fillStyle='#fff'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText('IN', path[0].x, path[0].y);
-      // meta
+      
       var last=path[path.length-1];
       ctx.font='26px sans-serif'; ctx.fillText('🏁', last.x, last.y);
-      // puntero actual
+      
       if(lastPoint){
         ctx.beginPath(); ctx.arc(lastPoint.x,lastPoint.y,10,0,7);
         ctx.fillStyle= offTrackNow? '#FF6A57' : '#e91e8c';

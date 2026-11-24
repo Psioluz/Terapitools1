@@ -89,10 +89,10 @@
   <footer class="credit">Psicoluz · Herramientas para terapia</footer>
 </div>
 <script>
-  // Si vive dentro del iframe de la app (modal a pantalla completa), "atrás"
-  // cierra la herramienta y vuelve a la pestaña Herramientas del app, sin
-  // salir del PWA. Si se abre suelto (ej. probando el archivo), se comporta
-  // como antes (cierra la pestaña / vuelve en el historial del navegador).
+  
+  
+  
+  
   document.getElementById('btnBackHub').onclick = function(){
     if (window.parent && window.parent !== window && typeof window.parent.cerrarHerramienta === 'function') {
       window.parent.cerrarHerramienta();

@@ -56,7 +56,7 @@ async function sbGet(t,p){
   return {data:data,count:(m&&m[1]!=='*')?parseInt(m[1],10):null};
 }
 
-// Tablas que NO tienen columna "sede" -- el filtro se ignora en estas.
+
 const TABLAS_SIN_SEDE=['sedes','programa_terapias'];
 
 const VISOR_SECCIONES=[
@@ -105,21 +105,21 @@ async function visorCargar(){
     try{
       const params={select:'*',order:s.orden,limit:String(s.limite||100)};
       const sedeAplica=sede&&TABLAS_SIN_SEDE.indexOf(s.tabla)===-1;
-      // Algunas tablas (ej. terapias) usan sede vacía/NULL para decir "todas
-      // las sedes". Filtrar con sede=eq.X en el servidor las excluiría por
-      // completo si esas filas están en NULL, pero también si por algún
-      // motivo se guardaron como '' (texto vacío) en vez de NULL -- para no
-      // depender de cuál de las dos usa la base, en estos casos se trae todo
-      // sin filtrar y se filtra aquí mismo en el navegador.
+      
+      
+      
+      
+      
+      
       if(sedeAplica&&!s.sedeNullable)params.sede='eq.'+sede;
       const r=await sbGet(s.tabla,params);
       let rows=r.data||[];
       const filasSinFiltrar=rows;
       const filtradoLocal=sedeAplica&&s.sedeNullable;
       if(filtradoLocal){
-        // sede puede venir vacía (todas), con una sede, o con varias
-        // separadas por coma (ej. "Comas, Flecha") para lo que aplica a
-        // más de una sede pero no a todas.
+        
+        
+        
         var sedeNorm=sede.trim().toLowerCase();
         rows=rows.filter(function(row){
           var rs=(row.sede||'').trim();

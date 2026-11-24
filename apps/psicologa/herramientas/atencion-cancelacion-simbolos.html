@@ -148,8 +148,8 @@
   var topbar = document.getElementById('topbar');
   var stage = document.getElementById('stage');
 
-  // Pool de símbolos: formas y colores bien diferenciables entre sí, para
-  // que el contraste no dependa de reconocer una figura ambigua.
+  
+  
   var SYMBOL_POOL = ["⭐","🔴","🔵","🟢","🟡","⚫","⬜","🔺","🔶","🍀","🌙","☀️","❤️","💙","💚","💛","🟣","🔻","✳️","✴️","⬛","🟠","🔷","⚽"];
 
   var LEVELS = [
@@ -179,9 +179,9 @@
     if (btn) btn.onclick = backFn;
   }
 
-  // Si se llegó desde el hub de Atención y Concentración (?from=hub), "salir"
-  // vuelve al hub en el mismo iframe. Si no, cierra la herramienta completa
-  // (modal del app) o, si se abrió suelta, se comporta como una pestaña normal.
+  
+  
+  
   function salirHerramienta(){
     if (new URLSearchParams(location.search).get('from') === 'hub') { location.href = 'atencion-concentracion.html'; return; }
     if (window.parent && window.parent !== window && typeof window.parent.cerrarHerramienta === 'function') { window.parent.cerrarHerramienta(); }
@@ -224,7 +224,7 @@
     var total = lv.cols*lv.rows;
     var distractEmojis = pickDistinct(lv.distractores + 1);
     var targetEmoji = distractEmojis.pop();
-    // número de objetivos: entre ~18% y ~30% de las casillas, según nivel
+    
     var ratio = n===1 ? 0.28 : (n===2 ? 0.24 : 0.20);
     var totalTarget = Math.max(5, Math.round(total*ratio));
 

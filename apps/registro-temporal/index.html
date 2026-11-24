@@ -152,7 +152,7 @@
 
 <footer>Uso interno — recepción Psicoluz. No compartir este enlace fuera del equipo.</footer>
 
-<!-- Modal: registrar sesión -->
+
 <div class="overlay" id="overlay-sesion">
   <div class="modal wide">
     <button class="close-x" onclick="closeSessionForm()">✕</button>
@@ -220,7 +220,7 @@
   </div>
 </div>
 
-<!-- Modal: editar sesión existente -->
+
 <div class="overlay" id="overlay-editar">
   <div class="modal wide">
     <button class="close-x" onclick="closeEditForm()">✕</button>
@@ -257,7 +257,7 @@
   </div>
 </div>
 
-<!-- Modal: reprogramar -->
+
 <div class="overlay" id="overlay-reprog">
   <div class="modal">
     <button class="close-x" onclick="closeReprogForm()">✕</button>
@@ -279,7 +279,7 @@
   </div>
 </div>
 
-<!-- Modal: nuevo paciente -->
+
 <div class="overlay" id="overlay-paciente">
   <div class="modal wide">
     <button class="close-x" onclick="closePatientForm()">✕</button>
@@ -327,7 +327,7 @@
   </div>
 </div>
 
-<!-- Modal: nuevo programa para paciente existente -->
+
 <div class="overlay" id="overlay-nuevo-programa">
   <div class="modal wide">
     <button class="close-x" onclick="closeNuevoProgramaModal()">✕</button>
@@ -347,7 +347,7 @@
   </div>
 </div>
 
-<!-- Modal: editar paciente -->
+
 <div class="overlay" id="overlay-editar-paciente">
   <div class="modal wide">
     <button class="close-x" onclick="closeEditPatientForm()">✕</button>
@@ -409,10 +409,10 @@ const SUPABASE_URL = 'https://uorxwmgaekeeuxeiikkw.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcnh3bWdhZWtlZXV4ZWlpa2t3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzIzOTEsImV4cCI6MjA5OTA0ODM5MX0.BNDw72NubPNHdGqYMLG8cDcOtKecNvBHZcsueCWOwlE';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Perú usa GMT-5 todo el año (sin horario de verano) — se resta 5h al
-// instante UTC y se leen los componentes UTC del resultado, para que la
-// fecha no dependa de la zona horaria del equipo/navegador ni quede
-// adelantada un día por Date#toISOString (que da la fecha en UTC).
+
+
+
+
 function fechaLima(d){const l=new Date((d instanceof Date?d:new Date()).getTime()-5*3600000);return l.getUTCFullYear()+'-'+String(l.getUTCMonth()+1).padStart(2,'0')+'-'+String(l.getUTCDate()).padStart(2,'0');}
 
 let SESIONES = [];
@@ -458,8 +458,8 @@ function psicologasDeSede(sede){
   const list = PSICOLOGAS.filter(p=>p.sede===sede).map(p=>p.nombre);
   return list.length ? list : PSICOLOGAS.map(p=>p.nombre);
 }
-// terapias.sede puede venir vacío (todas las sedes), con una sola sede, o
-// con varias separadas por coma -- igual que en el resto de las apps.
+
+
 function terapiaAplicaASede(campoSede, sede){
   if(!campoSede || !campoSede.trim()) return true;
   const lista = campoSede.split(',').map(s=>s.trim().toLowerCase());
@@ -469,13 +469,13 @@ function terapiasDeSede(sede){
   const list = TERAPIAS.filter(t=>terapiaAplicaASede(t.sede, sede)).map(t=>t.nombre);
   return list.length ? list : TERAPIAS.map(t=>t.nombre);
 }
-// tarifas_sede reemplaza a la vieja tabla "paquetes" (ya no existe) como
-// catálogo de paquetes/servicios -- y de paso ya viene con precio por sede.
+
+
 function serviciosDeSede(sede){
   return TARIFAS.filter(t=>t.sede===sede);
 }
 
-/* ---------- Carga inicial ---------- */
+
 async function cargarSedes(){
   try{
     const {data} = await sb.from('sedes').select('nombre').eq('activa', true).order('nombre');
@@ -537,7 +537,7 @@ async function loadSesiones(){
   renderTable();
 }
 
-/* ---------- Tabla ---------- */
+
 function renderTable(){
   const fP = document.getElementById('f-paciente').value.toLowerCase();
   const fPs = document.getElementById('f-psicologa').value;
@@ -578,7 +578,7 @@ function renderTable(){
 }
 function labelEstado(e){ return {programado:'Programado', asistio:'Asistió', noasistio:'No asistió'}[e] || (e||'—'); }
 
-/* ---------- Bloques reutilizables de "programa" (paquete o sesiones sueltas) ---------- */
+
 function programBlockMarkup(idx){
   return `
     <button type="button" class="remove-program" onclick="removeProgramRow(${idx})">Quitar</button>
@@ -727,7 +727,7 @@ function readProgramCards(containerId, errEl){
   return programas;
 }
 
-/* ---------- Registrar sesión (flujo inteligente) ---------- */
+
 async function onPacienteChange(){
   const nombre = document.getElementById('s-paciente').value.trim();
   const wrap = document.getElementById('s-programa-wrap');
@@ -780,8 +780,8 @@ function onProgramaSelectChange(){
   info.innerHTML = `Continúa <b>${escapeHtml(o.terapia.terapia)}</b> con <b>${escapeHtml(o.terapia.psicologa)}</b> — próxima será la <b>sesión ${(o.terapia.sesiones_realizadas||0)+1} de ${o.programa.nro_sesiones_total}</b>.`;
   sel._selected = o;
 
-  // Precarga la psicóloga/terapia del programa en los selects de arriba,
-  // pero se pueden cambiar por si esta sesión puntual la atendió alguien más.
+  
+  
   const sede = o.programa.sede || selectedSede || SEDES[0];
   const selPs = document.getElementById('s-psicologa-sesion');
   const selTer = document.getElementById('s-terapia-sesion');
@@ -828,7 +828,7 @@ function calcSaldoSesion(){
     costoTotal = costoInput ? (parseFloat(costoInput.value)||0) : 0;
     adelantoPrevio = 0;
   } else {
-    // Sesión suelta, sin programa -- el costo lo define directamente esta sesión.
+    
     costoTotal = parseFloat(document.getElementById('s-costo-suelto').value) || 0;
     adelantoPrevio = 0;
   }
@@ -886,8 +886,8 @@ async function saveSession(evt){
   btn.disabled = true; btn.textContent = 'Guardando…';
   try{
     if(!usandoExistente && !esNueva){
-      // Sesión suelta directa: sin programa/paquete detrás, solo la
-      // psicóloga y terapia de arriba + costo/pago de esta sesión.
+      
+      
       const costo = parseFloat(document.getElementById('s-costo-suelto').value) || 0;
       const saldo = Math.max(costo - pagoHoy, 0);
       const {error: errSes} = await sb.from('sesiones').insert({
@@ -913,10 +913,10 @@ async function saveSession(evt){
     } else if(usandoExistente){
       const o = sel._selected;
       const programa = o.programa, pt = o.terapia;
-      // La psicóloga y terapia de ESTA sesión pueden diferir de las del
-      // programa (por eso son editables arriba) -- el progreso del
-      // programa (sesiones_realizadas) sigue contándose sobre pt, que es
-      // el "slot" del programa que se está avanzando.
+      
+      
+      
+      
       const psicologaSesion = psicologaSesionTop || pt.psicologa;
       const terapiaSesion = terapiaSesionTop || pt.terapia;
       const nro_en_paquete = (pt.sesiones_realizadas||0) + 1;
@@ -1006,7 +1006,7 @@ async function crearProgramasYPrimeraSesion(programas, pacienteNombre, sede, reg
   }
 }
 
-/* ---------- Nuevo programa para paciente existente (desde tabla / botón dedicado) ---------- */
+
 let npPacienteNombre = null;
 function openNuevoProgramaModal(nombre){
   npPacienteNombre = nombre;
@@ -1039,7 +1039,7 @@ async function saveNuevoPrograma(evt){
   }
 }
 
-/* ---------- Editar sesión existente ---------- */
+
 function openEditForm(id){
   editingSessionId = id;
   const s = SESIONES.find(x=>x.id===id);
@@ -1101,7 +1101,7 @@ async function saveEdit(evt){
   }
 }
 
-/* ---------- Reprogramar ---------- */
+
 function openReprogForm(id){
   reprogSession = SESIONES.find(x=>x.id===id);
   document.getElementById('reprog-form-error').style.display = 'none';
@@ -1142,7 +1142,7 @@ async function saveReprog(evt){
   }
 }
 
-/* ---------- Nuevo paciente ---------- */
+
 function openPatientForm(){
   document.getElementById('patient-form').reset();
   document.getElementById('patient-form-error').style.display = 'none';
@@ -1217,7 +1217,7 @@ async function savePatient(evt){
   }
 }
 
-/* ---------- Editar paciente ---------- */
+
 function findAndEditPatient(){
   const id = document.getElementById('edit-paciente-search').value;
   if(!id){
